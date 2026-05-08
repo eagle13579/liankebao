@@ -1927,6 +1927,7 @@ PRODUCT_LAUNCHPAD = [
     {"id": 11, "keyword": "䑏疏", "name": "䑏疏跨境助手", "tagline": "跨境商业智能", "status": "ready", "service": "CLI", "command": "python3 kuanshu_cli.py", "staff": "䑏疏P8", "desc": "MECE四象限情报框架，每条情报可追溯source_url"},
     {"id": 12, "keyword": "鸣蜩", "name": "会议智能小助手", "tagline": "飞阅会AI助理", "status": "ready", "service": "localhost:5014", "command": "python3 app.py", "staff": None, "desc": "飞阅会全流程AI辅助：议程/纪要/行动跟踪"},
     {"id": 13, "keyword": "翟如", "name": "飞阅会AI主持助理", "tagline": "飞阅会全流程AI主持", "status": "ready", "service": "localhost:5014", "command": "python3 app.py", "staff": None, "desc": "飞阅会AI主持——自动生成议程、主持讨论、生成纪要"},
+    {"id": 14, "keyword": "链客宝", "name": "链客宝/企盟", "tagline": "企业家供需匹配平台", "status": "partial", "service": ":8000后端+:5173前端", "command": "详见:/mnt/d/链客宝/deploy/", "staff": "猼訑(建议)", "desc": "产品方上架→推广员分销→消费者购买→分润结算的供需匹配MVP"},
 ]
 
 @app.route("/api/products")
