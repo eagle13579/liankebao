@@ -1,24 +1,22 @@
-"""订单路由：创建/列表/状态更新"""
-from fastapi import APIRouter, Depends, HTTPException
+"""订单路由：创建订单/查看订单/更新订单状态"""
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
 
 from app.database import get_db
 from app.models import User, Product, Order
-from app.schemas import ApiResponse, OrderCreate, OrderResponse
+from app.schemas import (
+    ApiResponse, OrderCreate, OrderStatusRequest, OrderResponse,
+)
 from app.auth import get_current_user
 
 router = APIRouter(prefix="/api/orders", tags=["订单"])
 
 
 @router.post("", response_model=ApiResponse)
-def create_order(
-    req: OrderCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
+def create_order(req: OrderCreate, db: Session = Depends(get_db),
+                 current_user: User = Depends(get_current_user)):
     """创建订单"""
-    # 检查产品
+    # 验证产品
     product = db.query(Product).filter(Product.id == req.product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="产品不存在")
@@ -40,8 +38,11 @@ def create_order(
         ).first()
         if not promoter:
             raise HTTPException(status_code=400, detail="推广员不存在")
-        # 推广员分润 = earn_per_share * 50%
+        # 推广员分润 = earn_per_share * 数量 * 50%
         commission = product.earn_per_share * req.quantity * 0.5
+
+    # 扣减库存
+    product.stock -= req.quantity
 
     # 创建订单
     order = Order(
@@ -54,33 +55,38 @@ def create_order(
         commission=commission,
     )
     db.add(order)
-
-    # 扣减库存
-    product.stock -= req.quantity
-
     db.commit()
     db.refresh(order)
 
     return ApiResponse(
         code=200,
-        message="订单创建成功",
+        message="下单成功",
         data=OrderResponse.model_validate(order).model_dump(),
     )
 
 
 @router.get("", response_model=ApiResponse)
-def list_orders(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """获取订单列表"""
-    query = db.query(Order)
-
-    # 非管理员只看自己的订单
-    if current_user.role != "admin":
-        query = query.filter(Order.user_id == current_user.id)
-
-    orders = query.order_by(desc(Order.created_at)).all()
+def get_orders(db: Session = Depends(get_db),
+               current_user: User = Depends(get_current_user)):
+    """获取订单列表（按角色过滤）"""
+    if current_user.role == "admin":
+        # 管理员看所有订单
+        orders = db.query(Order).order_by(Order.id.desc()).all()
+    elif current_user.role == "supplier":
+        # 产品方看自己产品的订单
+        orders = db.query(Order).join(Product).filter(
+            Product.owner_id == current_user.id
+        ).order_by(Order.id.desc()).all()
+    elif current_user.role == "promoter":
+        # 推广员看自己推广的订单
+        orders = db.query(Order).filter(
+            Order.promoter_id == current_user.id
+        ).order_by(Order.id.desc()).all()
+    else:
+        # 普通用户看自己的订单
+        orders = db.query(Order).filter(
+            Order.user_id == current_user.id
+        ).order_by(Order.id.desc()).all()
 
     return ApiResponse(
         code=200,
@@ -92,51 +98,67 @@ def list_orders(
     )
 
 
+# 允许的状态流转
+ALLOWED_TRANSITIONS = {
+    "paid": ["shipped", "refunded"],
+    "shipped": ["received", "refunded"],
+    "received": ["refunded"],
+    "refunded": [],
+}
+
+
 @router.put("/{order_id}/status", response_model=ApiResponse)
 def update_order_status(
     order_id: int,
-    body: dict,
+    req: OrderStatusRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """更新订单状态（发货/确认收货/退款）"""
+    """更新订单状态（按角色限制）"""
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="订单不存在")
 
-    new_status = body.get("status")
-    valid_statuses = ["shipped", "received", "refunded"]
-    if new_status not in valid_statuses:
-        raise HTTPException(status_code=400, detail=f"无效状态，可选: {valid_statuses}")
+    # 检查权限
+    is_admin = current_user.role == "admin"
+    is_supplier = current_user.role == "supplier" and order.product.owner_id == current_user.id
+    is_buyer = current_user.role in ("buyer",) and order.user_id == current_user.id
 
-    # 状态流转校验
-    if new_status == "shipped" and order.status != "paid":
-        raise HTTPException(status_code=400, detail="只能对已支付订单进行发货")
-    if new_status == "received" and order.status not in ("paid", "shipped"):
-        raise HTTPException(status_code=400, detail="订单状态不允许确认收货")
-    if new_status == "refunded" and order.status not in ("paid", "shipped"):
-        raise HTTPException(status_code=400, detail="订单状态不允许退款")
+    if not (is_admin or is_supplier or is_buyer):
+        raise HTTPException(status_code=403, detail="无权操作此订单")
 
-    order.status = new_status
+    # 检查状态流转是否合法
+    allowed = ALLOWED_TRANSITIONS.get(order.status, [])
+    if req.status not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail=f"状态不允许变更: {order.status} → {req.status}，可选: {allowed}",
+        )
 
-    # 确认收货时，如果有关联推广员，确认分润
-    if new_status == "received" and order.promoter_id and order.commission > 0:
-        # 收益已锁定，无需额外操作
-        pass
+    # 普通用户只能确认收货或申请退款
+    if is_buyer and req.status not in ["received", "refunded"]:
+        raise HTTPException(status_code=403, detail="买家只能确认收货或申请退款")
 
-    # 退款时恢复库存
-    if new_status == "refunded":
-        product = db.query(Product).filter(Product.id == order.product_id).first()
-        if product:
-            product.stock += order.quantity
-        # 退款时撤销推广佣金
-        order.commission = 0.0
+    # 产品方只能发货
+    if is_supplier and req.status not in ["shipped"]:
+        raise HTTPException(status_code=403, detail="产品方只能发货")
+
+    # 记录旧状态
+    old_status = order.status
+    order.status = req.status
+
+    # 如果确认收货且有关联推广员，累加收益
+    if req.status == "received" and order.promoter_id and order.commission > 0:
+        promoter_user = db.query(User).filter(User.id == order.promoter_id).first()
+        if promoter_user:
+            # 推广收益累加逻辑由promoter earnings查询时实时计算
+            pass
 
     db.commit()
     db.refresh(order)
 
     return ApiResponse(
         code=200,
-        message=f"订单状态已更新为: {new_status}",
+        message=f"订单状态已变更: {old_status} → {req.status}",
         data=OrderResponse.model_validate(order).model_dump(),
     )

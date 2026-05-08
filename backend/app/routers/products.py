@@ -1,6 +1,7 @@
 """产品路由：CRUD/审核/搜索"""
 import json
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
@@ -17,18 +18,41 @@ router = APIRouter(prefix="/api/products", tags=["产品"])
 @router.get("", response_model=ApiResponse)
 def list_products(
     category: str = Query(None, description="按分类筛选"),
-    status: str = Query("approved", description="产品状态"),
+    status: str = Query(None, description="产品状态（不传则显示所有已上架）"),
     search: str = Query(None, description="搜索关键词"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer(auto_error=False)),
 ):
-    """获取产品列表"""
+    """获取产品列表
+    - 未登录用户/普通用户/推广员：只看到已上架(approved)
+    - 管理员/产品方登录后：可查看所有状态
+    """
     query = db.query(Product)
 
-    # 按状态筛选
+    # 尝试获取用户（不强制认证）
+    current_user = None
+    if credentials:
+        try:
+            from app.auth import verify_token
+            payload = verify_token(credentials.credentials)
+            if payload:
+                username = payload.get("sub")
+                if username:
+                    current_user = db.query(User).filter(User.username == username).first()
+        except Exception:
+            pass
+
+    if current_user and current_user.role in ("admin", "supplier"):
+        pass  # 管理员和产品方看所有
+    else:
+        query = query.filter(Product.status == "approved")
+
     if status:
         query = query.filter(Product.status == status)
+    elif not (current_user and current_user.role in ("admin", "supplier")):
+        query = query.filter(Product.status == "approved")
 
     # 按分类筛选
     if category:

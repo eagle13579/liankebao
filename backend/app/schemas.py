@@ -198,3 +198,6 @@ class DashboardResponse(BaseModel):
 class ProductReviewRequest(BaseModel):
     action: str  # approve 或 reject
     reason: Optional[str] = None
+
+class OrderStatusRequest(BaseModel):
+    status: str  # 新状态: pending, paid, shipped, received, refunded, cancelled

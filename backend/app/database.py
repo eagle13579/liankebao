@@ -316,7 +316,7 @@ def init_db():
                 total_price=336.00,
                 status="received",
                 promoter_id=3,  # promoter1
-                commission=25.00 * 2 * 0.5,  # 推广员分50%
+                commission=25.00 * 2 * 0.5,  # 推广员分50% = 25
             ),
             Order(
                 user_id=2,
@@ -325,7 +325,7 @@ def init_db():
                 total_price=399.00,
                 status="paid",
                 promoter_id=3,
-                commission=80.00 * 0.5,
+                commission=80.00 * 0.5,  # 推广员分50% = 40
             ),
             Order(
                 user_id=2,
@@ -343,13 +343,13 @@ def init_db():
         withdrawals = [
             Withdrawal(
                 user_id=3,  # promoter1
-                amount=5000.00,
+                amount=15.00,
                 status="approved",
                 bank_info='{"bank_name":"中国银行","card_number":"6222****1234","holder_name":"李四"}',
             ),
             Withdrawal(
                 user_id=3,
-                amount=3000.00,
+                amount=10.00,
                 status="pending",
                 bank_info='{"bank_name":"中国银行","card_number":"6222****1234","holder_name":"李四"}',
             ),
@@ -365,3 +365,4 @@ def init_db():
         raise
     finally:
         db.close()
+
