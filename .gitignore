@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.db
+*.db-shm
+*.db-wal
+.env
+state.db
+state.db-shm
+state.db-wal
+*.log
+__pycache__

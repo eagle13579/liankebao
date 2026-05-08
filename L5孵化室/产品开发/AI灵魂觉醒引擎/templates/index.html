@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI灵魂觉醒引擎 v0.1</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap');
+        * { font-family: 'Noto Sans SC', 'JetBrains Mono', monospace; }
+        body { background: #0a0a0f; }
+        .neon-glow { box-shadow: 0 0 15px rgba(0, 255, 255, 0.15), 0 0 45px rgba(0, 255, 255, 0.05); }
+        .neon-border { border: 1px solid rgba(0, 255, 255, 0.2); }
+        .neon-text { color: #00ffff; text-shadow: 0 0 10px rgba(0, 255, 255, 0.5); }
+        .neon-green { color: #00ff88; text-shadow: 0 0 10px rgba(0, 255, 255, 0.3); }
+        .bg-card { background: linear-gradient(145deg, rgba(20, 25, 40, 0.95), rgba(10, 12, 25, 0.98)); }
+        .bg-card-hover { background: linear-gradient(145deg, rgba(25, 30, 50, 0.98), rgba(15, 17, 30, 1)); }
+        .glow-pulse { animation: pulse 3s ease-in-out infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+        .cyber-grid {
+            background-image: 
+                linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        .skill-tag {
+            background: rgba(0, 255, 255, 0.08);
+            border: 1px solid rgba(0, 255, 255, 0.15);
+            color: #00ffff;
+            padding: 2px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            transition: all 0.2s;
+        }
+        .skill-tag:hover {
+            background: rgba(0, 255, 255, 0.15);
+            border-color: rgba(0, 255, 255, 0.3);
+        }
+        .modal-overlay {
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(4px);
+        }
+        .anchor-bar {
+            height: 6px;
+            border-radius: 3px;
+            background: linear-gradient(90deg, #00ffff, #00ff88);
+            transition: width 0.5s ease;
+        }
+        .scanline {
+            position: relative;
+            overflow: hidden;
+        }
+        .scanline::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.3), transparent);
+            animation: scan 4s linear infinite;
+        }
+        @keyframes scan {
+            0% { top: -2px; }
+            100% { top: 100%; }
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            animation: blink 1.5s ease-in-out infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        .avatar-placeholder {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(0, 255, 136, 0.05));
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            color: #00ffff;
+        }
+        .avatar-placeholder-large {
+            width: 80px;
+            height: 80px;
+            border-radius: 12px;
+            font-size: 2rem;
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0a0f; }
+        ::-webkit-scrollbar-thumb { background: rgba(0, 255, 255, 0.2); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(0, 255, 255, 0.4); }
+    </style>
+</head>
+<body class="cyber-grid min-h-screen text-gray-200">
+
+<div x-data="soulEngine()" class="max-w-6xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <header class="text-center mb-10">
+        <div class="inline-block relative">
+            <h1 class="text-4xl font-bold neon-text tracking-wider">AI灵魂觉醒引擎</h1>
+            <div class="text-xs text-gray-500 tracking-[0.3em] uppercase mt-1">Soul Awakening Engine v0.1</div>
+            <div class="absolute -top-2 -right-4 w-2 h-2 bg-cyan-400 rounded-full glow-pulse"></div>
+        </div>
+        <p class="text-gray-500 text-sm mt-3 max-w-xl mx-auto">
+            粘贴URL或知识库描述 · 一键转化为独立AI员工
+        </p>
+    </header>
+
+    <!-- Input Form -->
+    <div class="bg-card neon-border neon-glow rounded-xl p-6 mb-10 scanline">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+                <label class="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">
+                    <span class="text-cyan-400">*</span> 知识库描述
+                </label>
+                <textarea x-model="form.description" 
+                          placeholder="粘贴知识库描述、文档内容或技能说明..."
+                          class="w-full h-28 bg-gray-900/60 border border-gray-800 rounded-lg px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/20 transition resize-none"></textarea>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">URL来源</label>
+                <input x-model="form.source_url" type="text" 
+                       placeholder="https://example.com/knowledge-base..."
+                       class="w-full bg-gray-900/60 border border-gray-800 rounded-lg px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/20 transition">
+                <div class="mt-2">
+                    <label class="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">自定义名称（可选）</label>
+                    <input x-model="form.name" type="text" 
+                           placeholder="留空则自动生成..."
+                           class="w-full bg-gray-900/60 border border-gray-800 rounded-lg px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/20 transition">
+                </div>
+            </div>
+        </div>
+        <div class="flex items-center justify-between">
+            <div class="text-xs text-gray-600">
+                <span class="text-cyan-500/70">&lt;/&gt;</span> 蒸馏引擎: 确定性规则 v1
+            </div>
+            <button @click="awaken()" :disabled="loading"
+                    class="px-8 py-3 bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 rounded-lg font-medium text-sm tracking-wider transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
+                <template x-if="!loading">
+                    <span>✦ 觉醒</span>
+                </template>
+                <template x-if="loading">
+                    <span class="flex items-center gap-2">
+                        <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                        觉醒中...
+                    </span>
+                </template>
+            </button>
+        </div>
+        <!-- Error message -->
+        <div x-show="error" x-text="error" class="mt-3 text-red-400 text-sm bg-red-900/20 border border-red-800/30 rounded-lg px-4 py-2"></div>
+    </div>
+
+    <!-- Employee Grid -->
+    <div x-show="employees.length > 0" class="mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-300">
+                <span class="neon-green">◆</span> 已觉醒员工
+                <span class="text-gray-600 text-sm ml-2" x-text="`(${employees.length})`"></span>
+            </h2>
+            <button @click="refresh()" class="text-xs text-gray-600 hover:text-cyan-400 transition">
+                ↻ 刷新
+            </button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <template x-for="emp in employees" :key="emp.id">
+                <div @click="openDetail(emp.id)" 
+                     class="bg-card neon-border rounded-xl p-5 cursor-pointer transition-all duration-300 hover:bg-card-hover hover:border-cyan-500/30 hover:neon-glow group">
+                    <!-- Card Header -->
+                    <div class="flex items-start gap-3 mb-3">
+                        <div class="avatar-placeholder shrink-0" x-text="emp.name.charAt(0)"></div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-bold text-base text-gray-100 truncate" x-text="emp.name"></h3>
+                                <span class="text-[10px] text-gray-600">·</span>
+                                <span class="text-[10px] text-gray-500 uppercase tracking-wider" x-text="emp.subtitle"></span>
+                            </div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-xs px-2 py-0.5 bg-cyan-900/30 text-cyan-300 rounded border border-cyan-800/30" x-text="emp.role"></span>
+                                <span class="flex items-center gap-1 text-[10px] text-green-400">
+                                    <span class="status-dot bg-green-400"></span>
+                                    <span x-text="emp.status"></span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Skills -->
+                    <div class="flex flex-wrap gap-1.5 mb-3">
+                        <template x-for="skill in emp.skills.slice(0, 4)" :key="skill">
+                            <span class="skill-tag" x-text="skill"></span>
+                        </template>
+                        <span x-show="emp.skills.length > 4" class="text-xs text-gray-600">+<span x-text="emp.skills.length - 4"></span></span>
+                    </div>
+                    <!-- Footer -->
+                    <div class="flex items-center justify-between pt-2 border-t border-gray-800/50">
+                        <span class="text-[10px] text-gray-600" x-text="formatDate(emp.created_at)"></span>
+                        <button @click.stop="deleteEmployee(emp.id)" 
+                                class="text-[10px] text-gray-700 hover:text-red-400 transition opacity-0 group-hover:opacity-100">
+                            ✕ 移除
+                        </button>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div x-show="employees.length === 0 && !loading" class="text-center py-20">
+        <div class="text-5xl mb-4 opacity-20">◈</div>
+        <p class="text-gray-700 text-sm">输入知识库描述或URL，点击「觉醒」生成你的第一个AI员工</p>
+        <p class="text-gray-800 text-xs mt-2">支持分析师 · 工程师 · 产品经理 · 合规官 · 市场专员</p>
+    </div>
+
+    <!-- Detail Modal -->
+    <template x-teleport="body">
+        <div x-show="detailOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay"
+             @click.self="closeDetail()" x-cloak>
+            <div @click.stop class="bg-card neon-border neon-glow rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-0 scanline">
+                <template x-if="detailEmp">
+                    <div>
+                        <!-- Modal Header -->
+                        <div class="p-6 border-b border-gray-800/50">
+                            <div class="flex items-start justify-between">
+                                <div class="flex items-center gap-4">
+                                    <div class="avatar-placeholder avatar-placeholder-large" x-text="detailEmp.name.charAt(0)"></div>
+                                    <div>
+                                        <h2 class="text-xl font-bold text-gray-100" x-text="detailEmp.name"></h2>
+                                        <div class="flex items-center gap-2 mt-1">
+                                            <span class="text-sm text-cyan-400" x-text="detailEmp.subtitle"></span>
+                                            <span class="text-gray-700">|</span>
+                                            <span class="text-xs px-2 py-0.5 bg-cyan-900/30 text-cyan-300 rounded border border-cyan-800/30" x-text="detailEmp.role"></span>
+                                        </div>
+                                        <p class="text-xs text-gray-500 mt-1" x-text="detailEmp.role_description"></p>
+                                    </div>
+                                </div>
+                                <button @click="closeDetail()" class="text-gray-600 hover:text-gray-300 text-xl leading-none">&times;</button>
+                            </div>
+                        </div>
+                        <!-- Modal Body -->
+                        <div class="p-6 space-y-6">
+                            <!-- Soul Architecture -->
+                            <div>
+                                <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">✦ 灵魂架构</h3>
+                                <div class="space-y-2">
+                                    <template x-for="(desc, soulName) in detailEmp.soul_architecture" :key="soulName">
+                                        <div class="flex items-start gap-3 bg-gray-900/40 rounded-lg p-3 border border-gray-800/30">
+                                            <span class="text-xs font-bold text-cyan-400 bg-cyan-900/20 px-2 py-1 rounded shrink-0" x-text="soulName"></span>
+                                            <span class="text-sm text-gray-400" x-text="desc"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                            <!-- Mind Models -->
+                            <div>
+                                <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">◈ 心智模型</h3>
+                                <div class="space-y-2">
+                                    <template x-for="(mm, idx) in detailEmp.mind_models" :key="idx">
+                                        <div class="flex items-start gap-3 bg-gray-900/40 rounded-lg p-3 border border-gray-800/30">
+                                            <span class="text-xs font-mono text-gray-600 mt-0.5" x-text="`#${idx + 1}`"></span>
+                                            <div>
+                                                <span class="text-sm font-medium text-cyan-300" x-text="mm.name"></span>
+                                                <p class="text-xs text-gray-500 mt-0.5" x-text="mm.description"></p>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                            <!-- Emotion Anchors -->
+                            <div>
+                                <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">❤ 情感锚点</h3>
+                                <div class="space-y-2">
+                                    <template x-for="(anchor, idx) in detailEmp.emotion_anchors" :key="idx">
+                                        <div class="flex items-center gap-3 bg-gray-900/40 rounded-lg px-3 py-2 border border-gray-800/30">
+                                            <span class="text-xs text-gray-600 w-5 text-right font-mono" x-text="anchor.weight"></span>
+                                            <div class="flex-1">
+                                                <div class="flex justify-between items-center mb-0.5">
+                                                    <span class="text-sm text-gray-300" x-text="anchor.name"></span>
+                                                </div>
+                                                <div class="anchor-bar" :style="`width: ${(anchor.weight / 10) * 100}%`"></div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                            <!-- Source Info -->
+                            <div class="text-xs text-gray-700 border-t border-gray-800/50 pt-4 mt-4">
+                                <div x-show="detailEmp.source_url" class="mb-1">
+                                    <span class="text-gray-600">来源URL:</span> 
+                                    <span class="text-cyan-700 break-all" x-text="detailEmp.source_url"></span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-600">创建时间:</span> 
+                                    <span x-text="formatDate(detailEmp.created_at)"></span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-600">员工ID:</span> 
+                                    <span class="font-mono" x-text="detailEmp.id"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </template>
+</div>
+
+<script>
+function soulEngine() {
+    return {
+        form: {
+            name: '',
+            description: '',
+            source_url: '',
+        },
+        employees: [],
+        loading: false,
+        error: '',
+        detailOpen: false,
+        detailEmp: null,
+
+        init() {
+            this.refresh();
+        },
+
+        async awaken() {
+            this.error = '';
+            if (!this.form.description && !this.form.source_url) {
+                this.error = '请填写知识库描述或URL';
+                return;
+            }
+            this.loading = true;
+            try {
+                const resp = await fetch('/api/awaken', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        name: this.form.name,
+                        description: this.form.description,
+                        source_url: this.form.source_url,
+                    }),
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    this.error = data.error || '觉醒失败';
+                } else {
+                    this.form.name = '';
+                    this.form.description = '';
+                    this.form.source_url = '';
+                    await this.refresh();
+                }
+            } catch (e) {
+                this.error = '网络错误: ' + e.message;
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async refresh() {
+            try {
+                const resp = await fetch('/api/employees');
+                const data = await resp.json();
+                this.employees = data.employees || [];
+            } catch (e) {
+                console.error('Failed to fetch employees', e);
+            }
+        },
+
+        async deleteEmployee(id) {
+            if (!confirm('确定移除该AI员工？')) return;
+            try {
+                await fetch(`/api/employees/${id}`, {method: 'DELETE'});
+                await this.refresh();
+                if (this.detailEmp && this.detailEmp.id === id) {
+                    this.closeDetail();
+                }
+            } catch (e) {
+                console.error('Failed to delete', e);
+            }
+        },
+
+        async openDetail(id) {
+            try {
+                const resp = await fetch(`/api/employees/${id}`);
+                const data = await resp.json();
+                if (data.employee) {
+                    this.detailEmp = data.employee;
+                    this.detailOpen = true;
+                }
+            } catch (e) {
+                console.error('Failed to fetch detail', e);
+            }
+        },
+
+        closeDetail() {
+            this.detailOpen = false;
+            this.detailEmp = null;
+        },
+
+        formatDate(iso) {
+            if (!iso) return '';
+            const d = new Date(iso);
+            return d.toLocaleString('zh-CN', {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit'
+            });
+        },
+    }
+}
+</script>
+</body>
+</html>
