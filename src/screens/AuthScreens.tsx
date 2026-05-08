@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Handshake, MessageCircle, Smartphone, Mail, ShieldCheck, Network, ArrowLeft, Camera, CheckCircle2, ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 import { api } from '../api/client';
+import { Loading } from '../components/StatusComponents';
 
 export function LoginPage() {
   const navigate = useNavigate();

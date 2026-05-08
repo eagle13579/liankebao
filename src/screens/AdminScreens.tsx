@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { LayoutDashboard, ClipboardCheck, Package, Users, History, HelpCircle, LogOut, Bell, Settings, Star, TrendingUp, ShoppingCart, Clock, ChevronRight } from 'lucide-react';
-import { useState, useEffect } from 'react';
 import { api } from '../api/client';
+import { Loading, ErrorBlock, Empty, useApi } from '../components/StatusComponents';
 
 interface DashboardData {
   today_revenue: number;
@@ -18,33 +18,33 @@ interface WithdrawalReview {
 
 export function AdminBackend() {
   const navigate = useNavigate();
-  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
-  const [products, setProducts] = useState<ProductReview[]>([]);
-  const [withdrawals, setWithdrawals] = useState<WithdrawalReview[]>([]);
 
-  useEffect(() => {
-    api.get<{dashboard: DashboardData}>('/api/admin/dashboard').then(res => {
-      if (res.data?.dashboard) setDashboard(res.data.dashboard);
-    });
-    api.get<{products: ProductReview[]}>('/api/admin/products').then(res => {
-      if (res.data?.products) setProducts(res.data.products);
-    });
-    api.get<{withdrawals: WithdrawalReview[]}>('/api/admin/withdrawals').then(res => {
-      if (res.data?.withdrawals) setWithdrawals(res.data.withdrawals);
-    });
-  }, []);
+  const { data: dashboard, status: dashStatus, error: dashError, refetch: dashRefetch } = useApi(
+    () => api.get<{dashboard: DashboardData}>('/api/admin/dashboard').then(r => r.data?.dashboard || null),
+    []
+  );
+
+  const { data: products, status: prodStatus, error: prodError, refetch: prodRefetch } = useApi(
+    () => api.get<{products: ProductReview[]}>('/api/admin/products').then(r => r.data?.products || []),
+    []
+  );
+
+  const { data: withdrawals, status: wdStatus, error: wdError, refetch: wdRefetch } = useApi(
+    () => api.get<{withdrawals: WithdrawalReview[]}>('/api/admin/withdrawals').then(r => r.data?.withdrawals || []),
+    []
+  );
 
   const handleReview = async (id: number, action: 'approve' | 'reject') => {
     const res = await api.put(`/api/admin/products/${id}/review`, { action });
     if (res.code === 200) {
-      setProducts(prev => prev.filter(p => p.id !== id));
+      prodRefetch();
     }
   };
 
   const handleWithdrawalReview = async (id: number, action: 'approve' | 'reject') => {
     const res = await api.put(`/api/admin/withdrawals/${id}/review`, { action });
     if (res.code === 200) {
-      setWithdrawals(prev => prev.filter(w => w.id !== id));
+      wdRefetch();
     }
   };
 
@@ -92,6 +92,12 @@ export function AdminBackend() {
         </aside>
 
         <main className="flex-1 overflow-y-auto p-8 space-y-8">
+          {dashStatus === 'loading' ? (
+            <Loading text="加载数据看板..." />
+          ) : dashStatus === 'error' ? (
+            <ErrorBlock message={dashError} onRetry={dashRefetch} />
+          ) : (
+          <>
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
               <div className="flex justify-between mb-2"><span className="text-slate-400 text-xs font-bold uppercase tracking-wider">今日交易额</span><TrendingUp className="text-emerald-500" /></div>
@@ -117,6 +123,13 @@ export function AdminBackend() {
               <button className="text-sm font-bold text-sky-500 hover:underline">查看全部 <ChevronRight className="inline w-4 h-4" /></button>
             </div>
             <div className="overflow-x-auto">
+              {prodStatus === 'loading' ? (
+                <div className="p-8"><Loading text="加载产品审核..." /></div>
+              ) : prodStatus === 'error' ? (
+                <div className="p-8"><ErrorBlock message={prodError} onRetry={prodRefetch} /></div>
+              ) : !products || products.length === 0 ? (
+                <div className="p-8"><Empty text="暂无待审核产品" icon="✅" /></div>
+              ) : (
               <table className="w-full text-left">
                 <thead className="bg-slate-50 text-[10px] text-slate-500 uppercase tracking-widest font-bold">
                   <tr><th className="px-6 py-4">产品信息</th><th className="px-6 py-4">建议零售价</th><th className="px-6 py-4">申请时间</th><th className="px-6 py-4 text-right">操作</th></tr>
@@ -138,6 +151,7 @@ export function AdminBackend() {
                   ))}
                 </tbody>
               </table>
+              )}
             </div>
           </section>
 
@@ -147,6 +161,13 @@ export function AdminBackend() {
               <button className="text-sm font-bold text-sky-500 hover:underline">查看全部 <ChevronRight className="inline w-4 h-4" /></button>
             </div>
             <div className="overflow-x-auto">
+              {wdStatus === 'loading' ? (
+                <div className="p-8"><Loading text="加载提现审核..." /></div>
+              ) : wdStatus === 'error' ? (
+                <div className="p-8"><ErrorBlock message={wdError} onRetry={wdRefetch} /></div>
+              ) : !withdrawals || withdrawals.length === 0 ? (
+                <div className="p-8"><Empty text="暂无提现申请" icon="✅" /></div>
+              ) : (
               <table className="w-full text-left">
                 <thead className="bg-slate-50 text-[10px] text-slate-500 uppercase tracking-widest font-bold">
                   <tr><th className="px-6 py-4">申请人</th><th className="px-6 py-4">金额</th><th className="px-6 py-4">申请时间</th><th className="px-6 py-4 text-right">操作</th></tr>
@@ -165,6 +186,7 @@ export function AdminBackend() {
                   ))}
                 </tbody>
               </table>
+              )}
             </div>
           </section>
 
@@ -172,6 +194,8 @@ export function AdminBackend() {
             <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6"><h3 className="font-bold mb-6">7日交易额趋势</h3><div className="h-64 flex items-end gap-4"><div className="flex-1 bg-amber-500 rounded-t h-[60%]"></div><div className="flex-1 bg-amber-500 rounded-t h-[80%]"></div><div className="flex-1 bg-amber-500 rounded-t h-[40%]"></div><div className="flex-1 bg-amber-500 rounded-t h-[90%]"></div></div></section>
             <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6"><h3 className="font-bold mb-6">推广员排行榜</h3><div className="space-y-4">{[1,2,3].map(i => (<div key={i} className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-slate-100"></div><div className="flex-1 h-3 bg-slate-50 rounded-full"></div><div className="w-12 h-3 bg-slate-50 rounded-full"></div></div>))}</div></section>
           </div>
+          </>
+          )}
         </main>
       </div>
     </div>

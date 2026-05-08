@@ -1,8 +1,9 @@
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, MapPin, ChevronRight, FileText, Wallet, CheckCircle2, TrendingUp, Home, ShoppingBag, Receipt, User, MoreHorizontal, Star, Search } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { api } from '../api/client';
 import { OrderItem } from '../types';
+import { Loading, ErrorBlock, Empty, useApi } from '../components/StatusComponents';
 
 export function OrderConfirmation() {
   const navigate = useNavigate();
@@ -108,21 +109,20 @@ export function PaymentSuccessScreens() {
 
 export function MyOrders() {
   const navigate = useNavigate();
-  const [orders, setOrders] = useState<OrderItem[]>([]);
   const [tab, setTab] = useState('全部');
 
-  useEffect(() => {
-    const params = new URLSearchParams();
-    if (tab !== '全部') {
-      const statusMap: Record<string, string> = { '待支付': 'pending', '待发货': 'shipping', '待收货': 'received', '已完成': 'completed' };
-      const s = statusMap[tab];
-      if (s) params.set('status', s);
-    }
-    const qs = params.toString();
-    api.get<{orders: OrderItem[]}>('/api/orders' + (qs ? `?${qs}` : '')).then(res => {
-      if (res.data?.orders) setOrders(res.data.orders);
-    });
-  }, [tab]);
+  const params = new URLSearchParams();
+  if (tab !== '全部') {
+    const statusMap: Record<string, string> = { '待支付': 'pending', '待发货': 'shipping', '待收货': 'received', '已完成': 'completed' };
+    const s = statusMap[tab];
+    if (s) params.set('status', s);
+  }
+  const qs = params.toString();
+
+  const { data: orders, status, error, refetch } = useApi(
+    () => api.get<{orders: OrderItem[]}>('/api/orders' + (qs ? `?${qs}` : '')).then(r => r.data?.orders || []),
+    [tab]
+  );
 
   return (
     <div className="flex flex-col min-h-screen bg-neutral-bg font-sans pb-20">
@@ -139,7 +139,14 @@ export function MyOrders() {
       </nav>
 
       <main className="pt-32 p-4 space-y-4">
-        {orders.map((item, i) => (
+        {status === 'loading' ? (
+          <Loading />
+        ) : status === 'error' ? (
+          <ErrorBlock message={error} onRetry={refetch} />
+        ) : !orders || orders.length === 0 ? (
+          <Empty text="暂无订单" />
+        ) : (
+          orders.map((item, i) => (
           <div key={item.id || i} className="bg-white rounded-xl border border-border-light overflow-hidden shadow-sm">
             <div className="p-3 border-b border-border-light flex justify-between">
               <span className="text-[10px] text-text-muted">订单号: {item.id}</span>
@@ -160,7 +167,8 @@ export function MyOrders() {
               <button className="bg-sky-600 text-white px-6 py-2 rounded-full text-xs font-bold">{item.status === 'pending' ? '立即支付' : '确认收货'}</button>
             </div>
           </div>
-        ))}
+        ))
+        )}
       </main>
 
       <nav className="fixed bottom-0 w-full h-16 bg-white border-t border-border-light flex justify-around items-center px-4 pb-safe">
@@ -187,13 +195,11 @@ export function MyOrders() {
 
 export function OrderManagement() {
   const navigate = useNavigate();
-  const [orders, setOrders] = useState<OrderItem[]>([]);
 
-  useEffect(() => {
-    api.get<{orders: OrderItem[]}>('/api/orders?merchant=true').then(res => {
-      if (res.data?.orders) setOrders(res.data.orders);
-    });
-  }, []);
+  const { data: orders, status, error, refetch } = useApi(
+    () => api.get<{orders: OrderItem[]}>('/api/orders?merchant=true').then(r => r.data?.orders || []),
+    []
+  );
 
   return (
     <div className="flex flex-col min-h-screen bg-neutral-bg font-sans pb-24">
@@ -210,7 +216,14 @@ export function OrderManagement() {
       </nav>
 
       <main className="pt-32 p-4 space-y-4">
-        {orders.map((item, i) => (
+        {status === 'loading' ? (
+          <Loading />
+        ) : status === 'error' ? (
+          <ErrorBlock message={error} onRetry={refetch} />
+        ) : !orders || orders.length === 0 ? (
+          <Empty text="暂无订单" />
+        ) : (
+          orders.map((item, i) => (
           <div key={item.id || i} className="bg-white rounded-2xl border border-border-light overflow-hidden shadow-sm">
             <div className="p-4 space-y-4">
               <div className="flex justify-between items-start"><p className="text-[10px] text-text-muted">ID: {item.id}</p><span className="bg-red-50 text-error px-2 py-1 rounded text-[10px] font-bold">{item.status}</span></div>
@@ -225,7 +238,8 @@ export function OrderManagement() {
               </div>
             </div>
           </div>
-        ))}
+        ))
+        )}
       </main>
 
       <footer className="fixed bottom-0 w-full h-16 bg-white border-t border-border-light flex justify-around items-center px-4 pb-safe">

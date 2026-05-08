@@ -1,22 +1,21 @@
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { ArrowLeft, Share2, Star, Minus, Plus, Heart, Headset, FileText, Factory, ExternalLink, MoreHorizontal, CheckCircle2, Camera } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { api } from '../api/client';
 import { ProductItem } from '../types';
+import { Loading, ErrorBlock, Empty, useApi } from '../components/StatusComponents';
 
 export function ProductDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [product, setProduct] = useState<ProductItem | null>(null);
+  const productId = (location.state as any)?.productId;
 
-  useEffect(() => {
-    const productId = (location.state as any)?.productId;
-    if (productId) {
-      api.get<{product: ProductItem}>(`/api/products/${productId}`).then(res => {
-        if (res.data?.product) setProduct(res.data.product);
-      });
-    }
-  }, [location.state]);
+  const { data: product, status, error, refetch } = useApi(
+    () => productId
+      ? api.get<{product: ProductItem}>(`/api/products/${productId}`).then(r => r.data?.product || null)
+      : Promise.resolve(null),
+    [productId]
+  );
 
   return (
     <div className="flex flex-col min-h-screen bg-neutral-bg font-sans pb-24">
@@ -29,6 +28,14 @@ export function ProductDetailPage() {
       </header>
 
       <main className="pt-14 overflow-y-auto">
+        {status === 'loading' ? (
+          <Loading />
+        ) : status === 'error' ? (
+          <ErrorBlock message={error} onRetry={refetch} />
+        ) : !product ? (
+          <Empty text="产品不存在" icon="🔍" />
+        ) : (
+        <>
         <section className="relative w-full h-[300px] bg-white">
           <img src={product?.images || 'https://lh3.googleusercontent.com/aida-public/AB6AXuCxDuzSe7lVnjM65QVhevPH8mQiclvTp2xFfCIIqpkIXJB212yYQqTDLjaa9WYK2rlcM6OW-jYPbKhQhH-h3eDyxsMXQ9zrFlQXi2TYwR1XOoRTVNQRK_mYTQV4m9xFo9nO-RlfJBD0AanK7QTFmKOYiLgtcYN7nd8wELt8CmkWNUF9v5jSr1dEJw4iqwteayszTHxfczcAeaibO2m4q6NpjuE1v32CRNhiw_PQoVoRefyiI57ZYr19utJaeRPifgvrbmWPmF4W0zsQ'} className="w-full h-full object-cover" />
           <div className="absolute bottom-4 right-4 bg-black/20 backdrop-blur-md text-white px-3 py-1 rounded-full text-[10px] font-bold">1 / 1</div>
@@ -76,6 +83,8 @@ export function ProductDetailPage() {
           </div>
           <p className="text-xs text-secondary leading-relaxed">{product?.description || '我们的高级护肝综合营养片采用100%天然草本提取物配制而成，包括水飞蓟、朝鲜蓟和姜黄。专为现代高压环境设计，支持自然排毒和日常能量水平。'}</p>
         </section>
+        </>
+      )}
       </main>
 
       <footer className="fixed bottom-0 left-0 w-full z-50 bg-neutral-bg flex items-center px-4 h-20 shadow-lg border-t border-border-light gap-3 pb-safe">
@@ -102,16 +111,15 @@ export function ProductDetailPage() {
 
 export function MyProducts() {
   const navigate = useNavigate();
-  const [products, setProducts] = useState<ProductItem[]>([]);
 
-  useEffect(() => {
-    const currentUser = api.loadToken();
-    if (currentUser) {
-      api.get<{products: ProductItem[]}>('/api/products?owner_id=current').then(res => {
-        if (res.data?.products) setProducts(res.data.products);
-      });
-    }
-  }, []);
+  const { data: products, status, error, refetch } = useApi(
+    () => {
+      const currentUser = api.loadToken();
+      if (!currentUser) return Promise.resolve([]);
+      return api.get<{products: ProductItem[]}>('/api/products?owner_id=current').then(r => r.data?.products || []);
+    },
+    []
+  );
 
   return (
     <div className="flex flex-col min-h-screen bg-neutral-bg font-sans pb-20">
@@ -135,22 +143,30 @@ export function MyProducts() {
       </nav>
 
       <main className="p-4 space-y-4">
-        {products.map((item, i) => (
-          <div key={item.id || i} className="bg-white rounded-2xl overflow-hidden border border-border-light shadow-sm">
-            <div className="p-4 flex gap-4">
-              <div className="w-20 h-20 rounded-xl overflow-hidden bg-slate-50"><img src={item.images || 'https://via.placeholder.com/200'} className="w-full h-full object-cover" /></div>
-              <div className="flex-1 space-y-2">
-                <div className="flex justify-between items-start"><h3 className="font-bold text-sm line-clamp-1">{item.name}</h3><span className="text-[10px] font-bold text-success bg-emerald-50 px-2 py-0.5 rounded">{item.status === 'approved' ? '已上架' : item.status}</span></div>
-                <p className="text-primary-container font-manrope font-bold text-lg">¥{item.price.toFixed(2)}</p>
-                <div className="flex gap-4 text-[10px] text-text-muted"><span>库存 {item.stock}</span></div>
+        {status === 'loading' ? (
+          <Loading />
+        ) : status === 'error' ? (
+          <ErrorBlock message={error} onRetry={refetch} />
+        ) : !products || products.length === 0 ? (
+          <Empty text="暂无产品" />
+        ) : (
+          products.map((item, i) => (
+            <div key={item.id || i} className="bg-white rounded-2xl overflow-hidden border border-border-light shadow-sm">
+              <div className="p-4 flex gap-4">
+                <div className="w-20 h-20 rounded-xl overflow-hidden bg-slate-50"><img src={item.images || 'https://via.placeholder.com/200'} className="w-full h-full object-cover" /></div>
+                <div className="flex-1 space-y-2">
+                  <div className="flex justify-between items-start"><h3 className="font-bold text-sm line-clamp-1">{item.name}</h3><span className="text-[10px] font-bold text-success bg-emerald-50 px-2 py-0.5 rounded">{item.status === 'approved' ? '已上架' : item.status}</span></div>
+                  <p className="text-primary-container font-manrope font-bold text-lg">¥{item.price.toFixed(2)}</p>
+                  <div className="flex gap-4 text-[10px] text-text-muted"><span>库存 {item.stock}</span></div>
+                </div>
+              </div>
+              <div className="px-4 py-3 border-t border-border-light flex justify-between items-center">
+                <div className="flex gap-4 text-xs font-bold text-secondary"><span>编辑</span><span>分享链接</span><span>查看数据</span></div>
+                <button className="text-primary-container border border-primary-container rounded-full px-4 py-1 text-xs font-bold active:bg-primary-container active:text-white transition-all">下架</button>
               </div>
             </div>
-            <div className="px-4 py-3 border-t border-border-light flex justify-between items-center">
-              <div className="flex gap-4 text-xs font-bold text-secondary"><span>编辑</span><span>分享链接</span><span>查看数据</span></div>
-              <button className="text-primary-container border border-primary-container rounded-full px-4 py-1 text-xs font-bold active:bg-primary-container active:text-white transition-all">下架</button>
-            </div>
-          </div>
-        ))}
+          ))
+        )}
       </main>
     </div>
   );
@@ -252,5 +268,3 @@ export function AddProduct() {
     </div>
   );
 }
-logout
-logout

@@ -1,21 +1,19 @@
 import { useNavigate, Link } from 'react-router-dom';
 import { Search, Home, Grid, Zap, User, Star, ArrowRight, UserPlus, FileText, Share2, Users, GraduationCap, ChevronRight, LayoutDashboard, ShoppingBag, Receipt, CheckCircle2 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { api } from '../api/client';
 import { ProductItem } from '../types';
+import { Loading, ErrorBlock, Empty, useApi } from '../components/StatusComponents';
 
 export function LiankebaoHomepage() {
   const navigate = useNavigate();
-  const [products, setProducts] = useState<ProductItem[]>([]);
   const [search, setSearch] = useState('');
+  const { data: products, status, error, refetch } = useApi(
+    () => api.get<{products: ProductItem[]}>('/api/products' + (search ? `?search=${search}` : '')).then(r => r.data?.products || []),
+    [search]
+  );
 
-  useEffect(() => {
-    api.get<{products: ProductItem[]}>('/api/products' + (search ? `?search=${search}` : '')).then(res => {
-      if (res.data?.products) setProducts(res.data.products);
-    });
-  }, [search]);
-
-  const displayProducts = products.slice(0, 2);
+  const displayProducts = (products || []).slice(0, 2);
 
   return (
     <div className="flex flex-col min-h-screen bg-neutral-bg font-sans pb-20">
@@ -72,28 +70,36 @@ export function LiankebaoHomepage() {
           <span className="text-xs text-slate-400">更多产品</span>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          {displayProducts.map((item, i) => (
-            <div key={i} className="bg-white rounded-2xl overflow-hidden border border-border-light group">
-              <div className="aspect-square p-2">
-                <img src={item.images || 'https://via.placeholder.com/200'} className="w-full h-full object-cover rounded-xl" />
-              </div>
-              <div className="p-3 space-y-2">
-                <h3 className="text-sm font-bold text-on-surface line-clamp-2 leading-tight">{item.name}</h3>
-                <div className="flex items-center justify-between">
-                  <span className="font-manrope text-lg font-bold text-primary-container">¥{item.price.toFixed(2)}</span>
+        {status === 'loading' ? (
+          <Loading />
+        ) : status === 'error' ? (
+          <ErrorBlock message={error} onRetry={refetch} />
+        ) : !products || products.length === 0 ? (
+          <Empty text="暂无推荐产品" />
+        ) : (
+          <div className="grid grid-cols-2 gap-4">
+            {displayProducts.map((item, i) => (
+              <div key={i} className="bg-white rounded-2xl overflow-hidden border border-border-light group">
+                <div className="aspect-square p-2">
+                  <img src={item.images || 'https://via.placeholder.com/200'} className="w-full h-full object-cover rounded-xl" />
                 </div>
-                <div className="bg-sky-50 border border-sky-100 rounded px-2 py-0.5"><span className="text-[10px] font-bold text-sky-700">推广赚 ¥{item.earn_per_share.toFixed(2)}</span></div>
-                <button 
-                  onClick={() => navigate('/product-detail', { state: { transition: 'push', productId: item.id } })}
-                  className="w-full py-2 border-2 border-primary-container text-primary-container rounded-xl font-bold text-xs active:bg-primary-container active:text-white transition-all"
-                >
-                  我要推广
-                </button>
+                <div className="p-3 space-y-2">
+                  <h3 className="text-sm font-bold text-on-surface line-clamp-2 leading-tight">{item.name}</h3>
+                  <div className="flex items-center justify-between">
+                    <span className="font-manrope text-lg font-bold text-primary-container">¥{item.price.toFixed(2)}</span>
+                  </div>
+                  <div className="bg-sky-50 border border-sky-100 rounded px-2 py-0.5"><span className="text-[10px] font-bold text-sky-700">推广赚 ¥{item.earn_per_share.toFixed(2)}</span></div>
+                  <button 
+                    onClick={() => navigate('/product-detail', { state: { transition: 'push', productId: item.id } })}
+                    className="w-full py-2 border-2 border-primary-container text-primary-container rounded-xl font-bold text-xs active:bg-primary-container active:text-white transition-all"
+                  >
+                    我要推广
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </main>
 
       <nav className="fixed bottom-0 w-full h-16 bg-white border-t border-border-light flex justify-around items-center px-4 pb-safe">
@@ -116,19 +122,18 @@ export function LiankebaoHomepage() {
 
 export function ProductPool() {
   const navigate = useNavigate();
-  const [products, setProducts] = useState<ProductItem[]>([]);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('全部');
 
-  useEffect(() => {
-    const params = new URLSearchParams();
-    if (search) params.set('search', search);
-    if (category && category !== '全部') params.set('category', category);
-    const qs = params.toString();
-    api.get<{products: ProductItem[]}>('/api/products' + (qs ? `?${qs}` : '')).then(res => {
-      if (res.data?.products) setProducts(res.data.products);
-    });
-  }, [search, category]);
+  const params = new URLSearchParams();
+  if (search) params.set('search', search);
+  if (category && category !== '全部') params.set('category', category);
+  const qs = params.toString();
+
+  const { data: products, status, error, refetch } = useApi(
+    () => api.get<{products: ProductItem[]}>('/api/products' + (qs ? `?${qs}` : '')).then(r => r.data?.products || []),
+    [search, category]
+  );
 
   return (
     <div className="flex flex-col min-h-screen bg-neutral-bg font-sans pb-20">
@@ -165,23 +170,31 @@ export function ProductPool() {
           ))}
         </div>
 
-        <div className="grid grid-cols-2 gap-3 p-4">
-          {products.map((item, i) => (
-            <div key={item.id || i} className="bg-white rounded-xl border border-border-light overflow-hidden shadow-sm">
-              <img src={item.images || 'https://via.placeholder.com/200'} className="w-full aspect-square object-cover" />
-              <div className="p-3 space-y-2">
-                <h3 className="text-xs font-bold line-clamp-2 h-8">{item.name}</h3>
-                <p className="text-primary-container font-manrope font-bold">¥{item.price.toFixed(2)}</p>
-                <button 
-                  onClick={() => navigate('/product-detail', { state: { transition: 'push', productId: item.id } })}
-                  className="w-full py-1.5 border border-primary-container text-primary-container rounded-full text-[10px] font-bold active:bg-primary-container active:text-white"
-                >
-                  我要推广
-                </button>
+        {status === 'loading' ? (
+          <Loading />
+        ) : status === 'error' ? (
+          <ErrorBlock message={error} onRetry={refetch} />
+        ) : !products || products.length === 0 ? (
+          <Empty text="暂无产品" />
+        ) : (
+          <div className="grid grid-cols-2 gap-3 p-4">
+            {products.map((item, i) => (
+              <div key={item.id || i} className="bg-white rounded-xl border border-border-light overflow-hidden shadow-sm">
+                <img src={item.images || 'https://via.placeholder.com/200'} className="w-full aspect-square object-cover" />
+                <div className="p-3 space-y-2">
+                  <h3 className="text-xs font-bold line-clamp-2 h-8">{item.name}</h3>
+                  <p className="text-primary-container font-manrope font-bold">¥{item.price.toFixed(2)}</p>
+                  <button 
+                    onClick={() => navigate('/product-detail', { state: { transition: 'push', productId: item.id } })}
+                    className="w-full py-1.5 border border-primary-container text-primary-container rounded-full text-[10px] font-bold active:bg-primary-container active:text-white"
+                  >
+                    我要推广
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </main>
 
       <nav className="fixed bottom-0 w-full h-16 bg-white border-t border-border-light flex justify-around items-center px-4 pb-safe">
