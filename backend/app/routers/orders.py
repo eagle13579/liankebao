@@ -41,7 +41,7 @@ def create_order(
         if not promoter:
             raise HTTPException(status_code=400, detail="推广员不存在")
         # 推广员分润 = earn_per_share * 50%
-        commission = product.earn_per_share * 0.5
+        commission = product.earn_per_share * req.quantity * 0.5
 
     # 创建订单
     order = Order(

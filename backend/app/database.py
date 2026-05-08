@@ -93,9 +93,6 @@ def init_db():
         db.add_all(users)
         db.flush()  # 获取id
 
-        # 通用图片占位（使用项目中已有的 aida-public 格式图片）
-        img_base = "https://lh3.googleusercontent.com/aida-public/AB6AXu"
-
         # === 创建产品：真实商品风格 ===
         products = [
             # --- 产品1: 有机红枣礼盒 ---
@@ -109,8 +106,9 @@ def init_db():
                 brand="丝路果园",
                 stock=500,
                 images=json.dumps([
-                    img_base + "D4tMOKc54Z0YVDSu1fkIMVku0yO7U0ATD54AVlY078SzXn3qA2vyaB0ldf4CKfwMX0BNhxjENkB8q2elgxMnM2QZNr7IWoSguo6SeAc7LRp4iYuP9KRE1dfKpMo5ex_IHlTzWne5NkP3xLwOMJgsT6f1U6QmOyyzEGYth-6syFPneg2Dy6UE19-xanhkpW2HivuCxqQAxzVevnG-3L_0Y6AdyZMyoBtuRRhLFAOvcTkpf1PPlZnE2S-NxRBgBfFE7N8UQoa1clN3Yl",
-                    img_base + "D4kMHf2SGDagsPzzoXAYyl4Qlh3bwG3ulPT7jY21jQ7ue70WvJXbluRkzFVjy2tHXswVEqHCRqvv2AiubBWe3U707uS8uMG4-zygF4bJKTKta2DT5rTjRsuhkA78QV7IoadSn4DmAE8pNHq0S6ewsN6_tucX89M1Z7qdgbjvP4eAg7tA8SxOzPTPHz0WR4zPBEDm_c2U4odWH6Jwx7K9DDeosBn7ua8DY15uJl3SCxC3CSDtq6kMER2-91tsAjqJ69onzaYW74Z3Pj"
+                    "https://picsum.photos/seed/chainke-red-dates-1/400/300",
+                    "https://picsum.photos/seed/chainke-red-dates-2/400/300",
+                    "https://picsum.photos/seed/chainke-red-dates-3/400/300"
                 ]),
                 specs=json.dumps({
                     "规格": "500g×3袋",
@@ -141,8 +139,9 @@ def init_db():
                 brand="链客宝",
                 stock=9999,
                 images=json.dumps([
-                    img_base + "ApC5VJUCEfOGxW-cKut2u8z6NO-kav_mBGu69O34D8YpFcDrbZ8dwSI-LSFCGAbxW_gi1bUwGAtLONndumKY3QM3_GxZgfhh83TfxCMWo0p9YXUwFQSPZOsrNxTKR5xcBn5J2kurh3IlzHyAIl-xmcyeZI9Z88Nf8Ol6P9OqNVQF54URZODLp_oEsz0TlvNJ6z4rFFehdANpM_c9obgqNdYxMpfbcr9YKeBu0HaDFTeUCtb4TAKmEt4ageyc0Dl4KUV1XiSZgSpGXf",
-                    img_base + "BuKyvslj8Sf-I9tZohEQpeosSpcblKwhdWiqVlMXd0qsagxqS4K6yznJr7Opusanym978mU3oHeQUKk9KSN_Of36-XIjq9Y9jdQUappQILE_q0z7iom3Ahiz1wzkvqaqkYjMhGoCGVxUxq9Gvr1PcW1YCyEk4OmWwG2jS0pEzlAhGEEDg5T0JAQg9xzAEfHlJU6cR-CVD_4sOVUxu8zIbsWvmm8apd0ipCCVEAtq5Uw_ZClY1oJJ5f0yMpmpeN7mNo7CachYe_5otw"
+                    "https://picsum.photos/seed/chainke-digital-card-1/400/300",
+                    "https://picsum.photos/seed/chainke-digital-card-2/400/300",
+                    "https://picsum.photos/seed/chainke-digital-card-3/400/300"
                 ]),
                 specs=json.dumps({
                     "版本": "Pro版年卡",
@@ -174,8 +173,9 @@ def init_db():
                 brand="法务通",
                 stock=200,
                 images=json.dumps([
-                    img_base + "AmSWd7mn7UJhRx3PlEEJFehjEvLKuCYZPDC8pnc2yJhSgF6Z3XCx63_mPX1JAr4vqao1Yz-2-MD3w_D0tIMqQQUT_oTirdfdYWY3EJucOReHpNdZA3hJ8oK0DEfU_alRwIEdYI2O_P_6N3o6Lq9KUo9_MGjKRdKCNuFguJGbK58Ve_61lROxhwEZ71BPcr_BwcPlwvEIeYBeTohvmkSfH1fT9EH2pj7fIqArpoU5_KXCuUozA9qoZRdOK3uvk6-QthDhW22BR5PZf2",
-                    img_base + "CxDuzSe7lVnjM65QVhevPH8mQiclvTp2xFfCIIqpkIXJB212yYQqTDLjaa9WYK2rlcM6OW-jYPbKhQhH-h3eDyxsMXQ9zrFlQXi2TYwR1XOoRTVNQRK_mYTQV4m9xFo9nO-RlfJBD0AanK7QTFmKOYiLgtcYN7nd8wELt8CmkWNUF9v5jSr1dEJw4iqwteayszTHxfczcAeaibO2m4q6NpjuE1v32CRNhiw_PQoVoRefyiI57ZYr19utJaeRPifgvrbmWPmF4W0zsQ"
+                    "https://picsum.photos/seed/chainke-legal-1/400/300",
+                    "https://picsum.photos/seed/chainke-legal-2/400/300",
+                    "https://picsum.photos/seed/chainke-legal-3/400/300"
                 ]),
                 specs=json.dumps({
                     "服务周期": "12个月",
@@ -207,8 +207,9 @@ def init_db():
                 brand="舒肌宝",
                 stock=1000,
                 images=json.dumps([
-                    img_base + "Dx3U-zlH0Wv9KUVMf0IbdPQJaFizVCy3RxZ-a4onJuuW3S6SX9GguEcARJmJmiE6lwQRo-VNHc8ZoCe12VEWnKK0kYbVukkkxbLbGAtN6siNrmOMJV5Y0xqYA9igw7bSXGR1R83x57VnLJ4wj9TDjLEe7ohRrctQsDo0js4qeoR8JUmWUNir_MB-JIjkt16vuymOnHnYGogNDb8ok1vnsnomoyYIagrqs6gRBe9bnHrcaDOeMUTrw3JzMR2eLHHnY9LeGiadzbX6BF",
-                    img_base + "D4tMOKc54Z0YVDSu1fkIMVku0yO7U0ATD54AVlY078SzXn3qA2vyaB0ldf4CKfwMX0BNhxjENkB8q2elgxMnM2QZNr7IWoSguo6SeAc7LRp4iYuP9KRE1dfKpMo5ex_IHlTzWne5NkP3xLwOMJgsT6f1U6QmOyyzEGYth-6syFPneg2Dy6UE19-xanhkpW2HivuCxqQAxzVevnG-3L_0Y6AdyZMyoBtuRRhLFAOvcTkpf1PPlZnE2S-NxRBgBfFE7N8UQoa1clN3Yl"
+                    "https://picsum.photos/seed/chainke-massage-gun-1/400/300",
+                    "https://picsum.photos/seed/chainke-massage-gun-2/400/300",
+                    "https://picsum.photos/seed/chainke-massage-gun-3/400/300"
                 ]),
                 specs=json.dumps({
                     "型号": "S3 Pro",
@@ -242,8 +243,9 @@ def init_db():
                 brand="增长学堂",
                 stock=300,
                 images=json.dumps([
-                    img_base + "D4kMHf2SGDagsPzzoXAYyl4Qlh3bwG3ulPT7jY21jQ7ue70WvJXbluRkzFVjy2tHXswVEqHCRqvv2AiubBWe3U707uS8uMG4-zygF4bJKTKta2DT5rTjRsuhkA78QV7IoadSn4DmAE8pNHq0S6ewsN6_tucX89M1Z7qdgbjvP4eAg7tA8SxOzPTPHz0WR4zPBEDm_c2U4odWH6Jwx7K9DDeosBn7ua8DY15uJl3SCxC3CSDtq6kMER2-91tsAjqJ69onzaYW74Z3Pj",
-                    img_base + "ApC5VJUCEfOGxW-cKut2u8z6NO-kav_mBGu69O34D8YpFcDrbZ8dwSI-LSFCGAbxW_gi1bUwGAtLONndumKY3QM3_GxZgfhh83TfxCMWo0p9YXUwFQSPZOsrNxTKR5xcBn5J2kurh3IlzHyAIl-xmcyeZI9Z88Nf8Ol6P9OqNVQF54URZODLp_oEsz0TlvNJ6z4rFFehdANpM_c9obgqNdYxMpfbcr9YKeBu0HaDFTeUCtb4TAKmEt4ageyc0Dl4KUV1XiSZgSpGXf"
+                    "https://picsum.photos/seed/chainke-training-1/400/300",
+                    "https://picsum.photos/seed/chainke-training-2/400/300",
+                    "https://picsum.photos/seed/chainke-training-3/400/300"
                 ]),
                 specs=json.dumps({
                     "学习周期": "21天（含周末）",
@@ -275,8 +277,9 @@ def init_db():
                 brand="云考勤",
                 stock=800,
                 images=json.dumps([
-                    img_base + "BuKyvslj8Sf-I9tZohEQpeosSpcblKwhdWiqVlMXd0qsagxqS4K6yznJr7Opusanym978mU3oHeQUKk9KSN_Of36-XIjq9Y9jdQUappQILE_q0z7iom3Ahiz1wzkvqaqkYjMhGoCGVxUxq9Gvr1PcW1YCyEk4OmWwG2jS0pEzlAhGEEDg5T0JAQg9xzAEfHlJU6cR-CVD_4sOVUxu8zIbsWvmm8apd0ipCCVEAtq5Uw_ZClY1oJJ5f0yMpmpeN7mNo7CachYe_5otw",
-                    img_base + "AmSWd7mn7UJhRx3PlEEJFehjEvLKuCYZPDC8pnc2yJhSgF6Z3XCx63_mPX1JAr4vqao1Yz-2-MD3w_D0tIMqQQUT_oTirdfdYWY3EJucOReHpNdZA3hJ8oK0DEfU_alRwIEdYI2O_P_6N3o6Lq9KUo9_MGjKRdKCNuFguJGbK58Ve_61lROxhwEZ71BPcr_BwcPlwvEIeYBeTohvmkSfH1fT9EH2pj7fIqArpoU5_KXCuUozA9qoZRdOK3uvk6-QthDhW22BR5PZf2"
+                    "https://picsum.photos/seed/chainke-attendance-1/400/300",
+                    "https://picsum.photos/seed/chainke-attendance-2/400/300",
+                    "https://picsum.photos/seed/chainke-attendance-3/400/300"
                 ]),
                 specs=json.dumps({
                     "识别方式": "人脸识别（支持口罩识别）",

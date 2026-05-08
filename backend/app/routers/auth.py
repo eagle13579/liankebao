@@ -45,7 +45,6 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
 @router.post("/register", response_model=ApiResponse)
 def register(req: RegisterRequest, db: Session = Depends(get_db)):
     """用户注册"""
-    # 检查用户名是否已存在
     existing = db.query(User).filter(User.username == req.username).first()
     if existing:
         raise HTTPException(
@@ -53,7 +52,6 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
             detail="用户名已存在",
         )
 
-    # 创建用户
     user = User(
         username=req.username,
         password_hash=hash_password(req.password),
@@ -88,17 +86,14 @@ def get_me(current_user: User = Depends(get_current_user)):
 @router.post("/wechat-login", response_model=ApiResponse)
 def wechat_login(req: WechatLoginRequest, db: Session = Depends(get_db)):
     """微信登录（模拟）"""
-    # 模拟微信登录：根据code查找或创建用户
-    # 实际应调用微信API获取openId
     mock_openid = f"wx_{req.code[:8] if len(req.code) >= 8 else req.code}"
     mock_username = f"wechat_{mock_openid[:10]}"
 
     user = db.query(User).filter(User.username == mock_username).first()
     if not user:
-        # 自动创建微信用户
         user = User(
             username=mock_username,
-            password_hash=hash_password("wechat_default"),
+            password_hash=hash_password("12345678"),
             name=f"微信用户_{mock_openid[:6]}",
             role="buyer",
             avatar="https://api.dicebear.com/7.x/avataaars/svg?seed=wechat",

@@ -13,7 +13,7 @@ from app.database import get_db
 from app.models import User
 
 # JWT配置
-SECRET_KEY = os.environ.get("JWT_SECRET", "liankebao-jwt-secret-key-2024-nous")
+SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "liankebao-jwt-secret-key-2024-nous")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7天
 
@@ -56,13 +56,11 @@ def get_current_user(
     db: Session = Depends(get_db),
 ) -> User:
     """依赖注入：从请求中获取当前用户"""
-    # 默认管理员（当没有token时，方便开发测试）
-    default_user = db.query(User).filter(User.role == "admin").first()
-    if not default_user:
-        raise HTTPException(status_code=500, detail="默认管理员用户不存在")
-
     if credentials is None:
-        return default_user
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="需要提供认证令牌",
+        )
 
     token = credentials.credentials
     payload = verify_token(token)
