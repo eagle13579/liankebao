@@ -1,5 +1,6 @@
 """数据库配置与初始化"""
 import os
+import json
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from passlib.hash import bcrypt as bcrypt_hasher
@@ -31,26 +32,26 @@ def get_db():
 
 
 def init_db():
-    """初始化数据库：创建所有表并填充种子数据"""
+    """初始化数据库：重建表并填充种子数据"""
     from app.models import User, Product, Order, Withdrawal  # noqa: 确保模型已导入
 
-    # 创建所有表
+    # === 先删表再重建（适配schema变更） ===
+    Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 
     db = SessionLocal()
     try:
-        # 检查是否已有数据
-        if db.query(User).count() > 0:
-            print("数据库已存在数据，跳过种子数据填充")
-            return
-
         print("正在填充种子数据...")
+
+        # 预计算密码哈希
+        pwhash_admin = bcrypt_hasher.hash("admin123")
+        pwhash_123456 = bcrypt_hasher.hash("123456")
 
         # === 创建用户 ===
         users = [
             User(
                 username="admin",
-                password_hash=bcrypt_hasher.hash("admin123"),
+                password_hash=pwhash_admin,
                 name="管理员",
                 phone="13800000000",
                 company="链客宝科技",
@@ -60,7 +61,7 @@ def init_db():
             ),
             User(
                 username="buyer1",
-                password_hash=bcrypt_hasher.hash("123456"),
+                password_hash=pwhash_123456,
                 name="张三",
                 phone="13800000001",
                 company="创新科技有限公司",
@@ -70,7 +71,7 @@ def init_db():
             ),
             User(
                 username="promoter1",
-                password_hash=bcrypt_hasher.hash("123456"),
+                password_hash=pwhash_123456,
                 name="李四",
                 phone="13800000002",
                 company="推广联盟",
@@ -80,7 +81,7 @@ def init_db():
             ),
             User(
                 username="supplier1",
-                password_hash=bcrypt_hasher.hash("123456"),
+                password_hash=pwhash_123456,
                 name="王五",
                 phone="13800000003",
                 company="供应链集团",
@@ -92,61 +93,211 @@ def init_db():
         db.add_all(users)
         db.flush()  # 获取id
 
-        # === 创建产品 ===
+        # 通用图片占位（使用项目中已有的 aida-public 格式图片）
+        img_base = "https://lh3.googleusercontent.com/aida-public/AB6AXu"
+
+        # === 创建产品：真实商品风格 ===
         products = [
+            # --- 产品1: 有机红枣礼盒 ---
             Product(
-                name="企业数字化管理平台",
-                description="一站式企业数字化管理解决方案，包含CRM、ERP、OA等模块，助力企业数字化转型。支持私有化部署和SaaS模式。",
-                price=99900.00,
-                earn_per_share=19980.00,
-                category="软件服务",
-                stock=999,
-                images='["https://picsum.photos/seed/prod1/400/300"]',
-                status="approved",
-                owner_id=4,  # supplier1
-            ),
-            Product(
-                name="高端商务咨询包",
-                description="为企业提供战略规划、市场分析、组织架构优化等高端咨询服务。由资深顾问团队一对一服务。",
-                price=50000.00,
-                earn_per_share=10000.00,
-                category="咨询服务",
-                stock=50,
-                images='["https://picsum.photos/seed/prod2/400/300"]',
+                name="有机红枣礼盒 500g×3袋",
+                description="精选新疆和田有机红枣，颗颗饱满肉厚，自然甜香。礼盒装自用送礼皆宜。严格有机认证，无添加无农残。",
+                price=168.00,
+                earn_per_share=25.00,
+                sale_price=198.00,
+                category="食品/大健康",
+                brand="丝路果园",
+                stock=500,
+                images=json.dumps([
+                    img_base + "D4tMOKc54Z0YVDSu1fkIMVku0yO7U0ATD54AVlY078SzXn3qA2vyaB0ldf4CKfwMX0BNhxjENkB8q2elgxMnM2QZNr7IWoSguo6SeAc7LRp4iYuP9KRE1dfKpMo5ex_IHlTzWne5NkP3xLwOMJgsT6f1U6QmOyyzEGYth-6syFPneg2Dy6UE19-xanhkpW2HivuCxqQAxzVevnG-3L_0Y6AdyZMyoBtuRRhLFAOvcTkpf1PPlZnE2S-NxRBgBfFE7N8UQoa1clN3Yl",
+                    img_base + "D4kMHf2SGDagsPzzoXAYyl4Qlh3bwG3ulPT7jY21jQ7ue70WvJXbluRkzFVjy2tHXswVEqHCRqvv2AiubBWe3U707uS8uMG4-zygF4bJKTKta2DT5rTjRsuhkA78QV7IoadSn4DmAE8pNHq0S6ewsN6_tucX89M1Z7qdgbjvP4eAg7tA8SxOzPTPHz0WR4zPBEDm_c2U4odWH6Jwx7K9DDeosBn7ua8DY15uJl3SCxC3CSDtq6kMER2-91tsAjqJ69onzaYW74Z3Pj"
+                ]),
+                specs=json.dumps({
+                    "规格": "500g×3袋",
+                    "保质期": "12个月",
+                    "产地": "新疆和田",
+                    "贮存条件": "阴凉干燥处",
+                    "包装": "礼盒装"
+                }),
+                details="<h3>产品亮点</h3><ul><li>新疆和田核心产区，日照充足</li><li>国家有机认证，零添加</li><li>颗颗精选，肉厚核小</li></ul><h3>食用建议</h3><p>开袋即食，也可泡茶煮粥。每日3-5颗，健康养颜。</p>",
+                tags="有机,红枣,礼盒,大健康,滋补",
+                files=json.dumps([
+                    {"name": "产品质检报告.pdf", "url": "/uploads/红枣质检报告.pdf", "type": "pdf"},
+                    {"name": "有机认证证书.pdf", "url": "/uploads/有机认证.pdf", "type": "pdf"}
+                ]),
+                is_featured=1,
+                sort_order=1,
                 status="approved",
                 owner_id=4,
             ),
+            # --- 产品2: AI数字名片 ---
             Product(
-                name="智能营销系统",
-                description="基于AI的智能营销自动化系统，帮助企业实现精准获客、客户画像分析和营销效果追踪。",
-                price=29900.00,
-                earn_per_share=5980.00,
-                category="软件服务",
+                name="AI数字名片 Pro版 年卡",
+                description="基于AI技术的智能数字名片，支持多模板、AI智能推荐、人脉管理、数据统计。企业家商务社交首选，让每一次相遇都有价值。",
+                price=399.00,
+                earn_per_share=80.00,
+                sale_price=499.00,
+                category="企业家服务",
+                brand="链客宝",
+                stock=9999,
+                images=json.dumps([
+                    img_base + "ApC5VJUCEfOGxW-cKut2u8z6NO-kav_mBGu69O34D8YpFcDrbZ8dwSI-LSFCGAbxW_gi1bUwGAtLONndumKY3QM3_GxZgfhh83TfxCMWo0p9YXUwFQSPZOsrNxTKR5xcBn5J2kurh3IlzHyAIl-xmcyeZI9Z88Nf8Ol6P9OqNVQF54URZODLp_oEsz0TlvNJ6z4rFFehdANpM_c9obgqNdYxMpfbcr9YKeBu0HaDFTeUCtb4TAKmEt4ageyc0Dl4KUV1XiSZgSpGXf",
+                    img_base + "BuKyvslj8Sf-I9tZohEQpeosSpcblKwhdWiqVlMXd0qsagxqS4K6yznJr7Opusanym978mU3oHeQUKk9KSN_Of36-XIjq9Y9jdQUappQILE_q0z7iom3Ahiz1wzkvqaqkYjMhGoCGVxUxq9Gvr1PcW1YCyEk4OmWwG2jS0pEzlAhGEEDg5T0JAQg9xzAEfHlJU6cR-CVD_4sOVUxu8zIbsWvmm8apd0ipCCVEAtq5Uw_ZClY1oJJ5f0yMpmpeN7mNo7CachYe_5otw"
+                ]),
+                specs=json.dumps({
+                    "版本": "Pro版年卡",
+                    "有效期": "购买日起365天",
+                    "模板数量": "50+精选模板",
+                    "AI推荐次数": "无限次",
+                    "人脉容量": "10000人",
+                    "数据导出": "支持Excel/CSV"
+                }),
+                details="<h3>核心功能</h3><ul><li>AI智能名片设计</li><li>多模板自由切换</li><li>扫码一键交换</li><li>人脉智能分类管理</li><li>交换数据分析看板</li><li>团队名片统一管理</li></ul><h3>适用人群</h3><p>企业家、销售精英、商务人士、创业者</p>",
+                tags="AI,数字名片,企业家,商务,人脉管理",
+                files=json.dumps([
+                    {"name": "产品使用手册.pdf", "url": "/uploads/数字名片手册.pdf", "type": "pdf"},
+                    {"name": "功能对比表.xlsx", "url": "/uploads/功能对比.xlsx", "type": "xlsx"}
+                ]),
+                is_featured=1,
+                sort_order=2,
+                status="approved",
+                owner_id=4,
+            ),
+            # --- 产品3: 企业法律顾问套餐 ---
+            Product(
+                name="企业法律顾问套餐 年度",
+                description="全年企业法律顾问服务，含合同审核、法律咨询、风险评估、知识产权保护等。专业律师团队1对1服务，企业法律问题一站式解决。",
+                price=2980.00,
+                earn_per_share=596.00,
+                sale_price=3680.00,
+                category="企业服务",
+                brand="法务通",
                 stock=200,
-                images='["https://picsum.photos/seed/prod3/400/300"]',
+                images=json.dumps([
+                    img_base + "AmSWd7mn7UJhRx3PlEEJFehjEvLKuCYZPDC8pnc2yJhSgF6Z3XCx63_mPX1JAr4vqao1Yz-2-MD3w_D0tIMqQQUT_oTirdfdYWY3EJucOReHpNdZA3hJ8oK0DEfU_alRwIEdYI2O_P_6N3o6Lq9KUo9_MGjKRdKCNuFguJGbK58Ve_61lROxhwEZ71BPcr_BwcPlwvEIeYBeTohvmkSfH1fT9EH2pj7fIqArpoU5_KXCuUozA9qoZRdOK3uvk6-QthDhW22BR5PZf2",
+                    img_base + "CxDuzSe7lVnjM65QVhevPH8mQiclvTp2xFfCIIqpkIXJB212yYQqTDLjaa9WYK2rlcM6OW-jYPbKhQhH-h3eDyxsMXQ9zrFlQXi2TYwR1XOoRTVNQRK_mYTQV4m9xFo9nO-RlfJBD0AanK7QTFmKOYiLgtcYN7nd8wELt8CmkWNUF9v5jSr1dEJw4iqwteayszTHxfczcAeaibO2m4q6NpjuE1v32CRNhiw_PQoVoRefyiI57ZYr19utJaeRPifgvrbmWPmF4W0zsQ"
+                ]),
+                specs=json.dumps({
+                    "服务周期": "12个月",
+                    "合同审核": "不限次数（≤10页/份）",
+                    "法律咨询": "不限次数（工作日9:00-18:00）",
+                    "律师分配": "3人专属服务组",
+                    "响应时效": "4小时内回复",
+                    "适用规模": "10-500人企业"
+                }),
+                details="<h3>服务内容</h3><ul><li>日常法律咨询（电话/微信/邮件）</li><li>合同起草与审核（每年50份内）</li><li>企业规章制度审查</li><li>劳动人事法律支持</li><li>知识产权基础保护</li><li>律师函发送（5次/年）</li></ul><h3>服务流程</h3><p>在线下单 → 分配律师 → 建立服务群 → 全年无忧</p>",
+                tags="法律顾问,企业服务,合同审核,知识产权,法律服务",
+                files=json.dumps([
+                    {"name": "服务合同模板.pdf", "url": "/uploads/法律顾问合同.pdf", "type": "pdf"},
+                    {"name": "服务内容清单.pdf", "url": "/uploads/服务清单.pdf", "type": "pdf"}
+                ]),
+                is_featured=1,
+                sort_order=3,
                 status="approved",
                 owner_id=4,
             ),
+            # --- 产品4: 筋膜枪 ---
             Product(
-                name="企业培训课程套装",
-                description="涵盖领导力、销售技巧、团队管理等方向的12门核心课程，含线上视频+线下工作坊。",
-                price=19800.00,
-                earn_per_share=3960.00,
+                name="筋膜枪 肌肉放松 静音款",
+                description="专业级肌肉筋膜枪，6档变速调节，超静音设计。运动后肌肉放松、日常疲劳缓解。Type-C快充，续航8小时。",
+                price=298.00,
+                earn_per_share=58.00,
+                sale_price=368.00,
+                category="大健康",
+                brand="舒肌宝",
+                stock=1000,
+                images=json.dumps([
+                    img_base + "Dx3U-zlH0Wv9KUVMf0IbdPQJaFizVCy3RxZ-a4onJuuW3S6SX9GguEcARJmJmiE6lwQRo-VNHc8ZoCe12VEWnKK0kYbVukkkxbLbGAtN6siNrmOMJV5Y0xqYA9igw7bSXGR1R83x57VnLJ4wj9TDjLEe7ohRrctQsDo0js4qeoR8JUmWUNir_MB-JIjkt16vuymOnHnYGogNDb8ok1vnsnomoyYIagrqs6gRBe9bnHrcaDOeMUTrw3JzMR2eLHHnY9LeGiadzbX6BF",
+                    img_base + "D4tMOKc54Z0YVDSu1fkIMVku0yO7U0ATD54AVlY078SzXn3qA2vyaB0ldf4CKfwMX0BNhxjENkB8q2elgxMnM2QZNr7IWoSguo6SeAc7LRp4iYuP9KRE1dfKpMo5ex_IHlTzWne5NkP3xLwOMJgsT6f1U6QmOyyzEGYth-6syFPneg2Dy6UE19-xanhkpW2HivuCxqQAxzVevnG-3L_0Y6AdyZMyoBtuRRhLFAOvcTkpf1PPlZnE2S-NxRBgBfFE7N8UQoa1clN3Yl"
+                ]),
+                specs=json.dumps({
+                    "型号": "S3 Pro",
+                    "档位": "6档变速（1200-3200转/分）",
+                    "噪音": "≤35dB（静音款）",
+                    "电池": "2600mAh锂电池",
+                    "续航": "约8小时",
+                    "充电": "Type-C快充（2小时充满）",
+                    "配件": "6种按摩头",
+                    "重量": "约680g"
+                }),
+                details="<h3>产品特点</h3><ul><li>超静音电机，使用不扰人</li><li>6档智能变速，满足不同需求</li><li>6种专业按摩头，全身适用</li><li>Type-C通用快充</li><li>人体工学手柄，久握不累</li></ul><h3>适用人群</h3><p>运动爱好者、办公室白领、久站人群、中老年人</p>",
+                tags="筋膜枪,肌肉放松,按摩,大健康,运动恢复",
+                files=json.dumps([
+                    {"name": "产品说明书.pdf", "url": "/uploads/筋膜枪说明书.pdf", "type": "pdf"},
+                    {"name": "CE认证证书.pdf", "url": "/uploads/CE认证.pdf", "type": "pdf"}
+                ]),
+                is_featured=1,
+                sort_order=4,
+                status="approved",
+                owner_id=4,
+            ),
+            # --- 产品5: 私域社群运营训练营 ---
+            Product(
+                name="私域社群运营训练营",
+                description="21天线上实战训练营，从0到1掌握私域社群运营全流程。含直播授课、社群实操、1v1辅导、结业认证。限时赠送社群运营SOP手册。",
+                price=1980.00,
+                earn_per_share=396.00,
+                sale_price=2580.00,
                 category="教育培训",
+                brand="增长学堂",
                 stock=300,
-                images='["https://picsum.photos/seed/prod4/400/300"]',
+                images=json.dumps([
+                    img_base + "D4kMHf2SGDagsPzzoXAYyl4Qlh3bwG3ulPT7jY21jQ7ue70WvJXbluRkzFVjy2tHXswVEqHCRqvv2AiubBWe3U707uS8uMG4-zygF4bJKTKta2DT5rTjRsuhkA78QV7IoadSn4DmAE8pNHq0S6ewsN6_tucX89M1Z7qdgbjvP4eAg7tA8SxOzPTPHz0WR4zPBEDm_c2U4odWH6Jwx7K9DDeosBn7ua8DY15uJl3SCxC3CSDtq6kMER2-91tsAjqJ69onzaYW74Z3Pj",
+                    img_base + "ApC5VJUCEfOGxW-cKut2u8z6NO-kav_mBGu69O34D8YpFcDrbZ8dwSI-LSFCGAbxW_gi1bUwGAtLONndumKY3QM3_GxZgfhh83TfxCMWo0p9YXUwFQSPZOsrNxTKR5xcBn5J2kurh3IlzHyAIl-xmcyeZI9Z88Nf8Ol6P9OqNVQF54URZODLp_oEsz0TlvNJ6z4rFFehdANpM_c9obgqNdYxMpfbcr9YKeBu0HaDFTeUCtb4TAKmEt4ageyc0Dl4KUV1XiSZgSpGXf"
+                ]),
+                specs=json.dumps({
+                    "学习周期": "21天（含周末）",
+                    "授课形式": "直播+录播+社群实操",
+                    "课程数量": "15节主课+5次答疑",
+                    "辅导形式": "1v1导师辅导",
+                    "适合人群": "运营从业者/创业者/品牌方",
+                    "结业认证": "颁发结业证书"
+                }),
+                details="<h3>课程大纲</h3><ul><li>第一周：私域底层逻辑与定位</li><li>第二周：社群搭建与用户增长</li><li>第三周：转化变现与数据复盘</li></ul><h3>你将获得</h3><ul><li>一套完整的私域运营SOP</li><li>21天实操落地经验</li><li>行业人脉资源对接</li><li>结业证书+优秀学员推荐就业</li></ul>",
+                tags="私域运营,社群运营,训练营,教育培训,增长",
+                files=json.dumps([
+                    {"name": "课程大纲.pdf", "url": "/uploads/训练营大纲.pdf", "type": "pdf"},
+                    {"name": "讲师介绍.pdf", "url": "/uploads/讲师介绍.pdf", "type": "pdf"}
+                ]),
+                is_featured=1,
+                sort_order=5,
                 status="approved",
                 owner_id=4,
             ),
+            # --- 产品6: 智能考勤一体机 ---
             Product(
-                name="区块链溯源解决方案",
-                description="基于区块链技术的产品全链路溯源系统，适用于食品、医药、奢侈品等行业。",
-                price=150000.00,
-                earn_per_share=30000.00,
-                category="软件服务",
-                stock=100,
-                images='["https://picsum.photos/seed/prod5/400/300"]',
-                status="pending",
+                name="智能考勤一体机 人脸识别",
+                description="AI人脸识别考勤机，支持口罩识别、活体检测。超大存储容量，WiFi联网，手机APP远程管理。企业/学校/工地通用。",
+                price=1280.00,
+                earn_per_share=256.00,
+                sale_price=1580.00,
+                category="SaaS硬件",
+                brand="云考勤",
+                stock=800,
+                images=json.dumps([
+                    img_base + "BuKyvslj8Sf-I9tZohEQpeosSpcblKwhdWiqVlMXd0qsagxqS4K6yznJr7Opusanym978mU3oHeQUKk9KSN_Of36-XIjq9Y9jdQUappQILE_q0z7iom3Ahiz1wzkvqaqkYjMhGoCGVxUxq9Gvr1PcW1YCyEk4OmWwG2jS0pEzlAhGEEDg5T0JAQg9xzAEfHlJU6cR-CVD_4sOVUxu8zIbsWvmm8apd0ipCCVEAtq5Uw_ZClY1oJJ5f0yMpmpeN7mNo7CachYe_5otw",
+                    img_base + "AmSWd7mn7UJhRx3PlEEJFehjEvLKuCYZPDC8pnc2yJhSgF6Z3XCx63_mPX1JAr4vqao1Yz-2-MD3w_D0tIMqQQUT_oTirdfdYWY3EJucOReHpNdZA3hJ8oK0DEfU_alRwIEdYI2O_P_6N3o6Lq9KUo9_MGjKRdKCNuFguJGbK58Ve_61lROxhwEZ71BPcr_BwcPlwvEIeYBeTohvmkSfH1fT9EH2pj7fIqArpoU5_KXCuUozA9qoZRdOK3uvk6-QthDhW22BR5PZf2"
+                ]),
+                specs=json.dumps({
+                    "识别方式": "人脸识别（支持口罩识别）",
+                    "屏幕": "8英寸IPS高清屏",
+                    "存储": "10000张人脸 / 50000条记录",
+                    "联网": "WiFi / 以太网",
+                    "活体检测": "支持",
+                    "APP管理": "iOS/Android双端",
+                    "防水等级": "IP65",
+                    "电源": "DC 12V/2A"
+                }),
+                details="<h3>产品优势</h3><ul><li>AI深度学习算法，识别率>99.5%</li><li>支持戴口罩识别，防疫无忧</li><li>活体检测防照片/视频作弊</li><li>手机APP实时查看考勤报表</li><li>支持多班次/弹性打卡/加班审批</li></ul><h3>适用场景</h3><p>中小企业、学校、工厂、工地、办公楼</p>",
+                tags="考勤机,人脸识别,智能硬件,企业管理,SaaS",
+                files=json.dumps([
+                    {"name": "产品安装指南.pdf", "url": "/uploads/考勤机安装指南.pdf", "type": "pdf"},
+                    {"name": "APP操作手册.pdf", "url": "/uploads/考勤APP手册.pdf", "type": "pdf"},
+                    {"name": "3C认证证书.pdf", "url": "/uploads/3C认证.pdf", "type": "pdf"}
+                ]),
+                is_featured=1,
+                sort_order=6,
+                status="approved",
                 owner_id=4,
             ),
         ]
@@ -158,26 +309,26 @@ def init_db():
             Order(
                 user_id=2,  # buyer1
                 product_id=1,
-                quantity=1,
-                total_price=99900.00,
+                quantity=2,
+                total_price=336.00,
                 status="received",
                 promoter_id=3,  # promoter1
-                commission=19980.00 * 0.5,  # 推广员分50%
+                commission=25.00 * 2 * 0.5,  # 推广员分50%
             ),
             Order(
                 user_id=2,
-                product_id=3,
-                quantity=2,
-                total_price=59800.00,
+                product_id=2,
+                quantity=1,
+                total_price=399.00,
                 status="paid",
                 promoter_id=3,
-                commission=5980.00 * 0.5,
+                commission=80.00 * 0.5,
             ),
             Order(
                 user_id=2,
                 product_id=4,
                 quantity=1,
-                total_price=19800.00,
+                total_price=298.00,
                 status="shipped",
                 promoter_id=None,
                 commission=0,

@@ -9,11 +9,11 @@ export function LiankebaoHomepage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const { data: products, status, error, refetch } = useApi(
-    () => api.get<{products: ProductItem[]}>('/api/products' + (search ? `?search=${search}` : '')).then(r => r.data?.products || []),
+    () => api.get<{total: number; items: ProductItem[]}>('/api/products' + (search ? `?search=${search}` : '')).then(r => r.data?.items || []),
     [search]
   );
 
-  const displayProducts = (products || []).slice(0, 2);
+  const displayProducts = (products || []).slice(0, 4);
 
   return (
     <div className="flex flex-col min-h-screen bg-neutral-bg font-sans pb-20">
@@ -131,7 +131,7 @@ export function ProductPool() {
   const qs = params.toString();
 
   const { data: products, status, error, refetch } = useApi(
-    () => api.get<{products: ProductItem[]}>('/api/products' + (qs ? `?${qs}` : '')).then(r => r.data?.products || []),
+    () => api.get<{total: number; items: ProductItem[]}>('/api/products' + (qs ? `?${qs}` : '')).then(r => r.data?.items || []),
     [search, category]
   );
 

@@ -39,10 +39,21 @@ class Product(Base):
     earn_per_share = Column(Float, nullable=False, default=0.0)  # 推广分润/每单
     category = Column(String(100), nullable=True)
     stock = Column(Integer, nullable=False, default=0)
-    images = Column(Text, nullable=True)  # JSON数组字符串
+    images = Column(Text, nullable=True)  # JSON数组字符串（主图+轮播）
     status = Column(String(20), nullable=False, default="pending")  # pending/approved/rejected
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    # === 新增真实商品字段 ===
+    specs = Column(Text, nullable=True)       # JSON: 规格参数（如 {"尺寸":"10x20","重量":"0.5kg"}）
+    details = Column(Text, nullable=True)      # HTML/Markdown: 富文本详情描述
+    brand = Column(String(100), nullable=True) # 品牌
+    sale_price = Column(Float, nullable=True)  # 建议零售价（和price组成价格区间）
+    video_url = Column(String(500), nullable=True) # 产品视频
+    tags = Column(String(500), nullable=True)  # 逗号分隔标签
+    files = Column(Text, nullable=True)        # JSON: 关联文件资料
+    is_featured = Column(Integer, default=0)   # 是否推荐 0/1
+    sort_order = Column(Integer, default=0)    # 排序权重
 
     # 关系
     owner = relationship("User", back_populates="products", foreign_keys=[owner_id])

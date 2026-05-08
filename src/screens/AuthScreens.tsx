@@ -72,8 +72,8 @@ export function LoginPage() {
               <MessageCircle className="w-6 h-6" />
               {loading ? '登录中...' : '微信一键登录'}
             </button>
-            <div className="text-center">
-              <span className="text-xs text-text-muted">测试账号: admin/admin123 或 buyer1/123456</span>
+            <div className="text-center hidden">
+              <span className="text-xs text-text-muted">测试账号</span>
             </div>
             <div className="mt-4 text-center">
               <p className="text-xs text-text-muted leading-relaxed">

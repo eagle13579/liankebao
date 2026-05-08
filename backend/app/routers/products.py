@@ -90,6 +90,15 @@ def create_product(
         category=req.category,
         stock=req.stock,
         images=req.images or "[]",
+        specs=req.specs,
+        details=req.details,
+        brand=req.brand,
+        sale_price=req.sale_price,
+        video_url=req.video_url,
+        tags=req.tags,
+        files=req.files,
+        is_featured=req.is_featured or 0,
+        sort_order=req.sort_order or 0,
         status="pending",  # 新建产品待审核
         owner_id=current_user.id,
     )

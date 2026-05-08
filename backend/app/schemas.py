@@ -89,6 +89,16 @@ class ProductBase(BaseModel):
     category: Optional[str] = None
     stock: int = 0
     images: Optional[str] = None  # JSON字符串
+    # 新增字段
+    specs: Optional[str] = None
+    details: Optional[str] = None
+    brand: Optional[str] = None
+    sale_price: Optional[float] = None
+    video_url: Optional[str] = None
+    tags: Optional[str] = None
+    files: Optional[str] = None
+    is_featured: Optional[int] = 0
+    sort_order: Optional[int] = 0
 
 
 class ProductCreate(ProductBase):
@@ -103,6 +113,15 @@ class ProductUpdate(BaseModel):
     category: Optional[str] = None
     stock: Optional[int] = None
     images: Optional[str] = None
+    specs: Optional[str] = None
+    details: Optional[str] = None
+    brand: Optional[str] = None
+    sale_price: Optional[float] = None
+    video_url: Optional[str] = None
+    tags: Optional[str] = None
+    files: Optional[str] = None
+    is_featured: Optional[int] = None
+    sort_order: Optional[int] = None
 
 
 class ProductResponse(ProductBase):
