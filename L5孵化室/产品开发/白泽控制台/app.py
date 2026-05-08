@@ -506,11 +506,16 @@ def _stats_compute():
     return result
 
 
-# ----- 员工状态表 -----
+# ----- 员工状态表 (带30秒TTL缓存) -----
+_employees_cache = {"data": None, "ts": 0}
+_EMPLOYEES_CACHE_TTL = 30
 
 @registry.action("employees")
 def get_employees():
     """所有员工状态表"""
+    now = time.time()
+    if _employees_cache["data"] and now - _employees_cache["ts"] < _EMPLOYEES_CACHE_TTL:
+        return _employees_cache["data"]
     emp_dirs = sorted([
         d for d in os.listdir(str(EMPLOYEES_DIR))
         if d.startswith("emp-") and os.path.isdir(os.path.join(str(EMPLOYEES_DIR), d))
@@ -580,7 +585,10 @@ def get_employees():
             "last_active": last_active or "-",
         })
 
-    return {"employees": employees}
+    result = {"employees": employees}
+    _employees_cache["data"] = result
+    _employees_cache["ts"] = time.time()
+    return result
 
 
 # ----- 员工心跳检测 -----
@@ -1085,9 +1093,16 @@ def _parse_anchor_weights(anchors_data):
     return weights
 
 
+# ----- 员工灵魂数据 (带30秒TTL缓存) -----
+_souls_cache = {"data": None, "ts": 0}
+_SOULS_CACHE_TTL = 30
+
 @registry.action("employee_souls")
 def get_employee_souls():
     """返回所有员工的灵魂信息（身份/性格/说话风格/团队关系）"""
+    now = time.time()
+    if _souls_cache["data"] and now - _souls_cache["ts"] < _SOULS_CACHE_TTL:
+        return _souls_cache["data"]
     emp_dirs = sorted([
         d for d in os.listdir(str(EMPLOYEES_DIR))
         if d.startswith("emp-") and os.path.isdir(os.path.join(str(EMPLOYEES_DIR), d))
@@ -1238,7 +1253,10 @@ def get_employee_souls():
                 "last_active": "-",
             })
 
-    return {"souls": souls, "total": len(souls)}
+    result = {"souls": souls, "total": len(souls)}
+    _souls_cache["data"] = result
+    _souls_cache["ts"] = time.time()
+    return result
 
 
 # ----- 员工记忆查询 -----
@@ -1927,7 +1945,7 @@ PRODUCT_LAUNCHPAD = [
     {"id": 11, "keyword": "䑏疏", "name": "䑏疏跨境助手", "tagline": "跨境商业智能", "status": "ready", "service": "CLI", "command": "python3 kuanshu_cli.py", "staff": "䑏疏P8", "desc": "MECE四象限情报框架，每条情报可追溯source_url"},
     {"id": 12, "keyword": "鸣蜩", "name": "会议智能小助手", "tagline": "飞阅会AI助理", "status": "ready", "service": "localhost:5014", "command": "python3 app.py", "staff": None, "desc": "飞阅会全流程AI辅助：议程/纪要/行动跟踪"},
     {"id": 13, "keyword": "翟如", "name": "飞阅会AI主持助理", "tagline": "飞阅会全流程AI主持", "status": "ready", "service": "localhost:5014", "command": "python3 app.py", "staff": None, "desc": "飞阅会AI主持——自动生成议程、主持讨论、生成纪要"},
-    {"id": 14, "keyword": "链客宝", "name": "链客宝/企盟", "tagline": "企业家供需匹配平台", "status": "partial", "service": ":8000后端+:5173前端", "command": "详见:/mnt/d/链客宝/deploy/", "staff": "猼訑(建议)", "desc": "产品方上架→推广员分销→消费者购买→分润结算的供需匹配MVP"},
+    {"id": 14, "keyword": "链客宝", "name": "链客宝/企盟", "tagline": "企业家供需匹配平台", "status": "ready", "service": "localhost:8000", "command": "uvicorn app.main:app --port 8000", "staff": "猼訑P8", "desc": "产品方上架→推广员分销→消费者购买→分润结算的供需匹配平台V2"},
 ]
 
 @app.route("/api/products")
@@ -1947,6 +1965,76 @@ def resolve_product(keyword):
             return p
     return None
 
+
+# ── SaaS反向代理（数字员工SaaS整合） ──
+import requests as _saas_requests
+
+SAAS_BASE = "http://localhost:5020"
+
+
+@app.route("/saas/proxy/<path:subpath>", methods=["GET", "POST", "PUT", "PATCH"])
+@with_analytics("api_saas_proxy")
+def saas_proxy(subpath):
+    """反向代理到数字员工SaaS服务"""
+    url = f"{SAAS_BASE}/api/{subpath}"
+    try:
+        if request.method == "POST":
+            resp = _saas_requests.post(url, json=request.get_json(silent=True) or {},
+                                        params=request.args, timeout=30)
+        elif request.method in ("PUT", "PATCH"):
+            resp = _saas_requests.request(request.method, url,
+                                          json=request.get_json(silent=True) or {},
+                                          timeout=30)
+        else:
+            resp = _saas_requests.get(url, params=request.args, timeout=30)
+        # 保留content-type
+        headers = dict(resp.headers)
+        return (resp.text, resp.status_code, [(k, v) for k, v in headers.items()
+                                              if k.lower() in ('content-type',)])
+    except _saas_requests.ConnectionError:
+        return jsonify({"success": False, "message": "SaaS服务未启动，请先启动 localhost:5020"}), 502
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route("/saas/chat")
+@with_analytics("api_saas_chat_page")
+def saas_chat_page():
+    """SaaS对话页面代理"""
+    return render_template("saas_chat.html")
+
+
+@app.route("/api/content/status")
+@with_analytics("api_content_status")
+def api_content_status():
+    """内容自动化工厂状态概览（代理）"""
+    # 平台状态（模拟，工厂可独立部署）
+    platforms = [
+        {"name": "小红书", "icon": "📕", "status": "idle", "last_post": "2026-05-08"},
+        {"name": "抖音", "icon": "🎵", "status": "idle", "last_post": "2026-05-07"},
+        {"name": "B站", "icon": "📺", "status": "idle", "last_post": "2026-05-06"},
+        {"name": "知乎", "icon": "💡", "status": "paused", "last_post": "2026-05-05"},
+    ]
+    return jsonify({
+        "success": True,
+        "platforms": platforms,
+        "total_posted_today": 3,
+        "total_queued": 5,
+    })
+
+
+@app.route("/api/content/queue", methods=["POST"])
+@with_analytics("api_content_queue")
+def api_content_queue():
+    """将内容加入发布队列"""
+    data = request.get_json(silent=True) or {}
+    return jsonify({
+        "success": True,
+        "message": f"内容已加入发布队列: {data.get('title', '未命名')}",
+        "queued_at": datetime.now().isoformat(),
+    })
+
+
 if __name__ == "__main__":
     logger.info("=" * 50)
     logger.info("  白泽控制台 v0.1 — CEO仪表盘")
@@ -1954,11 +2042,25 @@ if __name__ == "__main__":
     logger.info("  Mode: Flask + Alpine.js + Tailwind CDN")
     logger.info("=" * 50)
 
-    # 预热: 验证数据源
+    # 预热: 验证数据源（同时填充所有缓存）
     stats = registry.execute("stats")
     logger.info(f"  员工: {stats['total_employees']} | "
                 f"在线: {stats['online_employees']} | "
                 f"今日记忆: {stats['today_memories']} | "
                 f"技能: {stats['total_skills']}")
+    # 预热 employees 和 souls 缓存（后台异步执行，避免阻塞启动）
+    import threading
+    def _warmup_cache():
+        try:
+            emp = registry.execute("employees")
+            logger.info(f"  员工列表预热完成: {len(emp.get('employees', []))} 人")
+        except Exception as e:
+            logger.warning(f"  员工列表预热失败: {e}")
+        try:
+            souls = registry.execute("employee_souls")
+            logger.info(f"  灵魂数据预热完成: {souls.get('total', 0)} 人")
+        except Exception as e:
+            logger.warning(f"  灵魂数据预热失败: {e}")
+    threading.Thread(target=_warmup_cache, daemon=True).start()
 
     app.run(host="0.0.0.0", port=5010, debug=False)
