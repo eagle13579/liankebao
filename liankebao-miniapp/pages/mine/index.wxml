@@ -1,0 +1,30 @@
+<view class="mine">
+  <view class="user-section">
+    <view class="avatar">
+      <text class="avatar-text">{{user?.name ? user.name.charAt(0).toUpperCase() : '?'}}</text>
+    </view>
+    <text class="user-name">{{user?.name || '未登录'}}</text>
+    <text class="user-role">
+      <block wx:if="{{user?.role === 'promoter'}}">推广员</block>
+      <block wx:elif="{{user?.role === 'supplier'}}">产品方</block>
+      <block wx:else>普通用户</block>
+    </text>
+  </view>
+
+  <view class="menu-section">
+    <view class="menu-item" bindtap="goOrders">
+      <text>我的订单</text>
+      <text class="arrow">&gt;</text>
+    </view>
+    <view class="menu-item" wx:if="{{user?.role === 'promoter'}}">
+      <text>推广收益</text>
+      <text class="arrow">&gt;</text>
+    </view>
+    <view class="menu-item" wx:if="{{user?.role === 'supplier'}}">
+      <text>产品管理</text>
+      <text class="arrow">&gt;</text>
+    </view>
+  </view>
+
+  <button class="logout-btn" wx:if="{{user}}" bindtap="handleLogout">退出登录</button>
+</view>

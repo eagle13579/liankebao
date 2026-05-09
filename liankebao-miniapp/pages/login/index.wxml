@@ -1,0 +1,7 @@
+<view class="login">
+  <view class="brand">
+    <text class="logo">链客宝</text>
+    <text class="desc">企业家专属供需匹配平台</text>
+  </view>
+  <button class="wechat-btn" open-type="getUserInfo" bindgetuserinfo="handleWechatLogin">微信一键登录</button>
+</view>

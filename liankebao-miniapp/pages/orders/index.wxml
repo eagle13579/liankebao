@@ -1,0 +1,25 @@
+<view class="orders">
+  <view class="header">
+    <text>我的订单</text>
+  </view>
+  <scroll-view class="order-list" scroll-y>
+    <block wx:if="{{loading}}">
+      <text class="loading">加载中...</text>
+    </block>
+    <block wx:elif="{{orders.length === 0}}">
+      <text class="empty">暂无订单</text>
+    </block>
+    <block wx:else>
+      <view wx:for="{{orders}}" wx:key="id" class="order-card">
+        <view class="order-top">
+          <text class="order-name">{{item.product?.name}}</text>
+          <text class="order-status">{{item.status}}</text>
+        </view>
+        <view class="order-body">
+          <text class="order-price">¥{{item.total_price}} × {{item.quantity}}</text>
+          <text class="confirm-btn" wx:if="{{item.status === 'paid'}}" data-id="{{item.id}}" bindtap="handleConfirm">确认收货</text>
+        </view>
+      </view>
+    </block>
+  </scroll-view>
+</view>

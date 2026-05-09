@@ -1,0 +1,21 @@
+<view class="index">
+  <view class="header">
+    <text class="logo">链客宝</text>
+    <text class="subtitle">企业家供需匹配平台</text>
+  </view>
+  <scroll-view class="product-list" scroll-y>
+    <block wx:if="{{loading}}">
+      <text class="loading">加载中...</text>
+    </block>
+    <block wx:else>
+      <view wx:for="{{products}}" wx:key="id" class="product-item" data-id="{{item.id}}" bindtap="goDetail">
+        <image class="thumb" src="{{item.images ? JSON.parse(item.images)[0] : ''}}" mode="aspectFill" />
+        <view class="body">
+          <text class="name">{{item.name}}</text>
+          <text class="price">¥{{item.price}}</text>
+          <text class="earn" wx:if="{{item.earn_per_share > 0}}">推广赚 ¥{{item.earn_per_share}}</text>
+        </view>
+      </view>
+    </block>
+  </scroll-view>
+</view>

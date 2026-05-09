@@ -1,0 +1,18 @@
+<view class="detail">
+  <block wx:if="{{loading}}">
+    <text class="loading">加载中...</text>
+  </block>
+  <block wx:elif="{{!product}}">
+    <text class="empty">产品不存在</text>
+  </block>
+  <block wx:else>
+    <image class="cover" src="{{product.images ? JSON.parse(product.images)[0] : ''}}" mode="aspectFill" />
+    <view class="info">
+      <text class="name">{{product.name}}</text>
+      <text class="price">¥{{product.price}}</text>
+      <text class="earn" wx:if="{{product.earn_per_share > 0}}">推广赚 ¥{{product.earn_per_share}}</text>
+      <text class="desc">{{product.description}}</text>
+    </view>
+    <button class="buy-btn" bindtap="handleBuy">立即购买</button>
+  </block>
+</view>
