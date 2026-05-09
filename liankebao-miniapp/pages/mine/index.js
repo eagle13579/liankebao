@@ -1,14 +1,45 @@
 Page({
-  data: { user: null },
+  data: {
+    user: null,
+    isLoggedIn: false,
+    userName: '未登录',
+    userInitial: '?',
+    userRole: '普通用户',
+    isPromoter: false,
+    isSupplier: false
+  },
 
   onLoad() {
-    const user = wx.getStorageSync('user')
-    this.setData({ user })
+    this.loadUser()
   },
 
   onShow() {
+    this.loadUser()
+  },
+
+  loadUser() {
     const user = wx.getStorageSync('user')
-    this.setData({ user })
+    if (user) {
+      this.setData({
+        user,
+        isLoggedIn: true,
+        userName: user.name || user.username || '未登录',
+        userInitial: user.name ? user.name.charAt(0).toUpperCase() : '?',
+        userRole: user.role === 'promoter' ? '推广员' : user.role === 'supplier' ? '产品方' : '普通用户',
+        isPromoter: user.role === 'promoter',
+        isSupplier: user.role === 'supplier'
+      })
+    } else {
+      this.setData({
+        user: null,
+        isLoggedIn: false,
+        userName: '未登录',
+        userInitial: '?',
+        userRole: '普通用户',
+        isPromoter: false,
+        isSupplier: false
+      })
+    }
   },
 
   goOrders() {
@@ -18,6 +49,7 @@ Page({
   handleLogout() {
     wx.removeStorageSync('token')
     wx.removeStorageSync('user')
-    wx.navigateTo({ url: '/pages/login/index' })
+    this.loadUser()
+    wx.showToast({ title: '已退出', icon: 'success' })
   }
 })

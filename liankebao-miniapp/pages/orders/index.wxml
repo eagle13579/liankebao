@@ -12,7 +12,7 @@
     <block wx:else>
       <view wx:for="{{orders}}" wx:key="id" class="order-card">
         <view class="order-top">
-          <text class="order-name">{{item.product?.name}}</text>
+          <text class="order-name">{{item.productName}}</text>
           <text class="order-status">{{item.status}}</text>
         </view>
         <view class="order-body">

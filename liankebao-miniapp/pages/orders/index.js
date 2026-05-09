@@ -10,7 +10,11 @@ Page({
       return
     }
     api.get('/orders').then(res => {
-      this.setData({ orders: res.data?.items || [], loading: false })
+      const items = (res.data?.items || []).map(o => ({
+        ...o,
+        productName: o.product?.name || '未知产品'
+      }))
+      this.setData({ orders: items, loading: false })
     })
   },
 

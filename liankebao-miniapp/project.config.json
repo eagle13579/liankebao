@@ -33,7 +33,7 @@
     }
   },
   "compileType": "miniprogram",
-  "libVersion": "3.7.10",
+  "libVersion": "3.16.0",
   "appid": "wxb4f6d89904200fd2",
   "projectname": "链客宝",
   "condition": {},
