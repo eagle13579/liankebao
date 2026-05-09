@@ -1,0 +1,22 @@
+{
+  "name": "liankebao-weapp",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:weapp": "taro build --type weapp --watch",
+    "build:weapp": "taro build --type weapp"
+  },
+  "dependencies": {
+    "@tarojs/components": "3.6.0",
+    "@tarojs/plugin-framework-react": "3.6.0",
+    "@tarojs/runtime": "3.6.0",
+    "@tarojs/taro": "3.6.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "@tarojs/cli": "3.6.0",
+    "@types/react": "18.2.0",
+    "typescript": "5.0.0"
+  }
+}

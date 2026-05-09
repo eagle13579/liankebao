@@ -1,0 +1,47 @@
+/* 登录页样式 */
+.login {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #f0f9ff 100%);
+  padding: 40px;
+}
+
+.brand {
+  text-align: center;
+  margin-bottom: 60px;
+}
+
+.logo {
+  font-size: 42px;
+  font-weight: 800;
+  color: #0ea5e9;
+  display: block;
+  letter-spacing: 4px;
+}
+
+.desc {
+  font-size: 14px;
+  color: #64748b;
+  margin-top: 12px;
+  display: block;
+}
+
+.wechat-btn {
+  width: 280px;
+  height: 48px;
+  line-height: 48px;
+  background: #07c160;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 24px;
+  border: none;
+  text-align: center;
+}
+
+.wechat-btn:active {
+  opacity: 0.9;
+}
