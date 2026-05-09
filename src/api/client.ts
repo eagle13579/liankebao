@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8000';
+const API_BASE = '/api';
 
 interface ApiResponse<T> {
   code: number;
@@ -24,3 +24,4 @@ export const api = {
   put: <T>(path: string, body: any) => request<T>(path, {method:'PUT', body: JSON.stringify(body)}),
   saveToken, loadToken, removeToken,
 };
+
