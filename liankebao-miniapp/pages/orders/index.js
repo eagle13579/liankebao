@@ -2,7 +2,6 @@ var api = require('../../utils/api')
 
 Page({
   data: { orders: [], loading: true },
-
   onLoad: function() {
     var self = this
     var token = wx.getStorageSync('token')
@@ -27,7 +26,6 @@ Page({
       self.setData({ orders: items, loading: false })
     })
   },
-
   handleConfirm: function(e) {
     var self = this
     var orderId = e.currentTarget.dataset.id

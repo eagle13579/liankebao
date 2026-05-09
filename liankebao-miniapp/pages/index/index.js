@@ -11,7 +11,7 @@ function safeGetImage(images) {
 
 Page({
   data: { products: [], loading: true },
-  onLoad() {
+  onLoad: function() {
     var self = this
     api.get('/products').then(function(res) {
       var raw = (res.data && res.data.items) || []
@@ -30,7 +30,7 @@ Page({
       self.setData({ products: items, loading: false })
     })
   },
-  goDetail(e) {
+  goDetail: function(e) {
     wx.navigateTo({ url: '/pages/product/index?id=' + e.currentTarget.dataset.id })
   }
 })

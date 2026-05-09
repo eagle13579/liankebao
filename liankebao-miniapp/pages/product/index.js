@@ -11,7 +11,6 @@ function safeGetImage(images) {
 
 Page({
   data: { product: null, loading: true },
-
   onLoad: function(options) {
     var self = this
     var id = options.id
@@ -23,7 +22,6 @@ Page({
       self.setData({ product: p, loading: false })
     })
   },
-
   handleBuy: function() {
     var token = wx.getStorageSync('token')
     var self = this

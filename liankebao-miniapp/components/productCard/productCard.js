@@ -1,15 +1,6 @@
 Component({
-  properties: {
-    product: Object
-  },
-
-  data: {
-    img: '',
-    name: '',
-    price: 0,
-    earn: 0
-  },
-
+  properties: { product: Object },
+  data: { img: '', name: '', price: 0, earn: 0 },
   observers: {
     'product': function(product) {
       if (product) {
@@ -23,7 +14,6 @@ Component({
       }
     }
   },
-
   methods: {
     handleClick: function() {
       wx.navigateTo({ url: '/pages/product/index?id=' + this.data.product.id })
