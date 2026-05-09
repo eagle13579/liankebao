@@ -13,7 +13,7 @@
     "postcss": false,
     "compileWorklet": false,
     "minified": false,
-    "uglifyFileName": false,
+    "uglifyFileName": true,
     "uploadWithSourceMap": true,
     "enhance": false,
     "packNpmManually": false,

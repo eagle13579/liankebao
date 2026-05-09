@@ -9,19 +9,20 @@ Page({
     isSupplier: false
   },
 
-  onLoad() {
+  onLoad: function() {
     this.loadUser()
   },
 
-  onShow() {
+  onShow: function() {
     this.loadUser()
   },
 
-  loadUser() {
-    const user = wx.getStorageSync('user')
+  loadUser: function() {
+    var user = wx.getStorageSync('user')
+    var self = this
     if (user) {
-      this.setData({
-        user,
+      self.setData({
+        user: user,
         isLoggedIn: true,
         userName: user.name || user.username || '未登录',
         userInitial: user.name ? user.name.charAt(0).toUpperCase() : '?',
@@ -30,7 +31,7 @@ Page({
         isSupplier: user.role === 'supplier'
       })
     } else {
-      this.setData({
+      self.setData({
         user: null,
         isLoggedIn: false,
         userName: '未登录',
@@ -42,11 +43,11 @@ Page({
     }
   },
 
-  goOrders() {
+  goOrders: function() {
     wx.navigateTo({ url: '/pages/orders/index' })
   },
 
-  handleLogout() {
+  handleLogout: function() {
     wx.removeStorageSync('token')
     wx.removeStorageSync('user')
     this.loadUser()

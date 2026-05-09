@@ -1,10 +1,10 @@
-const api = require('../../utils/api')
+var api = require('../../utils/api')
 
 function safeGetImage(images) {
   try {
-    const arr = JSON.parse(images || '[]')
+    var arr = JSON.parse(images || '[]')
     return arr[0] || ''
-  } catch {
+  } catch (e) {
     return ''
   }
 }
@@ -12,22 +12,26 @@ function safeGetImage(images) {
 Page({
   data: { product: null, loading: true },
 
-  onLoad(options) {
-    const id = options.id
-    api.get('/products/' + id).then(res => {
-      const p = res.data
-      if (p) p.firstImage = safeGetImage(p.images)
-      this.setData({ product: p, loading: false })
+  onLoad: function(options) {
+    var self = this
+    var id = options.id
+    api.get('/products/' + id).then(function(res) {
+      var p = res.data
+      if (p) {
+        p.firstImage = safeGetImage(p.images)
+      }
+      self.setData({ product: p, loading: false })
     })
   },
 
-  handleBuy() {
-    const token = wx.getStorageSync('token')
+  handleBuy: function() {
+    var token = wx.getStorageSync('token')
+    var self = this
     if (!token) {
       wx.navigateTo({ url: '/pages/login/index' })
       return
     }
-    api.post('/orders', { product_id: this.data.product.id, quantity: 1 }).then(res => {
+    api.post('/orders', { product_id: self.data.product.id, quantity: 1 }).then(function(res) {
       if (res.code === 200) {
         wx.showToast({ title: '下单成功', icon: 'success' })
         wx.navigateTo({ url: '/pages/orders/index' })

@@ -13,7 +13,7 @@ Component({
   observers: {
     'product': function(product) {
       if (product) {
-        const imgs = JSON.parse(product.images || '[]')
+        var imgs = JSON.parse(product.images || '[]')
         this.setData({
           img: imgs[0] || '',
           name: product.name,
@@ -25,7 +25,7 @@ Component({
   },
 
   methods: {
-    handleClick() {
+    handleClick: function() {
       wx.navigateTo({ url: '/pages/product/index?id=' + this.data.product.id })
     }
   }
