@@ -1,12 +1,23 @@
 const api = require('../../utils/api')
 
+function safeGetImage(images) {
+  try {
+    const arr = JSON.parse(images || '[]')
+    return arr[0] || ''
+  } catch {
+    return ''
+  }
+}
+
 Page({
   data: { product: null, loading: true },
 
   onLoad(options) {
     const id = options.id
     api.get('/products/' + id).then(res => {
-      this.setData({ product: res.data, loading: false })
+      const p = res.data
+      if (p) p.firstImage = safeGetImage(p.images)
+      this.setData({ product: p, loading: false })
     })
   },
 

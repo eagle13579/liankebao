@@ -6,7 +6,7 @@
     <text class="empty">产品不存在</text>
   </block>
   <block wx:else>
-    <image class="cover" src="{{product.images ? JSON.parse(product.images)[0] : ''}}" mode="aspectFill" />
+    <image class="cover" src="{{product.firstImage}}" mode="aspectFill" />
     <view class="info">
       <text class="name">{{product.name}}</text>
       <text class="price">¥{{product.price}}</text>

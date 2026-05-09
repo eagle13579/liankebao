@@ -9,7 +9,7 @@
     </block>
     <block wx:else>
       <view wx:for="{{products}}" wx:key="id" class="product-item" data-id="{{item.id}}" bindtap="goDetail">
-        <image class="thumb" src="{{item.images ? JSON.parse(item.images)[0] : ''}}" mode="aspectFill" />
+        <image class="thumb" src="{{item.firstImage}}" mode="aspectFill" />
         <view class="body">
           <text class="name">{{item.name}}</text>
           <text class="price">¥{{item.price}}</text>

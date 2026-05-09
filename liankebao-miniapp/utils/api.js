@@ -39,4 +39,3 @@ function request(path, method = 'GET', data = null) {
     })
   })
 }
-logout
