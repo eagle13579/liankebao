@@ -1,4 +1,4 @@
-const api = require('../../utils/api')
+var api = require('../../utils/api')
 
 function safeGetImage(images) {
   try {
