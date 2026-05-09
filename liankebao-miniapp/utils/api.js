@@ -1,4 +1,4 @@
-const API_BASE = 'https://www.liankebao.com/api'
+const API_BASE = 'https://47.100.160.250/api'
 
 module.exports = {
   get(path) { return request(path) },
@@ -39,3 +39,4 @@ function request(path, method = 'GET', data = null) {
     })
   })
 }
+logout
