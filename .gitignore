@@ -10,3 +10,7 @@ state.db-shm
 state.db-wal
 *.log
 __pycache__
+.venv_linux/
+.venv/
+venv/
+env/
