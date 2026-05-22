@@ -1,7 +1,8 @@
 """Pydantic 请求/响应模型"""
+import re
 from datetime import datetime
-from typing import Optional, List
-from pydantic import BaseModel, Field
+from typing import Optional, List, Dict
+from pydantic import BaseModel, Field, field_validator
 
 
 # ===== 通用响应 =====
@@ -56,9 +57,14 @@ class UserBrief(BaseModel):
 
 
 # ===== 认证 =====
+# 邮箱/手机号正则
+_EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+_PHONE_RE = re.compile(r'^1[3-9]\d{9}$')
+
+
 class LoginRequest(BaseModel):
-    username: str
-    password: str
+    username: str = Field(..., min_length=1, max_length=50)
+    password: str = Field(..., min_length=8, max_length=128)
 
 
 class WechatLoginRequest(BaseModel):
@@ -67,12 +73,32 @@ class WechatLoginRequest(BaseModel):
 
 class RegisterRequest(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
-    password: str = Field(..., min_length=6)
-    name: str
+    password: str = Field(..., min_length=8, max_length=128)
+    name: str = Field(..., min_length=1, max_length=100)
     phone: Optional[str] = None
     company: Optional[str] = None
     position: Optional[str] = None
     role: Optional[str] = "buyer"
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v.strip():
+            if not _PHONE_RE.match(v):
+                raise ValueError("手机号格式不正确，需为11位中国大陆手机号")
+        return v
+
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, v: str) -> str:
+        # 允许字母、数字、下划线、中文
+        if not re.match(r'^[\w\u4e00-\u9fff]+$', v):
+            raise ValueError("用户名只能包含字母、数字、下划线和中文")
+        return v
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str = Field(..., min_length=1)
 
 
 class TokenResponse(BaseModel):
@@ -152,6 +178,15 @@ class OrderResponse(BaseModel):
     status: str
     promoter_id: Optional[int] = None
     commission: float = 0.0
+    # === IJPay 支付字段 ===
+    payment_platform: Optional[str] = None     # wxpay / alipay
+    wx_transaction_id: Optional[str] = None     # V2 兼容
+    transaction_id: Optional[str] = None        # 第三方支付订单号
+    prepay_id: Optional[str] = None             # 微信预支付ID
+    payment_time: Optional[datetime] = None     # 支付完成时间
+    refund_id: Optional[str] = None             # 退款单号
+    refund_time: Optional[datetime] = None      # 退款时间
+    pay_time: Optional[datetime] = None         # 旧字段兼容
     created_at: datetime
 
     class Config:
@@ -201,3 +236,161 @@ class ProductReviewRequest(BaseModel):
 
 class OrderStatusRequest(BaseModel):
     status: str  # 新状态: pending, paid, shipped, received, refunded, cancelled
+
+
+# ===== 导入引擎 =====
+
+
+class FieldMappingItem(BaseModel):
+    """单个字段映射项"""
+    csv_column: str = Field(..., description="CSV中的列名")
+    standard_field: str = Field("", description="映射到的标准字段，空表示不映射")
+    sample_values: List[str] = Field(default_factory=list, description="该列的示例值")
+
+
+class ImportPreviewRequest(BaseModel):
+    """导入预览请求（文件上传后调用）"""
+    pass  # 文件通过 UploadFile 传递
+
+
+class ImportPreviewResponse(BaseModel):
+    """导入预览响应"""
+    batch_id: str
+    total_rows: int
+    preview_rows: List[dict] = Field(default_factory=list)
+    headers: List[str] = Field(default_factory=list)
+    field_mapping: Dict[str, str] = Field(default_factory=dict)
+    mapped_preview: List[dict] = Field(default_factory=list)
+    suggestions: Optional[dict] = None
+
+
+class DuplicateInfo(BaseModel):
+    """重复信息"""
+    row_index: int
+    matched_contact_id: Optional[int] = None
+    matched_name: str = ""
+    similarity_score: float = 0.0
+    match_type: str = ""  # name_fuzzy / phone_exact / wechat_exact / company_fuzzy
+
+
+class ImportConfirmRequest(BaseModel):
+    """确认导入请求"""
+    batch_id: str = Field(..., description="预览时返回的批次ID")
+    field_mapping: Dict[str, str] = Field(..., description="最终确认的列名映射")
+    strategy: str = Field("skip", description="去重策略: skip / merge / update")
+    # 如果为空，则默认对所有重复项应用同一策略
+    duplicates: Optional[List[DuplicateInfo]] = Field(None, description="每个重复项的处理方式")
+
+
+class ImportConfirmResponse(BaseModel):
+    """确认导入响应"""
+    batch_id: str
+    import_id: int = 0
+    total_rows: int = 0
+    imported_rows: int = 0
+    skipped_rows: int = 0
+    merged_rows: int = 0
+    duplicate_count: int = 0
+    strategy: str = "skip"
+
+
+class ImportHistoryItem(BaseModel):
+    """导入历史条目"""
+    id: int
+    filename: str
+    file_type: str
+    total_rows: int
+    imported_rows: int
+    skipped_rows: int
+    merged_rows: int
+    duplicate_count: int
+    strategy: str
+    status: str
+    error_message: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ImportHistoryResponse(BaseModel):
+    """导入历史列表响应"""
+    total: int = 0
+    page: int = 1
+    page_size: int = 20
+    items: List[ImportHistoryItem] = Field(default_factory=list)
+
+
+# ===== 联系人 =====
+class ContactBase(BaseModel):
+    """联系人基础字段"""
+    name: str = Field(..., min_length=1, max_length=100, description="姓名")
+    phone: Optional[str] = Field(None, max_length=50, description="手机号")
+    wechat_id: Optional[str] = Field(None, max_length=100, description="微信号")
+    company: Optional[str] = Field(None, max_length=200, description="公司")
+    position: Optional[str] = Field(None, max_length=100, description="职位")
+    email: Optional[str] = Field(None, max_length=200, description="邮箱")
+    notes: Optional[str] = Field(None, description="备注")
+    tags: Optional[str] = Field(None, max_length=500, description="标签（逗号分隔）")
+    source: Optional[str] = Field("manual", max_length=50, description="来源: import/manual/wechat")
+
+
+class ContactCreate(ContactBase):
+    """创建联系人"""
+    pass
+
+
+class ContactUpdate(BaseModel):
+    """更新联系人（所有字段可选）"""
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    phone: Optional[str] = Field(None, max_length=50)
+    wechat_id: Optional[str] = Field(None, max_length=100)
+    company: Optional[str] = Field(None, max_length=200)
+    position: Optional[str] = Field(None, max_length=100)
+    email: Optional[str] = Field(None, max_length=200)
+    notes: Optional[str] = None
+    tags: Optional[str] = Field(None, max_length=500)
+    source: Optional[str] = Field(None, max_length=50)
+
+
+class ContactResponse(ContactBase):
+    """联系人响应"""
+    id: int
+    owner_id: int
+    import_batch_id: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ContactListResponse(BaseModel):
+    """联系人列表响应"""
+    total: int = 0
+    page: int = 1
+    page_size: int = 20
+    items: List[ContactResponse] = Field(default_factory=list)
+
+
+# ===== 活动 =====
+class ActivityBase(BaseModel):
+    """活动基础字段"""
+    action_type: str = Field(..., max_length=50, description="活动类型: note/call/meeting/email/wechat/order/import")
+    summary: Optional[str] = Field(None, max_length=500, description="摘要")
+    detail: Optional[str] = Field(None, description="详细内容")
+
+
+class ActivityCreate(ActivityBase):
+    """创建活动"""
+    pass
+
+
+class ActivityResponse(ActivityBase):
+    """活动响应"""
+    id: int
+    contact_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

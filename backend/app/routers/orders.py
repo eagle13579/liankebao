@@ -1,5 +1,11 @@
-"""订单路由：创建订单/查看订单/更新订单状态"""
-from fastapi import APIRouter, Depends, HTTPException, status
+"""订单路由：创建订单/查看订单/更新订单状态/支付回调"""
+import hashlib
+import time
+import os
+import json
+import logging
+from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -8,14 +14,23 @@ from app.schemas import (
     ApiResponse, OrderCreate, OrderStatusRequest, OrderResponse,
 )
 from app.auth import get_current_user
+from app.wechat_pay import (
+    create_jsapi_order, verify_payment_notification,
+    create_refund, is_wechat_configured,
+)
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/orders", tags=["订单"])
+
+# 微信支付配置（从环境变量读取）
+WECHAT_APPID = os.environ.get("WECHAT_APPID", "wxb4f6d89904200fd2")
 
 
 @router.post("", response_model=ApiResponse)
 def create_order(req: OrderCreate, db: Session = Depends(get_db),
                  current_user: User = Depends(get_current_user)):
-    """创建订单"""
+    """创建订单并返回支付参数"""
     # 验证产品
     product = db.query(Product).filter(Product.id == req.product_id).first()
     if not product:
@@ -44,13 +59,13 @@ def create_order(req: OrderCreate, db: Session = Depends(get_db),
     # 扣减库存
     product.stock -= req.quantity
 
-    # 创建订单
+    # 创建订单（初始状态为 pending，支付成功后才变为 paid）
     order = Order(
         user_id=current_user.id,
         product_id=req.product_id,
         quantity=req.quantity,
         total_price=total_price,
-        status="paid",
+        status="pending",
         promoter_id=req.promoter_id,
         commission=commission,
     )
@@ -58,11 +73,179 @@ def create_order(req: OrderCreate, db: Session = Depends(get_db),
     db.commit()
     db.refresh(order)
 
+    # 生成支付参数（微信支付统一下单）
+    import asyncio
+    out_trade_no = f"LK{order.id:08d}{int(time.time())}"
+    total_fee = int(total_price * 100)  # 元转分
+
+    if is_wechat_configured():
+        # 真实模式：调用微信统一下单
+        openid = current_user.wechat_openid or ""
+        if not openid:
+            logger.warning(f"用户 {current_user.id} 无 wechat_openid，尝试用 mock 支付")
+            payment_params = _mock_payment(order)
+        else:
+            try:
+                result = asyncio.run(create_jsapi_order(
+                    openid=openid,
+                    out_trade_no=out_trade_no,
+                    total_fee=total_fee,
+                    description=f"{product.name[:60]} x{req.quantity}",
+                    attach=json.dumps({"order_id": order.id}),
+                ))
+            except Exception as e:
+                logger.error(f"微信统一下单失败: {e}")
+                result = None
+
+            if result and result.get("prepay_id"):
+                order.prepay_id = result["prepay_id"]
+                db.commit()
+                payment_params = result["payment_params"]
+                payment_params["_mode"] = "real"
+            else:
+                logger.warning("微信统一下单失败，降级到 mock 模式")
+                payment_params = _mock_payment(order)
+    else:
+        # Mock模式
+        payment_params = _mock_payment(order)
+
     return ApiResponse(
         code=200,
         message="下单成功",
-        data=OrderResponse.model_validate(order).model_dump(),
+        data={
+            "order": OrderResponse.model_validate(order).model_dump(),
+            "payment": payment_params,
+        },
     )
+
+
+def _mock_payment(order: Order) -> dict:
+    """生成 mock 支付参数"""
+    timestamp = str(int(time.time()))
+    nonce_str = hashlib.md5(f"{timestamp}{order.id}".encode()).hexdigest()[:16]
+    prepay_id = f"wx{timestamp}{order.id}"
+
+    # 保存 prepay_id
+    from app.database import SessionLocal
+    db = SessionLocal()
+    try:
+        db_order = db.query(Order).filter(Order.id == order.id).first()
+        if db_order:
+            db_order.prepay_id = prepay_id
+            db.commit()
+    except Exception:
+        pass
+    finally:
+        db.close()
+
+    raw = f"{WECHAT_APPID}\n{timestamp}\n{nonce_str}\nprepay_id={prepay_id}\n"
+    pay_sign = hashlib.sha256(raw.encode()).hexdigest()[:32]
+
+    return {
+        "appId": WECHAT_APPID,
+        "timeStamp": timestamp,
+        "nonceStr": nonce_str,
+        "package": f"prepay_id={prepay_id}",
+        "signType": "RSA",
+        "paySign": pay_sign,
+        "_mode": "mock",
+    }
+
+
+@router.post("/pay-notify", response_model=None)
+async def pay_notify(request: Request, db: Session = Depends(get_db)):
+    """微信支付回调通知处理"""
+    body = await request.body()
+    logger.info(f"收到支付回调: {body[:200]}")
+
+    # 获取回调头信息
+    wechat_signature = request.headers.get("Wechatpay-Signature", "")
+    wechat_serial = request.headers.get("Wechatpay-Serial", "")
+    wechat_timestamp = request.headers.get("Wechatpay-Timestamp", "")
+    wechat_nonce = request.headers.get("Wechatpay-Nonce", "")
+
+    if is_wechat_configured() and wechat_signature:
+        # 真实模式：验签
+        notify_data = verify_payment_notification(
+            body=body,
+            signature=wechat_signature,
+            serial=wechat_serial,
+            timestamp=wechat_timestamp,
+            nonce=wechat_nonce,
+        )
+        if not notify_data:
+            logger.error("支付回调验签失败")
+            return {"code": "FAIL", "message": "验签失败"}
+    else:
+        # Mock模式：直接解析
+        try:
+            notify_data = json.loads(body)
+            if "resource" in notify_data:
+                # 模拟解密
+                import base64
+                try:
+                    resource = notify_data["resource"]
+                    ciphertext = resource.get("ciphertext", "")
+                    if ciphertext:
+                        plaintext = base64.b64decode(ciphertext).decode("utf-8")
+                        notify_data = json.loads(plaintext)
+                    else:
+                        notify_data = {"out_trade_no": "", "transaction_id": f"mock_tx_{int(time.time())}"}
+                except Exception:
+                    notify_data = {"out_trade_no": "", "transaction_id": f"mock_tx_{int(time.time())}"}
+            else:
+                notify_data = notify_data
+        except Exception:
+            notify_data = {"out_trade_no": "", "transaction_id": f"mock_tx_{int(time.time())}"}
+
+    logger.info(f"解析回调数据: {notify_data}")
+
+    # 更新订单状态
+    out_trade_no = notify_data.get("out_trade_no", "")
+    transaction_id = notify_data.get("transaction_id", "") or notify_data.get("wx_transaction_id", "")
+
+    if out_trade_no:
+        # 从 out_trade_no 解析 order_id（格式: LK{order_id}....）
+        if out_trade_no.startswith("LK"):
+            try:
+                order_id = int(out_trade_no[2:10])
+            except (ValueError, IndexError):
+                order_id = None
+        else:
+            order_id = None
+
+        if order_id:
+            order = db.query(Order).filter(Order.id == order_id).first()
+            if order and order.status == "pending":
+                order.status = "paid"
+                order.wx_transaction_id = transaction_id or f"mock_tx_{order.id}"
+                order.pay_time = datetime.utcnow()
+                db.commit()
+                logger.info(f"订单 {order_id} 支付成功，状态更新为 paid")
+                return {"code": "SUCCESS", "message": "成功"}
+            elif order:
+                logger.warning(f"订单 {order_id} 状态为 {order.status}，无需更新")
+                return {"code": "SUCCESS", "message": "已处理"}
+            else:
+                logger.warning(f"订单 {order_id} 不存在")
+        else:
+            logger.warning(f"无法从 out_trade_no 解析 order_id: {out_trade_no}")
+
+    # 尝试通过 prepay_id 匹配
+    if transaction_id:
+        order = db.query(Order).filter(
+            Order.status == "pending",
+            Order.prepay_id.isnot(None),
+        ).order_by(Order.id.desc()).first()
+        if order:
+            order.status = "paid"
+            order.wx_transaction_id = transaction_id
+            order.pay_time = datetime.utcnow()
+            db.commit()
+            logger.info(f"订单 {order.id} 支付成功（通过 prepay_id 匹配）")
+            return {"code": "SUCCESS", "message": "成功"}
+
+    return {"code": "SUCCESS", "message": "已接收"}
 
 
 @router.get("", response_model=ApiResponse)
@@ -145,20 +328,58 @@ def update_order_status(
 
     # 记录旧状态
     old_status = order.status
-    order.status = req.status
+
+    # 如果申请退款，调用微信退款
+    if req.status == "refunded" and order.wx_transaction_id:
+        import asyncio
+        try:
+            refund_result = asyncio.run(create_refund(
+                out_trade_no=f"LK{order.id:08d}",
+                out_refund_no=f"RF{order.id:08d}{int(time.time())}",
+                refund_amount=int(order.total_price * 100),
+                total_amount=int(order.total_price * 100),
+                reason="用户申请退款",
+            ))
+            if refund_result:
+                logger.info(f"订单 {order.id} 退款成功: {refund_result.get('refund_id')}")
+        except Exception as e:
+            logger.error(f"退款调用失败: {e}")
+            # 即使退款API失败，仍允许状态变更（后续可人工处理）
 
     # 如果确认收货且有关联推广员，累加收益
     if req.status == "received" and order.promoter_id and order.commission > 0:
-        promoter_user = db.query(User).filter(User.id == order.promoter_id).first()
-        if promoter_user:
-            # 推广收益累加逻辑由promoter earnings查询时实时计算
-            pass
+        pass  # 推广收益由 promoter earnings 查询时实时计算
 
+    order.status = req.status
     db.commit()
     db.refresh(order)
 
     return ApiResponse(
         code=200,
         message=f"订单状态已变更: {old_status} → {req.status}",
+        data=OrderResponse.model_validate(order).model_dump(),
+    )
+
+
+@router.get("/{order_id}", response_model=ApiResponse)
+def get_order(order_id: int, db: Session = Depends(get_db),
+              current_user: User = Depends(get_current_user)):
+    """获取订单详情"""
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+
+    # 权限检查
+    is_admin = current_user.role == "admin"
+    is_supplier = current_user.role == "supplier" and order.product.owner_id == current_user.id
+    is_owner = order.user_id == current_user.id
+    is_promoter = order.promoter_id == current_user.id
+
+    if not (is_admin or is_supplier or is_owner or is_promoter):
+        raise HTTPException(status_code=403, detail="无权查看此订单")
+
+    return ApiResponse(
+        code=200,
+        message="success",
         data=OrderResponse.model_validate(order).model_dump(),
     )

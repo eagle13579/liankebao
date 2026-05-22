@@ -22,6 +22,9 @@ from app.database import init_db, get_db
 from app.routers import auth, products, orders, promoter, admin, search, imports as import_router
 import app.routers.contacts as contacts_module
 import app.routers.activities as activities_module
+import app.routers.payment as payment_module
+import recharge.routes as recharge_module
+import recharge.callback as recharge_callback_module
 
 # ===== 通知系统 & WebSocket =====
 from app.notifications import NotificationManager
@@ -46,6 +49,7 @@ app.add_middleware(
         "https://liankebao.top",
         "https://www.liankebao.top",
     ],
+    allow_origin_regex="https?://localhost(:\\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -88,7 +92,7 @@ async def limit_request_size(request: Request, call_next):
 #   第一轮：临时将 prefix 改为 /api/v1/...，注册版本化路由
 #   第二轮：恢复原始 prefix，注册向后兼容的 /api/... 路由
 
-router_modules = [auth, products, orders, promoter, admin, search, import_router, contacts_module, activities_module]
+router_modules = [auth, products, orders, promoter, admin, search, import_router, contacts_module, activities_module, payment_module, recharge_module]
 
 # 第一轮：/api/v1/ 版本化路由
 for mod in router_modules:
@@ -106,10 +110,9 @@ app.include_router(admin.router)
 app.include_router(search.router)
 app.include_router(import_router.router)
 app.include_router(contacts_module.router)
-app.include_router(activities_module.router)
-
-
-# ===== 静态文件服务（banner 图片等） =====
+app.include_router(payment_module.router)
+app.include_router(recharge_module.router)
+app.include_router(recharge_callback_module.callback_router)
 import os
 from fastapi.staticfiles import StaticFiles
 

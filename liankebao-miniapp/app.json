@@ -2,14 +2,46 @@
   "pages": [
     "pages/index/index",
     "pages/login/index",
+    "pages/register/index",
     "pages/product/index",
+    "pages/pool/index",
     "pages/orders/index",
+    "pages/promotion/index",
+    "pages/manage-products/index",
+    "pages/address/index",
     "pages/mine/index"
   ],
   "window": {
     "navigationStyle": "custom",
     "backgroundColor": "#f5f5f5",
-    "backgroundTextStyle": "light"
+    "backgroundTextStyle": "light",
+    "navigationBarTitleText": "链客宝"
+  },
+  "tabBar": {
+    "color": "#94a3b8",
+    "selectedColor": "#0ea5e9",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "images/tab_home.png",
+        "selectedIconPath": "images/tab_home_active.png"
+      },
+      {
+        "pagePath": "pages/pool/index",
+        "text": "产品池",
+        "iconPath": "images/tab_pool.png",
+        "selectedIconPath": "images/tab_pool_active.png"
+      },
+      {
+        "pagePath": "pages/mine/index",
+        "text": "我的",
+        "iconPath": "images/tab_mine.png",
+        "selectedIconPath": "images/tab_mine_active.png"
+      }
+    ]
   },
   "sitemapLocation": "sitemap.json"
 }

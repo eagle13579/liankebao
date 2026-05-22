@@ -1,8 +1,11 @@
 """推广员路由：收益查询/提现"""
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func as sa_func
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 from app.database import get_db
 from app.models import User, Order, Withdrawal
@@ -127,5 +130,29 @@ def get_withdrawals(db: Session = Depends(get_db),
         data={
             "total": len(withdrawals),
             "items": [WithdrawalResponse.model_validate(w).model_dump() for w in withdrawals],
+        },
+    )
+
+
+@router.get("/qrcode", response_model=ApiResponse)
+def get_qrcode(product_id: int, db: Session = Depends(get_db),
+               current_user: User = Depends(get_current_user)):
+    """获取推广小程序码（Mock — 需配置WECHAT_APP_SECRET后对接微信API）"""
+    if current_user.role != "promoter":
+        raise HTTPException(status_code=403, detail="仅推广员可操作")
+
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="产品不存在")
+
+    # 降级返回：直接返回推广链接，前端可生成简易二维码
+    share_url = f"https://www.go-aiport.com/lkapi/share?product={product_id}&promoter={current_user.id}"
+    return ApiResponse(
+        code=200,
+        message="success",
+        data={
+            "qrcode": "",
+            "share_url": share_url,
+            "page": f"pages/product/index?id={product_id}&promoter={current_user.id}",
         },
     )

@@ -5,7 +5,6 @@
   "setting": {
     "urlCheck": false,
     "coverView": false,
-    "lazyloadPlaceholderEnable": false,
     "skylineRenderEnable": false,
     "preloadBackgroundData": false,
     "autoAudits": false,
@@ -17,6 +16,7 @@
     "compileHotReLoad": true,
     "checkInvalidKey": true,
     "ignoreDevUnusedFiles": true,
-    "bigPackageSizeSupport": false
+    "bigPackageSizeSupport": false,
+    "lazyloadPlaceholderEnable": false
   }
 }

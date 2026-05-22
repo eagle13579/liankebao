@@ -3,5 +3,27 @@
     <text class="logo">链客宝</text>
     <text class="desc">企业家专属供需匹配平台</text>
   </view>
-  <button class="wechat-btn" bindtap="handleWechatLogin">微信一键登录</button>
+
+  <!-- 微信一键登录 -->
+  <block wx:if="{{mode === 'wechat'}}">
+    <button class="wechat-btn" bindtap="handleWechatLogin">💬 微信一键登录</button>
+    <view class="switch-link" bindtap="switchMode">使用账号密码登录</view>
+  </block>
+
+  <!-- 账号密码登录 -->
+  <block wx:else>
+    <view class="form">
+      <view class="input-group">
+        <text class="input-label">用户名</text>
+        <input class="input-field" placeholder="请输入用户名" value="{{username}}" bindinput="onUsernameInput" />
+      </view>
+      <view class="input-group">
+        <text class="input-label">密码</text>
+        <input class="input-field" type="password" placeholder="请输入密码" value="{{password}}" bindinput="onPasswordInput" />
+      </view>
+      <button class="login-btn" bindtap="handleAccountLogin">登 录</button>
+    </view>
+    <view class="switch-link" bindtap="switchMode">微信一键登录</view>
+    <view class="register-link" bindtap="goToRegister">没有账号？立即注册</view>
+  </block>
 </view>

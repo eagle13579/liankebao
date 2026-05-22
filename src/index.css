@@ -1,12 +1,14 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-manrope: "Manrope", sans-serif;
-  
+  --font-sans: "Noto Sans SC", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-manrope: "Manrope", "Noto Sans SC", sans-serif;
+  --font-inter: "Inter", ui-sans-serif, system-ui, sans-serif;
+
   --color-primary: var(--color-sky-600);
   --color-primary-container: var(--color-sky-500);
+  --color-primary-light: var(--color-sky-100);
   --color-secondary: var(--color-slate-600);
   --color-neutral-bg: var(--color-slate-50);
   --color-surface: #ffffff;
@@ -16,28 +18,132 @@
   --color-success: var(--color-emerald-500);
   --color-warning: var(--color-amber-500);
   --color-error: var(--color-rose-600);
+
+  /* Dark mode tokens */
+  --color-dark-bg: #0f172a;
+  --color-dark-surface: #1e293b;
+  --color-dark-border: #334155;
+  --color-dark-text: #f1f5f9;
+  --color-dark-muted: #94a3b8;
 }
 
 @layer base {
   body {
     @apply bg-neutral-bg text-on-surface antialiased;
   }
+
+  /* Dark mode */
+  .dark body,
+  body.dark {
+    @apply bg-dark-bg text-dark-text;
+  }
 }
 
+/* Enhanced mesh gradients */
 .login-mesh {
-  background-image: radial-gradient(at 0% 0%, hsla(200, 100%, 93%, 1) 0, transparent 50%), 
-                    radial-gradient(at 100% 0%, hsla(220, 45%, 90%, 1) 0, transparent 50%);
+  background-image:
+    radial-gradient(ellipse 80% 60% at 0% 20%, hsla(200, 100%, 93%, 0.8) 0, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 100% 0%, hsla(210, 100%, 88%, 0.6) 0, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 50% 100%, hsla(190, 80%, 92%, 0.5) 0, transparent 50%);
 }
 
+.dark .login-mesh,
+.login-mesh.dark {
+  background-image:
+    radial-gradient(ellipse 80% 60% at 0% 20%, hsla(200, 80%, 30%, 0.3) 0, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 100% 0%, hsla(210, 80%, 25%, 0.2) 0, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 50% 100%, hsla(190, 60%, 20%, 0.2) 0, transparent 50%);
+}
+
+/* Home mesh background */
+.home-mesh {
+  background-image:
+    radial-gradient(ellipse 70% 40% at 0% 10%, hsla(200, 90%, 95%, 0.7) 0, transparent 50%),
+    radial-gradient(ellipse 50% 30% at 100% 20%, hsla(220, 60%, 92%, 0.5) 0, transparent 50%);
+}
+
+.dark .home-mesh,
+.home-mesh.dark {
+  background-image:
+    radial-gradient(ellipse 70% 40% at 0% 10%, hsla(200, 60%, 25%, 0.2) 0, transparent 50%),
+    radial-gradient(ellipse 50% 30% at 100% 20%, hsla(220, 50%, 20%, 0.15) 0, transparent 50%);
+}
+
+/* Gradient utilities */
 .sky-gradient {
   background: linear-gradient(135deg, var(--color-sky-500) 0%, var(--color-sky-700) 100%);
 }
 
-/* Hide scrollbar */
+.sky-gradient-light {
+  background: linear-gradient(135deg, var(--color-sky-50) 0%, var(--color-sky-100) 100%);
+}
+
+.brand-gradient {
+  background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 50%, #7c3aed 100%);
+}
+
+/* Decorative floating bubbles */
+.bubble {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.1;
+  pointer-events: none;
+}
+
+.dark .bubble {
+  opacity: 0.06;
+}
+
+/* Scrollbar hide */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
 .no-scrollbar {
-  -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Card hover effect */
+.card-hover {
+  @apply transition-all duration-200;
+}
+.card-hover:hover {
+  @apply -translate-y-0.5 shadow-md;
+}
+
+/* Glass effect */
+.glass {
+  @apply bg-white/70 backdrop-blur-xl;
+}
+
+.dark .glass,
+.glass.dark {
+  @apply bg-slate-800/70 backdrop-blur-xl;
+}
+
+/* Pulse glow for brand elements */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(14, 165, 233, 0.15); }
+  50% { box-shadow: 0 0 30px rgba(14, 165, 233, 0.3); }
+}
+
+.glow-pulse {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+/* Skeleton loading shimmer */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.dark .skeleton {
+  background: linear-gradient(90deg, #334155 25%, #475569 50%, #334155 75%);
+  background-size: 200% 100%;
 }

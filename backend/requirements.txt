@@ -6,3 +6,10 @@ python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
 python-multipart==0.0.9
+httpx==0.27.0
+pymysql==1.1.1
+cryptography==43.0.0
+
+# PostgreSQL 驱动（可选 — 仅迁移到 PG 时需要）
+# 安装: pip install psycopg2-binary
+# psycopg2-binary==2.9.9

@@ -1,4 +1,4 @@
-const API_BASE = '/api';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8001';
 
 interface ApiResponse<T> {
   code: number;
@@ -14,8 +14,16 @@ async function request<T>(path: string, options?: RequestInit): Promise<ApiRespo
   const headers: Record<string,string> = {'Content-Type': 'application/json'};
   const t = loadToken();
   if (t) headers['Authorization'] = 'Bearer ' + t;
-  const res = await fetch(API_BASE + path, {...options, headers});
-  return res.json();
+  try {
+    const res = await fetch(API_BASE + path, {...options, headers});
+    if (!res.ok) {
+      return { code: res.status, message: `HTTP ${res.status}: ${res.statusText}` };
+    }
+    return res.json();
+  } catch (e: any) {
+    console.error('[API Error]', path, e);
+    return { code: 500, message: e.message || '网络错误，请检查连接' };
+  }
 }
 
 export const api = {
@@ -24,4 +32,3 @@ export const api = {
   put: <T>(path: string, body: any) => request<T>(path, {method:'PUT', body: JSON.stringify(body)}),
   saveToken, loadToken, removeToken,
 };
-

@@ -1,9 +1,12 @@
 """产品路由：CRUD/审核/搜索"""
 import json
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
+
+logger = logging.getLogger(__name__)
 
 from app.database import get_db
 from app.models import User, Product

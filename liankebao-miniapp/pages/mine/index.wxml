@@ -9,16 +9,39 @@
 
   <view class="menu-section">
     <view class="menu-item" bindtap="goOrders">
-      <text>我的订单</text>
-      <text class="arrow">&gt;</text>
+      <view class="menu-left">
+        <text class="menu-icon">📋</text>
+        <text>我的订单</text>
+      </view>
+      <text class="arrow">›</text>
     </view>
-    <view class="menu-item" wx:if="{{isPromoter}}">
-      <text>推广收益</text>
-      <text class="arrow">&gt;</text>
+    <view class="menu-item" wx:if="{{isPromoter}}" bindtap="goPromotion">
+      <view class="menu-left">
+        <text class="menu-icon">📢</text>
+        <text>推广收益</text>
+      </view>
+      <text class="arrow">›</text>
     </view>
-    <view class="menu-item" wx:if="{{isSupplier}}">
-      <text>产品管理</text>
-      <text class="arrow">&gt;</text>
+    <view class="menu-item" wx:if="{{isSupplier}}" bindtap="goManageProducts">
+      <view class="menu-left">
+        <text class="menu-icon">🛍️</text>
+        <text>产品管理</text>
+      </view>
+      <text class="arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="goAddress">
+      <view class="menu-left">
+        <text class="menu-icon">📍</text>
+        <text>地址管理</text>
+      </view>
+      <text class="arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="goAbout">
+      <view class="menu-left">
+        <text class="menu-icon">ℹ️</text>
+        <text>关于我们</text>
+      </view>
+      <text class="arrow">›</text>
     </view>
   </view>
 

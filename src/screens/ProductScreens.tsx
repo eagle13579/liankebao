@@ -12,7 +12,7 @@ export function ProductDetailPage() {
 
   const { data: product, status, error, refetch } = useApi(
     () => productId
-      ? api.get<{product: ProductItem}>(`/api/products/${productId}`).then(r => r.data?.product || null)
+      ? api.get<ProductItem>(`/api/products/${productId}`).then(r => r.data || null)
       : Promise.resolve(null),
     [productId]
   );
@@ -97,7 +97,7 @@ export function ProductDetailPage() {
             onClick={() => navigate('/order-confirm', { state: { transition: 'slide_up' } })}
             className="flex-1 h-12 rounded-xl border-2 border-primary-container text-primary-container font-bold text-sm bg-white active:scale-95 transition-transform"
           >
-            Add to Cart
+            加入购物车
           </button>
           <button className="flex-1 h-12 rounded-xl bg-primary-container text-white font-bold text-sm active:scale-95 transition-transform flex flex-col items-center justify-center">
             <span className="text-[10px] opacity-80 font-normal">¥{(product?.price || 298).toFixed(2)}</span>
@@ -116,7 +116,7 @@ export function MyProducts() {
     () => {
       const currentUser = api.loadToken();
       if (!currentUser) return Promise.resolve([]);
-      return api.get<{products: ProductItem[]}>('/api/products?owner_id=current').then(r => r.data?.products || []);
+      return api.get<{items: ProductItem[]}>('/api/products').then(r => r.data?.items || []);
     },
     []
   );

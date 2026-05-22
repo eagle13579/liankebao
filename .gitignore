@@ -13,3 +13,7 @@ backend/data/*.db
 backend/data/*.db.bak
 *.egg-info/
 .eggs/
+
+# Virtual environments
+venv_new/
+backend/venv_new/

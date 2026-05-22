@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>充值中心 · 충전 센터 — 中韩出海数智港</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --baize-navy: #0a1628;
+            --baize-navy-light: #132240;
+            --baize-blue: #1a3a6b;
+            --baize-gold: #d4a843;
+            --baize-gold-light: #f0d68a;
+            --baize-accent: #2d7fea;
+            --baize-surface: #0f1d38;
+            --baize-border: #1e3a5f;
+            --baize-text: #e8edf5;
+            --baize-text-muted: #8a9ab5;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--baize-navy);
+            color: var(--baize-text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image:
+                linear-gradient(rgba(212,168,67,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(212,168,67,0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            z-index: 0;
+            pointer-events: none;
+        }
+        .content { position: relative; z-index: 1; }
+        .card {
+            background: linear-gradient(145deg, var(--baize-surface), var(--baize-navy-light));
+            border: 1px solid var(--baize-border);
+            border-radius: 24px;
+            padding: 32px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(4px);
+        }
+        .card:hover {
+            border-color: rgba(212,168,67,0.3);
+        }
+        .balance-card {
+            background: linear-gradient(135deg, #1a3a6b 0%, #0a1628 100%);
+            border: 1px solid var(--baize-gold);
+            border-radius: 24px;
+            padding: 32px;
+        }
+        .amount-option {
+            border: 2px solid var(--baize-border);
+            border-radius: 16px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--baize-surface);
+            color: var(--baize-text);
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .amount-option:hover {
+            border-color: var(--baize-gold);
+            transform: translateY(-2px);
+        }
+        .amount-option.active {
+            border-color: var(--baize-gold);
+            background: rgba(212,168,67,0.1);
+            color: var(--baize-gold-light);
+        }
+        .payment-method {
+            border: 2px solid var(--baize-border);
+            border-radius: 16px;
+            padding: 16px 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .payment-method:hover { border-color: var(--baize-gold); }
+        .payment-method.active {
+            border-color: var(--baize-gold);
+            background: rgba(212,168,67,0.1);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--baize-gold), #b8922f);
+            color: var(--baize-navy);
+            font-weight: 700;
+            border-radius: 16px;
+            padding: 16px 32px;
+            transition: all 0.3s;
+            cursor: pointer;
+            border: none;
+            font-size: 16px;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(212,168,67,0.3);
+        }
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal-content {
+            background: var(--baize-navy-light);
+            border: 1px solid var(--baize-border);
+            border-radius: 24px;
+            padding: 40px;
+            max-width: 420px;
+            width: 90%;
+            text-align: center;
+        }
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(30,58,95,0.5);
+        }
+        .history-item:last-child { border-bottom: none; }
+        input[type="number"] {
+            background: var(--baize-surface);
+            border: 2px solid var(--baize-border);
+            border-radius: 12px;
+            padding: 12px 16px;
+            color: var(--baize-text);
+            font-size: 16px;
+            width: 100%;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input[type="number"]:focus { border-color: var(--baize-gold); }
+        .tab { cursor: pointer; padding: 8px 20px; border-radius: 100px; transition: all 0.2s; }
+        .tab.active { background: var(--baize-gold); color: var(--baize-navy); font-weight: 600; }
+        .tab:not(.active):hover { background: rgba(212,168,67,0.1); }
+    </style>
+</head>
+<body>
+<div class="content max-w-2xl mx-auto px-4 py-8" x-data="rechargeApp()">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <a href="/" class="text-sm text-[#8a9ab5] hover:text-[#d4a843] transition-colors">← 返回首页</a>
+            <h1 class="text-2xl font-bold mt-2">充值中心 <span class="text-sm font-normal text-[#8a9ab5]">충전 센터</span></h1>
+        </div>
+        <div class="flex gap-2" x-show="currentTab !== 'login'">
+            <button class="tab" :class="{'active': currentTab==='recharge'}" @click="currentTab='recharge'">充值</button>
+            <button class="tab" :class="{'active': currentTab==='history'}" @click="currentTab='history';loadOrders()">记录</button>
+        </div>
+    </div>
+
+    <!-- Login state -->
+    <template x-if="currentTab === 'login'">
+        <div class="card text-center py-16">
+            <div class="text-6xl mb-4">🔐</div>
+            <h2 class="text-xl font-bold mb-2">请先登录</h2>
+            <p class="text-[#8a9ab5] mb-6">登录后可查看余额并进行充值</p>
+            <div class="max-w-sm mx-auto space-y-3">
+                <input type="email" x-model="loginEmail" placeholder="邮箱 · 이메일" class="w-full px-4 py-3 rounded-xl bg-[#0a1628] border border-[#1e3a5f] text-white focus:border-[#d4a843] outline-none">
+                <input type="password" x-model="loginPassword" placeholder="密码 · 비밀번호" class="w-full px-4 py-3 rounded-xl bg-[#0a1628] border border-[#1e3a5f] text-white focus:border-[#d4a843] outline-none">
+                <button class="btn-primary w-full" @click="login()" x-text="loginLoading ? '登录中...' : '登录'"></button>
+                <p class="text-sm text-[#8a9ab5] mt-4">
+                    <button class="text-[#d4a843] hover:underline" @click="loginEmail='demo@go-aiport.com';loginPassword='demo123'">使用演示账号</button>
+                </p>
+            </div>
+        </div>
+    </template>
+
+    <!-- Main content (logged in) -->
+    <template x-if="currentTab !== 'login'">
+        <div>
+            <!-- Balance Card -->
+            <div class="balance-card mb-6 text-center">
+                <div class="text-sm text-[#8a9ab5] mb-2">账户余额 · 계정 잔액</div>
+                <div class="text-5xl font-bold tracking-tight">
+                    <span class="text-[#d4a843]">¥</span><span x-text="balance.toFixed(2)">0.00</span>
+                </div>
+                <div class="flex justify-around mt-6 pt-4 border-t border-[#1e3a5f] text-sm">
+                    <div><div class="text-[#d4a843] font-bold" x-text="'¥' + totalRecharged.toFixed(2)">0</div><div class="text-[#8a9ab5] text-xs">累计充值</div></div>
+                    <div><div class="text-white font-bold" x-text="'¥' + totalConsumed.toFixed(2)">0</div><div class="text-[#8a9ab5] text-xs">累计消费</div></div>
+                </div>
+            </div>
+
+            <!-- Recharge Tab -->
+            <div x-show="currentTab === 'recharge'" class="card">
+                <h2 class="text-lg font-bold mb-4">选择充值金额 · 금액 선택</h2>
+                <div class="grid grid-cols-3 gap-3 mb-4">
+                    <template x-for="amt in presetAmounts" :key="amt">
+                        <div class="amount-option" :class="{'active': selectedAmount===amt}" @click="selectedAmount=amt;customAmount=''">
+                            <span x-text="'¥' + amt.toLocaleString()"></span>
+                        </div>
+                    </template>
+                </div>
+                <p class="text-xs text-[#8a9ab5] mb-2">或自定义金额</p>
+                <input type="number" x-model="customAmount" @input="selectedAmount=null" placeholder="自定义金额(元)" class="mb-6" min="1" max="999999">
+
+                <!-- Payment Method -->
+                <h2 class="text-lg font-bold mb-4">支付方式 · 결제 수단</h2>
+                <div class="grid grid-cols-2 gap-3 mb-6">
+                    <div class="payment-method" :class="{'active': payMethod==='wxpay'}" @click="payMethod='wxpay'">
+                        <span class="text-2xl">💚</span>
+                        <div><div class="font-medium">微信支付</div><div class="text-xs text-[#8a9ab5]">WeChat Pay</div></div>
+                    </div>
+                    <div class="payment-method" :class="{'active': payMethod==='alipay'}" @click="payMethod='alipay'">
+                        <span class="text-2xl">💙</span>
+                        <div><div class="font-medium">支付宝</div><div class="text-xs text-[#8a9ab5]">AliPay</div></div>
+                    </div>
+                </div>
+
+                <!-- Submit -->
+                <button class="btn-primary w-full text-lg" @click="createOrder()" :disabled="submitting" x-text="submitting ? '处理中...' : '确认充值 · 충전 확인'"></button>
+
+                <!-- Error message -->
+                <div x-show="error" x-text="error" class="mt-4 p-3 rounded-xl bg-red-900/20 border border-red-500/30 text-red-300 text-sm"></div>
+            </div>
+
+            <!-- History Tab -->
+            <div x-show="currentTab === 'history'" class="card">
+                <h2 class="text-lg font-bold mb-4">充值记录 · 충전 내역</h2>
+                <div x-show="orders.length === 0" class="text-center py-8 text-[#8a9ab5]">
+                    <div class="text-4xl mb-2">📭</div>
+                    <div>暂无充值记录</div>
+                </div>
+                <template x-for="o in orders" :key="o.order_no">
+                    <div class="history-item">
+                        <div>
+                            <div class="font-medium" x-text="'¥' + o.amount.toFixed(2)"></div>
+                            <div class="text-xs text-[#8a9ab5]" x-text="o.created_at"></div>
+                        </div>
+                        <div>
+                            <span class="text-xs px-3 py-1 rounded-full"
+                                  :class="o.status==='paid' ? 'bg-green-900/30 text-green-300' : 'bg-yellow-900/30 text-yellow-300'"
+                                  x-text="o.status==='paid' ? '已完成' : '待支付'"></span>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </template>
+
+    <!-- Payment QR Modal -->
+    <div class="modal-overlay" :class="{'open': showQR}">
+        <div class="modal-content">
+            <div class="text-4xl mb-4" x-text="payMethod==='wxpay' ? '💚' : '💙'"></div>
+            <h2 class="text-xl font-bold mb-2">支付确认 · 결제 확인</h2>
+            <div class="text-3xl font-bold text-[#d4a843] mb-2" x-text="'¥' + (selectedAmount || parseFloat(customAmount || 0)).toFixed(2)"></div>
+            <p class="text-[#8a9ab5] text-sm mb-6">订单号: <span class="font-mono" x-text="orderNo" style="font-size:0.8em"></span></p>
+
+            <!-- Mock QR display -->
+            <div class="w-48 h-48 mx-auto mb-6 rounded-2xl bg-white p-4 flex items-center justify-center">
+                <div class="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl flex items-center justify-center text-black text-center text-xs font-mono p-2"
+                     style="background-image: repeating-linear-gradient(0deg, #000 0px, #000 2px, transparent 2px, transparent 4px), repeating-linear-gradient(90deg, #000 0px, #000 2px, transparent 2px, transparent 4px); background-size: 8px 8px;">
+                    <div class="bg-white rounded-lg p-2 shadow-lg">
+                        <div class="text-[10px] text-gray-800">🔲 扫码支付</div>
+                        <div class="text-[8px] text-gray-500 mt-1">(演示模式)</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <button class="btn-primary w-full" @click="mockCallback()" :disabled="verifying">
+                    <span x-text="verifying ? '验证中...' : '✅ 我已完成支付'"></span>
+                </button>
+                <button class="w-full py-3 rounded-xl border border-[#1e3a5f] text-[#8a9ab5] hover:text-white transition-colors" @click="closeQR()">
+                    取消支付
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div class="modal-overlay" :class="{'open': showSuccess}">
+        <div class="modal-content">
+            <div class="text-6xl mb-4">🎉</div>
+            <h2 class="text-xl font-bold mb-2">充值成功 · 충전 완료</h2>
+            <div class="text-3xl font-bold text-[#d4a843] mb-2" x-text="'¥' + lastAmount.toFixed(2)"></div>
+            <p class="text-[#8a9ab5] text-sm mb-6">余额已更新</p>
+            <button class="btn-primary w-full" @click="showSuccess=false;loadBalance()">继续充值</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function rechargeApp() {
+    return {
+        // State
+        currentTab: 'login',
+        token: localStorage.getItem('token') || '',
+        balance: 0,
+        totalRecharged: 0,
+        totalConsumed: 0,
+        selectedAmount: null,
+        customAmount: '',
+        payMethod: 'wxpay',
+        presetAmounts: [100, 200, 500, 1000, 2000, 5000],
+        submitting: false,
+        error: '',
+        showQR: false,
+        showSuccess: false,
+        orderNo: '',
+        lastAmount: 0,
+        verifying: false,
+        orders: [],
+        loginEmail: '',
+        loginPassword: '',
+        loginLoading: false,
+
+        init() {
+            const tok = localStorage.getItem('token');
+            if (tok) {
+                this.token = tok;
+                this.currentTab = 'recharge';
+                this.loadBalance();
+            }
+        },
+
+        async api(path, opts = {}) {
+            const headers = {'Content-Type': 'application/json'};
+            if (this.token) headers['Authorization'] = 'Bearer ' + this.token;
+            const r = await fetch('/api' + path, {...opts, headers});
+            return r.json();
+        },
+
+        async login() {
+            this.loginLoading = true;
+            this.error = '';
+            try {
+                const data = await this.api('/auth/login', {
+                    method: 'POST',
+                    body: JSON.stringify({email: this.loginEmail, password: this.loginPassword})
+                });
+                if (data.access_token) {
+                    this.token = data.access_token;
+                    localStorage.setItem('token', this.token);
+                    this.currentTab = 'recharge';
+                    this.loadBalance();
+                } else {
+                    // Try register
+                    const reg = await this.api('/auth/register', {
+                        method: 'POST',
+                        body: JSON.stringify({email: this.loginEmail, password: this.loginPassword, name: this.loginEmail.split('@')[0]})
+                    });
+                    if (reg.access_token) {
+                        this.token = reg.access_token;
+                        localStorage.setItem('token', this.token);
+                        this.currentTab = 'recharge';
+                        this.loadBalance();
+                    } else {
+                        this.error = data.detail || '登录失败';
+                    }
+                }
+            } catch(e) { this.error = '网络错误'; }
+            this.loginLoading = false;
+        },
+
+        async loadBalance() {
+            try {
+                const data = await this.api('/recharge/balance');
+                if (data.balance !== undefined) {
+                    this.balance = data.balance;
+                    this.totalRecharged = data.total_recharged || 0;
+                    this.totalConsumed = data.total_consumed || 0;
+                } else if (data.data && data.data.balance !== undefined) {
+                    this.balance = data.data.balance;
+                    this.totalRecharged = data.data.total_recharged || 0;
+                    this.totalConsumed = data.data.total_consumed || 0;
+                }
+            } catch(e) { console.error('load balance err', e); }
+        },
+
+        async createOrder() {
+            const amount = this.selectedAmount || parseFloat(this.customAmount);
+            if (!amount || amount <= 0) { this.error = '请选择充值金额'; return; }
+            if (amount > 999999) { this.error = '单次充值不能超过¥999,999'; return; }
+            this.error = '';
+            this.submitting = true;
+            try {
+                const data = await this.api('/recharge/precreate', {
+                    method: 'POST',
+                    body: JSON.stringify({amount, platform: this.payMethod})
+                });
+                const orderNo = data.order_no || (data.data && data.data.order_no);
+                if (orderNo) {
+                    this.orderNo = orderNo;
+                    this.lastAmount = amount;
+                    this.submitting = false;
+                    this.showQR = true;
+                } else {
+                    this.error = data.detail || data.message || '创建订单失败';
+                    this.submitting = false;
+                }
+            } catch(e) { this.error = '网络错误'; this.submitting = false; }
+        },
+
+        async mockCallback() {
+            this.verifying = true;
+            try {
+                const data = await this.api('/recharge/callback/mock', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        order_no: this.orderNo,
+                        platform: this.payMethod,
+                        amount: this.lastAmount
+                    })
+                });
+                this.verifying = false;
+                this.showQR = false;
+                if (data.success !== false) {
+                    this.showSuccess = true;
+                    this.loadBalance();
+                    this.loadOrders();
+                } else {
+                    this.error = data.message || '验证失败';
+                }
+            } catch(e) { this.error = '网络错误'; this.verifying = false; }
+        },
+
+        closeQR() {
+            this.showQR = false;
+            this.submitting = false;
+        },
+
+        async loadOrders() {
+            try {
+                const data = await this.api('/recharge/list?page=1&limit=20');
+                const items = data.items || (data.data && data.data.items) || [];
+                this.orders = items;
+            } catch(e) { console.error('load orders err', e); }
+        }
+    };
+}
+</script>
+</body>
+</html>

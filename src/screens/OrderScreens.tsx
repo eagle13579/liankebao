@@ -1,12 +1,44 @@
-import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, MapPin, ChevronRight, FileText, Wallet, CheckCircle2, TrendingUp, Home, ShoppingBag, Receipt, User, MoreHorizontal, Star, Search } from 'lucide-react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, MapPin, ChevronRight, FileText, Wallet, CheckCircle2, TrendingUp, Home, ShoppingBag, Receipt, User, MoreHorizontal, Star, Search, Loader2, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import { api } from '../api/client';
+import { paymentApi } from '../api/payment';
 import { OrderItem } from '../types';
 import { Loading, ErrorBlock, Empty, useApi } from '../components/StatusComponents';
 
 export function OrderConfirmation() {
   const navigate = useNavigate();
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState('');
+
+  // 模拟订单号 — 真实场景应从创建订单API获取
+  const mockOrderNo = 'ORD' + Date.now();
+  const totalAmount = '298.00';
+
+  const handlePay = async () => {
+    setPaying(true);
+    setPayError('');
+
+    try {
+      // 先创建订单（模拟 — 实际应从上一页传入或调用创建订单API）
+      // 这里假设订单已创建，直接调起支付
+      const res = await paymentApi.unifiedOrder(mockOrderNo, '高级护肝综合营养片');
+      if (res.code !== 0 || !res.data) {
+        setPayError(res.message || '支付初始化失败，请重试');
+        setPaying(false);
+        return;
+      }
+
+      // 跳转到支付桥接页
+      navigate(
+        `/payment-bridge?order_no=${mockOrderNo}&amount=${totalAmount}&description=${encodeURIComponent('高级护肝综合营养片')}`,
+        { state: { transition: 'push' } }
+      );
+    } catch (e: any) {
+      setPayError(e.message || '网络错误，请稍后重试');
+      setPaying(false);
+    }
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-neutral-bg font-sans pb-32">
@@ -51,19 +83,32 @@ export function OrderConfirmation() {
           <div className="flex justify-between text-sm"><span className="text-secondary">商品总额</span><span className="font-bold">¥298.00</span></div>
           <div className="flex justify-between text-sm"><span className="text-secondary">运费</span><span className="text-success font-bold">免运费</span></div>
         </section>
+
+        {/* 支付错误提示 */}
+        {payError && (
+          <div className="bg-red-50 border border-red-200 text-error text-sm p-3 rounded-xl flex items-center gap-2">
+            <XCircle className="w-4 h-4 shrink-0" />
+            {payError}
+          </div>
+        )}
       </main>
 
       <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-border-light shadow-xl p-4 pb-safe flex justify-between items-center">
         <div className="flex items-baseline gap-1">
           <span className="text-xs font-bold">合计：</span>
-          <span className="font-manrope text-2xl font-bold text-primary-container">¥298.00</span>
+          <span className="font-manrope text-2xl font-bold text-primary-container">¥{totalAmount}</span>
         </div>
-        <button 
-          onClick={() => navigate('/payment-success', { state: { transition: 'push' } })}
-          className="bg-primary-container text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 active:scale-95 transition-transform"
+        <button
+          onClick={handlePay}
+          disabled={paying}
+          className="bg-primary-container text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 active:scale-95 transition-transform disabled:opacity-60"
         >
-          <Wallet className="w-5 h-5" />
-          微信支付 ¥298.00
+          {paying ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : (
+            <Wallet className="w-5 h-5" />
+          )}
+          {paying ? '支付处理中...' : `微信支付 ¥${totalAmount}`}
         </button>
       </footer>
     </div>
@@ -72,28 +117,31 @@ export function OrderConfirmation() {
 
 export function PaymentSuccessScreens() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const orderNo = searchParams.get('order_no') || 'ORD20260425001';
+  const amount = searchParams.get('amount') || '298.00';
 
   return (
     <div className="flex flex-col min-h-screen bg-neutral-bg font-sans pb-24 text-center">
       <header className="fixed top-0 w-full z-50 bg-neutral-bg border-b border-border-light h-14 flex items-center px-4">
         <button onClick={() => navigate('/home', { state: { transition: 'push' } })} className="active:scale-95 transition-transform"><ArrowLeft className="w-6 h-6 text-on-surface" /></button>
-        <h1 className="flex-1 font-manrope font-bold text-lg text-on-surface">Payment Success</h1>
+        <h1 className="flex-1 font-manrope font-bold text-lg text-on-surface">支付成功</h1>
         <div className="w-6"></div>
       </header>
 
       <main className="pt-24 px-6 flex flex-col items-center">
         <div className="mb-6"><CheckCircle2 className="w-20 h-20 text-success" fill="currentColor" /></div>
         <h2 className="text-2xl font-bold text-on-surface">支付成功！</h2>
-        <p className="mt-4 text-3xl font-manrope font-bold text-primary-container">¥298.00</p>
-        <p className="mt-2 text-xs text-text-muted">订单号：ORD20260425001</p>
+        <p className="mt-4 text-3xl font-manrope font-bold text-primary-container">¥{amount}</p>
+        <p className="mt-2 text-xs text-text-muted">订单号：{orderNo}</p>
 
         <div className="w-full h-px bg-border-light my-8"></div>
 
         <section className="w-full bg-sky-50 border border-primary-container rounded-2xl p-6 relative overflow-hidden text-left">
           <div className="relative z-10 space-y-4">
-            <div className="flex items-center gap-2"><span className="bg-primary-container text-white text-[10px] px-2 py-0.5 rounded font-bold">PROMOTION</span><h3 className="font-bold">你也能赚</h3></div>
+            <div className="flex items-center gap-2"><span className="bg-primary-container text-white text-[10px] px-2 py-0.5 rounded font-bold">推广</span><h3 className="font-bold">你也能赚</h3></div>
             <p className="text-sm border-b border-sky-200 pb-2">分享给朋友，TA下单你赚分润</p>
-            <p className="font-bold text-sky-700">每单最高赚 <span className="text-2xl text-primary-container">29.8</span> 元</p>
+            <p className="font-bold text-sky-700">每单最高赚 <span className="text-2xl text-primary-container">{(parseFloat(amount) * 0.1).toFixed(1)}</span> 元</p>
             <button className="w-full py-3 bg-primary-container text-white font-bold rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-lg shadow-sky-600/30">成为推广员 <TrendingUp className="w-4 h-4" /></button>
           </div>
         </section>
@@ -106,6 +154,12 @@ export function PaymentSuccessScreens() {
     </div>
   );
 }
+
+const statusLabelMap: Record<string, string> = {
+  pending: '待支付', shipping: '待发货', received: '待收货',
+  completed: '已完成', cancelled: '已取消', refund: '已退款',
+  paid: '已支付',
+};
 
 export function MyOrders() {
   const navigate = useNavigate();
@@ -128,7 +182,7 @@ export function MyOrders() {
     <div className="flex flex-col min-h-screen bg-neutral-bg font-sans pb-20">
       <header className="fixed top-0 w-full z-50 bg-neutral-bg border-b border-border-light h-14 flex items-center px-4">
         <button onClick={() => navigate('/promotion-center', { state: { transition: 'push_back' } })}><ArrowLeft className="w-6 h-6 text-on-surface" /></button>
-        <h1 className="flex-1 font-manrope font-bold text-lg text-on-surface text-center">Order Details</h1>
+        <h1 className="flex-1 font-manrope font-bold text-lg text-on-surface text-center">我的订单</h1>
         <MoreHorizontal className="w-6 h-6 text-primary-container" />
       </header>
 
@@ -150,7 +204,7 @@ export function MyOrders() {
           <div key={item.id || i} className="bg-white rounded-xl border border-border-light overflow-hidden shadow-sm">
             <div className="p-3 border-b border-border-light flex justify-between">
               <span className="text-[10px] text-text-muted">订单号: {item.id}</span>
-              <span className={`${item.status === 'pending' ? 'bg-primary-container' : 'bg-secondary'} text-white px-2 py-0.5 rounded-full text-[10px] font-bold`}>{item.status}</span>
+              <span className={`${item.status === 'pending' ? 'bg-primary-container' : 'bg-secondary'} text-white px-2 py-0.5 rounded-full text-[10px] font-bold`}>{statusLabelMap[item.status] || item.status}</span>
             </div>
             <div className="p-4 flex gap-4">
               <div className="w-16 h-16 bg-slate-50 rounded-lg shrink-0"></div>
@@ -164,7 +218,22 @@ export function MyOrders() {
             </div>
             <div className="px-4 py-3 bg-sky-50/50 flex justify-between items-center border-t border-border-light">
               <p className="text-sm">合计: <span className="font-bold text-sky-600">¥{item.total_price.toFixed(2)}</span></p>
-              <button className="bg-sky-600 text-white px-6 py-2 rounded-full text-xs font-bold">{item.status === 'pending' ? '立即支付' : '确认收货'}</button>
+              {item.status === 'pending' ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(
+                      `/payment-bridge?order_no=${item.id}&amount=${item.total_price.toFixed(2)}&description=${encodeURIComponent(item.product_name || '商品订单')}`,
+                      { state: { transition: 'push' } }
+                    );
+                  }}
+                  className="bg-error text-white px-6 py-2 rounded-full text-xs font-bold active:scale-95 transition-transform"
+                >
+                  去支付
+                </button>
+              ) : (
+                <button className="bg-sky-600 text-white px-6 py-2 rounded-full text-xs font-bold">确认收货</button>
+              )}
             </div>
           </div>
         ))
@@ -174,19 +243,19 @@ export function MyOrders() {
       <nav className="fixed bottom-0 w-full h-16 bg-white border-t border-border-light flex justify-around items-center px-4 pb-safe">
         <div onClick={() => navigate('/home', { state: { transition: 'none' } })} className="flex flex-col items-center gap-1 text-slate-400 cursor-pointer">
           <Home className="w-5 h-5" />
-          <span className="text-[10px] font-medium uppercase tracking-wider">Home</span>
+          <span className="text-[10px] font-medium tracking-wider">首页</span>
         </div>
         <div onClick={() => navigate('/product-pool', { state: { transition: 'none' } })} className="flex flex-col items-center gap-1 text-slate-400 cursor-pointer">
           <ShoppingBag className="w-5 h-5" />
-          <span className="text-[10px] font-medium uppercase tracking-wider">Product Pool</span>
+          <span className="text-[10px] font-medium tracking-wider">产品池</span>
         </div>
         <div className="flex flex-col items-center gap-1 text-primary-container">
           <Receipt className="w-5 h-5" />
-          <span className="text-[10px] font-bold uppercase tracking-wider">Orders</span>
+          <span className="text-[10px] font-bold tracking-wider">订单</span>
         </div>
         <div className="flex flex-col items-center gap-1 text-slate-400">
           <User className="w-5 h-5" />
-          <span className="text-[10px] font-medium uppercase tracking-wider">Profile</span>
+          <span className="text-[10px] font-medium tracking-wider">我的</span>
         </div>
       </nav>
     </div>
@@ -205,7 +274,7 @@ export function OrderManagement() {
     <div className="flex flex-col min-h-screen bg-neutral-bg font-sans pb-24">
       <header className="fixed top-0 w-full z-50 bg-neutral-bg border-b border-border-light h-14 flex items-center px-4">
         <button onClick={() => navigate('/admin', { state: { transition: 'push_back' } })}><ArrowLeft className="w-6 h-6 text-primary-container" /></button>
-        <h1 className="flex-1 font-manrope font-bold text-lg text-primary-container text-center">Order Management</h1>
+        <h1 className="flex-1 font-manrope font-bold text-lg text-primary-container text-center">订单管理</h1>
         <Search className="w-6 h-6 text-primary-container" />
       </header>
 
@@ -226,7 +295,7 @@ export function OrderManagement() {
           orders.map((item, i) => (
           <div key={item.id || i} className="bg-white rounded-2xl border border-border-light overflow-hidden shadow-sm">
             <div className="p-4 space-y-4">
-              <div className="flex justify-between items-start"><p className="text-[10px] text-text-muted">ID: {item.id}</p><span className="bg-red-50 text-error px-2 py-1 rounded text-[10px] font-bold">{item.status}</span></div>
+              <div className="flex justify-between items-start"><p className="text-[10px] text-text-muted">ID: {item.id}</p><span className="bg-red-50 text-error px-2 py-1 rounded text-[10px] font-bold">{statusLabelMap[item.status] || item.status}</span></div>
               <div className="flex gap-4 pb-4 border-b border-dashed border-border-light">
                 <div className="w-16 h-16 bg-slate-50 rounded-xl shrink-0"></div>
                 <div className="flex-1 shrink-0"><h3 className="font-bold text-sm">{item.product_name || `产品 #${item.product_id}`}</h3><p className="text-primary-container font-manrope font-bold text-lg">¥{item.total_price.toFixed(2)}</p></div>

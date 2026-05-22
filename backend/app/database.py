@@ -1,22 +1,39 @@
-"""数据库配置与初始化"""
+"""
+统一数据库配置与初始化
+- 优先使用 MySQL（从环境变量 DATABASE_URL 读取）
+- Fallback 到 SQLite
+- 所有路由模块 import from app.database 保持不变
+"""
 import os
 import json
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from passlib.hash import bcrypt as bcrypt_hasher
 
-# 数据库路径
-DB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
-DB_PATH = os.path.join(DB_DIR, "chainke.db")
-os.makedirs(DB_DIR, exist_ok=True)
+# 检测是否使用 MySQL
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
-SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH}"
+if DATABASE_URL:
+    # MySQL 模式
+    engine = create_engine(
+        DATABASE_URL,
+        pool_size=10,
+        max_overflow=20,
+        pool_pre_ping=True,
+        echo=False,
+    )
+else:
+    # SQLite 模式
+    DB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
+    DB_PATH = os.path.join(DB_DIR, "chainke.db")
+    os.makedirs(DB_DIR, exist_ok=True)
+    SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH}"
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},  # SQLite需要
-    echo=False,
-)
+    engine = create_engine(
+        SQLALCHEMY_DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        echo=False,
+    )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -32,15 +49,20 @@ def get_db():
 
 
 def init_db():
-    """初始化数据库：重建表并填充种子数据"""
-    from app.models import User, Product, Order, Withdrawal  # noqa: 确保模型已导入
+    """初始化数据库：创建表并填充种子数据（如为空）"""
+    from app.models import User, Product, Order, Withdrawal, Contact, ImportHistory, Activity  # noqa: 确保模型已导入
 
-    # === 先删表再重建（适配schema变更） ===
-    Base.metadata.drop_all(bind=engine)
+    # === 创建表（如果不存在） ===
     Base.metadata.create_all(bind=engine)
 
     db = SessionLocal()
     try:
+        # 检查是否已有数据
+        existing_users = db.query(User).count()
+        if existing_users > 0:
+            print(f"数据库已有数据 ({existing_users}个用户)，跳过种子数据填充")
+            return
+
         print("正在填充种子数据...")
 
         # 预计算密码哈希
@@ -95,7 +117,6 @@ def init_db():
 
         # === 创建产品：真实商品风格 ===
         products = [
-            # --- 产品1: 有机红枣礼盒 ---
             Product(
                 name="有机红枣礼盒 500g×3袋",
                 description="精选新疆和田有机红枣，颗颗饱满肉厚，自然甜香。礼盒装自用送礼皆宜。严格有机认证，无添加无农残。",
@@ -128,7 +149,6 @@ def init_db():
                 status="approved",
                 owner_id=4,
             ),
-            # --- 产品2: AI数字名片 ---
             Product(
                 name="AI数字名片 Pro版 年卡",
                 description="基于AI技术的智能数字名片，支持多模板、AI智能推荐、人脉管理、数据统计。企业家商务社交首选，让每一次相遇都有价值。",
@@ -162,7 +182,6 @@ def init_db():
                 status="approved",
                 owner_id=4,
             ),
-            # --- 产品3: 企业法律顾问套餐 ---
             Product(
                 name="企业法律顾问套餐 年度",
                 description="全年企业法律顾问服务，含合同审核、法律咨询、风险评估、知识产权保护等。专业律师团队1对1服务，企业法律问题一站式解决。",
@@ -196,7 +215,6 @@ def init_db():
                 status="approved",
                 owner_id=4,
             ),
-            # --- 产品4: 筋膜枪 ---
             Product(
                 name="筋膜枪 肌肉放松 静音款",
                 description="专业级肌肉筋膜枪，6档变速调节，超静音设计。运动后肌肉放松、日常疲劳缓解。Type-C快充，续航8小时。",
@@ -232,7 +250,6 @@ def init_db():
                 status="approved",
                 owner_id=4,
             ),
-            # --- 产品5: 私域社群运营训练营 ---
             Product(
                 name="私域社群运营训练营",
                 description="21天线上实战训练营，从0到1掌握私域社群运营全流程。含直播授课、社群实操、1v1辅导、结业认证。限时赠送社群运营SOP手册。",
@@ -266,7 +283,6 @@ def init_db():
                 status="approved",
                 owner_id=4,
             ),
-            # --- 产品6: 智能考勤一体机 ---
             Product(
                 name="智能考勤一体机 人脸识别",
                 description="AI人脸识别考勤机，支持口罩识别、活体检测。超大存储容量，WiFi联网，手机APP远程管理。企业/学校/工地通用。",
@@ -365,4 +381,3 @@ def init_db():
         raise
     finally:
         db.close()
-

@@ -1,4 +1,4 @@
-var API_BASE = 'https://47.100.160.250/api'
+var API_BASE = 'https://www.go-aiport.com/lkapi'
 
 function request(path, method, data) {
   if (!method) method = 'GET'
@@ -21,6 +21,7 @@ module.exports = {
   get: function(path) { return request(path) },
   post: function(path, data) { return request(path, 'POST', data) },
   put: function(path, data) { return request(path, 'PUT', data) },
+  del: function(path, data) { return request(path, 'DELETE', data) },
   loginWithWechat: function() {
     return new Promise(function(resolve, reject) {
       wx.login({

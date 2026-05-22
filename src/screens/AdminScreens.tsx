@@ -61,8 +61,8 @@ export function AdminBackend() {
           </div>
           <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
             <div className="text-right hidden sm:block">
-              <p className="text-xs font-bold">Administrator</p>
-              <p className="text-[10px] text-slate-400">Super Admin</p>
+              <p className="text-xs font-bold">管理员</p>
+              <p className="text-[10px] text-slate-400">超级管理员</p>
             </div>
             <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuAmSWd7mn7UJhRx3PlEEJFehjEvLKuCYZPDC8pnc2yJhSgF6Z3XCx63_mPX1JAr4vqao1Yz-2-MD3w_D0tIMqQQUT_oTirdfdYWY3EJucOReHpNdZA3hJ8oK0DEfU_alRwIEdYI2O_P_6N3o6Lq9KUo9_MGjKRdKCNuFguJGbK58Ve_61lROxhwEZ71BPcr_BwcPlwvEIeYBeTohvmkSfH1fT9EH2pj7fIqArpoU5_KXCuUozA9qoZRdOK3uvk6-QthDhW22BR5PZf2" className="w-10 h-10 rounded-full border-2 border-sky-500" />
           </div>
@@ -74,7 +74,7 @@ export function AdminBackend() {
           <div className="p-6">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-sky-500 rounded-lg flex items-center justify-center shadow-lg shadow-sky-500/20"><Star className="text-white w-5 h-5" fill="currentColor" /></div>
-              <div><h2 className="text-white font-black text-lg tracking-tight uppercase">Qi Meng</h2><p className="text-slate-500 text-[10px] uppercase font-bold">Admin Panel</p></div>
+              <div><h2 className="text-white font-black text-lg tracking-tight">企盟</h2><p className="text-slate-500 text-[10px] font-bold">管理后台</p></div>
             </div>
           </div>
           <nav className="flex-1 py-4 text-slate-400 space-y-1">
@@ -86,8 +86,8 @@ export function AdminBackend() {
             <div className="px-4 py-3 flex items-center gap-3 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"><span>系统日志</span></div>
           </nav>
           <div className="p-4 border-t border-slate-800 text-slate-400">
-            <div className="px-4 py-3 flex items-center gap-3 hover:text-white transition-all cursor-pointer"><HelpCircle /><span>Help Center</span></div>
-            <div onClick={() => navigate('/', { state: { transition: 'push_back' } })} className="px-4 py-3 flex items-center gap-3 hover:text-white transition-all cursor-pointer"><LogOut /><span>Logout</span></div>
+            <div className="px-4 py-3 flex items-center gap-3 hover:text-white transition-all cursor-pointer"><HelpCircle /><span>帮助中心</span></div>
+            <div onClick={() => navigate('/', { state: { transition: 'push_back' } })} className="px-4 py-3 flex items-center gap-3 hover:text-white transition-all cursor-pointer"><LogOut /><span>退出登录</span></div>
           </div>
         </aside>
 

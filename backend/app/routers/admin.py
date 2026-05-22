@@ -1,8 +1,11 @@
 """管理后台路由：数据看板/用户管理/产品审核"""
+import logging
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
+
+logger = logging.getLogger(__name__)
 
 from app.database import get_db
 from app.models import User, Product, Order, Withdrawal
