@@ -3,13 +3,15 @@ PostgreSQL 独立数据库引擎模块
 可直接用于迁移脚本或需要直连 PostgreSQL 的场景
 
 环境变量:
+    DB_TYPE=postgres           — 显式指定（推荐）
+    PG_URL                     — 完整连接串（可选）
     PG_HOST: PostgreSQL 主机地址（默认 localhost）
     PG_PORT: PostgreSQL 端口（默认 5432）
     PG_USER: PostgreSQL 用户名
     PG_PASSWORD: PostgreSQL 密码
     PG_DATABASE: PostgreSQL 数据库名
 
-若上述 PG_* 变量未设置，自动回退到 SQLite（兼容开发环境）
+若以上均未设置，自动回退到 SQLite（兼容开发环境）
 """
 import os
 import sys
@@ -21,18 +23,22 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 # ========================
-# PostgreSQL 配置
+# 数据库类型检测
 # ========================
+DB_TYPE = os.environ.get("DB_TYPE", "").strip().lower()
+PG_URL = os.environ.get("PG_URL", "")
 PG_HOST = os.environ.get("PG_HOST", "")
 PG_PORT = os.environ.get("PG_PORT", "5432")
 PG_USER = os.environ.get("PG_USER", "")
 PG_PASSWORD = os.environ.get("PG_PASSWORD", "")
 PG_DATABASE = os.environ.get("PG_DATABASE", "")
 
-# ========================
-# 数据库引擎选择
-# ========================
-_USE_POSTGRES = all([PG_HOST, PG_USER, PG_PASSWORD, PG_DATABASE])
+# 判断是否使用 PostgreSQL
+_USE_POSTGRES = (
+    DB_TYPE == "postgres"
+    or bool(PG_URL)
+    or all([PG_HOST, PG_USER, PG_PASSWORD, PG_DATABASE])
+)
 
 # 尝试导入 psycopg2（仅 PG 模式下需要）
 _PG_DRIVER_AVAILABLE = False
@@ -58,12 +64,15 @@ SessionLocal = None
 
 if _USE_POSTGRES and _PG_DRIVER_AVAILABLE:
     # PostgreSQL 模式
-    PG_URL = (
-        f"postgresql+psycopg2://{PG_USER}:{PG_PASSWORD}"
-        f"@{PG_HOST}:{PG_PORT}/{PG_DATABASE}"
-    )
+    if PG_URL:
+        pg_url = PG_URL
+    else:
+        pg_url = (
+            f"postgresql+psycopg2://{PG_USER}:{PG_PASSWORD}"
+            f"@{PG_HOST}:{PG_PORT}/{PG_DATABASE}"
+        )
     engine = create_engine(
-        PG_URL,
+        pg_url,
         pool_size=10,
         max_overflow=20,
         pool_pre_ping=True,
@@ -103,6 +112,13 @@ def get_db():
 def get_engine():
     """获取数据库引擎（供迁移脚本使用）"""
     return engine
+
+
+def get_current_db_type() -> str:
+    """返回当前实际使用的数据库类型"""
+    if _USE_POSTGRES and _PG_DRIVER_AVAILABLE:
+        return "postgres"
+    return "sqlite"
 
 
 # ========================
@@ -310,8 +326,8 @@ def import_to_postgres(
     own_connection = False
     if pg_connection is None:
         pg_connection = psycopg2.connect(
-            host=PG_HOST,
-            port=PG_PORT,
+            host=PG_HOST or "localhost",
+            port=PG_PORT or "5432",
             user=PG_USER,
             password=PG_PASSWORD,
             dbname=PG_DATABASE,
@@ -344,13 +360,7 @@ def import_to_postgres(
                 logger.info(f"  导入 {table}: 0 条（无数据）")
                 continue
 
-            # 获取列名（跳过自动生成的 id 和 created_at 列？不，我们保留所有列）
             columns = list(records[0].keys())
-
-            # 过滤掉 PostgreSQL 自动列（SERIAL 类型的 id 我们手动插入以确保一致性）
-            # 但 id 在记录中是存在的，所以保留
-
-            # 准备 VALUES 占位符
             col_names = ", ".join(columns)
             placeholders = ", ".join([f"%({c})s" for c in columns])
 
@@ -413,8 +423,8 @@ def verify_data_consistency(sqlite_path: Optional[str] = None) -> dict:
 
     # 连接 PostgreSQL
     pg_conn = psycopg2.connect(
-        host=PG_HOST,
-        port=PG_PORT,
+        host=PG_HOST or "localhost",
+        port=PG_PORT or "5432",
         user=PG_USER,
         password=PG_PASSWORD,
         dbname=PG_DATABASE,

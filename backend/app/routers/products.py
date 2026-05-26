@@ -1,6 +1,7 @@
 """产品路由：CRUD/审核/搜索"""
 import json
 import logging
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -9,7 +10,7 @@ from sqlalchemy import desc
 logger = logging.getLogger(__name__)
 
 from app.database import get_db
-from app.models import User, Product
+from app.models import User, Product, Order
 from app.schemas import (
     ApiResponse, ProductCreate, ProductUpdate, ProductResponse,
 )
@@ -32,7 +33,7 @@ def list_products(
     - 未登录用户/普通用户/推广员：只看到已上架(approved)
     - 管理员/产品方登录后：可查看所有状态
     """
-    query = db.query(Product)
+    query = db.query(Product).filter(Product.is_deleted == False)
 
     # 尝试获取用户（不强制认证）
     current_user = None
@@ -91,7 +92,10 @@ def list_products(
 @router.get("/{product_id}", response_model=ApiResponse)
 def get_product(product_id: int, db: Session = Depends(get_db)):
     """获取产品详情"""
-    product = db.query(Product).filter(Product.id == product_id).first()
+    product = db.query(Product).filter(
+        Product.id == product_id,
+        Product.is_deleted == False,
+    ).first()
     if not product:
         raise HTTPException(status_code=404, detail="产品不存在")
 
@@ -148,7 +152,10 @@ def update_product(
     current_user: User = Depends(get_current_user),
 ):
     """更新产品（仅自己创建的产品）"""
-    product = db.query(Product).filter(Product.id == product_id).first()
+    product = db.query(Product).filter(
+        Product.id == product_id,
+        Product.is_deleted == False,
+    ).first()
     if not product:
         raise HTTPException(status_code=404, detail="产品不存在")
 
@@ -172,4 +179,41 @@ def update_product(
         code=200,
         message="产品更新成功",
         data=ProductResponse.model_validate(product).model_dump(),
+    )
+
+
+@router.delete("/{product_id}", response_model=ApiResponse)
+def delete_product(
+    product_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """删除产品（仅自己创建的产品或管理员可操作）"""
+    product = db.query(Product).filter(
+        Product.id == product_id,
+        Product.is_deleted == False,
+    ).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="产品不存在")
+
+    # 权限检查：仅创建者或管理员可删除
+    if product.owner_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="无权删除此产品")
+
+    # 检查是否有关联订单（保持数据完整性，不删除订单）
+    order_count = db.query(Order).filter(Order.product_id == product_id).count()
+    if order_count > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"该产品下有 {order_count} 个关联订单，无法删除。请先处理相关订单。",
+        )
+
+    product.is_deleted = True
+    product.deleted_at = datetime.utcnow()
+    db.commit()
+
+    return ApiResponse(
+        code=200,
+        message="产品删除成功",
+        data=None,
     )

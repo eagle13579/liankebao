@@ -19,7 +19,7 @@ export default class Index extends Component {
       <View className='index'>
         <View className='header'>
           <Text className='logo'>链客宝</Text>
-          <Text className='subtitle'>企业家供需匹配平台</Text>
+          <Text className='subtitle'>企业家的AI营销朋友圈</Text>
         </View>
         <ScrollView className='product-list' scrollY>
           {loading ? (

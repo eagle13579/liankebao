@@ -1,6 +1,7 @@
 """联系人CRUD路由：列表/创建/详情/更新/删除/搜索/标签/批量"""
 import logging
 from typing import List, Optional
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -31,7 +32,10 @@ def list_contacts(
     current_user: User = Depends(get_current_user),
 ):
     """获取当前用户的联系人列表（分页，可选按标签筛选）"""
-    query = db.query(Contact).filter(Contact.owner_id == current_user.id)
+    query = db.query(Contact).filter(
+        Contact.owner_id == current_user.id,
+        Contact.is_deleted == False,
+    )
 
     # 标签筛选（tags字段存逗号分隔字符串）
     if tag:
@@ -95,6 +99,7 @@ def search_contacts(
     keyword = f"%{q}%"
     query = db.query(Contact).filter(
         Contact.owner_id == current_user.id,
+        Contact.is_deleted == False,
         (
             Contact.name.ilike(keyword)
             | Contact.phone.ilike(keyword)
@@ -126,7 +131,10 @@ def list_tags(
     current_user: User = Depends(get_current_user),
 ):
     """获取当前用户所有标签列表（去重）"""
-    contacts = db.query(Contact).filter(Contact.owner_id == current_user.id).all()
+    contacts = db.query(Contact).filter(
+        Contact.owner_id == current_user.id,
+        Contact.is_deleted == False,
+    ).all()
     tag_set: set = set()
     for c in contacts:
         if c.tags:
@@ -152,6 +160,7 @@ def get_contact(
     contact = db.query(Contact).filter(
         Contact.id == contact_id,
         Contact.owner_id == current_user.id,
+        Contact.is_deleted == False,
     ).first()
     if not contact:
         raise HTTPException(status_code=404, detail="联系人不存在")
@@ -173,6 +182,7 @@ def update_contact(
     contact = db.query(Contact).filter(
         Contact.id == contact_id,
         Contact.owner_id == current_user.id,
+        Contact.is_deleted == False,
     ).first()
     if not contact:
         raise HTTPException(status_code=404, detail="联系人不存在")
@@ -201,11 +211,13 @@ def delete_contact(
     contact = db.query(Contact).filter(
         Contact.id == contact_id,
         Contact.owner_id == current_user.id,
+        Contact.is_deleted == False,
     ).first()
     if not contact:
         raise HTTPException(status_code=404, detail="联系人不存在")
 
-    db.delete(contact)
+    contact.is_deleted = True
+    contact.deleted_at = datetime.utcnow()
     db.commit()
     return {
         "code": 200,

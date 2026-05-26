@@ -4,6 +4,9 @@ from datetime import datetime
 from typing import Optional, List, Dict
 from pydantic import BaseModel, Field, field_validator
 
+# ===== 常量 =====
+VALID_ROLES = ["buyer", "promoter", "supplier", "admin"]
+
 
 # ===== 通用响应 =====
 class ApiResponse(BaseModel):
@@ -86,6 +89,13 @@ class RegisterRequest(BaseModel):
         if v is not None and v.strip():
             if not _PHONE_RE.match(v):
                 raise ValueError("手机号格式不正确，需为11位中国大陆手机号")
+        return v
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in VALID_ROLES:
+            raise ValueError(f"角色值无效，仅支持: {', '.join(VALID_ROLES)}")
         return v
 
     @field_validator("username")
@@ -233,6 +243,17 @@ class DashboardResponse(BaseModel):
 class ProductReviewRequest(BaseModel):
     action: str  # approve 或 reject
     reason: Optional[str] = None
+
+class UpdateUserRoleRequest(BaseModel):
+    """管理员修改用户角色请求"""
+    role: str
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, v: str) -> str:
+        if v not in VALID_ROLES:
+            raise ValueError(f"角色值无效，仅支持: {', '.join(VALID_ROLES)}")
+        return v
 
 class OrderStatusRequest(BaseModel):
     status: str  # 新状态: pending, paid, shipped, received, refunded, cancelled
@@ -391,6 +412,48 @@ class ActivityResponse(ActivityBase):
     id: int
     contact_id: int
     created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ===== 供需匹配（BusinessNeed） =====
+class BusinessNeedBase(BaseModel):
+    """需求基础字段"""
+    title: str = Field(..., min_length=1, max_length=200, description="需求标题")
+    description: Optional[str] = Field(None, description="需求描述")
+    category: Optional[str] = Field(None, max_length=50, description="品类: 大健康/企业服务/科技产品/教育培训/消费品")
+    budget: Optional[str] = Field(None, max_length=100, description="预算范围")
+    region: Optional[str] = Field(None, max_length=100, description="地区")
+    contact_name: str = Field(..., min_length=1, max_length=100, description="联系人")
+    contact_phone: Optional[str] = Field(None, max_length=20, description="联系电话")
+
+
+class BusinessNeedCreate(BusinessNeedBase):
+    """创建需求"""
+    pass
+
+
+class BusinessNeedUpdate(BaseModel):
+    """更新需求（所有字段可选）"""
+    title: Optional[str] = Field(None, min_length=1, max_length=200)
+    description: Optional[str] = None
+    category: Optional[str] = Field(None, max_length=50)
+    budget: Optional[str] = Field(None, max_length=100)
+    region: Optional[str] = Field(None, max_length=100)
+    contact_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    contact_phone: Optional[str] = Field(None, max_length=20)
+    status: Optional[str] = Field(None, pattern=r"^(open|closed)$")
+
+
+class BusinessNeedResponse(BusinessNeedBase):
+    """需求响应"""
+    id: int
+    user_id: int
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    user: Optional[UserBrief] = None
 
     class Config:
         from_attributes = True

@@ -67,6 +67,18 @@
       </swiper-item>
     </swiper>
 
+    <!-- AI功能按钮 -->
+    <view class="ai-actions">
+      <view class="ai-btn" bindtap="goAIDiagnosis">
+        <text class="ai-btn-icon">🧠</text>
+        <text class="ai-btn-text">AI诊断</text>
+      </view>
+      <view class="ai-btn" bindtap="goAICard">
+        <text class="ai-btn-icon">🪪</text>
+        <text class="ai-btn-text">AI名片</text>
+      </view>
+    </view>
+
     <!-- 分类导航 -->
     <view class="nav-grid">
       <view class="nav-item" data-cat="AI名片" bindtap="goPoolWithCat">

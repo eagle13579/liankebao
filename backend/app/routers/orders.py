@@ -14,10 +14,12 @@ from app.schemas import (
     ApiResponse, OrderCreate, OrderStatusRequest, OrderResponse,
 )
 from app.auth import get_current_user
-from app.wechat_pay import (
-    create_jsapi_order, verify_payment_notification,
-    create_refund, is_wechat_configured,
+from payment import (
+    WxPayApi, WxPayConfig, WxPayCallback,
+    get_config, has_config, PLATFORM_WXPAY,
+    is_real_mode,
 )
+from invoice import get_order_invoice_info
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +34,10 @@ def create_order(req: OrderCreate, db: Session = Depends(get_db),
                  current_user: User = Depends(get_current_user)):
     """创建订单并返回支付参数"""
     # 验证产品
-    product = db.query(Product).filter(Product.id == req.product_id).first()
+    product = db.query(Product).filter(
+        Product.id == req.product_id,
+        Product.is_deleted == False,
+    ).first()
     if not product:
         raise HTTPException(status_code=404, detail="产品不存在")
     if product.status != "approved":
@@ -50,6 +55,7 @@ def create_order(req: OrderCreate, db: Session = Depends(get_db),
         promoter = db.query(User).filter(
             User.id == req.promoter_id,
             User.role == "promoter",
+            User.is_deleted == False,
         ).first()
         if not promoter:
             raise HTTPException(status_code=400, detail="推广员不存在")
@@ -78,7 +84,10 @@ def create_order(req: OrderCreate, db: Session = Depends(get_db),
     out_trade_no = f"LK{order.id:08d}{int(time.time())}"
     total_fee = int(total_price * 100)  # 元转分
 
-    if is_wechat_configured():
+    # 判断支付模式：有完整配置 + 模式为 real 才走真实微信API
+    use_real = is_real_mode() and has_config(PLATFORM_WXPAY)
+
+    if use_real:
         # 真实模式：调用微信统一下单
         openid = current_user.wechat_openid or ""
         if not openid:
@@ -86,7 +95,8 @@ def create_order(req: OrderCreate, db: Session = Depends(get_db),
             payment_params = _mock_payment(order)
         else:
             try:
-                result = asyncio.run(create_jsapi_order(
+                wxpay = WxPayApi()
+                result = asyncio.run(wxpay.create_jsapi_order(
                     openid=openid,
                     out_trade_no=out_trade_no,
                     total_fee=total_fee,
@@ -129,7 +139,10 @@ def _mock_payment(order: Order) -> dict:
     from app.database import SessionLocal
     db = SessionLocal()
     try:
-        db_order = db.query(Order).filter(Order.id == order.id).first()
+        db_order = db.query(Order).filter(
+            Order.id == order.id,
+            Order.is_deleted == False,
+        ).first()
         if db_order:
             db_order.prepay_id = prepay_id
             db.commit()
@@ -164,14 +177,15 @@ async def pay_notify(request: Request, db: Session = Depends(get_db)):
     wechat_timestamp = request.headers.get("Wechatpay-Timestamp", "")
     wechat_nonce = request.headers.get("Wechatpay-Nonce", "")
 
-    if is_wechat_configured() and wechat_signature:
-        # 真实模式：验签
-        notify_data = verify_payment_notification(
+    if is_real_mode() and has_config(PLATFORM_WXPAY) and wechat_signature:
+        # 真实模式：使用新模块 WxPayCallback 验签
+        callback = WxPayCallback()
+        notify_data = callback.verify_and_decrypt(
             body=body,
-            signature=wechat_signature,
-            serial=wechat_serial,
-            timestamp=wechat_timestamp,
-            nonce=wechat_nonce,
+            wechatpay_signature=wechat_signature,
+            wechatpay_serial=wechat_serial,
+            wechatpay_timestamp=wechat_timestamp,
+            wechatpay_nonce=wechat_nonce,
         )
         if not notify_data:
             logger.error("支付回调验签失败")
@@ -215,7 +229,10 @@ async def pay_notify(request: Request, db: Session = Depends(get_db)):
             order_id = None
 
         if order_id:
-            order = db.query(Order).filter(Order.id == order_id).first()
+            order = db.query(Order).filter(
+                Order.id == order_id,
+                Order.is_deleted == False,
+            ).first()
             if order and order.status == "pending":
                 order.status = "paid"
                 order.wx_transaction_id = transaction_id or f"mock_tx_{order.id}"
@@ -236,6 +253,7 @@ async def pay_notify(request: Request, db: Session = Depends(get_db)):
         order = db.query(Order).filter(
             Order.status == "pending",
             Order.prepay_id.isnot(None),
+            Order.is_deleted == False,
         ).order_by(Order.id.desc()).first()
         if order:
             order.status = "paid"
@@ -254,21 +272,26 @@ def get_orders(db: Session = Depends(get_db),
     """获取订单列表（按角色过滤）"""
     if current_user.role == "admin":
         # 管理员看所有订单
-        orders = db.query(Order).order_by(Order.id.desc()).all()
+        orders = db.query(Order).filter(
+            Order.is_deleted == False,
+        ).order_by(Order.id.desc()).all()
     elif current_user.role == "supplier":
         # 产品方看自己产品的订单
         orders = db.query(Order).join(Product).filter(
-            Product.owner_id == current_user.id
+            Product.owner_id == current_user.id,
+            Order.is_deleted == False,
         ).order_by(Order.id.desc()).all()
     elif current_user.role == "promoter":
         # 推广员看自己推广的订单
         orders = db.query(Order).filter(
-            Order.promoter_id == current_user.id
+            Order.promoter_id == current_user.id,
+            Order.is_deleted == False,
         ).order_by(Order.id.desc()).all()
     else:
         # 普通用户看自己的订单
         orders = db.query(Order).filter(
-            Order.user_id == current_user.id
+            Order.user_id == current_user.id,
+            Order.is_deleted == False,
         ).order_by(Order.id.desc()).all()
 
     return ApiResponse(
@@ -298,7 +321,10 @@ def update_order_status(
     current_user: User = Depends(get_current_user),
 ):
     """更新订单状态（按角色限制）"""
-    order = db.query(Order).filter(Order.id == order_id).first()
+    order = db.query(Order).filter(
+        Order.id == order_id,
+        Order.is_deleted == False,
+    ).first()
     if not order:
         raise HTTPException(status_code=404, detail="订单不存在")
 
@@ -333,7 +359,8 @@ def update_order_status(
     if req.status == "refunded" and order.wx_transaction_id:
         import asyncio
         try:
-            refund_result = asyncio.run(create_refund(
+            wxpay = WxPayApi()
+            refund_result = asyncio.run(wxpay.create_refund(
                 out_trade_no=f"LK{order.id:08d}",
                 out_refund_no=f"RF{order.id:08d}{int(time.time())}",
                 refund_amount=int(order.total_price * 100),
@@ -365,7 +392,10 @@ def update_order_status(
 def get_order(order_id: int, db: Session = Depends(get_db),
               current_user: User = Depends(get_current_user)):
     """获取订单详情"""
-    order = db.query(Order).filter(Order.id == order_id).first()
+    order = db.query(Order).filter(
+        Order.id == order_id,
+        Order.is_deleted == False,
+    ).first()
     if not order:
         raise HTTPException(status_code=404, detail="订单不存在")
 
@@ -377,9 +407,15 @@ def get_order(order_id: int, db: Session = Depends(get_db),
 
     if not (is_admin or is_supplier or is_owner or is_promoter):
         raise HTTPException(status_code=403, detail="无权查看此订单")
+    
+    order_data = OrderResponse.model_validate(order).model_dump()
+
+    # 嵌入发票信息（仅订单所属用户可见）
+    if is_owner or is_admin:
+        order_data["invoice_info"] = get_order_invoice_info(order.id, db)
 
     return ApiResponse(
         code=200,
         message="success",
-        data=OrderResponse.model_validate(order).model_dump(),
+        data=order_data,
     )

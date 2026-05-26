@@ -9,6 +9,8 @@ import { useState, useEffect } from 'react';
 import { api } from '../api/client';
 import { ProductItem } from '../types';
 import { Loading, ErrorBlock, Empty, useApi } from '../components/StatusComponents';
+import BorderGlow from '../components/BorderGlow';
+import SpotlightCard from '../components/SpotlightCard';
 
 // ==============================
 //  Shared Bottom Nav
@@ -58,6 +60,7 @@ export function LiankebaoHomepage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [currentBanner, setCurrentBanner] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { data: products, status, error, refetch } = useApi(
     () => api.get<{total: number; items: ProductItem[]}>('/api/products' + (search ? `?search=${search}` : '')).then(r => r.data?.items || []),
     [search]
@@ -65,26 +68,40 @@ export function LiankebaoHomepage() {
 
   const displayProducts = (products || []).slice(0, 4);
 
+  // Fetch unread notification count
+  const fetchUnread = async () => {
+    try {
+      const res = await api.get<{count: number}>('/api/notifications/unread-count');
+      if (res.data) setUnreadCount(res.data.count || 0);
+    } catch {}
+  };
+  useEffect(() => {
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Carousel with product-relevant background images
   const banners = [
     {
       tag: '精选推荐', title: '精选大健康 · 企业家必备', desc: '优质品牌直供，专业团队严选',
       btnText: '立即查看', link: '/product-pool',
-      gradient: 'bg-gradient-to-br from-sky-500 via-blue-600 to-indigo-700',
+      bgImage: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800&h=400&fit=crop',
     },
     {
       tag: 'VIP会员', title: '开通会员享超值权益', desc: '推广佣金翻倍 · 优先审核 · 专属客服',
       btnText: '了解详情', link: '/membership',
-      gradient: 'bg-gradient-to-br from-amber-500 via-orange-500 to-rose-600',
+      bgImage: 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=800&h=400&fit=crop',
     },
     {
       tag: 'AI赋能', title: 'AI数字名片 · 智能获客', desc: '一键生成电子画册，精准触达潜在客户',
-      btnText: '立即体验', link: '#',
-      gradient: 'bg-gradient-to-br from-violet-500 via-purple-600 to-indigo-700',
+      btnText: '立即体验', link: 'http://localhost:8003', external: true,
+      bgImage: 'https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=800&h=400&fit=crop',
     },
     {
       tag: 'GEO诊断', title: 'AI诊断你的线上曝光', desc: '分析品牌在AI搜索引擎中的可见度，精准优化',
-      btnText: '开始诊断', link: '#',
-      gradient: 'bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600',
+      btnText: '开始诊断', link: 'http://localhost:5061', external: true,
+      bgImage: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=800&h=400&fit=crop',
     },
   ];
 
@@ -101,7 +118,7 @@ export function LiankebaoHomepage() {
     { icon: TrendingUp, label: '推广中心', desc: '赚取高额分润', color: 'from-emerald-500 to-teal-600', bg: 'bg-emerald-50', path: '/promotion-center' },
     { icon: Users, label: '人脉管理', desc: '高效触达客户', color: 'from-violet-500 to-purple-600', bg: 'bg-violet-50', path: '/contacts' },
     { icon: Receipt, label: '我的订单', desc: '订单物流追踪', color: 'from-amber-500 to-orange-600', bg: 'bg-amber-50', path: '/my-orders' },
-    { icon: Target, label: '供需匹配', desc: '精准对接商机', color: 'from-rose-500 to-pink-600', bg: 'bg-rose-50', path: '/product-pool' },
+    { icon: Target, label: '信任对接', desc: '精准匹配可信商机', color: 'from-rose-500 to-pink-600', bg: 'bg-rose-50', path: '/supply-demand' },
     { icon: BarChart3, label: '数据洞察', desc: '生意增长分析', color: 'from-cyan-500 to-teal-600', bg: 'bg-cyan-50', path: '#data' },
   ];
 
@@ -111,23 +128,25 @@ export function LiankebaoHomepage() {
       <header className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-xl border-b border-sky-100/50 px-4 h-16">
         <div className="flex items-center justify-between h-full max-w-3xl mx-auto">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl brand-gradient flex items-center justify-center shadow-md shadow-sky-500/20">
-              <HandshakeIcon className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-xl brand-gradient flex items-center justify-center shadow-md shadow-sky-500/20">
+              <HandshakeIcon className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="font-manrope text-base font-extrabold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent leading-tight">
+              <h1 className="font-manrope text-xl font-extrabold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent leading-tight">
                 链客宝
               </h1>
-              <p className="text-[8px] text-slate-400 font-medium tracking-wider -mt-0.5">企业家供需匹配平台</p>
+              <p className="text-[10px] text-slate-400 font-medium tracking-wider -mt-0.5">企业信任关系网，对接更快更准</p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <button className="relative w-9 h-9 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 hover:bg-sky-50 hover:text-sky-600 active:scale-90 transition-all border border-slate-100">
+            <button onClick={() => navigate('/notifications')} className="relative w-9 h-9 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 hover:bg-sky-50 hover:text-sky-600 active:scale-90 transition-all border border-slate-100">
               <Bell className="w-4.5 h-4.5" />
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-gradient-to-br from-rose-500 to-rose-600 rounded-full text-white text-[8px] font-bold flex items-center justify-center shadow-sm">3</span>
+              {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-gradient-to-br from-rose-500 to-rose-600 rounded-full text-white text-[8px] font-bold flex items-center justify-center shadow-sm">{unreadCount > 99 ? '99+' : unreadCount}</span>
+              )}
             </button>
-            <button className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-white shadow-md shadow-sky-500/20 active:scale-90 transition-all border-2 border-white">
+            <button onClick={() => navigate('/promotion-center')} className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-white shadow-md shadow-sky-500/20 active:scale-90 transition-all border-2 border-white">
               <User className="w-4.5 h-4.5" />
             </button>
           </div>
@@ -178,43 +197,54 @@ export function LiankebaoHomepage() {
           </div>
         </div>
 
-        {/* Banner Carousel */}
+        {/* Banner Carousel - Horizontal Sliding */}
         <div className="px-4 py-3">
+          <BorderGlow
+            glowColor="190 80 80"
+            backgroundColor="#ffffff"
+            glowIntensity={0.6}
+            borderRadius={16}
+            glowRadius={12}
+          >
           <div className="relative w-full aspect-[21/9] rounded-2xl overflow-hidden shadow-lg">
-            {/* Slides */}
-            {banners.map((b, i) => (
-              <div
-                key={i}
-                className={`absolute inset-0 transition-all duration-500 ease-in-out ${
-                  i === currentBanner
-                    ? 'opacity-100 scale-100'
-                    : 'opacity-0 scale-95 pointer-events-none'
-                }`}
-              >
-                {b.gradient ? (
-                  <div className={`absolute inset-0 ${b.gradient}`}>
-                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.15),transparent_60%)]" />
+            {/* Sliding Track */}
+            <div
+              className="flex transition-transform duration-500 ease-in-out h-full"
+              style={{ transform: `translateX(-${currentBanner * 100}%)` }}
+            >
+              {banners.map((b, i) => (
+                <div key={i} className="relative w-full h-full shrink-0">
+                  {/* Background Image */}
+                  <img
+                    src={b.bgImage}
+                    alt=""
+                    className="absolute inset-0 w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                  {/* Dark overlay for text readability */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent" />
+                  <div className="absolute inset-0 flex flex-col justify-center px-6">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="bg-white/20 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 rounded-full font-bold border border-white/20">{b.tag}</span>
+                    </div>
+                    <h2 className="text-white font-manrope font-bold text-xl leading-tight">{b.title}</h2>
+                    <p className="text-white/70 text-xs mt-1">{b.desc}</p>
+                    <button
+                      onClick={() => {
+                        if (!b.link || b.link === '#') return;
+                        if (b.external) window.open(b.link, '_blank');
+                        else navigate(b.link, { state: { transition: 'push' } });
+                      }}
+                      className="mt-3 w-fit bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-4 py-2 rounded-full border border-white/20 hover:bg-white/30 active:scale-95 transition-all flex items-center gap-1.5"
+                    >
+                      {b.btnText} <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                ) : (
-                  <div className="absolute inset-0 bg-gradient-to-br from-sky-500 via-blue-600 to-indigo-700">
-                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.15),transparent_60%)]" />
-                  </div>
-                )}
-                <div className="absolute inset-0 flex flex-col justify-center px-6">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="bg-white/20 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 rounded-full font-bold border border-white/20">{b.tag}</span>
-                  </div>
-                  <h2 className="text-white font-manrope font-bold text-xl leading-tight">{b.title}</h2>
-                  <p className="text-white/70 text-xs mt-1">{b.desc}</p>
-                  <button
-                    onClick={() => b.link && navigate(b.link, { state: { transition: 'push' } })}
-                    className="mt-3 w-fit bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-4 py-2 rounded-full border border-white/20 hover:bg-white/30 active:scale-95 transition-all flex items-center gap-1.5"
-                  >
-                    {b.btnText} <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
             {/* Dots */}
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-10">
               {banners.map((_, i) => (
@@ -233,7 +263,8 @@ export function LiankebaoHomepage() {
             <div className="absolute top-3 right-3 z-10 bg-black/20 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded-full">
               {currentBanner + 1}/{banners.length}
             </div>
-          </div>
+            </div>
+          </BorderGlow>
         </div>
 
         {/* Quick Tools */}
@@ -242,8 +273,8 @@ export function LiankebaoHomepage() {
             {[
               { icon: Star, label: 'AI名片', color: 'text-amber-500', bg: 'bg-amber-50', link: 'http://localhost:8003', external: true },
               { icon: Zap, label: 'GEO', color: 'text-violet-500', bg: 'bg-violet-50', link: 'http://localhost:5061', external: true },
-              { icon: Target, label: '数字员工', color: 'text-sky-500', bg: 'bg-sky-50', link: 'http://localhost:5020', external: true },
-              { icon: Globe, label: '供需匹配', color: 'text-emerald-500', bg: 'bg-emerald-50', link: '#', external: false },
+              { icon: Target, label: 'AI员工', color: 'text-sky-500', bg: 'bg-sky-50', link: 'http://localhost:5020', external: true },
+              { icon: Globe, label: '信任对接', color: 'text-emerald-500', bg: 'bg-emerald-50', link: '/supply-demand', external: false },
               { icon: BarChart3, label: '数据洞察', color: 'text-blue-500', bg: 'bg-blue-50', link: '#', external: false },
               { icon: Grid, label: '全部产品', color: 'text-slate-500', bg: 'bg-slate-50', link: '/product-pool', external: false },
             ].map((item, i) => {
@@ -303,10 +334,14 @@ export function LiankebaoHomepage() {
           ) : (
             <div className="grid grid-cols-2 gap-4">
               {displayProducts.map((item, i) => (
-                <div
+                <SpotlightCard
                   key={i}
+                  className="cursor-pointer"
+                  spotlightColor="rgba(56, 189, 248, 0.12)"
+                >
+                <div
                   onClick={() => navigate('/product-detail', { state: { transition: 'push', productId: item.id } })}
-                  className="bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-md active:shadow-sm transition-all card-hover group cursor-pointer"
+                  className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-md hover:border-sky-200 active:shadow-sm transition-all card-hover group"
                 >
                   <div className="aspect-square p-2 relative">
                     <div className="absolute top-3 left-3 z-10 bg-gradient-to-r from-sky-500 to-blue-600 text-white text-[8px] font-bold px-2 py-0.5 rounded-full shadow-sm">
@@ -329,12 +364,13 @@ export function LiankebaoHomepage() {
                     </div>
                     <button
                       onClick={(e) => { e.stopPropagation(); navigate('/product-detail', { state: { transition: 'push', productId: item.id } }); }}
-                      className="w-full py-2.5 border-2 border-sky-200 text-sky-600 rounded-xl font-bold text-xs hover:bg-sky-500 hover:text-white hover:border-sky-500 active:scale-[0.97] transition-all"
+                      className="w-full py-2.5 border-2 border-sky-200 text-sky-600 rounded-xl font-bold text-xs hover:bg-sky-500 hover:text-white hover:border-sky-500 active:scale-[0.97] transition-all mb-0.5"
                     >
                       查看详情
                     </button>
                   </div>
                 </div>
+                </SpotlightCard>
               ))}
             </div>
           )}
@@ -407,9 +443,9 @@ export function ProductPool() {
           </div>
         </div>
 
-        {/* Category Tabs - Horizontal Scrolling Capsules */}
+        {/* Category Tabs - Dynamically from API */}
         <div className="flex overflow-x-auto no-scrollbar gap-2 px-4 py-3">
-          {['全部', '大健康', '企业服务', '科技产品', '消费品', '教育培训'].map((cat, i) => (
+          {['全部', '大健康', '企业服务', '教育培训', 'SaaS硬件', '食品/大健康', '企业家服务'].map((cat, i) => (
             <span
               key={i}
               onClick={() => setCategory(cat)}
@@ -419,7 +455,7 @@ export function ProductPool() {
                   : 'bg-white text-slate-500 border-slate-200 hover:border-sky-200 hover:text-sky-600'
               }`}
             >
-              {cat}
+              {cat.replace('/大健康', '')}
             </span>
           ))}
         </div>
@@ -488,6 +524,7 @@ export function PromotionCenter() {
     { label: '分享海报', icon: Share2, path: '#', isSharePoster: true },
     { label: '我的下级', icon: Users, path: '/subordinates' },
     { label: '推广教程', icon: GraduationCap, path: '/promotion-tutorial' },
+    { label: '合伙人政策', icon: FileText, path: '/partner-policy' },
     { label: '会员中心', icon: Crown, path: '/membership' },
     { label: '我的产品', icon: Package, path: '/my-products' },
     { label: '上架新品', icon: ShoppingBag, path: '/add-product' },

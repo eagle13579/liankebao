@@ -1,0 +1,63 @@
+{
+  "报告时间": "2026-05-24 19:10",
+  "项目": "链客宝 (LianKeBao)",
+  "端口侦察结果": {
+    "8000": {
+      "监听状态": "无服务监听",
+      "进程": null,
+      "说明": "无任何进程 LISTENING 在 8000 端口。netstat 中的 '8000' 匹配项均为 IPv6 出站连接 (远程主机 hex 地址含 8000，连接目标为 443 HTTPS)，非本地监听。不存在幽灵进程。"
+    },
+    "8001": {
+      "监听状态": "无服务监听",
+      "进程": null,
+      "说明": "后端配置在 8001 启动 (backend/start_chainke.py line 5: uvicorn port=8001)，但当前未运行。"
+    },
+    "5136": {
+      "监听状态": "无服务监听",
+      "进程": null,
+      "说明": "统一API网关配置端口 (gateway.py line 32: PORT=5136)，当前未运行。"
+    }
+  },
+  "前端配置": {
+    "API_BASE (源码)": {
+      "文件": "src/api/client.ts",
+      "行": 1,
+      "代码": "const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';",
+      "说明": "运行时优先取 VITE_API_BASE 环境变量，未设置则默认 8000"
+    },
+    "VITE_API_BASE (.env)": {
+      "文件": ".env",
+      "行": 12,
+      "值": "/lkapi",
+      "说明": "前端请求路径前缀为 /lkapi"
+    },
+    "APP_URL (.env)": {
+      "文件": ".env",
+      "行": 11,
+      "值": "http://localhost:8000",
+      "说明": "应用URL配置为 8000"
+    },
+    "Dev Server 代理 (vite.config.ts)": {
+      "目标": "http://localhost:5136",
+      "行": 49,
+      "说明": "开发模式下，Vite 将 /lkapi/* 请求代理到 localhost:5136 (即 gateway)"
+    }
+  },
+  "网关路由配置": {
+    "gateway.py 端口": 5136,
+    "路由表": {
+      "/lkapi/*": "http://localhost:8000 (NOT 8001)",
+      "未匹配 /api/*": "http://localhost:8000 (默认)",
+      "/health": "http://localhost:8000"
+    },
+    "打印日志(行272)": "🔗 链客宝  → :8001",
+    "⚠️ 关键矛盾": "gateway.py 头部注释和启动日志都说 '→ :8001'，但代码中全部 ROUTES 条目硬编码为 localhost:8000（第36-37,54行）和第217行默认路由。后端 start_chainke.py 却监听 8001。网关实际转发目标(8000)与后端实际监听端口(8001)不一致——启动后网关代理会 502 错误。"
+  },
+  "总结": {
+    "幽灵进程(8000)": false,
+    "服务运行(8001)": false,
+    "前端指向": "VITE_API_BASE=/lkapi → 开发期代理到 :5136(gateway) → gateway转发到 :8000 (而非后端配置的 :8001)",
+    "网关-后端端口错配": true,
+    "建议": "修复 gateway.py 中 ROUTES 的 target URL 从 localhost:8000 改为 localhost:8001，或修改 start_chainke.py 监听 8000 以匹配网关配置。"
+  }
+}

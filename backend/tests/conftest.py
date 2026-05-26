@@ -6,6 +6,7 @@ pytest 测试配置
 - 四个测试用户：admin / buyer1 / promoter1 / supplier1（密码均为 "Test1234"）
 - 自动清理登录频率限制和 token 黑名单
 - 自动替换 app.database.engine / SessionLocal / get_db 为测试专用版本
+- 增强：db_session fixture, 搜索引擎重建, 清理搜索引擎缓存
 """
 import sys
 import os
@@ -29,12 +30,19 @@ if PROJECT_ROOT not in sys.path:
 # 必须在任何 app 模块导入前设定测试环境变量
 # ------------------------------------------------------------
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-pytest-only")
+os.environ.setdefault("PAYMENT_MODE", "mock")
+os.environ.setdefault("SEARCH_BACKEND", "memory")
 
 # ------------------------------------------------------------
-# 创建内存 SQLite 引擎（测试专用）
+# 创建测试用 SQLite 引擎（使用临时文件避免 :memory: 的跨连接隔离问题）
 # ------------------------------------------------------------
+import tempfile
+_TEST_DB_PATH = os.path.join(tempfile.gettempdir(), "chainke_test.db")
+# 确保没有旧文件残留
+if os.path.exists(_TEST_DB_PATH):
+    os.remove(_TEST_DB_PATH)
 TEST_ENGINE = create_engine(
-    "sqlite:///:memory:",
+    f"sqlite:///{_TEST_DB_PATH}",
     connect_args={"check_same_thread": False},
     echo=False,
 )
@@ -45,7 +53,8 @@ TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=TEST_ENG
 # ------------------------------------------------------------
 import app.database as db_module
 from app.database import Base
-from app.models import User, Product, Order, Withdrawal
+from app.models import User, Product, Order, Withdrawal, BusinessNeed
+from recharge.models import UserBalance, RechargeOrder, BalanceLog
 
 # 保存原始 get_db 函数引用（route 模块 import 时捕获的就是这个对象）
 _original_get_db = db_module.get_db
@@ -219,6 +228,58 @@ def _seed_data(db: Session) -> Dict[str, User]:
         ),
     ]
     db.add_all(withdrawals)
+    db.flush()
+
+    # === 创建需求（供需匹配） ===
+    business_needs = [
+        BusinessNeed(
+            user_id=buyer.id,
+            title="寻找企业级CRM系统供应商",
+            description="我们公司需要一套适合中小企业的CRM系统，预算10-30万",
+            category="企业服务",
+            budget="10万-30万",
+            region="北京",
+            contact_name="张三",
+            contact_phone="13800000001",
+            status="open",
+        ),
+        BusinessNeed(
+            user_id=buyer.id,
+            title="大健康产品渠道合作",
+            description="寻求保健品分销渠道，线上线下均可",
+            category="大健康",
+            budget="50万-100万",
+            region="全国",
+            contact_name="张三",
+            contact_phone="13800000001",
+            status="open",
+        ),
+        BusinessNeed(
+            user_id=promoter.id,
+            title="教育培训机构品牌推广",
+            description="寻找K12教育机构合作推广",
+            category="教育培训",
+            budget="5万-20万",
+            region="上海",
+            contact_name="李四",
+            contact_phone="13800000002",
+            status="closed",
+        ),
+    ]
+    db.add_all(business_needs)
+    db.flush()
+
+    # === 创建用户余额（充值模块） ===
+    balance = UserBalance(
+        user_id=buyer.id,
+        balance=100.00,
+        total_recharged=200.00,
+        total_consumed=100.00,
+        frozen_amount=0.00,
+        version=1,
+    )
+    db.add(balance)
+    db.flush()
 
     db.commit()
     return users
@@ -238,18 +299,32 @@ def setup_test_database():
     finally:
         db.close()
     yield
+    # 清理临时数据库文件
+    try:
+        if os.path.exists(_TEST_DB_PATH):
+            os.remove(_TEST_DB_PATH)
+    except Exception:
+        pass
 
 
 # ============================================================
-# function 级别 fixture：清理 rate-limit + blacklist
+# function 级别 fixture：清理 rate-limit + blacklist + 支付配置 + 搜索引擎
 # ============================================================
 @pytest.fixture(autouse=True)
 def clean_global_state():
-    """每次测试前清理登录频率限制和 token 黑名单（均为内存级状态）"""
+    """每次测试前清理登录频率限制、token 黑名单、支付配置和搜索引擎缓存"""
     from app.routers.auth import _login_attempts
     _login_attempts.clear()
     from app.auth import _token_blacklist
     _token_blacklist.clear()
+    from payment.config import _config_registry
+    _config_registry.clear()
+    # 清理搜索引擎单例，确保每次测试独立
+    from app.search_index import _search_engine_instance
+    from app.search_index import _is_sqlite_cache, _has_fts5_cache
+    _search_engine_instance = None
+    _is_sqlite_cache = None
+    _has_fts5_cache = None
     yield
 
 
@@ -271,6 +346,19 @@ def client() -> Generator[TestClient, None, None]:
 
     with TestClient(app) as c:
         yield c
+
+
+# ============================================================
+# db_session fixture — 在测试中直接操作数据库
+# ============================================================
+@pytest.fixture
+def db_session() -> Generator[Session, None, None]:
+    """提供直接的数据库会话，用于测试中直接读写数据库"""
+    db = TestSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 # ============================================================
@@ -322,3 +410,39 @@ def admin_headers(admin_token: str) -> Dict[str, str]:
 @pytest.fixture
 def supplier_headers(supplier_token: str) -> Dict[str, str]:
     return {"Authorization": f"Bearer {supplier_token}"}
+
+
+# ============================================================
+# 辅助 fixture：搜索引擎重建 + 已登录买家信息
+# ============================================================
+@pytest.fixture
+def rebuilt_search_engine(db_session):
+    """重建搜索引擎索引（基于种子数据中的 approved 产品）"""
+    from app.search_index import get_search_engine, rebuild_search_index
+    engine = get_search_engine()
+    rebuilt_search_index(db_session=db_session)
+    return engine
+
+
+@pytest.fixture
+def buyer_user_id(client: TestClient, buyer_token: str) -> int:
+    """获取 buyer1 的用户 ID"""
+    resp = client.get("/api/auth/me", headers={"Authorization": f"Bearer {buyer_token}"})
+    assert resp.status_code == 200
+    return resp.json()["data"]["id"]
+
+
+@pytest.fixture
+def promoter_user_id(client: TestClient, promoter_token: str) -> int:
+    """获取 promoter1 的用户 ID"""
+    resp = client.get("/api/auth/me", headers={"Authorization": f"Bearer {promoter_token}"})
+    assert resp.status_code == 200
+    return resp.json()["data"]["id"]
+
+
+@pytest.fixture
+def supplier_user_id(client: TestClient, supplier_token: str) -> int:
+    """获取 supplier1 的用户 ID"""
+    resp = client.get("/api/auth/me", headers={"Authorization": f"Bearer {supplier_token}"})
+    assert resp.status_code == 200
+    return resp.json()["data"]["id"]

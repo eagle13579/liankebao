@@ -12,6 +12,17 @@
 .menu-left { display: flex; align-items: center; gap: 16rpx; }
 .menu-left text:last-child { font-size: 30rpx; color: #1a1a2e; }
 .menu-icon { font-size: 32rpx; }
+.menu-right { display: flex; align-items: center; gap: 12rpx; }
+.unread-badge {
+  font-size: 20rpx;
+  color: #fff;
+  background: #ef4444;
+  padding: 2rpx 14rpx;
+  border-radius: 20rpx;
+  min-width: 36rpx;
+  text-align: center;
+  line-height: 1.6;
+}
 .arrow { font-size: 36rpx; color: #94a3b8; font-weight: 300; }
 
 .logout-btn { margin: 60rpx 32rpx 0; height: 92rpx; line-height: 92rpx; background: #fff; color: #ef4444; font-size: 30rpx; font-weight: 500; border-radius: 24rpx; border: 1px solid #f1f5f9; text-align: center; }

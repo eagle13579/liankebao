@@ -70,3 +70,21 @@ export interface ContactSearchParams {
   page?: number
   page_size?: number
 }
+
+// ===== 供需匹配类型 =====
+
+export interface NeedItem {
+  id: number
+  user_id: number
+  title: string
+  description?: string
+  category?: string
+  budget?: string
+  region?: string
+  contact_name: string
+  contact_phone?: string
+  status: string
+  created_at: string
+  updated_at: string
+  user?: { id: number; name: string; company?: string; avatar?: string }
+}

@@ -2,20 +2,48 @@ import { BrowserRouter as Router, Routes, Route, useLocation, Link } from 'react
 import { AnimatePresence } from 'motion/react';
 import ErrorBoundary from './components/ErrorBoundary';
 import PageTransition from './components/PageTransition';
-import { LoginPage, UserRegistration } from './screens/AuthScreens';
-import { LiankebaoHomepage, ProductPool, PromotionCenter } from './screens/MainScreens';
-import { ProductDetailPage, MyProducts, AddProduct } from './screens/ProductScreens';
-import { OrderConfirmation, PaymentSuccessScreens, MyOrders, OrderManagement } from './screens/OrderScreens';
-import PaymentBridge from './screens/PaymentBridge';
-import { AdminBackend } from './screens/AdminScreens';
-import { SubordinatePage } from './screens/SubordinateScreens';
-import { PromotionTutorial } from './screens/TutorialScreens';
-import { MembershipCenter } from './screens/MembershipScreens';
-import RechargeScreens, { RechargeAmountPage, RechargePaymentPage, RechargeResultPage, RechargeHistoryPage, BalanceDetailPage } from './screens/RechargeScreens';
-import ContactsPage from './pages/ContactsPage';
-import ContactsImportPage from './pages/ContactsImportPage';
-import ContactDetailPage from './pages/ContactDetailPage';
-import ContactMergePage from './pages/ContactMergePage';
+import React, { Suspense, lazy } from 'react';
+
+// Lazy-loaded screen components for code splitting
+const LoginPageLazy = lazy(() => import('./screens/AuthScreens').then(m => ({ default: m.LoginPage })));
+const UserRegistrationLazy = lazy(() => import('./screens/AuthScreens').then(m => ({ default: m.UserRegistration })));
+const LiankebaoHomepageLazy = lazy(() => import('./screens/MainScreens').then(m => ({ default: m.LiankebaoHomepage })));
+const ProductPoolLazy = lazy(() => import('./screens/MainScreens').then(m => ({ default: m.ProductPool })));
+const PromotionCenterLazy = lazy(() => import('./screens/MainScreens').then(m => ({ default: m.PromotionCenter })));
+const NotificationsScreenLazy = lazy(() => import('./screens/NotificationsScreen'));
+const ProductDetailPageLazy = lazy(() => import('./screens/ProductScreens').then(m => ({ default: m.ProductDetailPage })));
+const MyProductsLazy = lazy(() => import('./screens/ProductScreens').then(m => ({ default: m.MyProducts })));
+const AddProductLazy = lazy(() => import('./screens/ProductScreens').then(m => ({ default: m.AddProduct })));
+const OrderConfirmationLazy = lazy(() => import('./screens/OrderScreens').then(m => ({ default: m.OrderConfirmation })));
+const PaymentSuccessScreensLazy = lazy(() => import('./screens/OrderScreens').then(m => ({ default: m.PaymentSuccessScreens })));
+const MyOrdersLazy = lazy(() => import('./screens/OrderScreens').then(m => ({ default: m.MyOrders })));
+const OrderManagementLazy = lazy(() => import('./screens/OrderScreens').then(m => ({ default: m.OrderManagement })));
+const PaymentBridgeLazy = lazy(() => import('./screens/PaymentBridge'));
+const AdminBackendLazy = lazy(() => import('./screens/AdminScreens').then(m => ({ default: m.AdminBackend })));
+const SubordinatePageLazy = lazy(() => import('./screens/SubordinateScreens').then(m => ({ default: m.SubordinatePage })));
+const PromotionTutorialLazy = lazy(() => import('./screens/TutorialScreens').then(m => ({ default: m.PromotionTutorial })));
+const MembershipCenterLazy = lazy(() => import('./screens/MembershipScreens').then(m => ({ default: m.MembershipCenter })));
+const PartnerPolicyLazy = lazy(() => import('./screens/PartnerPolicy'));
+const RechargeAmountPageLazy = lazy(() => import('./screens/RechargeScreens').then(m => ({ default: m.RechargeAmountPage })));
+const RechargePaymentPageLazy = lazy(() => import('./screens/RechargeScreens').then(m => ({ default: m.RechargePaymentPage })));
+const RechargeResultPageLazy = lazy(() => import('./screens/RechargeScreens').then(m => ({ default: m.RechargeResultPage })));
+const RechargeHistoryPageLazy = lazy(() => import('./screens/RechargeScreens').then(m => ({ default: m.RechargeHistoryPage })));
+const BalanceDetailPageLazy = lazy(() => import('./screens/RechargeScreens').then(m => ({ default: m.BalanceDetailPage })));
+const ContactsPageLazy = lazy(() => import('./pages/ContactsPage'));
+const ContactsImportPageLazy = lazy(() => import('./pages/ContactsImportPage'));
+const ContactDetailPageLazy = lazy(() => import('./pages/ContactDetailPage'));
+const ContactMergePageLazy = lazy(() => import('./pages/ContactMergePage'));
+const SupplyDemandHallLazy = lazy(() => import('./screens/SupplyDemandScreens').then(m => ({ default: m.SupplyDemandHall })));
+const NeedDetailLazy = lazy(() => import('./screens/SupplyDemandScreens').then(m => ({ default: m.NeedDetail })));
+const PostNeedLazy = lazy(() => import('./screens/PostNeedScreen').then(m => ({ default: m.PostNeed })));
+
+function LazyPage({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen text-on-surface"><div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" /></div>}>
+      {children}
+    </Suspense>
+  );
+}
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -23,32 +51,37 @@ function AnimatedRoutes() {
   return (
     <AnimatePresence mode="wait">
       <Routes location={location}>
-        <Route path="/" element={<PageTransition><LoginPage /></PageTransition>} />
-        <Route path="/register" element={<PageTransition><UserRegistration /></PageTransition>} />
-        <Route path="/home" element={<PageTransition><LiankebaoHomepage /></PageTransition>} />
-        <Route path="/product-pool" element={<PageTransition><ProductPool /></PageTransition>} />
-        <Route path="/promotion-center" element={<PageTransition><PromotionCenter /></PageTransition>} />
-        <Route path="/subordinates" element={<PageTransition><SubordinatePage /></PageTransition>} />
-        <Route path="/promotion-tutorial" element={<PageTransition><PromotionTutorial /></PageTransition>} />
-        <Route path="/membership" element={<PageTransition><MembershipCenter /></PageTransition>} />
-        <Route path="/recharge" element={<PageTransition><RechargeAmountPage /></PageTransition>} />
-        <Route path="/recharge/pay" element={<PageTransition><RechargePaymentPage /></PageTransition>} />
-        <Route path="/recharge/result" element={<PageTransition><RechargeResultPage /></PageTransition>} />
-        <Route path="/recharge/history" element={<PageTransition><RechargeHistoryPage /></PageTransition>} />
-        <Route path="/recharge/balance" element={<PageTransition><BalanceDetailPage /></PageTransition>} />
-        <Route path="/product-detail" element={<PageTransition><ProductDetailPage /></PageTransition>} />
-        <Route path="/my-products" element={<PageTransition><MyProducts /></PageTransition>} />
-        <Route path="/add-product" element={<PageTransition><AddProduct /></PageTransition>} />
-        <Route path="/order-confirm" element={<PageTransition><OrderConfirmation /></PageTransition>} />
-        <Route path="/payment-bridge" element={<PageTransition><PaymentBridge /></PageTransition>} />
-        <Route path="/payment-success" element={<PageTransition><PaymentSuccessScreens /></PageTransition>} />
-        <Route path="/my-orders" element={<PageTransition><MyOrders /></PageTransition>} />
-        <Route path="/admin" element={<PageTransition><AdminBackend /></PageTransition>} />
-        <Route path="/merchant-orders" element={<PageTransition><OrderManagement /></PageTransition>} />
-        <Route path="/contacts" element={<PageTransition><ContactsPage /></PageTransition>} />
-        <Route path="/contacts/import" element={<PageTransition><ContactsImportPage /></PageTransition>} />
-        <Route path="/contacts/:id" element={<PageTransition><ContactDetailPage /></PageTransition>} />
-        <Route path="/contacts/merge" element={<PageTransition><ContactMergePage /></PageTransition>} />
+        <Route path="/" element={<PageTransition><LazyPage><LoginPageLazy /></LazyPage></PageTransition>} />
+        <Route path="/register" element={<PageTransition><LazyPage><UserRegistrationLazy /></LazyPage></PageTransition>} />
+        <Route path="/home" element={<PageTransition><LazyPage><LiankebaoHomepageLazy /></LazyPage></PageTransition>} />
+        <Route path="/notifications" element={<PageTransition><LazyPage><NotificationsScreenLazy /></LazyPage></PageTransition>} />
+        <Route path="/product-pool" element={<PageTransition><LazyPage><ProductPoolLazy /></LazyPage></PageTransition>} />
+        <Route path="/promotion-center" element={<PageTransition><LazyPage><PromotionCenterLazy /></LazyPage></PageTransition>} />
+        <Route path="/subordinates" element={<PageTransition><LazyPage><SubordinatePageLazy /></LazyPage></PageTransition>} />
+        <Route path="/promotion-tutorial" element={<PageTransition><LazyPage><PromotionTutorialLazy /></LazyPage></PageTransition>} />
+        <Route path="/partner-policy" element={<PageTransition><LazyPage><PartnerPolicyLazy /></LazyPage></PageTransition>} />
+        <Route path="/membership" element={<PageTransition><LazyPage><MembershipCenterLazy /></LazyPage></PageTransition>} />
+        <Route path="/recharge" element={<PageTransition><LazyPage><RechargeAmountPageLazy /></LazyPage></PageTransition>} />
+        <Route path="/recharge/pay" element={<PageTransition><LazyPage><RechargePaymentPageLazy /></LazyPage></PageTransition>} />
+        <Route path="/recharge/result" element={<PageTransition><LazyPage><RechargeResultPageLazy /></LazyPage></PageTransition>} />
+        <Route path="/recharge/history" element={<PageTransition><LazyPage><RechargeHistoryPageLazy /></LazyPage></PageTransition>} />
+        <Route path="/recharge/balance" element={<PageTransition><LazyPage><BalanceDetailPageLazy /></LazyPage></PageTransition>} />
+        <Route path="/product-detail" element={<PageTransition><LazyPage><ProductDetailPageLazy /></LazyPage></PageTransition>} />
+        <Route path="/my-products" element={<PageTransition><LazyPage><MyProductsLazy /></LazyPage></PageTransition>} />
+        <Route path="/add-product" element={<PageTransition><LazyPage><AddProductLazy /></LazyPage></PageTransition>} />
+        <Route path="/order-confirm" element={<PageTransition><LazyPage><OrderConfirmationLazy /></LazyPage></PageTransition>} />
+        <Route path="/payment-bridge" element={<PageTransition><LazyPage><PaymentBridgeLazy /></LazyPage></PageTransition>} />
+        <Route path="/payment-success" element={<PageTransition><LazyPage><PaymentSuccessScreensLazy /></LazyPage></PageTransition>} />
+        <Route path="/my-orders" element={<PageTransition><LazyPage><MyOrdersLazy /></LazyPage></PageTransition>} />
+        <Route path="/admin" element={<PageTransition><LazyPage><AdminBackendLazy /></LazyPage></PageTransition>} />
+        <Route path="/merchant-orders" element={<PageTransition><LazyPage><OrderManagementLazy /></LazyPage></PageTransition>} />
+        <Route path="/contacts" element={<PageTransition><LazyPage><ContactsPageLazy /></LazyPage></PageTransition>} />
+        <Route path="/contacts/import" element={<PageTransition><LazyPage><ContactsImportPageLazy /></LazyPage></PageTransition>} />
+        <Route path="/contacts/:id" element={<PageTransition><LazyPage><ContactDetailPageLazy /></LazyPage></PageTransition>} />
+        <Route path="/contacts/merge" element={<PageTransition><LazyPage><ContactMergePageLazy /></LazyPage></PageTransition>} />
+        <Route path="/supply-demand" element={<PageTransition><LazyPage><SupplyDemandHallLazy /></LazyPage></PageTransition>} />
+        <Route path="/supply-demand/post" element={<PageTransition><LazyPage><PostNeedLazy /></LazyPage></PageTransition>} />
+        <Route path="/supply-demand/:id" element={<PageTransition><LazyPage><NeedDetailLazy /></LazyPage></PageTransition>} />
       </Routes>
     </AnimatePresence>
   );
@@ -56,7 +89,7 @@ function AnimatedRoutes() {
 
 export default function App() {
   return (
-    <Router basename="/liankebao">
+    <Router basename="/app">
       <ErrorBoundary>
       <div className="bg-neutral-bg min-h-screen text-on-surface select-none">
         <AnimatedRoutes />

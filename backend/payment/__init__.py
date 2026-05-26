@@ -23,6 +23,9 @@ from payment.config import (
     init_default_config,
     PLATFORM_WXPAY,
     PLATFORM_ALIPAY,
+    is_real_mode,
+    PAYMENT_MODE_REAL,
+    PAYMENT_MODE_MOCK,
 )
 from payment.sign import (
     generate_nonce,
@@ -80,6 +83,9 @@ __all__ = [
     "payment_platform_middleware",
     "PLATFORM_WXPAY",
     "PLATFORM_ALIPAY",
+    "is_real_mode",
+    "PAYMENT_MODE_REAL",
+    "PAYMENT_MODE_MOCK",
     # Sign
     "PayKit",
     "generate_nonce",

@@ -10,7 +10,7 @@
 |---|---|---|
 | 小程序 API_BASE | `https://www.go-aiport.com/lkapi` | 硬编码 |
 | go-aiport.com Nginx | 无 `/lkapi/` location | 返回 404 |
-| 后端 FastAPI | `localhost:8000` | 正常运行 |
+| 后端 FastAPI | `localhost:8001` | 正常运行 |
 | 链客宝 Nginx | 绑定了 `liankebao.top`，API 路由为 `/api/` | DNS 未解析，不可用 |
 
 ### 1.2 根因
@@ -18,7 +18,7 @@
 - 微信小程序 `api.js` 中 API 基础地址写死为 `https://www.go-aiport.com/lkapi`
 - 域名 `go-aiport.com` 的 Nginx 配置中没有为 `/lkapi/` 配置反向代理
 - 链客宝专属域名 `liankebao.top` DNS 未指向阿里云 ECS（47.100.160.250），因此链客宝原有的 Nginx 配置虽然正确但 **无法生效**
-- 后端 FastAPI 实际运行在 `127.0.0.1:8000`，API 端点以 `/api/` 为前缀
+- 后端 FastAPI 实际运行在 `127.0.0.1:8001`，API 端点以 `/api/` 为前缀
 
 ---
 
@@ -30,7 +30,7 @@
 
 | 方案 | 操作 | 优点 | 缺点 |
 |---|---|---|---|
-| **A** | go-aiport.com Nginx 增加 `/lkapi/ → localhost:8000` | 不改小程序 | 路径前缀不匹配（小程序的 `/lkapi` → 后端 `/api`） |
+| **A** | go-aiport.com Nginx 增加 `/lkapi/ → localhost:8001` | 不改小程序 | 路径前缀不匹配（小程序的 `/lkapi` → 后端 `/api`） |
 | **B** | liankebao.top 配 DNS + 上线 | 架构规范 | DNS 生效慢，流程长 |
 | **C** | 改小程序 API_BASE + go-aiport.com 加路由 | 路径一致 | 需小程序重新发版 |
 | **A+ 路径重写** | go-aiport.com 加路由 + 路径 rewrite | 不改代码 + 路径正确 | 推荐 |
@@ -50,9 +50,9 @@
                                 │
                    路径变为: /api/user/login
                                 │
-                   proxy_pass http://127.0.0.1:8000;
+                   proxy_pass http://127.0.0.1:8001;
                                 │
-                         FastAPI (8000)
+                         FastAPI (8001)
                          处理 /api/user/login
 ```
 
@@ -74,9 +74,9 @@ ssh root@47.100.160.250
 ### 3.2 确认后端运行正常
 
 ```bash
-curl -s http://127.0.0.1:8000/api/health
+curl -s http://127.0.0.1:8001/api/health
 # 或
-curl -s http://127.0.0.1:8000/docs -o /dev/null -w "%{http_code}"
+curl -s http://127.0.0.1:8001/docs -o /dev/null -w "%{http_code}"
 ```
 
 预期返回 `200` 或 JSON 健康检查响应。
@@ -110,7 +110,7 @@ sed -i '/^}$/i\
 \
     location /lkapi/ {\
         rewrite ^/lkapi(/.*)$ $1 break;\
-        proxy_pass http://127.0.0.1:8000;\
+        proxy_pass http://127.0.0.1:8001;\
         proxy_set_header Host $host;\
         proxy_set_header X-Real-IP $remote_addr;\
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\
@@ -131,7 +131,7 @@ vim /etc/nginx/sites-enabled/go-aiport.com
 ```nginx
     location /lkapi/ {
         rewrite ^/lkapi(/.*)$ $1 break;
-        proxy_pass http://127.0.0.1:8000;
+        proxy_pass http://127.0.0.1:8001;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -192,7 +192,7 @@ dig liankebao.top +short
 # 预期: 47.100.160.250
 
 # 3. 链客宝 Nginx 已配好（/opt/liankebao/deploy/nginx.conf），含：
-#    location /api/ { proxy_pass http://127.0.0.1:8000/; }
+#    location /api/ { proxy_pass http://127.0.0.1:8001/; }
 #    但注意路径是 /api/ 而不是 /lkapi/
 
 # 4. 也可在链客宝 Nginx 中增加 /lkapi/ 重写
@@ -221,7 +221,7 @@ const API_BASE = 'https://www.go-aiport.com/api';
 
 ```nginx
 location /api/ {
-    proxy_pass http://127.0.0.1:8000;
+    proxy_pass http://127.0.0.1:8001;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

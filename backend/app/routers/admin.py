@@ -11,7 +11,7 @@ from app.database import get_db
 from app.models import User, Product, Order, Withdrawal
 from app.schemas import (
     ApiResponse, DashboardResponse, ProductResponse, ProductReviewRequest,
-    UserResponse, WithdrawalResponse,
+    UpdateUserRoleRequest, UserResponse, WithdrawalResponse,
 )
 from app.auth import get_current_admin
 
@@ -69,6 +69,33 @@ def list_users(
             "total": len(users),
             "items": [UserResponse.model_validate(u).model_dump() for u in users],
         },
+    )
+
+
+@router.patch("/users/{user_id}/role", response_model=ApiResponse)
+def update_user_role(
+    user_id: int,
+    req: UpdateUserRoleRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin),
+):
+    """管理员修改用户角色"""
+    # 管理员不可修改自己的角色
+    if admin.id == user_id:
+        raise HTTPException(status_code=400, detail="不能修改自己的角色")
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    user.role = req.role
+    db.commit()
+    db.refresh(user)
+
+    return ApiResponse(
+        code=200,
+        message="角色更新成功",
+        data=UserResponse.model_validate(user).model_dump(),
     )
 
 

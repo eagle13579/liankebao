@@ -1,20 +1,52 @@
 """
 统一数据库配置与初始化
-- 优先使用 MySQL（从环境变量 DATABASE_URL 读取）
-- Fallback 到 SQLite
+- 从环境变量 DB_TYPE 读取数据库类型：sqlite / mysql / postgres
+- 回退兼容：若 DB_TYPE 未设置但 DATABASE_URL 存在，按 URL 前缀自动判断
 - 所有路由模块 import from app.database 保持不变
 """
 import os
 import json
+import logging
+from typing import Optional
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from passlib.hash import bcrypt as bcrypt_hasher
 
-# 检测是否使用 MySQL
+logger = logging.getLogger(__name__)
+
+# ============================================================
+# 数据库类型检测
+# ============================================================
+DB_TYPE = os.environ.get("DB_TYPE", "").strip().lower()
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
-if DATABASE_URL:
-    # MySQL 模式
+# 若 DB_TYPE 未设置，尝试从 DATABASE_URL 自动判断
+if not DB_TYPE:
+    if DATABASE_URL:
+        if DATABASE_URL.startswith("mysql"):
+            DB_TYPE = "mysql"
+        elif DATABASE_URL.startswith("postgresql"):
+            DB_TYPE = "postgres"
+        else:
+            DB_TYPE = "sqlite"
+    else:
+        DB_TYPE = "sqlite"
+
+logger.info(f"数据库模式: {DB_TYPE}")
+
+# ============================================================
+# 引擎创建
+# ============================================================
+engine = None
+SessionLocal = None
+
+if DB_TYPE == "mysql":
+    if not DATABASE_URL:
+        raise ValueError(
+            "DB_TYPE=mysql 但未设置 DATABASE_URL 环境变量。\n"
+            "示例: DATABASE_URL=mysql+pymysql://user:pass@host:port/db?charset=utf8mb4"
+        )
     engine = create_engine(
         DATABASE_URL,
         pool_size=10,
@@ -22,10 +54,40 @@ if DATABASE_URL:
         pool_pre_ping=True,
         echo=False,
     )
-else:
-    # SQLite 模式
-    DB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
-    DB_PATH = os.path.join(DB_DIR, "chainke.db")
+
+elif DB_TYPE == "postgres":
+    # 优先使用 PG_URL 或 DATABASE_URL，否则用 PG_* 变量拼装
+    PG_URL = os.environ.get("PG_URL", DATABASE_URL)
+    if not PG_URL:
+        PG_HOST = os.environ.get("PG_HOST", "localhost")
+        PG_PORT = os.environ.get("PG_PORT", "5432")
+        PG_USER = os.environ.get("PG_USER", "")
+        PG_PASSWORD = os.environ.get("PG_PASSWORD", "")
+        PG_DATABASE = os.environ.get("PG_DATABASE", "")
+        if not all([PG_USER, PG_PASSWORD, PG_DATABASE]):
+            raise ValueError(
+                "DB_TYPE=postgres 但未设置 PG_* 或 PG_URL 环境变量。\n"
+                "请设置 PG_HOST, PG_PORT, PG_USER, PG_PASSWORD, PG_DATABASE 或 PG_URL"
+            )
+        PG_URL = (
+            f"postgresql+psycopg2://{PG_USER}:{PG_PASSWORD}"
+            f"@{PG_HOST}:{PG_PORT}/{PG_DATABASE}"
+        )
+    engine = create_engine(
+        PG_URL,
+        pool_size=10,
+        max_overflow=20,
+        pool_pre_ping=True,
+        echo=False,
+    )
+
+else:  # sqlite (default)
+    DB_DIR = os.environ.get(
+        "SQLITE_DIR",
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"),
+    )
+    DB_NAME = os.environ.get("SQLITE_DB_NAME", "chainke.db")
+    DB_PATH = os.path.join(DB_DIR, DB_NAME)
     os.makedirs(DB_DIR, exist_ok=True)
     SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH}"
 
@@ -34,9 +96,25 @@ else:
         connect_args={"check_same_thread": False},
         echo=False,
     )
+    logger.info(f"SQLite 数据库路径: {DB_PATH}")
 
+engine = engine  # 确保非 None
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+
+def get_db_url() -> str:
+    """获取当前数据库连接 URL（输出屏蔽密码）"""
+    if DB_TYPE == "sqlite":
+        return str(engine.url)
+    url_str = str(engine.url)
+    # 简单脱敏
+    if "@" in url_str:
+        user_part, host_part = url_str.split("@", 1)
+        if ":" in user_part:
+            user_info = user_part.split(":", 1)[0]
+            return f"{user_info}:****@{host_part}"
+    return url_str
 
 
 def get_db():
@@ -50,7 +128,7 @@ def get_db():
 
 def init_db():
     """初始化数据库：创建表并填充种子数据（如为空）"""
-    from app.models import User, Product, Order, Withdrawal, Contact, ImportHistory, Activity  # noqa: 确保模型已导入
+    from app.models import User, Product, Order, Withdrawal, Contact, ImportHistory, Activity  # noqa
 
     # === 创建表（如果不存在） ===
     Base.metadata.create_all(bind=engine)

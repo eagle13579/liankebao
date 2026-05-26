@@ -67,8 +67,11 @@ export function LoginPage() {
               链客宝
             </span>
           </h1>
-          <p className="text-slate-500 text-sm tracking-wide">企业家供需匹配平台 · 精准链接商业伙伴</p>
+          <p className="text-slate-500 text-sm tracking-wide">企业信任关系网络 — 每一次对接，都建立在已验证的信任之上</p>
           <div className="flex items-center justify-center gap-2 mt-3">
+            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full font-medium">
+              <Sparkles className="w-3 h-3" /> 信任让生意更简单
+            </span>
             <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full font-medium">
               <Sparkles className="w-3 h-3" /> 企业认证
             </span>
@@ -184,7 +187,7 @@ export function LoginPage() {
                 <ShieldCheck className="w-4 h-4 text-sky-600" />
               </div>
               <p className="text-[10px] font-bold text-slate-700">企业实名认证</p>
-              <p className="text-[8px] text-slate-400 mt-0.5">全平台商户深度认证</p>
+              <p className="text-[8px] text-slate-400 mt-0.5">构建可信商业网络</p>
             </div>
             <div className="bg-white/50 backdrop-blur-sm p-3 rounded-2xl border border-white/70 text-center">
               <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center mx-auto mb-1.5">
@@ -198,7 +201,7 @@ export function LoginPage() {
                 <Award className="w-4 h-4 text-amber-600" />
               </div>
               <p className="text-[10px] font-bold text-slate-700">平台服务保障</p>
-              <p className="text-[8px] text-slate-400 mt-0.5">资金担保 · 放心交易</p>
+              <p className="text-[8px] text-slate-400 mt-0.5">信任护航 · 安心对接</p>
             </div>
           </div>
         </section>
@@ -212,7 +215,7 @@ export function LoginPage() {
           </button>
         </p>
         <p className="text-[9px] text-slate-400 tracking-wider font-medium">
-          商业精英网络 © 2025 链客宝 · 版权所有
+          企业信任关系网络 © 2025 链客宝 · 版权所有
         </p>
       </footer>
 

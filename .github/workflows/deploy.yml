@@ -1,134 +1,137 @@
 # ============================================================
-# 链客宝 GitHub Actions CI/CD 部署流水线
-# 触发条件: push 到 main 分支
-# 目标服务器: 阿里云 ECS (47.100.160.250)
+# 链客宝 CI/CD 流水线
+# 触发条件:
+#   - push 到 develop 分支 → 构建 + 测试
+#   - push 到 main 分支   → 构建 + 测试 + 部署到阿里云 ECS
 # ============================================================
-name: Deploy Chainke
+name: 链客宝 CI/CD
 
 on:
   push:
-    branches: [main]
-  workflow_dispatch: # 支持手动触发
+    branches:
+      - develop
+      - main
 
 jobs:
-  test-and-deploy:
-    name: Test & Deploy
+  # ----------------------------------------------------------
+  # Job 1: 构建 + 测试（所有分支）
+  # ----------------------------------------------------------
+  build-and-test:
+    name: Build & Test (Python 3.12)
     runs-on: ubuntu-latest
 
     steps:
-      # ---- 1. 检出代码 ----
-      - name: Checkout repository
+      - name: Checkout 代码
         uses: actions/checkout@v4
 
-      # ---- 2. 设置 Node.js（前端构建）----
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: "npm"
-          cache-dependency-path: liankebao-weapp/package-lock.json
-
-      # ---- 3. 前端构建 ----
-      - name: Install frontend dependencies
-        run: |
-          cd liankebao-weapp
-          npm ci
-        working-directory: ${{ github.workspace }}
-
-      - name: Build frontend
-        run: |
-          cd liankebao-weapp
-          npm run build
-        working-directory: ${{ github.workspace }}
-
-      # ---- 4. 设置 Python（后端测试）----
-      - name: Setup Python
+      - name: 设置 Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: "pip"
+          cache-dependency-path: backend/requirements.txt
 
-      - name: Install backend dependencies
+      - name: 安装依赖
         run: |
           cd backend
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-        working-directory: ${{ github.workspace }}
+          pip install pytest pytest-asyncio httpx
 
-      # ---- 5. 运行测试 ----
-      - name: Run tests
+      - name: 运行测试
         run: |
           cd backend
           python -m pytest tests/ -v --tb=short
-        working-directory: ${{ github.workspace }}
-        continue-on-error: false
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend
 
-      # ---- 6. 部署到服务器（SCP）----
-      - name: Deploy via SCP
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.SSH_KEY }}
-          port: 22
-          source: |
-            liankebao-weapp/dist/
-            backend/
-            deploy/
-            package.json
-            chainke.service
-            nginx.conf
-          target: ${{ secrets.DEPLOY_PATH }}
-          strip_components: 0
-          overwrite: true
+  # ----------------------------------------------------------
+  # Job 2: 部署到阿里云 ECS（仅 main 分支）
+  # ----------------------------------------------------------
+  deploy:
+    name: Deploy to 阿里云 ECS
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
 
-      # ---- 7. 远程执行部署脚本 ----
-      - name: Restart services via SSH
+    steps:
+      - name: Checkout 代码
+        uses: actions/checkout@v4
+
+      - name: 通过 SSH 部署到阿里云 ECS
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.SSH_KEY }}
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           script: |
-            set -e
-            echo "=== 远程部署开始 ==="
-            DEPLOY_DIR="${{ secrets.DEPLOY_PATH }}"
+            echo "========================================"
+            echo "  链客宝 自动部署 (CI/CD)"
+            echo "  $(date '+%Y-%m-%d %H:%M:%S')"
+            echo "========================================"
 
-            # 移动前端构建产物到 dist 目录
-            if [ -d "$DEPLOY_DIR/liankebao-weapp/dist" ]; then
-              cp -r "$DEPLOY_DIR/liankebao-weapp/dist/"* "$DEPLOY_DIR/dist/"
-              rm -rf "$DEPLOY_DIR/liankebao-weapp"
-              echo "前端构建产物已部署"
+            # 1. git pull — 拉取最新代码
+            cd ${{ secrets.DEPLOY_PATH }}
+            echo "[1/4] 拉取最新代码 (main 分支)..."
+            git fetch origin main
+            git reset --hard origin/main
+            git clean -fd
+            echo "  -> commit: $(git rev-parse --short HEAD)"
+
+            # 2. pip install — 安装/更新 Python 依赖
+            echo "[2/4] 安装 Python 依赖..."
+            cd ${{ secrets.DEPLOY_PATH }}/backend
+            if [ ! -d "venv" ]; then
+              python3 -m venv venv
+            fi
+            source venv/bin/activate
+            pip install --upgrade pip -q
+            pip install -r requirements.txt -q
+            deactivate
+            echo "  -> 依赖安装完成"
+
+            # 3. 重启 uvicorn 后端
+            echo "[3/4] 重启 uvicorn 后端..."
+            sudo systemctl daemon-reload
+            if systemctl is-active --quiet chainke; then
+              sudo systemctl restart chainke
+            else
+              sudo systemctl start chainke
+            fi
+            echo "  -> chainke 服务已重启"
+
+            # 等待后端就绪（最多 20 秒）
+            echo "  -> 等待后端就绪..."
+            for i in $(seq 1 10); do
+              sleep 2
+              if curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8001/health | grep -q 200; then
+                echo "  -> 后端健康检查通过 (尝试 $i/10)"
+                break
+              fi
+              if [ $i -eq 10 ]; then
+                echo "  [WARN] 后端健康检查未通过，请手动排查"
+              fi
+            done
+
+            # 4. nginx reload
+            echo "[4/4] 重载 nginx 配置..."
+            if sudo nginx -t; then
+              sudo systemctl reload nginx || sudo systemctl restart nginx
+              echo "  -> nginx 重载成功"
+            else
+              echo "  [ERROR] nginx 配置检查失败"
+              exit 1
             fi
 
-            # 复制 nginx 安全配置
-            if [ -f "$DEPLOY_DIR/deploy/nginx_security.conf" ]; then
-              sudo cp "$DEPLOY_DIR/deploy/nginx_security.conf" /etc/nginx/nginx_security.conf
-              echo "nginx_security.conf 已部署"
-            fi
+            echo ""
+            echo "========================================"
+            echo "  ✓ 部署完成！"
+            echo "========================================"
 
-            # 执行部署脚本（跳过前端构建和 nginx 配置）
-            sudo chmod +x "$DEPLOY_DIR/deploy.sh"
-            cd "$DEPLOY_DIR"
-            sudo bash deploy.sh --skip-frontend 2>&1
-
-            echo "=== 远程部署完成 ==="
-
-      # ---- 8. 部署验证 ----
-      - name: Verify deployment
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.SSH_KEY }}
-          port: 22
-          script: |
-            echo "=== 部署验证 ==="
-            # 检查 nginx
-            sudo nginx -t && echo "Nginx 配置检查通过" || echo "Nginx 配置检查失败"
-            # 检查后端
-            curl -s -o /dev/null -w "Health check: HTTP %{http_code}\n" http://127.0.0.1:8000/health || echo "健康检查失败"
-            # 检查前端
-            curl -s -o /dev/null -w "Frontend: HTTP %{http_code}\n" https://liankebao.top/ || echo "前端检查失败"
-            echo "=== 验证完成 ==="
+      - name: 部署完成通知
+        run: |
+          echo "✅ 链客宝部署成功！"
+          echo "   服务器: ${{ secrets.SSH_HOST }}"
+          echo "   路径: ${{ secrets.DEPLOY_PATH }}"
+          echo "   时间: $(date '+%Y-%m-%d %H:%M:%S')"

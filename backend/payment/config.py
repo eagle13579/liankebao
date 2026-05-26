@@ -16,6 +16,50 @@ logger = logging.getLogger(__name__)
 # 支付配置数据类
 # ============================================================
 
+# 环境变量前缀及字段名映射表（WXPAY_* 优先，WECHAT_* 后备）
+# key: config 属性名, value: 支持的环境变量后缀名列表
+_WXPAY_ENV_SUFFIXES = {
+    "app_id":            ["APPID", "APP_ID"],
+    "mch_id":            ["MCH_ID", "MCHID"],
+    "api_key":           ["API_KEY", "KEY"],
+    "api_v3_key":        ["API_V3_KEY", "APIV3_KEY"],
+    "private_key_path":  ["PRIVATE_KEY_PATH"],
+    "cert_serial_no":    ["CERT_SERIAL_NO"],
+    "notify_url":        ["NOTIFY_URL"],
+    "refund_notify_url": ["REFUND_NOTIFY_URL"],
+    "cert_path":         ["CERT_PATH"],
+    "root_ca_path":      ["ROOT_CA_PATH"],
+}
+
+
+def _get_env_dual(key_name: str) -> str:
+    """
+    读取环境变量，同时支持 WXPAY_* 和 WECHAT_* 两种前缀。
+
+    查找顺序（第一个非空值返回）：
+        1. WXPAY_{suffix}  (优先)
+        2. WECHAT_{suffix}
+    其中 suffix 依次尝试 _WXPAY_ENV_SUFFIXES[key_name] 列表中的每个变体。
+    """
+    suffixes = _WXPAY_ENV_SUFFIXES.get(key_name, [key_name.upper()])
+    for suffix in suffixes:
+        for prefix in ("WXPAY_", "WECHAT_"):
+            val = os.environ.get(f"{prefix}{suffix}")
+            if val:
+                return val
+    return ""
+
+
+# ===== 支付模式开关 =====
+PAYMENT_MODE_REAL = "real"
+PAYMENT_MODE_MOCK = "mock"
+
+def is_real_mode() -> bool:
+    """检查支付模式是否为真实模式（PAYMENT_MODE=real）"""
+    mode = os.environ.get("PAYMENT_MODE", PAYMENT_MODE_MOCK).strip().lower()
+    return mode == PAYMENT_MODE_REAL
+
+
 @dataclass
 class WxPayConfig:
     """微信支付配置"""
@@ -32,18 +76,23 @@ class WxPayConfig:
 
     @classmethod
     def from_env(cls, prefix: str = "WECHAT_") -> "WxPayConfig":
-        """从环境变量读取配置"""
+        """
+        从环境变量读取配置。
+
+        同时支持 WXPAY_* 和 WECHAT_* 两种前缀（WXPAY_* 优先）。
+        也兼容不同的命名风格，如 WXPAY_MCHID == WECHAT_MCH_ID。
+        """
         return cls(
-            app_id=os.environ.get(f"{prefix}APPID", ""),
-            mch_id=os.environ.get(f"{prefix}MCH_ID", ""),
-            api_key=os.environ.get(f"{prefix}API_KEY", ""),
-            api_v3_key=os.environ.get(f"{prefix}API_V3_KEY", ""),
-            private_key_path=os.environ.get(f"{prefix}PRIVATE_KEY_PATH", ""),
-            cert_serial_no=os.environ.get(f"{prefix}CERT_SERIAL_NO", ""),
-            notify_url=os.environ.get(f"{prefix}NOTIFY_URL", ""),
-            refund_notify_url=os.environ.get(f"{prefix}REFUND_NOTIFY_URL", ""),
-            cert_path=os.environ.get(f"{prefix}CERT_PATH", ""),
-            root_ca_path=os.environ.get(f"{prefix}ROOT_CA_PATH", ""),
+            app_id=_get_env_dual("app_id"),
+            mch_id=_get_env_dual("mch_id"),
+            api_key=_get_env_dual("api_key"),
+            api_v3_key=_get_env_dual("api_v3_key"),
+            private_key_path=_get_env_dual("private_key_path"),
+            cert_serial_no=_get_env_dual("cert_serial_no"),
+            notify_url=_get_env_dual("notify_url"),
+            refund_notify_url=_get_env_dual("refund_notify_url"),
+            cert_path=_get_env_dual("cert_path"),
+            root_ca_path=_get_env_dual("root_ca_path"),
         )
 
     @property

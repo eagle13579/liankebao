@@ -8,6 +8,21 @@ from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, Depends, Q
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.websockets import WebSocketState
+import uuid
+
+# ===== LLM Cost Controller（零依赖轻量级Token消耗监控） =====
+from llm_cost_controller import get_cost_controller as _get_cost_controller
+
+_cost_controller_instance = None
+
+
+def get_llm_cost_controller():
+    """惰性初始化全局 CostController 单例"""
+    global _cost_controller_instance
+    if _cost_controller_instance is None:
+        _cost_controller_instance = _get_cost_controller()
+    return _cost_controller_instance
+
 
 # ===== 结构化日志（最先加载） =====
 from app.logging_config import setup_logging, RequestLogMiddleware, set_log_level, get_current_log_level, set_user_id
@@ -23,8 +38,14 @@ from app.routers import auth, products, orders, promoter, admin, search, imports
 import app.routers.contacts as contacts_module
 import app.routers.activities as activities_module
 import app.routers.payment as payment_module
+import app.routers.insights as insights_module
+import app.routers.needs as needs_module
 import recharge.routes as recharge_module
 import recharge.callback as recharge_callback_module
+import invoice as invoice_module
+import reconciliation as reconciliation_module
+import admin_config as admin_config_module
+import matching_engine as matching_engine_module
 
 # ===== 通知系统 & WebSocket =====
 from app.notifications import NotificationManager
@@ -55,9 +76,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ===== 请求日志中间件（request_id + 耗时追踪，在 CORS 之后注册） =====
-# 日志系统已在 setup_logging() 初始化
-# 中间件已移除 — 旧版 RequestLogMiddleware 兼容 Starlette 新版本
+# ===== 请求 ID 中间件（为每个请求生成唯一 trace_id） =====
+@app.middleware("http")
+async def add_request_id(request: Request, call_next):
+    """为每个请求生成唯一 trace_id，注入 request.state 和响应头"""
+    trace_id = request.headers.get("X-Trace-ID", str(uuid.uuid4()))
+    request.state.trace_id = trace_id
+    response = await call_next(request)
+    response.headers["X-Trace-ID"] = trace_id
+    return response
 
 # ===== 安全响应头中间件 =====
 @app.middleware("http")
@@ -92,7 +119,7 @@ async def limit_request_size(request: Request, call_next):
 #   第一轮：临时将 prefix 改为 /api/v1/...，注册版本化路由
 #   第二轮：恢复原始 prefix，注册向后兼容的 /api/... 路由
 
-router_modules = [auth, products, orders, promoter, admin, search, import_router, contacts_module, activities_module, payment_module, recharge_module]
+router_modules = [auth, products, orders, promoter, admin, search, import_router, contacts_module, activities_module, payment_module, insights_module, needs_module, recharge_module, invoice_module, reconciliation_module, admin_config_module, matching_engine_module]
 
 # 第一轮：/api/v1/ 版本化路由
 for mod in router_modules:
@@ -111,14 +138,62 @@ app.include_router(search.router)
 app.include_router(import_router.router)
 app.include_router(contacts_module.router)
 app.include_router(payment_module.router)
+app.include_router(insights_module.router)
+app.include_router(needs_module.router)
 app.include_router(recharge_module.router)
 app.include_router(recharge_callback_module.callback_router)
+app.include_router(invoice_module.router)
+app.include_router(reconciliation_module.router)
+app.include_router(admin_config_module.router)
+app.include_router(matching_engine_module.router)
 import os
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from sqlalchemy.orm import Session
 
 _static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
 if os.path.isdir(_static_dir):
     app.mount("/static", StaticFiles(directory=_static_dir), name="static")
+
+# ============================================================
+# 前端 SPA（React 构建产物）
+# ============================================================
+_SPA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "dist")
+if os.path.isdir(_SPA_DIR):
+    app.mount("/app", StaticFiles(directory=_SPA_DIR, html=True), name="spa")
+
+# ============================================================
+# 推广落地页 /share
+# ============================================================
+_SHARE_HTML = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "dist", "share.html")
+
+
+@app.get("/share")
+async def share_page():
+    """推广落地页（独立 H5 页面，前端 SPA 之外）"""
+    if os.path.isfile(_SHARE_HTML):
+        return FileResponse(_SHARE_HTML, media_type="text/html")
+    return JSONResponse(
+        status_code=404,
+        content={"code": 404, "message": "落地页不存在"},
+    )
+
+
+@app.get("/api/users/{user_id}/brief")
+def get_user_brief(user_id: int, db: Session = Depends(get_db)):
+    """获取用户简要信息（供推广落地页展示推广员姓名）"""
+    from app.schemas import UserBrief
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return JSONResponse(
+            status_code=404,
+            content={"code": 404, "message": "用户不存在"},
+        )
+    return {
+        "code": 200,
+        "message": "success",
+        "data": UserBrief.model_validate(user).model_dump(),
+    }
 
 
 # ============================================================
@@ -300,6 +375,51 @@ def change_log_level(
 
 
 # ============================================================
+# LLM Cost Controller API
+# ============================================================
+@app.get("/api/system/cost/usage")
+def get_cost_usage():
+    """获取LLM调用用量汇总（当日+当月+总计+限额）"""
+    cc = get_llm_cost_controller()
+    return {
+        "code": 200,
+        "message": "success",
+        "data": {
+            "daily": cc.get_daily_usage(),
+            "monthly": cc.get_monthly_usage(),
+            "total": cc.get_total_usage(),
+            "limits": cc.get_limits(),
+        },
+    }
+
+
+@app.get("/api/system/cost/breakdown")
+def get_cost_breakdown():
+    """获取LLM调用明细（按模型+按模块+按日明细）"""
+    cc = get_llm_cost_controller()
+    return {
+        "code": 200,
+        "message": "success",
+        "data": {
+            "daily_breakdown": cc.get_daily_breakdown(),
+            "by_model": cc.get_model_usage(),
+            "by_module": cc.get_module_usage(),
+        },
+    }
+
+
+@app.get("/api/system/cost/models")
+def list_cost_models():
+    """获取已注册的LLM模型价格表"""
+    cc = get_llm_cost_controller()
+    return {
+        "code": 200,
+        "message": "success",
+        "data": cc.list_models(),
+    }
+
+
+# ============================================================
 # 启动事件
 # ============================================================
 @app.on_event("startup")
@@ -307,6 +427,11 @@ def on_startup():
     """应用启动时初始化数据库"""
     try:
         init_db()
+        # 确保系统预设配置存在
+        from admin_config import ensure_preset_configs
+        db_session = next(get_db())
+        ensure_preset_configs(db_session)
+        db_session.close()
         logger.info("数据库初始化完成")
     except Exception as e:
         logger.error(f"数据库初始化失败: {e}", exc_info=True)
@@ -325,3 +450,22 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+# ============================================================
+# 全局异常处理器
+# ============================================================
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """捕获所有未预期的异常，返回统一 JSON 格式（生产环境不暴露细节）"""
+    trace_id = getattr(request.state, "trace_id", "N/A")
+    logger.error(
+        "未预期的服务器错误",
+        extra={"trace_id": trace_id, "error": str(exc)},
+        exc_info=True,
+    )
+    detail = str(exc) if os.getenv("ENV", "").lower() != "production" else ""
+    return JSONResponse(
+        status_code=500,
+        content={"code": 500, "message": "服务器内部错误", "detail": detail},
+    )

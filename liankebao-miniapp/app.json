@@ -9,7 +9,12 @@
     "pages/promotion/index",
     "pages/manage-products/index",
     "pages/address/index",
-    "pages/mine/index"
+    "pages/mine/index",
+    "pages/needs/index",
+    "pages/post-need/index",
+    "pages/notifications/index",
+    "pages/partner-policy/index",
+    "pages/webview/index"
   ],
   "window": {
     "navigationStyle": "custom",

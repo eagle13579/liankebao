@@ -1,6 +1,6 @@
 """SQLAlchemy ORM 数据模型"""
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, Text, DateTime, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -21,6 +21,8 @@ class User(Base):
     role = Column(String(20), nullable=False, default="buyer")  # buyer/promoter/supplier/admin
     avatar = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    deleted_at = Column(DateTime, nullable=True)
+    is_deleted = Column(Boolean, default=False)
 
     # 关系
     products = relationship("Product", back_populates="owner", foreign_keys="Product.owner_id")
@@ -55,6 +57,8 @@ class Product(Base):
     files = Column(Text, nullable=True)        # JSON: 关联文件资料
     is_featured = Column(Integer, default=0)   # 是否推荐 0/1
     sort_order = Column(Integer, default=0)    # 排序权重
+    deleted_at = Column(DateTime, nullable=True)
+    is_deleted = Column(Boolean, default=False)
 
     # 关系
     owner = relationship("User", back_populates="products", foreign_keys=[owner_id])
@@ -87,6 +91,8 @@ class Order(Base):
     pay_time = Column(DateTime, nullable=True)              # 旧字段，保留兼容
 
     created_at = Column(DateTime, default=datetime.utcnow)
+    deleted_at = Column(DateTime, nullable=True)
+    is_deleted = Column(Boolean, default=False)
 
     # 关系
     user = relationship("User", back_populates="orders", foreign_keys=[user_id])
@@ -112,6 +118,8 @@ class Contact(Base):
     import_batch_id = Column(String(36), nullable=True, index=True)  # 导入批次UUID
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    deleted_at = Column(DateTime, nullable=True)
+    is_deleted = Column(Boolean, default=False)
 
     # 关系
     owner = relationship("User", foreign_keys=[owner_id])
@@ -128,6 +136,8 @@ class Activity(Base):
     summary = Column(String(500), nullable=True)
     detail = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    deleted_at = Column(DateTime, nullable=True)
+    is_deleted = Column(Boolean, default=False)
 
     # 关系
     contact = relationship("Contact", back_populates="activities")
@@ -152,6 +162,31 @@ class ImportHistory(Base):
     error_message = Column(Text, nullable=True)
     batch_id = Column(String(36), nullable=False, index=True)  # UUID批次号
     created_at = Column(DateTime, default=datetime.utcnow)
+    deleted_at = Column(DateTime, nullable=True)
+    is_deleted = Column(Boolean, default=False)
+
+    # 关系
+    user = relationship("User", foreign_keys=[user_id])
+
+
+class BusinessNeed(Base):
+    """需求模型（供需匹配）"""
+    __tablename__ = "business_needs"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    title = Column(String(200), nullable=False)
+    description = Column(Text, nullable=True)
+    category = Column(String(50), nullable=True)  # 大健康/企业服务/科技产品/教育培训/消费品
+    budget = Column(String(100), nullable=True)   # 预算范围，如"10万-50万"
+    region = Column(String(100), nullable=True)   # 地区
+    contact_name = Column(String(100), nullable=False)
+    contact_phone = Column(String(20), nullable=True)
+    status = Column(String(20), nullable=False, default="open")  # open/closed
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    deleted_at = Column(DateTime, nullable=True)
+    is_deleted = Column(Boolean, default=False)
 
     # 关系
     user = relationship("User", foreign_keys=[user_id])
@@ -167,6 +202,8 @@ class Withdrawal(Base):
     status = Column(String(20), nullable=False, default="pending")  # pending/approved/rejected
     bank_info = Column(Text, nullable=True)  # JSON字符串: 银行信息
     created_at = Column(DateTime, default=datetime.utcnow)
+    deleted_at = Column(DateTime, nullable=True)
+    is_deleted = Column(Boolean, default=False)
 
     # 关系
     user = relationship("User", back_populates="withdrawals")

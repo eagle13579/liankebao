@@ -21,6 +21,7 @@ from payment import (
     get_config,
     PLATFORM_WXPAY,
     has_config,
+    is_real_mode,
 )
 
 logger = logging.getLogger(__name__)
@@ -109,9 +110,9 @@ async def precreate_recharge(
     db.commit()
     db.refresh(order)
 
-    # 尝试真实微信支付，失败则降级 mock
+    # 尝试真实微信支付（仅当 PAYMENT_MODE=real 且配置完整）
     result = None
-    if has_config(PLATFORM_WXPAY):
+    if is_real_mode() and has_config(PLATFORM_WXPAY):
         config = get_config(PLATFORM_WXPAY)
         openid = current_user.wechat_openid
         if openid and config.is_configured:
@@ -302,9 +303,11 @@ def adjust_balance(
 ):
     """管理员手动调额（正数增加余额，负数扣减余额）"""
     bal = get_or_create_balance(db, req.user_id)
+    from decimal import Decimal
+    amount = Decimal(str(req.amount))
 
     old_balance = bal.balance
-    new_balance = old_balance + req.amount
+    new_balance = old_balance + amount
     if new_balance < 0:
         raise HTTPException(status_code=400, detail="余额不足，调额后余额为负")
 

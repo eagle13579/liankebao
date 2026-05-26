@@ -1,11 +1,21 @@
 import { api } from './client';
 
-export interface UnifiedOrderResponse {
-  prepay_id: string;
-  nonce_str: string;
-  sign: string;
-  timestamp: string;
-  package_val: string;
+/** 微信V3 JSAPI 支付参数（与微信官方规范一致） */
+export interface PaymentParams {
+  appId: string;
+  timeStamp: string;
+  nonceStr: string;
+  /** 值为 "prepay_id=xxx" */
+  package: string;
+  signType: string;
+  paySign: string;
+  _mode?: string;
+}
+
+/** 统一下单返回值结构 */
+export interface UnifiedOrderData {
+  order: Record<string, any>;
+  payment: PaymentParams;
 }
 
 export interface OrderQueryResponse {
@@ -20,12 +30,10 @@ export interface PaymentConfigResponse {
 }
 
 export const paymentApi = {
-  /** 统一下单 - 获取微信支付参数 */
-  unifiedOrder: (orderNo: string, description: string = '商品订单', platform: string = 'wxpay') =>
-    api.post<UnifiedOrderResponse>('/api/payment/wxpay/unified-order', {
-      order_no: orderNo,
-      platform,
-      description,
+  /** 统一下单 - 获取微信V3 JSAPI支付参数 */
+  unifiedOrder: (orderId: number, description?: string) =>
+    api.post<UnifiedOrderData>('/api/payment/wxpay/unified-order', {
+      order_id: orderId,
     }),
 
   /** 查询订单支付状态 */

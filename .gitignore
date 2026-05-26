@@ -17,3 +17,15 @@ backend/data/*.db.bak
 # Virtual environments
 venv_new/
 backend/venv_new/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# SSL / secrets
+*.pem
+*.key
+secrets.*

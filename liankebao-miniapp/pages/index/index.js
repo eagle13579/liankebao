@@ -86,5 +86,11 @@ Page({
       wx.setStorageSync('pool_category', cat)
     } catch (e) {}
     wx.switchTab({ url: '/pages/pool/index' })
+  },
+  goAIDiagnosis: function() {
+    wx.navigateTo({ url: '/pages/webview/index?url=' + encodeURIComponent('https://www.go-aiport.com/ai-diagnosis') })
+  },
+  goAICard: function() {
+    wx.navigateTo({ url: '/pages/webview/index?url=' + encodeURIComponent('https://www.go-aiport.com/ai-card') })
   }
 })

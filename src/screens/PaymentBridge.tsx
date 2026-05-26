@@ -1,29 +1,47 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Wallet, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { paymentApi } from '../api/payment';
+import type { PaymentParams } from '../api/payment';
 
-type PayStatus = 'preparing' | 'waiting' | 'success' | 'failed' | 'error';
+type PayStatus = 'preparing' | 'waiting' | 'success' | 'failed' | 'error' | 'not_wechat';
+
+/** WeChat JSAPI 调起支付参数（V3 官方字段名） */
+interface WechatPayRequest {
+  appId: string;
+  timeStamp: string;
+  nonceStr: string;
+  package: string;
+  signType: string;
+  paySign: string;
+}
 
 interface WindowWithWx extends Window {
   wx?: {
-    requestPayment: (params: {
-      timestamp: string;
-      nonceStr: string;
-      package: string;
-      signType: string;
-      paySign: string;
+    requestPayment: (params: WechatPayRequest & {
       success: () => void;
       fail: (err: any) => void;
       cancel: () => void;
     }) => void;
   };
+  WeixinJSBridge?: {
+    invoke: (method: string, params: WechatPayRequest, callback: (res: { err_msg?: string }) => void) => void;
+  };
+}
+
+/**
+ * 检测当前是否为微信浏览器（内置 WeChat 或 Weixin JSBridge）
+ */
+function isWechatBrowser(): boolean {
+  const ua = navigator.userAgent.toLowerCase();
+  return ua.indexOf('micromessenger') !== -1;
 }
 
 export default function PaymentBridge() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const orderNo = searchParams.get('order_no') || '';
+  const orderIdRaw = searchParams.get('order_no') || searchParams.get('order_id') || '';
+  const orderId = parseInt(orderIdRaw, 10) || 0;
   const amount = searchParams.get('amount') || '0.00';
   const description = searchParams.get('description') || '商品订单';
 
@@ -34,15 +52,15 @@ export default function PaymentBridge() {
   const pollingCount = useRef(0);
 
   // 清理轮询
-  const stopPolling = () => {
+  const stopPolling = useCallback(() => {
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
       pollingRef.current = null;
     }
-  };
+  }, []);
 
   // 轮询订单状态
-  const startPolling = () => {
+  const startPolling = useCallback(() => {
     stopPolling();
     pollingCount.current = 0;
     setStatus('waiting');
@@ -51,15 +69,14 @@ export default function PaymentBridge() {
     pollingRef.current = setInterval(async () => {
       pollingCount.current += 1;
       try {
-        const res = await paymentApi.queryOrder(orderNo);
+        const res = await paymentApi.queryOrder(orderIdRaw);
         if (res.code === 0 && res.data) {
           if (res.data.status === 'success') {
             stopPolling();
             setStatus('success');
             setMessage('支付成功！');
-            // 2秒后跳转到成功页
             setTimeout(() => {
-              navigate(`/payment-success?order_no=${orderNo}&amount=${amount}`, {
+              navigate(`/payment-success?order_no=${orderIdRaw}&amount=${amount}`, {
                 state: { transition: 'push' },
               });
             }, 2000);
@@ -83,15 +100,71 @@ export default function PaymentBridge() {
         console.error('[PaymentBridge] 轮询失败:', e);
       }
     }, 3000);
-  };
+  }, [orderIdRaw, amount, navigate, stopPolling]);
 
-  // 尝试调起微信支付
+  // ===== 支付调起 =====
+
+  /**
+   * 通过 WeixinJSBridge 调起支付（微信内置浏览器，无需加载 JSSDK）
+   */
+  const invokeByWeixinJSBridge = (params: PaymentParams): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const win = window as WindowWithWx;
+      if (!win.WeixinJSBridge) {
+        reject(new Error('WeixinJSBridge 不可用'));
+        return;
+      }
+      win.WeixinJSBridge.invoke('requestPayment', params as WechatPayRequest, (res) => {
+        if (res.err_msg === 'request_pay:cancel') {
+          resolve('cancel');
+        } else if (res.err_msg === 'request_pay:success') {
+          resolve('success');
+        } else {
+          reject(new Error(res.err_msg || '支付调起失败'));
+        }
+      });
+    });
+
+  /**
+   * 通过 wx JSSDK 调起支付（需先加载 jweixin）
+   */
+  const invokeByWxJSSDK = (params: PaymentParams): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const win = window as WindowWithWx;
+      if (typeof win.wx?.requestPayment !== 'function') {
+        reject(new Error('wx JSSDK 不可用'));
+        return;
+      }
+      win.wx.requestPayment({
+        appId: params.appId,
+        timeStamp: params.timeStamp,
+        nonceStr: params.nonceStr,
+        package: params.package,
+        signType: params.signType || 'RSA',
+        paySign: params.paySign,
+        success: () => resolve('success'),
+        fail: (err) => reject(new Error(err?.errMsg || 'wx 支付调起失败')),
+        cancel: () => resolve('cancel'),
+      });
+    });
+
+  /**
+   * 尝试调起微信支付
+   * 优先级：WeixinJSBridge > wx JSSDK
+   */
   const invokeWechatPay = async () => {
+    if (!orderId) {
+      setStatus('error');
+      setMessage('订单号缺失');
+      setErrorMsg('无法获取订单信息');
+      return;
+    }
+
     setStatus('preparing');
     setMessage('正在获取支付参数...');
 
     try {
-      const res = await paymentApi.unifiedOrder(orderNo, description);
+      const res = await paymentApi.unifiedOrder(orderId, description);
       if (res.code !== 0 || !res.data) {
         setStatus('error');
         setMessage('支付初始化失败');
@@ -99,58 +172,81 @@ export default function PaymentBridge() {
         return;
       }
 
-      const payData = res.data;
+      // 从响应中提取 V3 支付参数（后端返回结构: { order: {...}, payment: {...} }）
+      const paymentParams: PaymentParams = res.data.payment;
+      if (!paymentParams || !paymentParams.package) {
+        setStatus('error');
+        setMessage('支付参数异常');
+        setErrorMsg('未获取到有效的支付参数');
+        return;
+      }
+
+      // 判断运行环境
+      if (!isWechatBrowser()) {
+        // 非微信浏览器 → 展示引导页
+        setStatus('not_wechat');
+        setMessage('请在微信中打开');
+        setErrorMsg('当前浏览器不支持微信支付，请复制链接后在微信客户端中打开');
+        return;
+      }
+
+      // 微信浏览器 → 尝试调起支付
+      let payResult: string;
       const win = window as WindowWithWx;
 
-      // 微信小程序环境：使用 wx.requestPayment
-      if (typeof win.wx?.requestPayment === 'function') {
-        win.wx.requestPayment({
-          timestamp: payData.timestamp,
-          nonceStr: payData.nonce_str,
-          package: payData.package_val,
-          signType: 'MD5',
-          paySign: payData.sign,
-          success: () => {
-            // 支付成功，开始轮询确认
-            startPolling();
-          },
-          fail: (err) => {
-            setStatus('error');
-            setMessage('支付调起失败');
-            setErrorMsg(err?.errMsg || '未知错误');
-          },
-          cancel: () => {
-            setStatus('failed');
-            setMessage('用户取消支付');
-            setErrorMsg('您已取消支付，可在订单列表中继续支付');
-          },
-        });
+      if (win.WeixinJSBridge) {
+        payResult = await invokeByWeixinJSBridge(paymentParams);
+      } else if (typeof win.wx?.requestPayment === 'function') {
+        payResult = await invokeByWxJSSDK(paymentParams);
       } else {
-        // H5环境：直接开始轮询（模拟支付流程）
-        // 实际H5场景可能需要跳转微信支付H5页面或展示二维码
-        // 这里我们先调用统一下单后直接轮询
+        // WeixinJSBridge 和 wx JSSDK 都不可用 — 可能是微信内但未加载 JSSDK
+        // 尝试等待 WeixinJSBridge 就绪，最多等 3 秒
+        setMessage('正在初始化支付环境...');
+        payResult = await new Promise<string>((resolve, reject) => {
+          let resolved = false;
+          const timeout = setTimeout(() => {
+            if (!resolved) {
+              resolved = true;
+              reject(new Error('支付环境初始化超时'));
+            }
+          }, 3000);
+          const checkBridge = () => {
+            if (resolved) return;
+            const w = window as WindowWithWx;
+            if (w.WeixinJSBridge) {
+              resolved = true;
+              clearTimeout(timeout);
+              invokeByWeixinJSBridge(paymentParams).then(resolve, reject);
+            } else {
+              setTimeout(checkBridge, 200);
+            }
+          };
+          checkBridge();
+        });
+      }
+
+      if (payResult === 'success') {
         startPolling();
+      } else if (payResult === 'cancel') {
+        setStatus('failed');
+        setMessage('用户取消支付');
+        setErrorMsg('您已取消支付，可在订单列表中继续支付');
       }
     } catch (e: any) {
+      console.error('[PaymentBridge] 支付调起失败:', e);
       setStatus('error');
-      setMessage('支付请求失败');
+      setMessage('支付调起失败');
       setErrorMsg(e.message || '网络错误，请稍后重试');
     }
   };
 
   useEffect(() => {
-    if (orderNo) {
-      invokeWechatPay();
-    } else {
-      setStatus('error');
-      setMessage('订单号缺失');
-      setErrorMsg('无法获取订单信息');
-    }
-
+    invokeWechatPay();
     return () => {
       stopPolling();
     };
-  }, [orderNo]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderId]);
 
   const handleRetry = () => {
     setErrorMsg('');
@@ -160,6 +256,15 @@ export default function PaymentBridge() {
   const handleViewOrder = () => {
     stopPolling();
     navigate('/my-orders', { state: { transition: 'push' } });
+  };
+
+  const handleCopyLink = () => {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url).then(() => {
+      setErrorMsg('链接已复制，请在微信中打开');
+    }).catch(() => {
+      setErrorMsg('复制失败，请手动复制地址栏链接');
+    });
   };
 
   return (
@@ -189,6 +294,14 @@ export default function PaymentBridge() {
               <CheckCircle2 className="w-10 h-10 text-success" />
             </div>
           )}
+          {status === 'not_wechat' && (
+            <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center">
+              <svg className="w-10 h-10 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+          )}
           {(status === 'failed' || status === 'error') && (
             <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center">
               <XCircle className="w-10 h-10 text-error" />
@@ -202,11 +315,31 @@ export default function PaymentBridge() {
           <p className="text-sm text-error mb-4 text-center">{errorMsg}</p>
         )}
 
+        {/* 非微信浏览器提示 */}
+        {status === 'not_wechat' && (
+          <div className="w-full bg-blue-50 border border-blue-200 rounded-2xl p-4 mt-2 space-y-3">
+            <p className="text-sm text-blue-700 text-center leading-relaxed">
+              微信支付仅支持在微信客户端中使用。
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handleCopyLink}
+                className="w-full py-2.5 bg-blue-600 text-white font-bold rounded-xl text-sm active:scale-95 transition-transform"
+              >
+                复制链接
+              </button>
+              <p className="text-xs text-blue-500 text-center">
+                复制后发送到微信，在微信中打开即可支付
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* 订单信息 */}
         <div className="w-full bg-white rounded-2xl border border-border-light p-4 mt-4 space-y-3">
           <div className="flex justify-between text-sm">
             <span className="text-secondary">订单编号</span>
-            <span className="font-bold text-on-surface">{orderNo}</span>
+            <span className="font-bold text-on-surface">{orderIdRaw}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-secondary">支付金额</span>

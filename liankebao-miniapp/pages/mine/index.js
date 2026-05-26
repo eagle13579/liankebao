@@ -1,3 +1,5 @@
+var api = require('../../utils/api')
+
 Page({
   data: {
     user: null,
@@ -6,10 +8,11 @@ Page({
     userInitial: '?',
     userRole: '普通用户',
     isPromoter: false,
-    isSupplier: false
+    isSupplier: false,
+    unreadCount: 0
   },
-  onLoad: function() { this.loadUser() },
-  onShow: function() { this.loadUser() },
+  onLoad: function() { this.loadUser(); this.loadUnreadCount() },
+  onShow: function() { this.loadUser(); this.loadUnreadCount() },
   loadUser: function() {
     var user = wx.getStorageSync('user')
     var self = this
@@ -34,7 +37,23 @@ Page({
       })
     }
   },
+  loadUnreadCount: function() {
+    var self = this
+    api.get('/api/notifications/unread-count').then(function(res) {
+      var count = 0
+      if (res && res.code === 200 && res.data) {
+        count = parseInt(res.data.count !== undefined ? res.data.count : res.data)
+      } else if (res && res.count !== undefined) {
+        count = parseInt(res.count)
+      }
+      self.setData({ unreadCount: count || 0 })
+    }).catch(function() {
+      // silent
+    })
+  },
   goOrders: function() { wx.navigateTo({ url: '/pages/orders/index' }) },
+  goNotifications: function() { wx.navigateTo({ url: '/pages/notifications/index' }) },
+  goPartnerPolicy: function() { wx.navigateTo({ url: '/pages/partner-policy/index' }) },
   goPromotion: function() { wx.navigateTo({ url: '/pages/promotion/index' }) },
   goManageProducts: function() { wx.navigateTo({ url: '/pages/manage-products/index' }) },
   goAddress: function() {
@@ -43,7 +62,7 @@ Page({
   goAbout: function() {
     wx.showModal({
       title: '关于链客宝',
-      content: '链客宝 - 企业家供需匹配平台\n版本 1.0.0',
+      content: '链客宝 - 企业家的AI营销朋友圈\n版本 1.0.0',
       showCancel: false
     })
   },

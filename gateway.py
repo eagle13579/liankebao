@@ -27,29 +27,31 @@ import json
 import re
 
 # ── 配置 ──────────────────────────────────────────────────
-DIST = r'D:\向海容的知识库\wiki\wiki\记忆宫殿\L5孵化室\产品开发\战略合作\链客宝\linkbao\frontend\dist'
+DIST = r'D:\链客宝\dist'
 BROCHURE_H5 = r'D:\向海容的知识库\wiki\wiki\记忆宫殿\L5孵化室\产品开发\AI数字名片\code\frontend\h5'
 PORT = 5136
 
 ROUTES = [
     # (前缀, 目标基础URL, 路径重写函数或None)
-    ("/lkapi/",           "http://localhost:8000",  lambda p: "/" + p[6:]),
-    ("/lkapi",            "http://localhost:8000",  lambda p: "/" + p[5:] if len(p) > 5 else "/"),
-    ("/api/orders",       "http://localhost:8000",  lambda p: "/api/orders" + ("?" + p.split("?")[1] if "?" in p else "")),
-    ("/api/orders/",      "http://localhost:8000",  None),
+    ("/lkapi/",           "http://localhost:8001",  lambda p: p[6:]),
+    ("/lkapi",            "http://localhost:8001",  lambda p: p[6:] if len(p) > 6 else "/"),
+    ("/api/orders",       "http://localhost:8001",  lambda p: "/api/orders" + ("?" + p.split("?")[1] if "?" in p else "")),
+    ("/api/orders/",      "http://localhost:8001",  None),
     ("/api/brochures/",   "http://localhost:8003",  lambda p: "/api/brochure/" + p.split("/api/brochures/", 1)[1]),
     ("/api/brochure/",    "http://localhost:8003",  None),
     ("/api/tag/",         "http://localhost:8003",  None),
     ("/api/match/",       "http://localhost:8003",  None),
     ("/api/external/",    "http://localhost:8003",  None),
     ("/api/digital-brochure/auth/", "http://localhost:8003",  lambda p: "/api/auth/" + p.split("/api/digital-brochure/auth/", 1)[1]),
-    ("/api/geo/diagnose", "http://localhost:5061",  lambda p: "/api/diagnose"),
+    ("/api/geo/diagnose", "http://localhost:5061",  None),
     ("/api/geo/diagnosis/", "http://localhost:5061", lambda p: "/" + p.split("/api/geo/diagnosis/", 1)[1]),
     ("/api/geo/positioning/", "http://localhost:5062", lambda p: "/" + p.split("/api/geo/positioning/", 1)[1]),
     ("/api/geo/content/",    "http://localhost:5063", lambda p: "/" + p.split("/api/geo/content/", 1)[1]),
+    ("/geo-diagnosis/report/", "http://localhost:5061",  lambda p: "/report/" + p.split("/geo-diagnosis/report/", 1)[1]),
     ("/geo-diagnosis",      "http://localhost:5061",  lambda p: "/"),
     ("/geo-diagnosis/",     "http://localhost:5061",  lambda p: "/"),
-    ("/health",           "http://localhost:8000",  lambda p: "/health"),
+    ("/static/",            "http://localhost:5061",  lambda p: p),  # 转发GEO静态文件
+    ("/health",           "http://localhost:8001",  lambda p: "/health"),
 ]
 
 
@@ -212,7 +214,7 @@ class GatewayHandler(http.server.SimpleHTTPRequestHandler):
             self._proxy(method, target_url)
         elif path.startswith("/api/"):
             # 未匹配的 /api/* 路径默认走链客宝后端
-            target = f"http://localhost:8000{path}"
+            target = f"http://localhost:8001{path}"
             print(f"  → {method} {path} → {target} (默认)")
             self._proxy(method, target)
         elif method == "GET":

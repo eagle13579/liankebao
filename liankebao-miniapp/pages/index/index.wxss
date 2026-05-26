@@ -34,6 +34,28 @@
   display: block;
 }
 
+/* AI功能按钮 */
+.ai-actions {
+  display: flex;
+  gap: 20rpx;
+  padding: 16rpx 24rpx;
+}
+.ai-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  padding: 24rpx;
+  background: #fff;
+  border-radius: 20rpx;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  border: 2rpx solid #e2e8f0;
+}
+.ai-btn:active { opacity: 0.8; }
+.ai-btn-icon { font-size: 40rpx; }
+.ai-btn-text { font-size: 28rpx; font-weight: 600; color: #1a1a2e; }
+
 /* 分类导航 */
 .nav-grid {
   display: flex;
@@ -89,6 +111,7 @@
   margin-bottom: 16rpx;
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  border: 1rpx solid #e2e8f0;
 }
 .recommend-item:active { opacity: 0.9; }
 .recommend-img {
