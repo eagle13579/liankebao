@@ -24,11 +24,13 @@ def get_insights_dashboard(
     # 1. 我的产品数
     my_products = db.query(Product).filter(
         Product.owner_id == current_user.id,
+        Product.is_deleted == False,
     ).count()
 
     # 2. 我的订单数（作为买家）
     my_orders = db.query(Order).filter(
         Order.user_id == current_user.id,
+        Order.is_deleted == False,
     ).count()
 
     # 3. 本月成交额（作为买家的已支付订单）
@@ -38,6 +40,7 @@ def get_insights_dashboard(
         Order.user_id == current_user.id,
         Order.status.in_(["paid", "shipped", "received"]),
         Order.created_at >= month_start,
+        Order.is_deleted == False,
     ).scalar()
 
     # 4. 推广收益（作为推广员的已结算佣金）
@@ -45,12 +48,14 @@ def get_insights_dashboard(
         Order.promoter_id == current_user.id,
         Order.status == "received",
         Order.commission > 0,
+        Order.is_deleted == False,
     ).scalar()
 
     # 5. 本月新增订单数（用于环比）
     monthly_orders = db.query(Order).filter(
         Order.user_id == current_user.id,
         Order.created_at >= month_start,
+        Order.is_deleted == False,
     ).count()
 
     # 6. 上月成交额（用于环比计算）
@@ -63,6 +68,7 @@ def get_insights_dashboard(
         Order.status.in_(["paid", "shipped", "received"]),
         Order.created_at >= prev_month_start,
         Order.created_at < month_start,
+        Order.is_deleted == False,
     ).scalar()
 
     return ApiResponse(

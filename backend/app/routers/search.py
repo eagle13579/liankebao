@@ -126,7 +126,10 @@ def search_products(
         product_ids = [item["id"] for item in result_items]
         products_map = {
             p.id: p
-            for p in db.query(Product).filter(Product.id.in_(product_ids)).all()
+            for p in db.query(Product).filter(
+                Product.id.in_(product_ids),
+                Product.is_deleted == False,
+            ).all()
         }
 
         items = []
@@ -195,8 +198,11 @@ def _search_with_sql(
 
     当搜索引擎不可用或没有结果时自动回退到此方式。
     """
-    # 基础查询：只查询已上架产品
-    query = db.query(Product).filter(Product.status == "approved")
+    # 基础查询：只查询已上架产品且未删除
+    query = db.query(Product).filter(
+        Product.status == "approved",
+        Product.is_deleted == False,
+    )
 
     # === 模糊搜索：名称 + 描述 + 标签 + 品牌 ===
     if q and q.strip():
@@ -277,6 +283,7 @@ def list_search_categories(db: Session = Depends(get_db)):
         db.query(Product.category)
         .filter(
             Product.status == "approved",
+            Product.is_deleted == False,
             Product.category.isnot(None),
             Product.category != "",
         )
@@ -326,6 +333,7 @@ def search_suggestions(
         db.query(Product.name)
         .filter(
             Product.status == "approved",
+            Product.is_deleted == False,
             Product.name.like(like_pattern),
         )
         .distinct()

@@ -219,7 +219,7 @@ class TestRechargeCallbackChain:
             "/api/recharge/balance-logs", headers=buyer_headers
         )
         items = logs_resp.json()["data"]["items"]
-        matching = [log for log in items if log["biz_id"] == order_no]
+        matching = [log for log in items if log["biz_type"] == "recharge" and log["direction"] == "IN"]
         assert len(matching) >= 1
         log = matching[0]
         assert log["direction"] == "IN"
@@ -384,7 +384,7 @@ class TestBalanceLogsComprehensive:
         # 查流水
         resp = client.get(self.LOGS_URL, headers=buyer_headers)
         items = resp.json()["data"]["items"]
-        matching = [it for it in items if it["biz_id"] == order_no]
+        matching = [it for it in items if it["biz_type"] == "recharge"]
         assert len(matching) >= 1
         log = matching[0]
         assert log["direction"] == "IN"

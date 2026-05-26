@@ -24,22 +24,32 @@ def get_dashboard(
     admin: User = Depends(get_current_admin),
 ):
     """获取管理后台数据看板"""
-    total_users = db.query(User).count()
-    total_products = db.query(Product).count()
-    total_orders = db.query(Order).count()
+    total_users = db.query(User).filter(User.is_deleted == False).count()
+    total_products = db.query(Product).filter(Product.is_deleted == False).count()
+    total_orders = db.query(Order).filter(Order.is_deleted == False).count()
     total_revenue = db.query(func.sum(Order.total_price)).filter(
         Order.status.in_(["paid", "shipped", "received"]),
+        Order.is_deleted == False,
     ).scalar() or 0.0
 
     # 今日订单
     today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    today_orders = db.query(Order).filter(Order.created_at >= today).count()
+    today_orders = db.query(Order).filter(
+        Order.created_at >= today,
+        Order.is_deleted == False,
+    ).count()
 
     # 待审核产品
-    pending_review = db.query(Product).filter(Product.status == "pending").count()
+    pending_review = db.query(Product).filter(
+        Product.status == "pending",
+        Product.is_deleted == False,
+    ).count()
 
     # 待处理提现
-    pending_withdrawals = db.query(Withdrawal).filter(Withdrawal.status == "pending").count()
+    pending_withdrawals = db.query(Withdrawal).filter(
+        Withdrawal.status == "pending",
+        Withdrawal.is_deleted == False,
+    ).count()
 
     dashboard = DashboardResponse(
         total_users=total_users,
@@ -60,7 +70,9 @@ def list_users(
     admin: User = Depends(get_current_admin),
 ):
     """获取用户列表"""
-    users = db.query(User).order_by(desc(User.created_at)).all()
+    users = db.query(User).filter(
+        User.is_deleted == False,
+    ).order_by(desc(User.created_at)).all()
 
     return ApiResponse(
         code=200,
@@ -84,7 +96,10 @@ def update_user_role(
     if admin.id == user_id:
         raise HTTPException(status_code=400, detail="不能修改自己的角色")
 
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(
+        User.id == user_id,
+        User.is_deleted == False,
+    ).first()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
 
@@ -106,7 +121,7 @@ def list_all_products(
     admin: User = Depends(get_current_admin),
 ):
     """获取所有产品（管理后台）"""
-    query = db.query(Product)
+    query = db.query(Product).filter(Product.is_deleted == False)
     if status:
         query = query.filter(Product.status == status)
     products = query.order_by(desc(Product.created_at)).all()
@@ -129,7 +144,10 @@ def review_product(
     admin: User = Depends(get_current_admin),
 ):
     """审核产品（通过/驳回）"""
-    product = db.query(Product).filter(Product.id == product_id).first()
+    product = db.query(Product).filter(
+        Product.id == product_id,
+        Product.is_deleted == False,
+    ).first()
     if not product:
         raise HTTPException(status_code=404, detail="产品不存在")
 
@@ -156,7 +174,7 @@ def list_withdrawals(
     admin: User = Depends(get_current_admin),
 ):
     """获取提现申请列表"""
-    query = db.query(Withdrawal)
+    query = db.query(Withdrawal).filter(Withdrawal.is_deleted == False)
     if status:
         query = query.filter(Withdrawal.status == status)
     withdrawals = query.order_by(desc(Withdrawal.created_at)).all()
@@ -179,7 +197,10 @@ def review_withdrawal(
     admin: User = Depends(get_current_admin),
 ):
     """审核提现申请"""
-    withdrawal = db.query(Withdrawal).filter(Withdrawal.id == withdrawal_id).first()
+    withdrawal = db.query(Withdrawal).filter(
+        Withdrawal.id == withdrawal_id,
+        Withdrawal.is_deleted == False,
+    ).first()
     if not withdrawal:
         raise HTTPException(status_code=404, detail="提现记录不存在")
 

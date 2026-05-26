@@ -66,18 +66,17 @@ class TestWxPayUnifiedOrder:
         assert resp.status_code == 400
         assert "openid" in resp.text.lower()
 
-    def test_unified_order_not_owner(self, client: TestClient, promoter_headers):
+    def test_unified_order_not_owner(self, client: TestClient, buyer_headers, promoter_headers):
         """非订单归属人下单应返回 403"""
-        # 用非 buyer 的 token 操作
-        order_id = self._create_pending_order(client, {"Authorization": "Bearer dummy"})
-        # 重新获取 buyer 创建的订单 ID
+        # buyer 创建一个待支付订单
+        order_id = self._create_pending_order(client, buyer_headers)
+        # promoter 尝试给这个订单下单
         resp = client.post(
             self.UNIFIED_URL,
             headers=promoter_headers,
-            json={"order_id": 1, "openid": "mock_openid"},
+            json={"order_id": order_id, "openid": "mock_openid"},
         )
-        # order_id=1 是 buyer 的 seed 订单，promoter 无权操作
-        assert resp.status_code in (403, 404)
+        assert resp.status_code == 403
 
     def test_unified_order_nonexistent(self, client: TestClient, buyer_headers):
         """不存在的订单返回 404"""

@@ -59,8 +59,8 @@ def create_order(req: OrderCreate, db: Session = Depends(get_db),
         ).first()
         if not promoter:
             raise HTTPException(status_code=400, detail="推广员不存在")
-        # 推广员分润 = earn_per_share * 数量 * 50%
-        commission = product.earn_per_share * req.quantity * 0.5
+        # 推广员分润 = 总价 * (earn_per_share%) 
+        commission = total_price * (product.earn_per_share / 100)
 
     # 扣减库存
     product.stock -= req.quantity

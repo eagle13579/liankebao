@@ -35,24 +35,28 @@ def get_earnings(db: Session = Depends(get_db),
         Order.promoter_id == current_user.id,
         Order.status == "received",
         Order.commission > 0,
+        Order.is_deleted == False,
     ).scalar()
 
     # 已提现总额
     withdrawn = db.query(sa_func.coalesce(sa_func.sum(Withdrawal.amount), 0.0)).filter(
         Withdrawal.user_id == current_user.id,
         Withdrawal.status == "approved",
+        Withdrawal.is_deleted == False,
     ).scalar()
 
     # 待审核提现
     pending = db.query(sa_func.coalesce(sa_func.sum(Withdrawal.amount), 0.0)).filter(
         Withdrawal.user_id == current_user.id,
         Withdrawal.status == "pending",
+        Withdrawal.is_deleted == False,
     ).scalar()
 
     available = total_earnings - withdrawn - pending
 
     order_count = db.query(Order).filter(
         Order.promoter_id == current_user.id,
+        Order.is_deleted == False,
     ).count()
 
     return ApiResponse(
@@ -80,16 +84,19 @@ def withdraw(req: WithdrawRequest, db: Session = Depends(get_db),
     total_earnings = db.query(sa_func.coalesce(sa_func.sum(Order.commission), 0.0)).filter(
         Order.promoter_id == current_user.id,
         Order.status == "received",
+        Order.is_deleted == False,
     ).scalar()
 
     withdrawn = db.query(sa_func.coalesce(sa_func.sum(Withdrawal.amount), 0.0)).filter(
         Withdrawal.user_id == current_user.id,
         Withdrawal.status == "approved",
+        Withdrawal.is_deleted == False,
     ).scalar()
 
     pending = db.query(sa_func.coalesce(sa_func.sum(Withdrawal.amount), 0.0)).filter(
         Withdrawal.user_id == current_user.id,
         Withdrawal.status == "pending",
+        Withdrawal.is_deleted == False,
     ).scalar()
 
     available = total_earnings - withdrawn - pending
@@ -129,6 +136,7 @@ def get_withdrawals(db: Session = Depends(get_db),
 
     withdrawals = db.query(Withdrawal).filter(
         Withdrawal.user_id == current_user.id,
+        Withdrawal.is_deleted == False,
     ).order_by(Withdrawal.id.desc()).all()
 
     return ApiResponse(
@@ -161,7 +169,10 @@ async def get_wxacode(
         raise HTTPException(status_code=403, detail="仅推广员可操作")
 
     # 验证产品
-    product = db.query(Product).filter(Product.id == product_id).first()
+    product = db.query(Product).filter(
+        Product.id == product_id,
+        Product.is_deleted == False,
+    ).first()
     if not product:
         raise HTTPException(status_code=404, detail="产品不存在")
 
@@ -200,7 +211,10 @@ async def get_wxacode_info(
     if current_user.role != "promoter":
         raise HTTPException(status_code=403, detail="仅推广员可操作")
 
-    product = db.query(Product).filter(Product.id == product_id).first()
+    product = db.query(Product).filter(
+        Product.id == product_id,
+        Product.is_deleted == False,
+    ).first()
     if not product:
         raise HTTPException(status_code=404, detail="产品不存在")
 

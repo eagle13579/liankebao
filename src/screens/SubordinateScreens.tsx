@@ -1,62 +1,77 @@
 import { useNavigate } from 'react-router-dom';
-import { Users, ChevronLeft, TrendingUp, Calendar, Award } from 'lucide-react';
+import { ChevronLeft, TrendingUp, Calendar, ShoppingBag, CheckCircle, Clock, DollarSign } from 'lucide-react';
+import { useState } from 'react';
 
-interface Subordinate {
+interface PromotionOrder {
   id: number;
-  avatar: string;
-  nickname: string;
-  performance: number;   // 推广业绩 (元)
-  registered_at: string; // 注册时间
-  level: string;         // 等级
+  productName: string;
+  price: number;
+  earnRate: number;
+  earnAmount: number;
+  status: string;
+  createdAt: string;
 }
 
-const mockSubordinates: Subordinate[] = [
+const mockOrders: PromotionOrder[] = [
   {
-    id: 1,
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alice',
-    nickname: '张经理',
-    performance: 28500,
-    registered_at: '2024-03-15',
-    level: '高级推广员',
+    id: 1001,
+    productName: '旗舰版智能健康手表 S3',
+    price: 1299,
+    earnRate: 10,
+    earnAmount: 129.90,
+    status: '已完成',
+    createdAt: '2024-06-15',
   },
   {
-    id: 2,
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bob',
-    nickname: '李明',
-    performance: 12300,
-    registered_at: '2024-04-02',
-    level: '中级推广员',
+    id: 1002,
+    productName: '高端商务茶礼套装·臻选',
+    price: 688,
+    earnRate: 8,
+    earnAmount: 55.04,
+    status: '已完成',
+    createdAt: '2024-06-14',
   },
   {
-    id: 3,
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Charlie',
-    nickname: '王芳',
-    performance: 8900,
-    registered_at: '2024-05-18',
-    level: '初级推广员',
+    id: 1003,
+    productName: '企业数字化管理平台 Pro',
+    price: 9800,
+    earnRate: 5,
+    earnAmount: 490.00,
+    status: '已完成',
+    createdAt: '2024-06-12',
   },
   {
-    id: 4,
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Diana',
-    nickname: '赵强',
-    performance: 6700,
-    registered_at: '2024-06-10',
-    level: '初级推广员',
+    id: 1004,
+    productName: '高级护肝综合营养片',
+    price: 298,
+    earnRate: 7,
+    earnAmount: 20.86,
+    status: '处理中',
+    createdAt: '2024-06-16',
   },
   {
-    id: 5,
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Eve',
-    nickname: '刘洋',
-    performance: 15200,
-    registered_at: '2024-03-28',
-    level: '中级推广员',
+    id: 1005,
+    productName: '智能办公解决方案套装',
+    price: 3580,
+    earnRate: 6,
+    earnAmount: 214.80,
+    status: '已完成',
+    createdAt: '2024-06-10',
   },
 ];
 
 export function SubordinatePage() {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<'all' | 'completed' | 'pending'>('all');
 
-  const totalPerformance = mockSubordinates.reduce((sum, s) => sum + s.performance, 0);
+  const totalEarn = mockOrders.reduce((sum, o) => sum + o.earnAmount, 0);
+  const totalOrders = mockOrders.length;
+
+  const filteredOrders = mockOrders.filter((o) => {
+    if (activeTab === 'completed') return o.status === '已完成';
+    if (activeTab === 'pending') return o.status === '处理中';
+    return true;
+  });
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-b from-sky-50/30 via-white to-white font-sans pb-8">
@@ -68,7 +83,7 @@ export function SubordinatePage() {
           <ChevronLeft className="w-5 h-5" />
         </button>
         <h1 className="font-manrope text-lg font-extrabold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent">
-          我的下级
+          推广统计
         </h1>
       </header>
 
@@ -77,85 +92,117 @@ export function SubordinatePage() {
         <section className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center shadow-sm">
-              <Users className="w-5 h-5 text-white" />
+              <TrendingUp className="w-5 h-5 text-white" />
             </div>
             <div>
-              <p className="text-sm font-bold text-slate-800">团队概览</p>
-              <p className="text-xs text-slate-400">下级推广团队数据</p>
+              <p className="text-sm font-bold text-slate-800">收益概览</p>
+              <p className="text-xs text-slate-400">推广订单与分润统计</p>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-sky-50 rounded-xl p-3 text-center">
-              <p className="text-2xl font-extrabold text-sky-600">{mockSubordinates.length}</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">下级总人数</p>
+              <p className="text-2xl font-extrabold text-sky-600">{totalOrders}</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">推广订单</p>
             </div>
             <div className="bg-emerald-50 rounded-xl p-3 text-center">
-              <p className="text-2xl font-extrabold text-emerald-600">¥{totalPerformance.toLocaleString()}</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">团队总业绩</p>
+              <p className="text-2xl font-extrabold text-emerald-600">¥{totalEarn.toFixed(2)}</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">累计收益</p>
             </div>
             <div className="bg-amber-50 rounded-xl p-3 text-center">
-              <p className="text-2xl font-extrabold text-amber-600">¥{(totalPerformance / mockSubordinates.length).toFixed(0)}</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">人均业绩</p>
+              <p className="text-2xl font-extrabold text-amber-600">¥{(totalEarn / totalOrders).toFixed(2)}</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">平均每单</p>
             </div>
           </div>
         </section>
 
-        {/* Subordinate List */}
+        {/* Tabs */}
+        <div className="flex gap-2">
+          {[
+            { id: 'all' as const, label: '全部订单' },
+            { id: 'completed' as const, label: '已完成' },
+            { id: 'pending' as const, label: '处理中' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
+                activeTab === tab.id
+                  ? 'bg-sky-500 text-white shadow-sm'
+                  : 'bg-white text-slate-500 border border-slate-200 hover:border-sky-200 hover:text-sky-600'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Order List */}
         <section className="space-y-3">
           <div className="flex items-center gap-2">
             <div className="w-1 h-4 bg-gradient-to-b from-sky-500 to-blue-600 rounded-full" />
-            <h2 className="font-extrabold text-slate-800 text-sm">下级成员</h2>
-            <span className="text-[10px] text-slate-400">（{mockSubordinates.length}人）</span>
+            <h2 className="font-extrabold text-slate-800 text-sm">推广订单明细</h2>
+            <span className="text-[10px] text-slate-400">（{filteredOrders.length}条）</span>
           </div>
 
-          {mockSubordinates.map((sub) => (
+          {filteredOrders.map((order) => (
             <div
-              key={sub.id}
+              key={order.id}
               className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm hover:shadow-md transition-all"
             >
-              <div className="flex items-center gap-3">
-                <img
-                  src={sub.avatar}
-                  className="w-12 h-12 rounded-full bg-slate-100 border-2 border-sky-100 object-cover"
-                  alt={sub.nickname}
-                />
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-50 to-blue-50 flex items-center justify-center shrink-0 border border-sky-100">
+                  <ShoppingBag className="w-6 h-6 text-sky-500" />
+                </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-slate-800 text-sm truncate">{sub.nickname}</h3>
-                    <span className="bg-gradient-to-r from-amber-400 to-amber-500 text-[8px] text-white px-1.5 py-0.5 rounded-full font-bold shrink-0">
-                      {sub.level}
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-bold text-slate-800 text-sm truncate">{order.productName}</h3>
+                    <span
+                      className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
+                        order.status === '已完成'
+                          ? 'bg-emerald-50 text-emerald-600'
+                          : 'bg-amber-50 text-amber-600'
+                      }`}
+                    >
+                      {order.status}
                     </span>
                   </div>
-                  <div className="flex items-center gap-4 mt-1.5">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5">
+                    <div className="flex items-center gap-1">
+                      <DollarSign className="w-3 h-3 text-sky-500" />
+                      <span className="text-[10px] text-slate-500">
+                        售价 <span className="font-bold text-slate-700">¥{order.price.toFixed(2)}</span>
+                      </span>
+                    </div>
                     <div className="flex items-center gap-1">
                       <TrendingUp className="w-3 h-3 text-emerald-500" />
                       <span className="text-[10px] text-slate-500">
-                        业绩: <span className="font-bold text-emerald-700">¥{sub.performance.toLocaleString()}</span>
+                        分润比例 <span className="font-bold text-emerald-700">{order.earnRate}%</span>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <CheckCircle className="w-3 h-3 text-green-500" />
+                      <span className="text-[10px] text-slate-500">
+                        佣金 <span className="font-bold text-green-700">+¥{order.earnAmount.toFixed(2)}</span>
                       </span>
                     </div>
                     <div className="flex items-center gap-1">
                       <Calendar className="w-3 h-3 text-slate-400" />
-                      <span className="text-[10px] text-slate-400">{sub.registered_at}</span>
+                      <span className="text-[10px] text-slate-400">{order.createdAt}</span>
                     </div>
-                  </div>
-                </div>
-                <div className="shrink-0">
-                  <div className="w-8 h-8 rounded-full bg-sky-50 flex items-center justify-center">
-                    <Award className="w-4 h-4 text-sky-500" />
                   </div>
                 </div>
               </div>
             </div>
           ))}
-        </section>
 
-        {mockSubordinates.length === 0 && (
-          <div className="text-center py-12">
-            <Users className="w-12 h-12 text-slate-200 mx-auto mb-3" />
-            <p className="text-sm text-slate-400">暂无下级成员</p>
-            <p className="text-xs text-slate-300 mt-1">推广产品邀请好友加入</p>
-          </div>
-        )}
+          {filteredOrders.length === 0 && (
+            <div className="text-center py-12">
+              <ShoppingBag className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+              <p className="text-sm text-slate-400">暂无推广订单</p>
+              <p className="text-xs text-slate-300 mt-1">推广产品赚取分润佣金</p>
+            </div>
+          )}
+        </section>
       </main>
     </div>
   );

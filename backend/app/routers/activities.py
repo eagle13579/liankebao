@@ -21,6 +21,7 @@ def _get_contact_or_404(contact_id: int, user_id: int, db: Session) -> Contact:
     contact = db.query(Contact).filter(
         Contact.id == contact_id,
         Contact.owner_id == user_id,
+        Contact.is_deleted == False,
     ).first()
     if not contact:
         raise HTTPException(status_code=404, detail="联系人不存在")
@@ -39,7 +40,10 @@ def list_activities(
     # 校验联系人和所有权
     _get_contact_or_404(contact_id, current_user.id, db)
 
-    query = db.query(Activity).filter(Activity.contact_id == contact_id)
+    query = db.query(Activity).filter(
+        Activity.contact_id == contact_id,
+        Activity.is_deleted == False,
+    )
     total = query.count()
     activities = (
         query.order_by(desc(Activity.created_at))

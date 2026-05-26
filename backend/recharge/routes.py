@@ -306,7 +306,7 @@ def adjust_balance(
     from decimal import Decimal
     amount = Decimal(str(req.amount))
 
-    old_balance = bal.balance
+    old_balance = Decimal(str(bal.balance))
     new_balance = old_balance + amount
     if new_balance < 0:
         raise HTTPException(status_code=400, detail="余额不足，调额后余额为负")

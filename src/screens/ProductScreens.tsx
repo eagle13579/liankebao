@@ -1,5 +1,5 @@
-import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { ArrowLeft, Share2, Star, Minus, Plus, Heart, Headset, FileText, Factory, ExternalLink, MoreHorizontal, CheckCircle2, Camera } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { ArrowLeft, Share2, Star, Minus, Plus, Heart, Headset, FileText, Factory, ExternalLink, MoreHorizontal, CheckCircle2, Camera, Percent } from 'lucide-react';
 import { useState } from 'react';
 import { api } from '../api/client';
 import { ProductItem } from '../types';
@@ -62,8 +62,7 @@ export function ProductDetailPage() {
         <section className="mt-4 px-4">
           <div className="bg-sky-50 border-l-4 border-primary-container p-4 rounded-r-2xl shadow-sm flex justify-between items-center">
             <div className="space-y-1">
-              <p className="font-bold text-on-surface">推广本产品，每单赚 <span className="text-primary-container">¥{(product?.earn_per_share || 20.9).toFixed(2)}</span></p>
-              <p className="text-[10px] text-text-muted">您当前为优选会员。升级铂金会员每单赚 ¥{(product?.earn_per_share ? (product.earn_per_share * 1.4).toFixed(2) : '29.8')}</p>
+              <p className="font-bold text-on-surface">推广本产品，赚取售价的 <span className="text-primary-container">{product?.earn_per_share || 7}%</span></p>
             </div>
             <button 
               onClick={() => navigate('/promotion-center', { state: { transition: 'push' } })}
@@ -221,7 +220,7 @@ export function AddProduct() {
           <h2 className="font-bold text-lg">价格与库存</h2>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1"><label className="text-xs text-secondary">产品价格 (元)</label><input value={price} onChange={e => setPrice(e.target.value)} className="w-full h-12 bg-neutral-bg/50 border-b border-border-light outline-none" placeholder="0.00" type="number" /></div>
-            <div className="space-y-1"><label className="text-xs text-secondary">每单分润</label><input value={earnPerShare} onChange={e => setEarnPerShare(e.target.value)} className="w-full h-12 bg-neutral-bg/50 border-b border-border-light outline-none" placeholder="0.00" type="number" /></div>
+            <div className="space-y-1"><label className="text-xs text-secondary">分润比例(%)</label><input value={earnPerShare} onChange={e => setEarnPerShare(e.target.value)} className="w-full h-12 bg-neutral-bg/50 border-b border-border-light outline-none" placeholder="0.00" type="number" /></div>
             <div className="col-span-2 space-y-1"><label className="text-xs text-secondary">产品库存</label><input value={stock} onChange={e => setStock(e.target.value)} className="w-full h-12 bg-neutral-bg/50 border-b border-border-light outline-none" placeholder="请输入库存数量" type="number" /></div>
           </div>
         </section>
@@ -244,14 +243,12 @@ export function AddProduct() {
 
         <section className="bg-white rounded-2xl p-4 border border-border-light shadow-sm space-y-4">
           <h2 className="font-bold text-lg">推广分润比例</h2>
-          <div className="flex gap-2 bg-neutral-bg p-1 rounded-xl">
-            <div className="flex-1 text-center py-3 bg-white rounded-lg border border-primary-container"><p className="text-primary-container font-bold text-lg">7%</p><p className="text-[10px] text-text-muted">优选会员</p></div>
-            <div className="flex-1 text-center py-3"><p className="font-bold text-lg">10%</p><p className="text-[10px] text-text-muted">铂金会员</p></div>
-            <div className="flex-1 text-center py-3"><p className="font-bold text-lg">14%</p><p className="text-[10px] text-text-muted">钻石会员</p></div>
+          <div className="bg-sky-50 p-4 rounded-xl border border-sky-100">
+            <p className="text-xs">设置推广分润比例（百分比），推广员推广该产品可获得 <span className="text-xl font-bold text-primary-container font-manrope">{earnPerShare || '5'}</span>% 的分润</p>
           </div>
-          <div className="bg-sky-50 p-4 rounded-xl border border-sky-100 flex items-center gap-3">
-            <Link className="w-5 h-5 text-primary-container" to="#" />
-            <p className="text-xs">如标价{price || 298}元，推广员每单赚 <span className="text-xl font-bold text-primary-container font-manrope">{earnPerShare || '20.9'}</span> 元</p>
+          <div className="text-[11px] text-slate-400 flex items-center gap-1">
+            <Percent className="w-3.5 h-3.5" />
+            推广员每成交一单 = 销售额 × {earnPerShare || '5'}%
           </div>
         </section>
       </main>

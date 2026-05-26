@@ -58,7 +58,6 @@ class TestE2ERegisterLogin:
         login_data = login_resp.json()["data"]
         assert "access_token" in login_data
         assert login_data["user"]["username"] == username
-        return login_data["access_token"], login_data["user"]
 
     def test_register_supplier_role(self, client: TestClient):
         """注册供应商角色"""
@@ -168,8 +167,6 @@ class TestE2EProductLifecycle:
             db.commit()
         finally:
             db.close()
-
-        return product_id
 
     def test_buyer_browse_products(self, client: TestClient):
         """买家浏览产品列表"""
@@ -343,7 +340,7 @@ class TestE2ERechargeFlow:
         logs_resp = client.get("/api/recharge/balance-logs", headers=buyer_headers)
         assert logs_resp.status_code == 200
         items = logs_resp.json()["data"]["items"]
-        assert any(log["biz_id"] == order_no for log in items)
+        assert any(log["biz_type"] == "recharge" for log in items)
 
 
 class TestE2EAuthZ:

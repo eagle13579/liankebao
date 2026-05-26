@@ -161,8 +161,11 @@ def import_confirm(
     engine.field_mapping = req.field_mapping
     engine.apply_mapping()
 
-    # 查询数据库中该用户的已有联系人
-    existing_contacts_q = db.query(Contact).filter(Contact.owner_id == current_user.id).all()
+    # 查询数据库中该用户的已有联系人（排除已删除的）
+    existing_contacts_q = db.query(Contact).filter(
+        Contact.owner_id == current_user.id,
+        Contact.is_deleted == False,
+    ).all()
     existing_contacts = [
         {
             "name": c.name or "",
@@ -228,7 +231,10 @@ def import_confirm(
             if idx in merge_pairs:
                 # 合并：更新已有联系人（非空字段覆盖）
                 existing_id = merge_pairs[idx]
-                existing_contact = db.query(Contact).filter(Contact.id == existing_id).first()
+                existing_contact = db.query(Contact).filter(
+                    Contact.id == existing_id,
+                    Contact.is_deleted == False,
+                ).first()
                 if existing_contact:
                     _merge_contact(existing_contact, row)
                     merged_count += 1
@@ -241,7 +247,10 @@ def import_confirm(
             if idx in update_pairs:
                 # 更新：新数据完全覆盖
                 existing_id = update_pairs[idx]
-                existing_contact = db.query(Contact).filter(Contact.id == existing_id).first()
+                existing_contact = db.query(Contact).filter(
+                    Contact.id == existing_id,
+                    Contact.is_deleted == False,
+                ).first()
                 if existing_contact:
                     _update_contact(existing_contact, row)
                     merged_count += 1
@@ -316,7 +325,8 @@ def import_history(
         {total, page, page_size, items: [...]}
     """
     query = db.query(ImportHistory).filter(
-        ImportHistory.user_id == current_user.id
+        ImportHistory.user_id == current_user.id,
+        ImportHistory.is_deleted == False,
     ).order_by(ImportHistory.created_at.desc())
 
     total = query.count()

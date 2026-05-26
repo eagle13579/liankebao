@@ -360,7 +360,7 @@ export function LiankebaoHomepage() {
                     </div>
                     <div className="bg-gradient-to-r from-emerald-50 to-emerald-50/50 border border-emerald-100/50 rounded-lg px-2.5 py-1 flex items-center gap-1">
                       <TrendingUp className="w-3 h-3 text-emerald-600" />
-                      <span className="text-[10px] font-bold text-emerald-700">推广赚 ¥{item.earn_per_share.toFixed(2)}</span>
+                      <span className="text-[10px] font-bold text-emerald-700">推广赚 {item.earn_per_share}%</span>
                     </div>
                     <button
                       onClick={(e) => { e.stopPropagation(); navigate('/product-detail', { state: { transition: 'push', productId: item.id } }); }}
