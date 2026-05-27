@@ -123,7 +123,7 @@ def get_current_user(
             detail="无效的认证令牌",
         )
 
-    user = db.query(User).filter(User.username == username).first()
+    user = db.query(User).filter(User.username == username, User.is_deleted == False).first()
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

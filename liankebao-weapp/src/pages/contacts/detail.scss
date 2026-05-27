@@ -1,0 +1,266 @@
+/* 联系人详情样式 */
+.cd-page {
+  min-height: 100vh;
+  background-color: #f5f5f5;
+}
+
+/* Header */
+.cd-header {
+  display: flex;
+  align-items: center;
+  padding: 50px 16px 14px;
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+}
+
+.cd-back {
+  font-size: 22px;
+  color: #ffffff;
+  padding: 4px 8px 4px 0;
+}
+
+.cd-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-left: 8px;
+}
+
+/* Loading */
+.cd-loading {
+  padding: 40px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.cd-skel-avatar-lg {
+  width: 72px;
+  height: 72px;
+  border-radius: 36px;
+  background: #e2e8f0;
+  margin-bottom: 16px;
+}
+
+.cd-skel-line {
+  height: 14px;
+  background: #e2e8f0;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+.cd-skel-card-lg {
+  width: 100%;
+  height: 200px;
+  background: #e2e8f0;
+  border-radius: 16px;
+  margin-top: 20px;
+}
+
+.w-50 { width: 50%; }
+.w-30 { width: 30%; }
+
+/* Error / Empty */
+.cd-error, .cd-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+}
+
+.cd-error-icon, .cd-empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.cd-error-text, .cd-empty-text {
+  font-size: 14px;
+  color: #64748b;
+}
+
+.cd-error-retry {
+  font-size: 14px;
+  color: #0ea5e9;
+  font-weight: 600;
+  padding: 8px 24px;
+  border: 1px solid #0ea5e9;
+  border-radius: 20px;
+  margin-top: 8px;
+}
+
+.cd-error-retry:active {
+  background: #f0f9ff;
+}
+
+/* Body */
+.cd-body {
+  padding: 16px 16px 40px;
+}
+
+/* Profile section */
+.cd-profile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px;
+  background: #ffffff;
+  border-radius: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.cd-avatar-lg {
+  width: 72px;
+  height: 72px;
+  border-radius: 36px;
+  background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.cd-avatar-img-lg {
+  width: 100%;
+  height: 100%;
+}
+
+.cd-avatar-text-lg {
+  font-size: 30px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.cd-profile-name {
+  font-size: 20px;
+  font-weight: 800;
+  color: #1a1a2e;
+  margin-bottom: 4px;
+}
+
+.cd-profile-position {
+  font-size: 13px;
+  color: #64748b;
+}
+
+/* Info card */
+.cd-info-card,
+.cd-tags-card,
+.cd-notes-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.cd-info-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a1a2e;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.cd-info-row {
+  display: flex;
+  padding: 10px 0;
+  border-bottom: 1px solid #f8fafc;
+}
+
+.cd-info-row-last {
+  border-bottom: none;
+}
+
+.cd-info-label {
+  font-size: 13px;
+  color: #64748b;
+  width: 80px;
+  flex-shrink: 0;
+}
+
+.cd-info-value {
+  font-size: 13px;
+  color: #1a1a2e;
+  flex: 1;
+}
+
+.cd-info-phone {
+  color: #0ea5e9;
+  font-weight: 600;
+}
+
+.cd-info-phone:active {
+  opacity: 0.7;
+}
+
+.cd-info-na {
+  color: #94a3b8;
+}
+
+/* Tags */
+.cd-tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cd-tag-item {
+  font-size: 12px;
+  color: #0ea5e9;
+  background: #f0f9ff;
+  padding: 4px 12px;
+  border-radius: 14px;
+  font-weight: 500;
+}
+
+/* Notes */
+.cd-notes-text {
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.6;
+}
+
+/* Timestamps */
+.cd-timestamps {
+  padding: 8px 4px 16px;
+}
+
+.cd-ts-item {
+  display: block;
+  font-size: 11px;
+  color: #94a3b8;
+  margin-bottom: 4px;
+}
+
+/* Action buttons */
+.cd-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.cd-action-btn {
+  text-align: center;
+  padding: 14px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.cd-action-btn:active {
+  opacity: 0.85;
+}
+
+.cd-action-call {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #ffffff;
+}
+
+.cd-action-edit {
+  background: #ffffff;
+  color: #0ea5e9;
+  border: 1px solid #0ea5e9;
+}

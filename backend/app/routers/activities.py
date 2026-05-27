@@ -13,7 +13,7 @@ from app.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/contacts", tags=["活动时间线"])
+router = APIRouter(prefix="/api/contacts", tags=["联系人活动"])
 
 
 def _get_contact_or_404(contact_id: int, user_id: int, db: Session) -> Contact:

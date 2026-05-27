@@ -1,8 +1,12 @@
-import { Component } from 'react'
+import { Component, ReactNode } from 'react'
 import { View } from '@tarojs/components'
 import './app.scss'
 
-class App extends Component {
+interface AppProps {
+  children?: ReactNode
+}
+
+class App extends Component<AppProps> {
   componentDidMount() {}
 
   componentDidShow() {}

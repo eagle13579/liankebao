@@ -43,21 +43,19 @@ export default function ContactsImportPage() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const res = await fetch('/lkapi/api/contacts/import/preview', {
+      const res = await api.request<ImportPreview>('/api/contacts/import/preview', {
         method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('token') || '') },
         body: formData,
       });
-      const json = await res.json();
-      if (json.code === 0 && json.data) {
-        setPreview(json.data);
-        setMapping(json.data.column_mapping || {});
+      if (res.code === 0 && res.data) {
+        setPreview(res.data);
+        setMapping(res.data.column_mapping || {});
         const dups: Record<number, 'skip' | 'merge' | 'update'> = {};
-        (json.data.duplicates || []).forEach((_: any, idx: number) => { dups[idx] = 'skip'; });
+        (res.data.duplicates || []).forEach((_: any, idx: number) => { dups[idx] = 'skip'; });
         setPendingDuplicates(dups);
         setStatus('preview');
       } else {
-        setErrorMsg(json.message || '文件解析失败');
+        setErrorMsg(res.message || '文件解析失败');
         setStatus('error');
       }
     } catch (e: any) {

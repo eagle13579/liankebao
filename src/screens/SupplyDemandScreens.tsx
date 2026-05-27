@@ -72,17 +72,22 @@ export function SupplyDemandHall() {
 
   const fetchNeeds = async () => {
     setLoading(true);
-    const params = new URLSearchParams();
-    if (category) params.set('category', category);
-    params.set('page', String(page));
-    params.set('page_size', String(pageSize));
-    if (searchText) params.set('search', searchText);
-    const res = await api.get<{ total: number; page: number; page_size: number; items: NeedItem[] }>(`/api/needs?${params.toString()}`);
-    if (res.code === 200 && res.data) {
-      setNeeds(res.data.items);
-      setTotal(res.data.total);
+    try {
+      const params = new URLSearchParams();
+      if (category) params.set('category', category);
+      params.set('page', String(page));
+      params.set('page_size', String(pageSize));
+      if (searchText) params.set('search', searchText);
+      const res = await api.get<{ total: number; page: number; page_size: number; items: NeedItem[] }>(`/api/needs?${params.toString()}`);
+      if (res.code === 200 && res.data) {
+        setNeeds(res.data.items);
+        setTotal(res.data.total);
+      }
+    } catch (e) {
+      console.error('[SupplyDemand] fetchNeeds error:', e);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -267,11 +272,16 @@ export function NeedDetail() {
   useEffect(() => {
     const fetchDetail = async () => {
       setLoading(true);
-      const res = await api.get<NeedItem>(`/api/needs/${needId}`);
-      if (res.code === 200 && res.data) {
-        setNeed(res.data);
+      try {
+        const res = await api.get<NeedItem>(`/api/needs/${needId}`);
+        if (res.code === 200 && res.data) {
+          setNeed(res.data);
+        }
+      } catch (e) {
+        console.error('[NeedDetail] fetch error:', e);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     if (needId) fetchDetail();
   }, [needId]);

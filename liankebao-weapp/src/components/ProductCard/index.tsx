@@ -13,7 +13,7 @@ export default class ProductCard extends Component<{ product: any }> {
     const img = JSON.parse(p.images || '[]')[0]
     return (
       <View className='card' onClick={this.handleClick}>
-        <Image className='thumb' src={img} mode='aspectFill' />
+        <Image className='thumb' src={img} mode='aspectFill' lazyLoad />
         <View className='body'>
           <Text className='name'>{p.name}</Text>
           <Text className='price'>¥{p.price}</Text>

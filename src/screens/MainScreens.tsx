@@ -56,7 +56,7 @@ function BottomNav({ active }: { active: string }) {
 // ==============================
 //  LiankebaoHomepage
 // ==============================
-export function LiankebaoHomepage() {
+export const LiankebaoHomepage = React.memo(function LiankebaoHomepage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [currentBanner, setCurrentBanner] = useState(0);
@@ -384,7 +384,7 @@ export function LiankebaoHomepage() {
       `}</style>
     </div>
   );
-}
+});
 
 // Inline Handshake icon to avoid import conflict
 function HandshakeIcon({ className }: { className?: string }) {
@@ -401,7 +401,7 @@ function HandshakeIcon({ className }: { className?: string }) {
 // ==============================
 //  ProductPool
 // ==============================
-export function ProductPool() {
+export const ProductPool = React.memo(function ProductPool() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('全部');
@@ -507,7 +507,7 @@ export function ProductPool() {
       <BottomNav active="product" />
     </div>
   );
-}
+});
 
 // ==============================
 //  PromotionCenter

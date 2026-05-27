@@ -102,7 +102,7 @@ def login(
     ip = _get_client_ip(request)
     _check_login_rate_limit(ip)
 
-    user = db.query(User).filter(User.username == req.username).first()
+    user = db.query(User).filter(User.username == req.username, User.is_deleted == False).first()
     if not user or not verify_password(req.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -147,7 +147,7 @@ def register(
             detail="密码长度不能少于8位",
         )
 
-    existing = db.query(User).filter(User.username == req.username).first()
+    existing = db.query(User).filter(User.username == req.username, User.is_deleted == False).first()
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -304,7 +304,7 @@ def wechat_login(
         )
 
     # 查找或创建用户
-    user = db.query(User).filter(User.wechat_openid == openid).first()
+    user = db.query(User).filter(User.wechat_openid == openid, User.is_deleted == False).first()
     if not user:
         # 新用户 - 用openid创建
         username = f"wx_{openid[:12]}"

@@ -28,3 +28,107 @@
 .product-list {
   padding: 10px 0 20px;
 }
+
+/* Loading skeleton */
+.hp-loading {
+  padding: 8px 16px;
+}
+
+.hp-skel-card {
+  display: flex;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 10px;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.hp-skel-thumb {
+  width: 100px;
+  height: 100px;
+  border-radius: 8px;
+  background: #e2e8f0;
+  flex-shrink: 0;
+  margin-right: 12px;
+}
+
+.hp-skel-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.hp-skel-line {
+  height: 14px;
+  background: #e2e8f0;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+.hp-skel-line:last-child {
+  margin-bottom: 0;
+}
+
+.w-60 { width: 60%; }
+.w-40 { width: 40%; }
+
+/* Error state */
+.hp-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+}
+
+.hp-error-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.hp-error-text {
+  font-size: 14px;
+  color: #64748b;
+  margin-bottom: 16px;
+}
+
+.hp-error-retry {
+  font-size: 14px;
+  color: #0ea5e9;
+  font-weight: 600;
+  padding: 8px 24px;
+  border: 1px solid #0ea5e9;
+  border-radius: 20px;
+}
+
+.hp-error-retry:active {
+  background: #f0f9ff;
+}
+
+/* Empty state */
+.hp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100px 20px;
+}
+
+.hp-empty-icon {
+  font-size: 56px;
+  margin-bottom: 16px;
+}
+
+.hp-empty-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 6px;
+}
+
+.hp-empty-hint {
+  font-size: 12px;
+  color: #94a3b8;
+}

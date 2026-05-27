@@ -5,7 +5,7 @@ import { api } from '../api/client';
 import { ProductItem } from '../types';
 import { Loading, ErrorBlock, Empty, useApi } from '../components/StatusComponents';
 
-export function ProductDetailPage() {
+export const ProductDetailPage = React.memo(function ProductDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const productId = (location.state as any)?.productId;
@@ -106,9 +106,8 @@ export function ProductDetailPage() {
       </footer>
     </div>
   );
-}
-
-export function MyProducts() {
+});
+export const MyProducts = React.memo(function MyProducts() {
   const navigate = useNavigate();
 
   const { data: products, status, error, refetch } = useApi(
@@ -169,9 +168,8 @@ export function MyProducts() {
       </main>
     </div>
   );
-}
-
-export function AddProduct() {
+});
+export const AddProduct = React.memo(function AddProduct() {
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -264,4 +262,4 @@ export function AddProduct() {
       </footer>
     </div>
   );
-}
+});

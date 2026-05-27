@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8001';
 
 interface ApiResponse<T> {
   code: number;
@@ -11,8 +11,9 @@ function saveToken(t: string) { localStorage.setItem('token', t); }
 function removeToken() { localStorage.removeItem('token'); }
 
 async function request<T>(path: string, options?: RequestInit): Promise<ApiResponse<T>> {
-  const headers: Record<string,string> = {'Content-Type': 'application/json'};
   const t = loadToken();
+  const isFormData = options?.body instanceof FormData;
+  const headers: Record<string,string> = isFormData ? {} : {'Content-Type': 'application/json'};
   if (t) headers['Authorization'] = 'Bearer ' + t;
   try {
     const res = await fetch(API_BASE + path, {...options, headers});
@@ -30,5 +31,6 @@ export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body: any) => request<T>(path, {method:'POST', body: JSON.stringify(body)}),
   put: <T>(path: string, body: any) => request<T>(path, {method:'PUT', body: JSON.stringify(body)}),
+  request: <T>(path: string, options?: RequestInit) => request<T>(path, options),
   saveToken, loadToken, removeToken,
 };

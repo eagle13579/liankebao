@@ -6,7 +6,7 @@ import { paymentApi } from '../api/payment';
 import { OrderItem } from '../types';
 import { Loading, ErrorBlock, Empty, useApi } from '../components/StatusComponents';
 
-export function OrderConfirmation() {
+export const OrderConfirmation = React.memo(function OrderConfirmation() {
   const navigate = useNavigate();
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState('');
@@ -113,9 +113,9 @@ export function OrderConfirmation() {
       </footer>
     </div>
   );
-}
+});
 
-export function PaymentSuccessScreens() {
+export const PaymentSuccessScreens = React.memo(function PaymentSuccessScreens() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const orderNo = searchParams.get('order_no') || 'ORD20260425001';
@@ -153,7 +153,7 @@ export function PaymentSuccessScreens() {
       </main>
     </div>
   );
-}
+});
 
 const statusLabelMap: Record<string, string> = {
   pending: '待支付', shipping: '待发货', received: '待收货',
@@ -161,7 +161,7 @@ const statusLabelMap: Record<string, string> = {
   paid: '已支付',
 };
 
-export function MyOrders() {
+export const MyOrders = React.memo(function MyOrders() {
   const navigate = useNavigate();
   const [tab, setTab] = useState('全部');
 
@@ -260,9 +260,9 @@ export function MyOrders() {
       </nav>
     </div>
   );
-}
+});
 
-export function OrderManagement() {
+export const OrderManagement = React.memo(function OrderManagement() {
   const navigate = useNavigate();
 
   const { data: orders, status, error, refetch } = useApi(
@@ -319,4 +319,4 @@ export function OrderManagement() {
       </footer>
     </div>
   );
-}
+});

@@ -29,21 +29,26 @@ export function PostNeed() {
     if (!contactName.trim()) { setError('请填写联系人'); return; }
 
     setSubmitting(true);
-    const res = await api.post('/api/needs', {
-      title: title.trim(),
-      description: description.trim() || undefined,
-      category: category || undefined,
-      budget: budget.trim() || undefined,
-      region: region.trim() || undefined,
-      contact_name: contactName.trim(),
-      contact_phone: contactPhone.trim() || undefined,
-    });
-    setSubmitting(false);
+    try {
+      const res = await api.post('/api/needs', {
+        title: title.trim(),
+        description: description.trim() || undefined,
+        category: category || undefined,
+        budget: budget.trim() || undefined,
+        region: region.trim() || undefined,
+        contact_name: contactName.trim(),
+        contact_phone: contactPhone.trim() || undefined,
+      });
+      setSubmitting(false);
 
-    if (res.code === 200) {
-      navigate('/supply-demand', { state: { transition: 'push_back' } });
-    } else {
-      setError(res.message || '发布失败，请重试');
+      if (res.code === 200) {
+        navigate('/supply-demand', { state: { transition: 'push_back' } });
+      } else {
+        setError(res.message || '发布失败，请重试');
+      }
+    } catch (e: any) {
+      setSubmitting(false);
+      setError(e.message || '网络错误，请稍后重试');
     }
   };
 

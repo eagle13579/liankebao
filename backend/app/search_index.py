@@ -658,7 +658,8 @@ class MemorySearchEngine(SearchEngine):
         self.clear()
 
         products = db_session.query(Product).filter(
-            Product.status == "approved"
+            Product.status == "approved",
+            Product.is_deleted == False,
         ).all()
 
         for p in products:
@@ -768,7 +769,8 @@ class FTS5SearchEngine(SearchEngine):
         from app.models import Product
 
         products = db_session.query(Product).filter(
-            Product.status == "approved"
+            Product.status == "approved",
+            Product.is_deleted == False,
         ).all()
 
         raw_conn = db_session.connection().connection
@@ -940,7 +942,7 @@ class FTS5SearchEngine(SearchEngine):
 
                 # 简化：直接从数据库查
                 from app.models import Product
-                p_obj = db.query(Product).filter(Product.id == pid).first()
+                p_obj = db.query(Product).filter(Product.id == pid, Product.is_deleted == False).first()
                 region = ""
                 if p_obj and p_obj.specs:
                     try:

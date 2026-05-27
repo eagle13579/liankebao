@@ -1,0 +1,473 @@
+/* 会员中心样式 */
+.membership {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f0f9ff 0%, #ffffff 100%);
+}
+
+.ms-header {
+  display: flex;
+  align-items: center;
+  padding: 50px 16px 16px;
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+}
+
+.ms-back {
+  font-size: 22px;
+  color: #ffffff;
+  padding: 4px 8px 4px 0;
+}
+
+.ms-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-left: 8px;
+}
+
+.ms-body {
+  padding: 16px;
+}
+
+/* Loading skeleton */
+.ms-loading {
+  padding-top: 8px;
+}
+
+.ms-skel-banner {
+  height: 120px;
+  background: linear-gradient(135deg, #e0f2fe, #bae6fd);
+  border-radius: 16px;
+  margin-bottom: 20px;
+}
+
+.ms-skel-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.ms-skel-card {
+  flex: 0 0 calc(50% - 5px);
+  height: 160px;
+  background: #e2e8f0;
+  border-radius: 16px;
+}
+
+.ms-skel-benefits {
+  height: 140px;
+  background: #e2e8f0;
+  border-radius: 16px;
+}
+
+/* Error state */
+.ms-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+}
+
+.ms-error-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.ms-error-text {
+  font-size: 14px;
+  color: #64748b;
+  margin-bottom: 16px;
+}
+
+.ms-error-retry {
+  font-size: 14px;
+  color: #0ea5e9;
+  font-weight: 600;
+  padding: 8px 24px;
+  border: 1px solid #0ea5e9;
+  border-radius: 20px;
+}
+
+.ms-error-retry:active {
+  background: #f0f9ff;
+}
+
+/* Banner */
+.ms-banner {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 21/7;
+  border-radius: 16px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #0ea5e9, #0369a1, #1e40af);
+  margin-bottom: 20px;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+}
+
+.ms-banner-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 24px;
+}
+
+.ms-banner-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.ms-banner-icon {
+  font-size: 18px;
+}
+
+.ms-banner-label-text {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 700;
+}
+
+.ms-banner-level {
+  font-size: 28px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.ms-banner-desc {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 4px;
+}
+
+/* Sections */
+.ms-section {
+  margin-bottom: 20px;
+}
+
+.ms-section-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.ms-section-icon {
+  font-size: 14px;
+}
+
+.ms-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+/* Tier grid */
+.ms-tier-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ms-tier-card {
+  flex: 0 0 calc(50% - 5px);
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1.5px solid #e2e8f0;
+  padding: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  position: relative;
+}
+
+.ms-tier-card:active {
+  opacity: 0.9;
+}
+
+.ms-tier-current {
+  border-color: #0ea5e9;
+  background: #f0f9ff;
+}
+
+.ms-tier-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.ms-tier-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ms-tier-icon {
+  font-size: 18px;
+}
+
+.ms-tier-badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+.ms-tier-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a1a2e;
+  display: block;
+}
+
+.ms-tier-price {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0ea5e9;
+  display: block;
+  margin-top: 4px;
+}
+
+.ms-tier-features {
+  margin-top: 8px;
+}
+
+.ms-tier-feature {
+  display: block;
+  font-size: 10px;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.ms-tier-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px 0;
+  background: linear-gradient(135deg, #0ea5e9, #0284c7);
+  border-radius: 10px;
+  text-align: center;
+}
+
+.ms-tier-btn Text {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.ms-tier-btn:active {
+  opacity: 0.9;
+}
+
+.ms-tier-current-badge {
+  margin-top: 10px;
+  padding: 6px 0;
+  background: #e0f2fe;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.ms-tier-current-badge Text {
+  font-size: 11px;
+  font-weight: 600;
+  color: #0ea5e9;
+}
+
+/* Benefits */
+.ms-benefits-section {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #f1f5f9;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.ms-benefits-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ms-benefit-item {
+  flex: 0 0 calc(33.33% - 8px);
+  text-align: center;
+}
+
+.ms-benefit-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #f0f9ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 6px;
+}
+
+.ms-benefit-icon {
+  font-size: 18px;
+}
+
+.ms-benefit-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #334155;
+  display: block;
+}
+
+.ms-benefit-desc {
+  font-size: 9px;
+  color: #94a3b8;
+  display: block;
+  margin-top: 2px;
+}
+
+/* Entry cards */
+.ms-entry-card {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #f1f5f9;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.ms-entry-card:active {
+  transform: scale(0.98);
+  transition: transform 0.15s;
+}
+
+.ms-entry-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ms-entry-icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ms-entry-green {
+  background: #ecfdf5;
+}
+
+.ms-entry-amber {
+  background: #fffbeb;
+}
+
+.ms-entry-sky {
+  background: #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.ms-entry-icon {
+  font-size: 22px;
+}
+
+.ms-entry-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a1a2e;
+  display: block;
+}
+
+.ms-entry-title-sky {
+  color: #0ea5e9;
+}
+
+.ms-entry-desc {
+  font-size: 10px;
+  color: #94a3b8;
+  display: block;
+  margin-top: 2px;
+}
+
+.ms-entry-desc-sky {
+  color: rgba(14, 165, 233, 0.7);
+}
+
+.ms-entry-arrow {
+  font-size: 20px;
+  color: #cbd5e1;
+}
+
+.ms-entry-arrow-sky {
+  color: #38bdf8;
+}
+
+.ms-entry-recharge {
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  border-color: #bae6fd;
+}
+
+/* Commission section */
+.ms-commission-section {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #f1f5f9;
+  padding: 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.ms-commission-list {
+  margin-top: 4px;
+}
+
+.ms-commission-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #f8fafc;
+}
+
+.ms-commission-row:last-child {
+  border-bottom: none;
+}
+
+.ms-commission-level {
+  font-size: 13px;
+  font-weight: 500;
+  color: #475569;
+}
+
+.ms-commission-rate {
+  font-size: 13px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.ms-commission-slate {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.ms-commission-amber {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.ms-commission-sky {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.ms-commission-violet {
+  background: #ede9fe;
+  color: #6d28d9;
+}

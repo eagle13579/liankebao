@@ -37,10 +37,15 @@ os.environ.setdefault("SEARCH_BACKEND", "memory")
 # 创建测试用 SQLite 引擎（使用临时文件避免 :memory: 的跨连接隔离问题）
 # ------------------------------------------------------------
 import tempfile
-_TEST_DB_PATH = os.path.join(tempfile.gettempdir(), "chainke_test.db")
+import uuid
+_TEST_DB_NAME = f"chainke_test_{uuid.uuid4().hex[:8]}.db"
+_TEST_DB_PATH = os.path.join(tempfile.gettempdir(), _TEST_DB_NAME)
 # 确保没有旧文件残留
 if os.path.exists(_TEST_DB_PATH):
-    os.remove(_TEST_DB_PATH)
+    try:
+        os.remove(_TEST_DB_PATH)
+    except PermissionError:
+        pass
 TEST_ENGINE = create_engine(
     f"sqlite:///{_TEST_DB_PATH}",
     connect_args={"check_same_thread": False},

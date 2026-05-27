@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, Wallet, Loader2, CheckCircle2, XCircle,
@@ -66,7 +66,7 @@ interface WindowWithWx extends Window {
 
 // ─────────────────── Page: RechargeAmountPage ───────────────────
 
-export function RechargeAmountPage() {
+export const RechargeAmountPage = React.memo(function RechargeAmountPage() {
   const navigate = useNavigate();
   const [balanceData, setBalanceData] = useState<RechargeBalanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -207,7 +207,7 @@ export function RechargeAmountPage() {
       </main>
     </div>
   );
-}
+});
 
 // ─────────────────── Page: RechargePaymentPage ───────────────────
 

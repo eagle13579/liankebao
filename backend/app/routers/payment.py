@@ -98,7 +98,7 @@ def _get_alipay_api() -> AliPayApi:
 
 async def _check_order_ownership(order_id: int, user: User, db: Session) -> Order:
     """检查订单所有权并返回订单"""
-    order = db.query(Order).filter(Order.id == order_id).first()
+    order = db.query(Order).filter(Order.id == order_id, Order.is_deleted == False).first()
     if not order:
         raise HTTPException(status_code=404, detail="订单不存在")
     if order.user_id != user.id and user.role != "admin":
@@ -123,7 +123,7 @@ async def wxpay_unified_order(
     若配置不完整或调用失败，降级为 mock 模式。
     """
     order = await _check_order_ownership(req.order_id, current_user, db)
-    product = db.query(Product).filter(Product.id == order.product_id).first()
+    product = db.query(Product).filter(Product.id == order.product_id, Product.is_deleted == False).first()
 
     if order.status != "pending":
         raise HTTPException(status_code=400, detail="订单不是待支付状态")
@@ -264,7 +264,7 @@ async def wxpay_callback(
         order_id = None
 
     if order_id:
-        order = db.query(Order).filter(Order.id == order_id).first()
+        order = db.query(Order).filter(Order.id == order_id, Order.is_deleted == False).first()
         if order and order.status == "pending":
             order.status = "paid"
             order.transaction_id = transaction_id
@@ -284,6 +284,7 @@ async def wxpay_callback(
     order = db.query(Order).filter(
         Order.status == "pending",
         Order.prepay_id.isnot(None),
+        Order.is_deleted == False,
     ).order_by(Order.id.desc()).first()
     if order:
         order.status = "paid"
@@ -330,7 +331,8 @@ async def wxpay_query(
     order = db.query(Order).filter(
         (Order.id == order_no.replace("LK", "").split(".")[0]) |
         (Order.wx_transaction_id == order_no) |
-        (Order.transaction_id == order_no)
+        (Order.transaction_id == order_no),
+        Order.is_deleted == False,
     ).first()
 
     if order:
@@ -354,7 +356,7 @@ async def wxpay_refund(
     current_user: User = Depends(get_current_user),
 ):
     """微信退款"""
-    order = db.query(Order).filter(Order.id == req.order_id).first()
+    order = db.query(Order).filter(Order.id == req.order_id, Order.is_deleted == False).first()
     if not order:
         raise HTTPException(status_code=404, detail="订单不存在")
 
@@ -429,7 +431,7 @@ async def alipay_unified_order(
 ):
     """支付宝统一下单 (APP 支付)"""
     order = await _check_order_ownership(req.order_id, current_user, db)
-    product = db.query(Product).filter(Product.id == order.product_id).first()
+    product = db.query(Product).filter(Product.id == order.product_id, Product.is_deleted == False).first()
 
     if order.status != "pending":
         raise HTTPException(status_code=400, detail="订单不是待支付状态")
