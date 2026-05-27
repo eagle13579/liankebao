@@ -1,27 +1,35 @@
 """认证路由：登录/注册/微信登录/获取当前用户 + JWT加固"""
+
+import logging
 import os
 import re
-import logging
-from datetime import datetime, timedelta
 from collections import defaultdict
-from typing import Dict, List
+from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from sqlalchemy.orm import Session
 import httpx
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
+from app.auth import (
+    add_token_to_blacklist,
+    create_access_token,
+    create_refresh_token,
+    get_current_user,
+    hash_password,
+    verify_password,
+    verify_token,
+)
 from app.database import get_db
 from app.models import User
 from app.schemas import (
-    ApiResponse, LoginRequest, RegisterRequest, TokenResponse,
-    UserResponse, WechatLoginRequest, RefreshTokenRequest,
-)
-from app.auth import (
-    verify_password, hash_password, create_access_token,
-    create_refresh_token, verify_token, add_token_to_blacklist,
-    get_current_user, ACCESS_TOKEN_EXPIRE_MINUTES,
+    ApiResponse,
+    LoginRequest,
+    RefreshTokenRequest,
+    RegisterRequest,
+    UserResponse,
+    WechatLoginRequest,
 )
 
 router = APIRouter(prefix="/api/auth", tags=["认证"])
@@ -45,9 +53,9 @@ WECHAT_LOGIN_URL = "https://api.weixin.qq.com/sns/jscode2session"
 
 # ===== 登录频率限制 =====
 # 同一IP 5分钟内最多10次登录尝试
-_LOGIN_RATE_LIMIT = 10           # 最大尝试次数
-_LOGIN_RATE_WINDOW = 300         # 时间窗口（秒）= 5分钟
-_login_attempts: Dict[str, List[datetime]] = defaultdict(list)
+_LOGIN_RATE_LIMIT = 10  # 最大尝试次数
+_LOGIN_RATE_WINDOW = 300  # 时间窗口（秒）= 5分钟
+_login_attempts: dict[str, list[datetime]] = defaultdict(list)
 
 
 def _check_login_rate_limit(ip: str) -> None:
@@ -77,8 +85,8 @@ def _get_client_ip(request: Request) -> str:
 
 
 # ===== 邮箱/手机号正则 =====
-_EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-_PHONE_RE = re.compile(r'^1[3-9]\d{9}$')
+_EMAIL_RE = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+_PHONE_RE = re.compile(r"^1[3-9]\d{9}$")
 
 
 def _validate_email_or_phone(value: str) -> bool:
@@ -90,6 +98,7 @@ def _validate_email_or_phone(value: str) -> bool:
 
 
 # ===== API 端点 =====
+
 
 @router.post("/login", response_model=ApiResponse)
 def login(

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, memo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, Wallet, Loader2, CheckCircle2, XCircle,
@@ -66,7 +66,7 @@ interface WindowWithWx extends Window {
 
 // ─────────────────── Page: RechargeAmountPage ───────────────────
 
-export const RechargeAmountPage = React.memo(function RechargeAmountPage() {
+export const RechargeAmountPage = memo(function RechargeAmountPage() {
   const navigate = useNavigate();
   const [balanceData, setBalanceData] = useState<RechargeBalanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -411,7 +411,7 @@ export function RechargePaymentPage() {
         </div>
 
         {/* 支付方式选择 */}
-        {(status === 'failed' || status === 'error' || status === 'preparing') && status !== 'waiting' && (
+        {(status === 'failed' || status === 'error' || status === 'preparing') && (
           <div className="w-full mt-6">
             <h3 className="font-bold text-on-surface text-sm mb-3">选择支付方式</h3>
             <div className="space-y-2">

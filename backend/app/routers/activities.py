@@ -1,15 +1,15 @@
 """活动时间线路由：联系人的活动列表/添加"""
+
 import logging
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
 from sqlalchemy import desc
+from sqlalchemy.orm import Session
 
-from app.database import get_db
-from app.models import User, Contact, Activity
-from app.schemas import ApiResponse, ActivityCreate, ActivityResponse
 from app.auth import get_current_user
+from app.database import get_db
+from app.models import Activity, Contact, User
+from app.schemas import ActivityCreate, ActivityResponse, ApiResponse
 
 logger = logging.getLogger(__name__)
 
@@ -18,11 +18,15 @@ router = APIRouter(prefix="/api/contacts", tags=["联系人活动"])
 
 def _get_contact_or_404(contact_id: int, user_id: int, db: Session) -> Contact:
     """获取联系人并校验所有权，不存在则抛 404"""
-    contact = db.query(Contact).filter(
-        Contact.id == contact_id,
-        Contact.owner_id == user_id,
-        Contact.is_deleted == False,
-    ).first()
+    contact = (
+        db.query(Contact)
+        .filter(
+            Contact.id == contact_id,
+            Contact.owner_id == user_id,
+            Contact.is_deleted == False,
+        )
+        .first()
+    )
     if not contact:
         raise HTTPException(status_code=404, detail="联系人不存在")
     return contact
@@ -45,12 +49,7 @@ def list_activities(
         Activity.is_deleted == False,
     )
     total = query.count()
-    activities = (
-        query.order_by(desc(Activity.created_at))
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-        .all()
-    )
+    activities = query.order_by(desc(Activity.created_at)).offset((page - 1) * page_size).limit(page_size).all()
     items = [ActivityResponse.model_validate(a) for a in activities]
     return {
         "code": 200,

@@ -11,31 +11,34 @@
 - 分类列表
 - 搜索引擎重建 + 状态
 """
-import json
+
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
-
 
 # ============================================================
 # MemorySearchEngine 单元测试 — 含parametrize
 # ============================================================
 
+
 class TestMemorySearchEngineUnit:
     """MemorySearchEngine 单元测试"""
 
     # ---- 分词参数化测试 ----
-    @pytest.mark.parametrize("text,expected_tokens", [
-        ("测试产品", ["测试", "产品", "测试产品"]),
-        ("中文搜索", ["中文", "搜索", "中文搜索"]),
-        ("hello world", ["hello", "world"]),
-        ("ABC-123", ["abc", "123"]),
-        ("", []),
-        ("a", []),  # 单字符不加入
-    ])
+    @pytest.mark.parametrize(
+        "text,expected_tokens",
+        [
+            ("测试产品", ["测试", "产品", "测试产品"]),
+            ("中文搜索", ["中文", "搜索", "中文搜索"]),
+            ("hello world", ["hello", "world"]),
+            ("ABC-123", ["abc", "123"]),
+            ("", []),
+            ("a", []),  # 单字符不加入
+        ],
+    )
     def test_tokenize_param(self, text, expected_tokens):
         """参数化：多种文本分词结果"""
         from app.search_index import simple_tokenize
+
         tokens = simple_tokenize(text)
         for t in expected_tokens:
             assert t in tokens, f"'{t}' 应在分词结果 {tokens} 中"
@@ -44,6 +47,7 @@ class TestMemorySearchEngineUnit:
     def test_memory_engine_add_and_search_param(self, query):
         """参数化：多个查询词的搜索"""
         from app.search_index import MemorySearchEngine
+
         engine = MemorySearchEngine()
         engine.add_document(
             doc_id=1,
@@ -59,18 +63,22 @@ class TestMemorySearchEngineUnit:
         if result["total"] > 0:
             assert result["items"][0]["score"] > 0
 
-    @pytest.mark.parametrize("page,page_size,expected_len", [
-        (1, 5, 5),
-        (2, 5, 5),
-        (3, 5, 5),
-        (4, 5, 5),
-        (1, 10, 10),
-        (1, 20, 20),
-        (3, 7, 6),  # 最后一页6条
-    ])
+    @pytest.mark.parametrize(
+        "page,page_size,expected_len",
+        [
+            (1, 5, 5),
+            (2, 5, 5),
+            (3, 5, 5),
+            (4, 5, 5),
+            (1, 10, 10),
+            (1, 20, 20),
+            (3, 7, 6),  # 最后一页6条
+        ],
+    )
     def test_memory_engine_pagination_param(self, page, page_size, expected_len):
         """参数化：分页边界测试"""
         from app.search_index import MemorySearchEngine
+
         engine = MemorySearchEngine()
         for i in range(1, 21):
             engine.add_document(doc_id=i, title=f"产品{i}号", content="测试产品描述")
@@ -80,14 +88,33 @@ class TestMemorySearchEngineUnit:
         assert result["page"] == page
         assert result["page_size"] == page_size
 
-    @pytest.mark.parametrize("sort_by,check_fn", [
-        ("relevance", lambda items: all(items[i]["score"] >= items[i+1]["score"] for i in range(len(items)-1)) if len(items) >= 2 else True),
-        ("price_asc", lambda items: all(items[i]["price"] <= items[i+1]["price"] for i in range(len(items)-1)) if len(items) >= 2 else True),
-        ("price_desc", lambda items: all(items[i]["price"] >= items[i+1]["price"] for i in range(len(items)-1)) if len(items) >= 2 else True),
-    ])
+    @pytest.mark.parametrize(
+        "sort_by,check_fn",
+        [
+            (
+                "relevance",
+                lambda items: all(items[i]["score"] >= items[i + 1]["score"] for i in range(len(items) - 1))
+                if len(items) >= 2
+                else True,
+            ),
+            (
+                "price_asc",
+                lambda items: all(items[i]["price"] <= items[i + 1]["price"] for i in range(len(items) - 1))
+                if len(items) >= 2
+                else True,
+            ),
+            (
+                "price_desc",
+                lambda items: all(items[i]["price"] >= items[i + 1]["price"] for i in range(len(items) - 1))
+                if len(items) >= 2
+                else True,
+            ),
+        ],
+    )
     def test_memory_engine_sort_param(self, sort_by, check_fn):
         """参数化：多种排序方式验证"""
         from app.search_index import MemorySearchEngine
+
         engine = MemorySearchEngine()
         engine.add_document(doc_id=1, title="便宜产品", price=10.00)
         engine.add_document(doc_id=2, title="贵产品", price=100.00)
@@ -98,6 +125,7 @@ class TestMemorySearchEngineUnit:
     # ---- 原始单测保留 ----
     def test_tokenize_simple(self):
         from app.search_index import simple_tokenize
+
         tokens = simple_tokenize("测试产品")
         assert isinstance(tokens, list)
         assert len(tokens) > 0
@@ -106,10 +134,12 @@ class TestMemorySearchEngineUnit:
 
     def test_jieba_tokenize_available(self):
         from app.search_index import JIEBA_AVAILABLE
+
         assert isinstance(JIEBA_AVAILABLE, bool)
 
     def test_memory_engine_add_and_search(self):
         from app.search_index import MemorySearchEngine
+
         engine = MemorySearchEngine()
         engine.add_document(
             doc_id=1,
@@ -127,6 +157,7 @@ class TestMemorySearchEngineUnit:
 
     def test_memory_engine_no_results(self):
         from app.search_index import MemorySearchEngine
+
         engine = MemorySearchEngine()
         engine.add_document(doc_id=1, title="产品A")
         result = engine.search(query="不存在的关键词")
@@ -135,6 +166,7 @@ class TestMemorySearchEngineUnit:
 
     def test_memory_engine_empty_query(self):
         from app.search_index import MemorySearchEngine
+
         engine = MemorySearchEngine()
         engine.add_document(doc_id=1, title="产品A")
         result = engine.search(query="")
@@ -142,6 +174,7 @@ class TestMemorySearchEngineUnit:
 
     def test_memory_engine_pagination(self):
         from app.search_index import MemorySearchEngine
+
         engine = MemorySearchEngine()
         for i in range(1, 21):
             engine.add_document(doc_id=i, title=f"产品{i}号", content="测试产品描述")
@@ -157,6 +190,7 @@ class TestMemorySearchEngineUnit:
 
     def test_memory_engine_sort_relevance(self):
         from app.search_index import MemorySearchEngine
+
         engine = MemorySearchEngine()
         engine.add_document(doc_id=1, title="测试产品", content="描述文本")
         engine.add_document(doc_id=2, title="其他商品", content="这里提到了测试产品")
@@ -167,6 +201,7 @@ class TestMemorySearchEngineUnit:
 
     def test_memory_engine_sort_price(self):
         from app.search_index import MemorySearchEngine
+
         engine = MemorySearchEngine()
         engine.add_document(doc_id=1, title="便宜产品", price=10.00)
         engine.add_document(doc_id=2, title="贵产品", price=100.00)
@@ -180,6 +215,7 @@ class TestMemorySearchEngineUnit:
 
     def test_memory_engine_filters(self):
         from app.search_index import MemorySearchEngine
+
         engine = MemorySearchEngine()
         engine.add_document(doc_id=1, title="手机", category="电子产品", price=5000)
         engine.add_document(doc_id=2, title="苹果", category="食品", price=10)
@@ -194,6 +230,7 @@ class TestMemorySearchEngineUnit:
 
     def test_memory_engine_highlight(self):
         from app.search_index import highlight_text, highlight_title
+
         hl = highlight_text("这是一个测试产品的描述文本", "测试产品")
         assert "<em>" in hl
         assert "</em>" in hl
@@ -203,6 +240,7 @@ class TestMemorySearchEngineUnit:
 
     def test_memory_engine_suggest(self):
         from app.search_index import MemorySearchEngine
+
         engine = MemorySearchEngine()
         engine.add_document(doc_id=1, title="测试手机")
         engine.add_document(doc_id=2, title="测试电脑")
@@ -214,6 +252,7 @@ class TestMemorySearchEngineUnit:
 
     def test_memory_engine_remove_and_clear(self):
         from app.search_index import MemorySearchEngine
+
         engine = MemorySearchEngine()
         engine.add_document(doc_id=1, title="测试产品")
         assert engine.size == 1
@@ -225,6 +264,7 @@ class TestMemorySearchEngineUnit:
 
     def test_memory_engine_stats(self):
         from app.search_index import MemorySearchEngine
+
         engine = MemorySearchEngine()
         engine.add_document(doc_id=1, title="测试产品")
         stats = engine.stats
@@ -234,6 +274,7 @@ class TestMemorySearchEngineUnit:
 
     def test_score_computation(self):
         from app.search_index import MemorySearchEngine
+
         engine = MemorySearchEngine()
         engine.add_document(doc_id=1, title="测试产品", content="描述")
         engine.add_document(doc_id=2, title="其他", content="测试产品描述")
@@ -245,6 +286,7 @@ class TestMemorySearchEngineUnit:
     def test_fts5_engine_init(self):
         """FTS5引擎初始化不报错"""
         from app.search_index import FTS5SearchEngine
+
         engine = FTS5SearchEngine()
         assert engine is not None
         assert engine.FTS_TABLE_NAME == "product_fts"
@@ -252,19 +294,24 @@ class TestMemorySearchEngineUnit:
     def test_fts5_search_empty(self):
         """FTS5空搜索返回空结果"""
         from app.search_index import FTS5SearchEngine
+
         engine = FTS5SearchEngine()
         result = engine.search(query="")
         assert result["total"] == 0
         assert result["items"] == []
 
-    @pytest.mark.parametrize("prefix,expected_min", [
-        ("测", 1),
-        ("测试", 2),
-        ("ZZZZ", 0),
-    ])
+    @pytest.mark.parametrize(
+        "prefix,expected_min",
+        [
+            ("测", 1),
+            ("测试", 2),
+            ("ZZZZ", 0),
+        ],
+    )
     def test_suggest_param(self, prefix, expected_min):
         """参数化：多种前缀建议"""
         from app.search_index import MemorySearchEngine
+
         engine = MemorySearchEngine()
         engine.add_document(doc_id=1, title="测试手机")
         engine.add_document(doc_id=2, title="测试电脑")
@@ -275,6 +322,7 @@ class TestMemorySearchEngineUnit:
 # ============================================================
 # /api/search 路由集成测试 — 含parametrize
 # ============================================================
+
 
 class TestSearchRoute:
     """搜索路由集成测试"""
@@ -287,21 +335,24 @@ class TestSearchRoute:
         client.get(f"{self.SEARCH_URL}/rebuild")
         yield
 
-    @pytest.mark.parametrize("params,desc", [
-        ({"q": "测试产品"}, "按产品名称搜索"),
-        ({"q": "测试产品A"}, "精确名称搜索"),
-        ({"category": "电子产品"}, "分类筛选"),
-        ({"q": "测试", "category": "电子产品"}, "关键词+分类"),
-        ({"min_price": 50, "max_price": 150}, "价格区间"),
-        ({"q": "测试", "sort_by": "price_asc"}, "价格升序"),
-        ({"q": "测试", "sort_by": "price_desc"}, "价格降序"),
-        ({"q": "测试", "sort_by": "newest"}, "最新排序"),
-        ({"q": "测试", "page": 1, "page_size": 1}, "分页"),
-        ({"q": "ZZZZNOTEXISTZZZZ"}, "无结果搜索"),
-        ({"q": "测试产品", "highlight": True}, "高亮搜索"),
-        ({"q": ""}, "空搜索词"),
-        ({"sort_by": "invalid_sort"}, "无效排序降级"),
-    ])
+    @pytest.mark.parametrize(
+        "params,desc",
+        [
+            ({"q": "测试产品"}, "按产品名称搜索"),
+            ({"q": "测试产品A"}, "精确名称搜索"),
+            ({"category": "电子产品"}, "分类筛选"),
+            ({"q": "测试", "category": "电子产品"}, "关键词+分类"),
+            ({"min_price": 50, "max_price": 150}, "价格区间"),
+            ({"q": "测试", "sort_by": "price_asc"}, "价格升序"),
+            ({"q": "测试", "sort_by": "price_desc"}, "价格降序"),
+            ({"q": "测试", "sort_by": "newest"}, "最新排序"),
+            ({"q": "测试", "page": 1, "page_size": 1}, "分页"),
+            ({"q": "ZZZZNOTEXISTZZZZ"}, "无结果搜索"),
+            ({"q": "测试产品", "highlight": True}, "高亮搜索"),
+            ({"q": ""}, "空搜索词"),
+            ({"sort_by": "invalid_sort"}, "无效排序降级"),
+        ],
+    )
     def test_search_param(self, client, params, desc):
         """参数化：多种搜索场景"""
         resp = client.get(self.SEARCH_URL, params=params)

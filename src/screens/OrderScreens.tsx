@@ -1,18 +1,18 @@
-import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, MapPin, ChevronRight, FileText, Wallet, CheckCircle2, TrendingUp, Home, ShoppingBag, Receipt, User, MoreHorizontal, Star, Search, Loader2, XCircle } from 'lucide-react';
-import { useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, MapPin, ChevronRight, FileText, Wallet, CheckCircle2, TrendingUp, Home, ShoppingBag, Receipt, User, MoreHorizontal, Star, Search, Loader2, XCircle, Link as LinkIcon } from 'lucide-react';
+import { useState, memo } from 'react';
 import { api } from '../api/client';
 import { paymentApi } from '../api/payment';
 import { OrderItem } from '../types';
 import { Loading, ErrorBlock, Empty, useApi } from '../components/StatusComponents';
 
-export const OrderConfirmation = React.memo(function OrderConfirmation() {
+export const OrderConfirmation = memo(function OrderConfirmation() {
   const navigate = useNavigate();
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState('');
 
   // 模拟订单号 — 真实场景应从创建订单API获取
-  const mockOrderNo = 'ORD' + Date.now();
+  const mockOrderNo = Date.now();
   const totalAmount = '298.00';
 
   const handlePay = async () => {
@@ -75,7 +75,7 @@ export const OrderConfirmation = React.memo(function OrderConfirmation() {
         </section>
 
         <section className="bg-white rounded-2xl border border-border-light p-4 space-y-2">
-          <label className="text-xs font-bold text-on-surface flex items-center gap-1"><Link className="w-4 h-4" to="#" />订单备注</label>
+          <label className="text-xs font-bold text-on-surface flex items-center gap-1"><LinkIcon className="w-4 h-4" />订单备注</label>
           <input className="w-full h-12 bg-neutral-bg border-none rounded-xl px-4 text-sm focus:ring-1 focus:ring-primary-container" placeholder="订单备注（选填）" />
         </section>
 
@@ -115,7 +115,7 @@ export const OrderConfirmation = React.memo(function OrderConfirmation() {
   );
 });
 
-export const PaymentSuccessScreens = React.memo(function PaymentSuccessScreens() {
+export const PaymentSuccessScreens = memo(function PaymentSuccessScreens() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const orderNo = searchParams.get('order_no') || 'ORD20260425001';
@@ -161,7 +161,7 @@ const statusLabelMap: Record<string, string> = {
   paid: '已支付',
 };
 
-export const MyOrders = React.memo(function MyOrders() {
+export const MyOrders = memo(function MyOrders() {
   const navigate = useNavigate();
   const [tab, setTab] = useState('全部');
 
@@ -262,7 +262,7 @@ export const MyOrders = React.memo(function MyOrders() {
   );
 });
 
-export const OrderManagement = React.memo(function OrderManagement() {
+export const OrderManagement = memo(function OrderManagement() {
   const navigate = useNavigate();
 
   const { data: orders, status, error, refetch } = useApi(

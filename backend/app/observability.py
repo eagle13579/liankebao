@@ -7,11 +7,11 @@
 - get_system_info(): 获取CPU/内存/磁盘/运行时长等系统信息
 - check_db_health(): 数据库连接健康检查
 """
-import os
-import time
+
 import logging
+import os
 import threading
-from datetime import datetime, timezone
+import time
 from collections import defaultdict, deque
 
 logger = logging.getLogger(__name__)
@@ -43,8 +43,8 @@ class MetricsCollector:
     def __init__(self, max_response_times: int = 10000):
         self._lock = threading.Lock()
         self._total_requests = 0
-        self._total_errors = 0       # status >= 400
-        self._total_5xx = 0          # status >= 500
+        self._total_errors = 0  # status >= 400
+        self._total_5xx = 0  # status >= 500
         self._response_times: deque = deque(maxlen=max_response_times)
         self._requests_by_path: dict = defaultdict(int)
         self._requests_by_status: dict = defaultdict(int)
@@ -108,9 +108,7 @@ class MetricsCollector:
                 "total_requests": self._total_requests,
                 "total_errors": self._total_errors,
                 "total_5xx": self._total_5xx,
-                "error_rate": round(
-                    self._total_errors / max(self._total_requests, 1) * 100, 2
-                ),
+                "error_rate": round(self._total_errors / max(self._total_requests, 1) * 100, 2),
                 "response_time": resp_time_stats,
                 "requests_by_path": dict(self._requests_by_path),
                 "requests_by_status": dict(self._requests_by_status),
@@ -162,19 +160,19 @@ def get_system_info() -> dict:
 
     # ---- 系统负载（仅 Linux） ----
     try:
-        with open("/proc/loadavg", "r") as f:
+        with open("/proc/loadavg") as f:
             parts = f.read().strip().split()
             info["load_avg"] = {
                 "1min": float(parts[0]),
                 "5min": float(parts[1]),
                 "15min": float(parts[2]),
             }
-    except (FileNotFoundError, IOError, IndexError):
+    except (OSError, FileNotFoundError, IndexError):
         pass
 
     # ---- 内存信息（仅 Linux /proc/meminfo） ----
     try:
-        with open("/proc/meminfo", "r") as f:
+        with open("/proc/meminfo") as f:
             meminfo = {}
             for line in f:
                 try:
@@ -185,32 +183,27 @@ def get_system_info() -> dict:
                     pass
 
         mem_total = meminfo.get("MemTotal", 0)
-        mem_avail = meminfo.get(
-            "MemAvailable", meminfo.get("MemFree", 0)
-        )
+        mem_avail = meminfo.get("MemAvailable", meminfo.get("MemFree", 0))
         mem_used = mem_total - mem_avail
         info["memory"] = {
             "total_bytes": mem_total,
             "used_bytes": mem_used,
             "available_bytes": mem_avail,
-            "used_percent": round(
-                (mem_used / mem_total) * 100, 1
-            ) if mem_total > 0 else 0,
+            "used_percent": round((mem_used / mem_total) * 100, 1) if mem_total > 0 else 0,
         }
-    except (FileNotFoundError, IOError):
+    except (OSError, FileNotFoundError):
         pass
 
     # ---- 磁盘信息（跨平台） ----
     try:
         import shutil
+
         usage = shutil.disk_usage("/")
         info["disk"] = {
             "total_bytes": usage.total,
             "used_bytes": usage.used,
             "free_bytes": usage.free,
-            "used_percent": round(
-                (usage.used / usage.total) * 100, 1
-            ) if usage.total > 0 else 0,
+            "used_percent": round((usage.used / usage.total) * 100, 1) if usage.total > 0 else 0,
         }
     except (ImportError, OSError):
         pass
@@ -232,6 +225,7 @@ def _get_hostname() -> str:
     except AttributeError:
         try:
             import socket
+
             return socket.gethostname()
         except Exception:
             return "unknown"
@@ -261,7 +255,7 @@ def check_db_health() -> dict:
     Returns:
         {"status": "healthy"|"unhealthy", "type": "sqlite"|"mysql"|"postgres", "error": "..."}
     """
-    from app.database import engine, DB_TYPE
+    from app.database import DB_TYPE, engine
 
     try:
         with engine.connect() as conn:

@@ -19,13 +19,14 @@
   - 搜索结果高亮
   - 搜索建议/补全
 """
-import re
-import os
+
 import json
 import logging
+import os
+import re
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional, Tuple
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,7 @@ USE_JIEBA = os.environ.get("USE_JIEBA", "1") == "1"
 # ======================================================================
 try:
     import jieba
+
     JIEBA_AVAILABLE = True
     # 加载自定义词典（如果存在）
     _dict_path = os.path.join(os.path.dirname(__file__), "dict.txt")
@@ -52,7 +54,7 @@ except ImportError:
         logger.warning("jieba 未安装，回退到简单分词器。安装: pip install jieba")
 
 
-def simple_tokenize(text: str) -> List[str]:
+def simple_tokenize(text: str) -> list[str]:
     """简化中文分词（向后兼容）
 
     策略:
@@ -65,7 +67,7 @@ def simple_tokenize(text: str) -> List[str]:
         return []
     tokens = set()
     # 提取中文单字
-    chinese_chars = re.findall(r'[\u4e00-\u9fff]', text)
+    chinese_chars = re.findall(r"[\u4e00-\u9fff]", text)
     for c in chinese_chars:
         tokens.add(c)
     # 提取双字组合（中文二元语法）
@@ -73,10 +75,10 @@ def simple_tokenize(text: str) -> List[str]:
         bigram = chinese_chars[i] + chinese_chars[i + 1]
         tokens.add(bigram)
     # 提取纯英文/数字单词（从混合文本中提取）
-    for word in re.findall(r'[a-zA-Z0-9]{2,}', text):
+    for word in re.findall(r"[a-zA-Z0-9]{2,}", text):
         tokens.add(word.lower())
     # 也按空白/标点拆分的完整部分
-    for part in re.split(r'[,\s;:、，。；：\s]+', text):
+    for part in re.split(r"[,\s;:、，。；：\s]+", text):
         part = part.strip()
         if part and len(part) >= 2:
             tokens.add(part.lower())
@@ -86,7 +88,7 @@ def simple_tokenize(text: str) -> List[str]:
     return list(tokens)
 
 
-def jieba_tokenize(text: str) -> List[str]:
+def jieba_tokenize(text: str) -> list[str]:
     """jieba 中文分词"""
     if not text:
         return []
@@ -98,7 +100,7 @@ def jieba_tokenize(text: str) -> List[str]:
         if w:
             tokens.add(w)
     # 补充英文/数字 token
-    for w in re.findall(r'[a-zA-Z0-9]{2,}', text):
+    for w in re.findall(r"[a-zA-Z0-9]{2,}", text):
         tokens.add(w.lower())
     # 补充完整原文（短文本时）
     if len(text) <= 100:
@@ -106,14 +108,14 @@ def jieba_tokenize(text: str) -> List[str]:
     return list(tokens)
 
 
-def tokenize(text: str) -> List[str]:
+def tokenize(text: str) -> list[str]:
     """智能分词：优先 jieba，回退 simple"""
     if USE_JIEBA and JIEBA_AVAILABLE:
         return jieba_tokenize(text)
     return simple_tokenize(text)
 
 
-def tokenize_query(text: str) -> List[str]:
+def tokenize_query(text: str) -> list[str]:
     """查询分词（与索引分词一致）"""
     return tokenize(text)
 
@@ -121,6 +123,7 @@ def tokenize_query(text: str) -> List[str]:
 # ======================================================================
 # 搜索结果高亮
 # ======================================================================
+
 
 def highlight_text(
     text: str,
@@ -207,6 +210,7 @@ def highlight_title(title: str, query: str) -> str:
 # 引擎接口
 # ======================================================================
 
+
 class SearchEngine(ABC):
     """搜索引擎抽象接口"""
 
@@ -217,8 +221,8 @@ class SearchEngine(ABC):
         page: int = 1,
         page_size: int = 20,
         sort_by: str = "relevance",
-        filters: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        filters: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """搜索
 
         Args:
@@ -240,7 +244,7 @@ class SearchEngine(ABC):
         ...
 
     @abstractmethod
-    def suggest(self, prefix: str, limit: int = 10) -> List[str]:
+    def suggest(self, prefix: str, limit: int = 10) -> list[str]:
         """搜索建议"""
         ...
 
@@ -282,7 +286,7 @@ class SearchEngine(ABC):
 
     @property
     @abstractmethod
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         """索引统计"""
         ...
 
@@ -291,9 +295,11 @@ class SearchEngine(ABC):
 # MemorySearchEngine — 内存倒排索引 + jieba 分词
 # ======================================================================
 
+
 @dataclass
 class SearchDocument:
     """搜索文档"""
+
     doc_id: int
     title: str = ""
     content: str = ""
@@ -302,7 +308,7 @@ class SearchDocument:
     region: str = ""
     tags: str = ""
     brand: str = ""
-    created_at: Optional[str] = None
+    created_at: str | None = None
 
 
 class MemorySearchEngine(SearchEngine):
@@ -313,8 +319,8 @@ class MemorySearchEngine(SearchEngine):
     """
 
     def __init__(self):
-        self._documents: Dict[int, SearchDocument] = {}
-        self._inverted_index: Dict[str, List[int]] = {}  # token -> [doc_id, ...]
+        self._documents: dict[int, SearchDocument] = {}
+        self._inverted_index: dict[str, list[int]] = {}  # token -> [doc_id, ...]
         self._dirty = False
 
     # ---- 文档管理 ----
@@ -369,12 +375,12 @@ class MemorySearchEngine(SearchEngine):
 
     def _index_document(self, doc: SearchDocument) -> None:
         fields = {
-            'title': doc.title,
-            'content': doc.content,
-            'category': doc.category,
-            'region': doc.region,
-            'tags': doc.tags,
-            'brand': doc.brand,
+            "title": doc.title,
+            "content": doc.content,
+            "category": doc.category,
+            "region": doc.region,
+            "tags": doc.tags,
+            "brand": doc.brand,
         }
 
         for field, text in fields.items():
@@ -404,7 +410,7 @@ class MemorySearchEngine(SearchEngine):
         self,
         doc: SearchDocument,
         query: str,
-        query_tokens: List[str],
+        query_tokens: list[str],
     ) -> float:
         """计算相关性分数
 
@@ -487,8 +493,8 @@ class MemorySearchEngine(SearchEngine):
         page: int = 1,
         page_size: int = 20,
         sort_by: str = "relevance",
-        filters: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        filters: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """搜索"""
         result = {
             "items": [],
@@ -508,7 +514,7 @@ class MemorySearchEngine(SearchEngine):
         filters = filters or {}
 
         # 收集匹配文档并计算分数
-        matched: Dict[int, float] = {}
+        matched: dict[int, float] = {}
 
         for token in query_tokens:
             doc_ids = self._inverted_index.get(token, [])
@@ -541,7 +547,7 @@ class MemorySearchEngine(SearchEngine):
         # 分页
         total = len(sorted_items)
         offset = (page - 1) * page_size
-        page_items = sorted_items[offset:offset + page_size]
+        page_items = sorted_items[offset : offset + page_size]
 
         # 构造结果
         items = []
@@ -553,7 +559,7 @@ class MemorySearchEngine(SearchEngine):
         result["total"] = total
         return result
 
-    def _match_filters(self, doc: SearchDocument, filters: Dict[str, Any]) -> bool:
+    def _match_filters(self, doc: SearchDocument, filters: dict[str, Any]) -> bool:
         """过滤器匹配"""
         if "category" in filters and filters["category"]:
             cat = filters["category"].strip()
@@ -577,9 +583,9 @@ class MemorySearchEngine(SearchEngine):
 
     def _sort_results(
         self,
-        matched: Dict[int, float],
+        matched: dict[int, float],
         sort_by: str,
-    ) -> List[Tuple[int, float]]:
+    ) -> list[tuple[int, float]]:
         """排序"""
         items = list(matched.items())
 
@@ -600,7 +606,7 @@ class MemorySearchEngine(SearchEngine):
 
         return items
 
-    def _format_result(self, doc: SearchDocument, score: float, query: str) -> Dict[str, Any]:
+    def _format_result(self, doc: SearchDocument, score: float, query: str) -> dict[str, Any]:
         """格式化搜索结果"""
         # 生成高亮标题和描述
         hl_title = highlight_title(doc.title, query)
@@ -622,7 +628,7 @@ class MemorySearchEngine(SearchEngine):
 
     # ---- 搜索建议 ----
 
-    def suggest(self, prefix: str, limit: int = 10) -> List[str]:
+    def suggest(self, prefix: str, limit: int = 10) -> list[str]:
         if not prefix or not prefix.strip():
             return []
 
@@ -657,10 +663,14 @@ class MemorySearchEngine(SearchEngine):
 
         self.clear()
 
-        products = db_session.query(Product).filter(
-            Product.status == "approved",
-            Product.is_deleted == False,
-        ).all()
+        products = (
+            db_session.query(Product)
+            .filter(
+                Product.status == "approved",
+                Product.is_deleted == False,
+            )
+            .all()
+        )
 
         for p in products:
             # 从 specs JSON 中提取产地
@@ -691,7 +701,7 @@ class MemorySearchEngine(SearchEngine):
         return len(self._documents)
 
     @property
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         return {
             "engine": "memory",
             "documents": len(self._documents),
@@ -704,6 +714,7 @@ class MemorySearchEngine(SearchEngine):
 # ======================================================================
 # FTS5SearchEngine — SQLite FTS5 全文搜索
 # ======================================================================
+
 
 class FTS5SearchEngine(SearchEngine):
     """SQLite FTS5 全文搜索引擎
@@ -768,10 +779,14 @@ class FTS5SearchEngine(SearchEngine):
         """从 products 表同步数据到 FTS5 索引"""
         from app.models import Product
 
-        products = db_session.query(Product).filter(
-            Product.status == "approved",
-            Product.is_deleted == False,
-        ).all()
+        products = (
+            db_session.query(Product)
+            .filter(
+                Product.status == "approved",
+                Product.is_deleted == False,
+            )
+            .all()
+        )
 
         raw_conn = db_session.connection().connection
 
@@ -821,8 +836,8 @@ class FTS5SearchEngine(SearchEngine):
         page: int = 1,
         page_size: int = 20,
         sort_by: str = "relevance",
-        filters: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        filters: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """使用 FTS5 搜索"""
         result = {
             "items": [],
@@ -927,21 +942,29 @@ class FTS5SearchEngine(SearchEngine):
             items = []
             for row in rows:
                 (
-                    pid, name, description, category, price,
-                    tags, brand, created_at, rank,
+                    pid,
+                    name,
+                    description,
+                    category,
+                    price,
+                    tags,
+                    brand,
+                    created_at,
+                    rank,
                 ) = row
 
                 # 提取 region（从 specs JSON）
-                product = db.query(type('P', (), {}).__class__).from_orm(None) if False else None
+                product = db.query(type("P", (), {}).__class__).from_orm(None) if False else None
                 # 从 products 表查 region
                 region = ""
                 try:
-                    p_obj = db.query(type('X', (object,), {}))
+                    p_obj = db.query(type("X", (object,), {}))
                 except Exception:
                     pass
 
                 # 简化：直接从数据库查
                 from app.models import Product
+
                 p_obj = db.query(Product).filter(Product.id == pid, Product.is_deleted == False).first()
                 region = ""
                 if p_obj and p_obj.specs:
@@ -954,19 +977,21 @@ class FTS5SearchEngine(SearchEngine):
                 hl_title = highlight_title(name or "", query)
                 hl_content = highlight_text(description or "", query, max_length=200)
 
-                items.append({
-                    "id": pid,
-                    "title": name or "",
-                    "description": (description or "")[:300],
-                    "category": category or "",
-                    "price": price or 0.0,
-                    "region": region,
-                    "tags": tags or "",
-                    "brand": brand or "",
-                    "score": round(float(rank), 2) if rank else 0.0,
-                    "highlight_title": hl_title,
-                    "highlight_content": hl_content,
-                })
+                items.append(
+                    {
+                        "id": pid,
+                        "title": name or "",
+                        "description": (description or "")[:300],
+                        "category": category or "",
+                        "price": price or 0.0,
+                        "region": region,
+                        "tags": tags or "",
+                        "brand": brand or "",
+                        "score": round(float(rank), 2) if rank else 0.0,
+                        "highlight_title": hl_title,
+                        "highlight_content": hl_content,
+                    }
+                )
 
             result["items"] = items
             result["total"] = total
@@ -978,7 +1003,7 @@ class FTS5SearchEngine(SearchEngine):
         finally:
             db.close()
 
-    def suggest(self, prefix: str, limit: int = 10) -> List[str]:
+    def suggest(self, prefix: str, limit: int = 10) -> list[str]:
         if not prefix or not prefix.strip():
             return []
 
@@ -1016,9 +1041,7 @@ class FTS5SearchEngine(SearchEngine):
             self._ensure_fts_table(db_session)
             self._sync_fts_data(db_session)
             raw_conn = db_session.connection().connection
-            count = raw_conn.execute(
-                f"SELECT COUNT(*) FROM {self.FTS_TABLE_NAME}"
-            ).fetchone()[0]
+            count = raw_conn.execute(f"SELECT COUNT(*) FROM {self.FTS_TABLE_NAME}").fetchone()[0]
             return count
         except Exception as e:
             logger.error(f"FTS5 重建失败: {e}", exc_info=True)
@@ -1027,12 +1050,11 @@ class FTS5SearchEngine(SearchEngine):
     @property
     def size(self) -> int:
         from app.database import SessionLocal
+
         db = SessionLocal()
         try:
             raw_conn = db.connection().connection
-            count = raw_conn.execute(
-                f"SELECT COUNT(*) FROM {self.FTS_TABLE_NAME}"
-            ).fetchone()[0]
+            count = raw_conn.execute(f"SELECT COUNT(*) FROM {self.FTS_TABLE_NAME}").fetchone()[0]
             return count
         except Exception:
             return 0
@@ -1040,7 +1062,7 @@ class FTS5SearchEngine(SearchEngine):
             db.close()
 
     @property
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         return {
             "engine": "fts5",
             "initialized": self._initialized,
@@ -1063,6 +1085,7 @@ def _is_sqlite() -> bool:
 
     try:
         from app.database import DATABASE_URL
+
         _is_sqlite_cache = not DATABASE_URL  # 无 DATABASE_URL = SQLite
         return _is_sqlite_cache
     except ImportError:
@@ -1086,6 +1109,7 @@ def _has_fts5() -> bool:
     try:
         # 使用原生 sqlite3 模块检测
         import sqlite3
+
         conn = sqlite3.connect(":memory:")
         conn.execute("CREATE VIRTUAL TABLE t USING fts5(x)")
         conn.execute("DROP TABLE t")
@@ -1128,7 +1152,9 @@ def get_search_engine() -> SearchEngine:
             logger.info("搜索引擎: FTS5SearchEngine (自动检测: SQLite+FTS5)")
         else:
             engine = MemorySearchEngine()
-            logger.info(f"搜索引擎: MemorySearchEngine (自动检测: {'非SQLite' if not _is_sqlite() else 'SQLite但无FTS5'})")
+            logger.info(
+                f"搜索引擎: MemorySearchEngine (自动检测: {'非SQLite' if not _is_sqlite() else 'SQLite但无FTS5'})"
+            )
 
     _search_engine_instance = engine
 
@@ -1136,6 +1162,7 @@ def get_search_engine() -> SearchEngine:
     try:
         if isinstance(engine, MemorySearchEngine) and engine.size == 0:
             from app.database import SessionLocal
+
             db = SessionLocal()
             try:
                 count = engine.rebuild(db)
@@ -1153,12 +1180,13 @@ def get_search_engine() -> SearchEngine:
 # 全局单例 & 向后兼容
 # ======================================================================
 
-_search_engine_instance: Optional[SearchEngine] = None
+_search_engine_instance: SearchEngine | None = None
 
 
 # 向后兼容: 保留旧的 SearchIndex 类名
 class SearchIndex(MemorySearchEngine):
     """SearchIndex — 向后兼容包装类"""
+
     pass
 
 

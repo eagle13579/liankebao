@@ -1,11 +1,11 @@
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Search, Home, Grid, Zap, User, Star, ArrowRight, UserPlus, FileText, Share2, Users,
   GraduationCap, ChevronRight, LayoutDashboard, ShoppingBag, Receipt, CheckCircle2,
   Bell, Package, TrendingUp, MessageCircle, Store, Building2, Wallet, Settings,
   Sparkles, Database, BarChart3, Target, Globe, HelpCircle, LogOut, Clock, X, Copy, Link, Image, Crown
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { api } from '../api/client';
 import { ProductItem } from '../types';
 import { Loading, ErrorBlock, Empty, useApi } from '../components/StatusComponents';
@@ -56,7 +56,7 @@ function BottomNav({ active }: { active: string }) {
 // ==============================
 //  LiankebaoHomepage
 // ==============================
-export const LiankebaoHomepage = React.memo(function LiankebaoHomepage() {
+export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [currentBanner, setCurrentBanner] = useState(0);
@@ -401,7 +401,7 @@ function HandshakeIcon({ className }: { className?: string }) {
 // ==============================
 //  ProductPool
 // ==============================
-export const ProductPool = React.memo(function ProductPool() {
+export const ProductPool = memo(function ProductPool() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('全部');

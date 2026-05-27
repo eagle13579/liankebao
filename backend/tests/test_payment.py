@@ -11,8 +11,9 @@
 - 退款（mock 模式）
 - 权限边界测试
 """
-import json
+
 import time
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -108,9 +109,7 @@ class TestWxPayCallback:
 
     CALLBACK_URL = "/api/payment/wxpay/callback"
 
-    def _create_pending_order_for_callback(
-        self, client: TestClient, buyer_headers
-    ) -> tuple:
+    def _create_pending_order_for_callback(self, client: TestClient, buyer_headers) -> tuple:
         """辅助：创建 order 并返回 (order_id, out_trade_no)"""
         resp = client.get("/api/products")
         products = resp.json()["data"]["items"]
@@ -126,14 +125,17 @@ class TestWxPayCallback:
         return order_id, out_trade_no
 
     # ---- 参数化测试：多种回调格式 ----
-    @pytest.mark.parametrize("callback_body,desc", [
-        ({"result_code": "SUCCESS"}, "仅result_code"),
-        ({"result_code": "SUCCESS", "transaction_id": "mock_tx_001"}, "含transaction_id"),
-        ({"result_code": "OK"}, "result_code=OK"),
-        ({"result_code": "SUCCESS", "openid": "mock_user"}, "额外字段openid"),
-        ({"result_code": "SUCCESS", "is_subscribe": "N", "trade_type": "JSAPI"}, "完整V2格式"),
-        ({"result_code": "SUCCESS", "bank_type": "CFT", "fee_type": "CNY"}, "银行字段"),
-    ])
+    @pytest.mark.parametrize(
+        "callback_body,desc",
+        [
+            ({"result_code": "SUCCESS"}, "仅result_code"),
+            ({"result_code": "SUCCESS", "transaction_id": "mock_tx_001"}, "含transaction_id"),
+            ({"result_code": "OK"}, "result_code=OK"),
+            ({"result_code": "SUCCESS", "openid": "mock_user"}, "额外字段openid"),
+            ({"result_code": "SUCCESS", "is_subscribe": "N", "trade_type": "JSAPI"}, "完整V2格式"),
+            ({"result_code": "SUCCESS", "bank_type": "CFT", "fee_type": "CNY"}, "银行字段"),
+        ],
+    )
     def test_callback_parametrize_formats(self, client, buyer_headers, callback_body, desc):
         """参数化测试：多种回调body格式都能成功处理"""
         order_id, out_trade_no = self._create_pending_order_for_callback(client, buyer_headers)
@@ -147,12 +149,15 @@ class TestWxPayCallback:
         assert resp.status_code == 200, f"[{desc}] 回调应成功: {resp.text}"
         assert resp.json()["code"] == "SUCCESS", f"[{desc}] 应返回SUCCESS"
 
-    @pytest.mark.parametrize("bad_body,desc", [
-        ({}, "空body"),
-        ({"result_code": "FAIL"}, "支付失败"),
-        ({"result_code": "PAY_ERROR"}, "异常状态"),
-        ({"err_code": "FAIL"}, "错误格式"),
-    ])
+    @pytest.mark.parametrize(
+        "bad_body,desc",
+        [
+            ({}, "空body"),
+            ({"result_code": "FAIL"}, "支付失败"),
+            ({"result_code": "PAY_ERROR"}, "异常状态"),
+            ({"err_code": "FAIL"}, "错误格式"),
+        ],
+    )
     def test_callback_parametrize_failures(self, client, buyer_headers, bad_body, desc):
         """参数化测试：各种失败回调"""
         order_id, out_trade_no = self._create_pending_order_for_callback(client, buyer_headers)
@@ -184,16 +189,14 @@ class TestWxPayCallback:
                 json={"out_trade_no": out_trade_no, "result_code": "SUCCESS"},
             )
             responses.append(resp)
-            assert resp.status_code == 200, f"第{i+1}次回调应200"
+            assert resp.status_code == 200, f"第{i + 1}次回调应200"
 
         # 检查后续回调均返回SUCCESS
         for i, r in enumerate(responses[1:]):
-            assert r.json()["code"] == "SUCCESS", f"第{i+2}次回调应幂等"
+            assert r.json()["code"] == "SUCCESS", f"第{i + 2}次回调应幂等"
 
         # 验证订单状态
-        query_resp = client.get(
-            f"/api/orders/{order_id}", headers=buyer_headers
-        )
+        query_resp = client.get(f"/api/orders/{order_id}", headers=buyer_headers)
         assert query_resp.status_code == 200
 
     # ---- 原有单测保留 ----
@@ -386,12 +389,16 @@ class TestPaymentConfig:
         assert isinstance(data["data"], dict)
 
     def test_get_config_with_mock_registration(self, client: TestClient):
-        from payment.config import register, WxPayConfig, PLATFORM_WXPAY
-        register(PLATFORM_WXPAY, WxPayConfig(
-            app_id="test_app_id",
-            mch_id="test_mch_id",
-            api_key="test_key",
-        ))
+        from payment.config import PLATFORM_WXPAY, WxPayConfig, register
+
+        register(
+            PLATFORM_WXPAY,
+            WxPayConfig(
+                app_id="test_app_id",
+                mch_id="test_mch_id",
+                api_key="test_key",
+            ),
+        )
         resp = client.get(self.CONFIG_URL)
         assert resp.status_code == 200
         data = resp.json()
@@ -399,18 +406,28 @@ class TestPaymentConfig:
         assert data["data"]["wxpay"]["app_id"] == "test_app_id"
         assert data["data"]["wxpay"]["configured"] is True
 
-    @pytest.mark.parametrize("platform,key_prefix", [
-        ("wxpay", "wx"),
-        ("alipay", "ali"),
-    ])
+    @pytest.mark.parametrize(
+        "platform,key_prefix",
+        [
+            ("wxpay", "wx"),
+            ("alipay", "ali"),
+        ],
+    )
     def test_get_config_with_registration(self, client, platform, key_prefix):
         """参数化：多平台配置注册后查询"""
         from payment.config import register
+
         if platform == "wxpay":
-            from payment.config import WxPayConfig, PLATFORM_WXPAY as P
-            register(P, WxPayConfig(app_id=f"{key_prefix}_app", mch_id=f"{key_prefix}_mch", api_key=f"{key_prefix}_key"))
+            from payment.config import PLATFORM_WXPAY as P
+            from payment.config import WxPayConfig
+
+            register(
+                P, WxPayConfig(app_id=f"{key_prefix}_app", mch_id=f"{key_prefix}_mch", api_key=f"{key_prefix}_key")
+            )
         else:
-            from payment.config import AliPayConfig, PLATFORM_ALIPAY as P
+            from payment.config import PLATFORM_ALIPAY as P
+            from payment.config import AliPayConfig
+
             register(P, AliPayConfig(app_id=f"{key_prefix}_app", private_key="test_key"))
 
         resp = client.get(self.CONFIG_URL)

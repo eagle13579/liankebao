@@ -1,16 +1,14 @@
 """链客宝后端 API 服务 - 主入口"""
-import os
-import sys
-import logging
-import uuid
-from datetime import datetime, timezone
-from typing import Optional
 
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, Depends, Query
+import logging
+import os
+import uuid
+from datetime import UTC, datetime
+
+from fastapi import Depends, FastAPI, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.openapi.utils import get_openapi
-from starlette.websockets import WebSocketState
+from fastapi.responses import JSONResponse
 
 # ===== LLM Cost Controller（零依赖轻量级Token消耗监控） =====
 from llm_cost_controller import get_cost_controller as _get_cost_controller
@@ -27,35 +25,35 @@ def get_llm_cost_controller():
 
 
 # ===== 结构化日志（最先加载） =====
-from app.logging_config import setup_logging, RequestLogMiddleware, set_log_level, get_current_log_level, set_user_id, get_user_id
+from app.logging_config import get_current_log_level, get_user_id, set_log_level, setup_logging
 
 setup_logging()
 
 logger = logging.getLogger(__name__)
 
 # ===== 统一数据库（SQLite/MySQL 自适应） =====
-from app.database import init_db, get_db
-
-from app.routers import auth, products, orders, promoter, admin, search, imports as import_router
-import app.routers.contacts as contacts_module
+import admin_config as admin_config_module
 import app.routers.activities as activities_module
-import app.routers.payment as payment_module
+import app.routers.contacts as contacts_module
 import app.routers.insights as insights_module
 import app.routers.needs as needs_module
-import recharge.routes as recharge_module
-import recharge.callback as recharge_callback_module
+import app.routers.payment as payment_module
 import invoice as invoice_module
-import reconciliation as reconciliation_module
-import admin_config as admin_config_module
 import matching_engine as matching_engine_module
+import recharge.callback as recharge_callback_module
+import recharge.routes as recharge_module
+import reconciliation as reconciliation_module
+
+# ===== 认证 =====
+from app.auth import get_current_user
+from app.database import get_db, init_db
+from app.models import User
 
 # ===== 通知系统 & WebSocket =====
 from app.notifications import NotificationManager
+from app.routers import admin, auth, orders, products, promoter, search
+from app.routers import imports as import_router
 from app.websocket_manager import ws_manager
-
-# ===== 认证 =====
-from app.auth import get_current_user, verify_token
-from app.models import User
 
 app = FastAPI(
     title="链客宝API",
@@ -75,6 +73,7 @@ app = FastAPI(
         "url": "https://www.go-aiport.com",
     },
 )
+
 
 # ===== OpenAPI schema 定制（添加 servers 配置） =====
 def custom_openapi():
@@ -131,27 +130,28 @@ app.add_middleware(
 
 # ===== 可观测性：指标收集器 =====
 from app.observability import (
+    check_db_health,
+    format_uptime,
     get_metrics_collector,
     get_system_info,
-    check_db_health,
     get_uptime,
-    format_uptime,
 )
 
 _metrics = get_metrics_collector()
+
 
 # ===== 请求日志 + 指标中间件（结构化日志全覆盖 + 指标收集） =====
 @app.middleware("http")
 async def observability_middleware(request: Request, call_next):
     """记录每个请求的结构化日志 + 收集指标"""
     trace_id = getattr(request.state, "trace_id", "")
-    start = datetime.now(timezone.utc)
+    start = datetime.now(UTC)
     method = request.method
     path = request.url.path
 
     try:
         response = await call_next(request)
-        elapsed = (datetime.now(timezone.utc) - start).total_seconds()
+        elapsed = (datetime.now(UTC) - start).total_seconds()
         status_code = response.status_code
         uid = get_user_id() or ""
 
@@ -174,7 +174,7 @@ async def observability_middleware(request: Request, call_next):
 
         return response
     except Exception as exc:
-        elapsed = (datetime.now(timezone.utc) - start).total_seconds()
+        elapsed = (datetime.now(UTC) - start).total_seconds()
         logger.error(
             "request_error",
             extra={
@@ -200,6 +200,7 @@ async def add_request_id(request: Request, call_next):
     response.headers["X-Trace-ID"] = trace_id
     return response
 
+
 # ===== 安全响应头中间件 =====
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
@@ -212,8 +213,10 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Referrer-Policy"] = "no-referrer-when-downgrade"
     return response
 
+
 # ===== 请求大小限制（POST 请求体不超过 1MB） =====
 MAX_REQUEST_SIZE = 1_048_576  # 1MB
+
 
 @app.middleware("http")
 async def limit_request_size(request: Request, call_next):
@@ -227,13 +230,32 @@ async def limit_request_size(request: Request, call_next):
             )
     return await call_next(request)
 
+
 # ===== 注册路由 =====
 # 所有 router 已在各自文件中定义了 prefix="/api/..."（如 /api/auth, /api/products）
 # 这里分两轮注册：
 #   第一轮：临时将 prefix 改为 /api/v1/...，注册版本化路由
 #   第二轮：恢复原始 prefix，注册向后兼容的 /api/... 路由
 
-router_modules = [auth, products, orders, promoter, admin, search, import_router, contacts_module, activities_module, payment_module, insights_module, needs_module, recharge_module, invoice_module, reconciliation_module, admin_config_module, matching_engine_module]
+router_modules = [
+    auth,
+    products,
+    orders,
+    promoter,
+    admin,
+    search,
+    import_router,
+    contacts_module,
+    activities_module,
+    payment_module,
+    insights_module,
+    needs_module,
+    recharge_module,
+    invoice_module,
+    reconciliation_module,
+    admin_config_module,
+    matching_engine_module,
+]
 
 # 第一轮：/api/v1/ 版本化路由
 for mod in router_modules:
@@ -260,8 +282,8 @@ app.include_router(invoice_module.router)
 app.include_router(reconciliation_module.router)
 app.include_router(admin_config_module.router)
 app.include_router(matching_engine_module.router)
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
 _static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
@@ -292,10 +314,15 @@ async def share_page():
     )
 
 
-@app.get("/api/users/{user_id}/brief", summary="获取用户简要信息", description="获取用户简要信息（供推广落地页展示推广员姓名）")
+@app.get(
+    "/api/users/{user_id}/brief",
+    summary="获取用户简要信息",
+    description="获取用户简要信息（供推广落地页展示推广员姓名）",
+)
 def get_user_brief(user_id: int, db: Session = Depends(get_db)):
     """获取用户简要信息（供推广落地页展示推广员姓名）"""
     from app.schemas import UserBrief
+
     user = db.query(User).filter(User.id == user_id, User.is_deleted == False).first()
     if not user:
         return JSONResponse(
@@ -463,7 +490,11 @@ def get_log_level(current_user: User = Depends(get_current_user)):
     }
 
 
-@app.put("/api/system/log-level", summary="切换日志级别", description="动态切换日志级别（需管理员权限）。可选值：DEBUG / INFO / WARNING / ERROR / CRITICAL")
+@app.put(
+    "/api/system/log-level",
+    summary="切换日志级别",
+    description="动态切换日志级别（需管理员权限）。可选值：DEBUG / INFO / WARNING / ERROR / CRITICAL",
+)
 def change_log_level(
     level: str = Query(..., description="DEBUG / INFO / WARNING / ERROR / CRITICAL"),
     current_user: User = Depends(get_current_user),
@@ -540,11 +571,14 @@ def list_cost_models():
 def on_startup():
     """应用启动时初始化数据库与系统预设配置"""
     import socket
+
     from app.database import DB_TYPE
+
     try:
         init_db()
         # 确保系统预设配置存在
         from admin_config import ensure_preset_configs
+
         db_session = next(get_db())
         ensure_preset_configs(db_session)
         db_session.close()
@@ -574,6 +608,7 @@ def on_startup():
 def on_shutdown():
     """应用关闭时记录关闭信息"""
     import socket
+
     try:
         uptime_sec = get_uptime()
         hostname = socket.gethostname()
@@ -624,6 +659,7 @@ def metrics():
 # ============================================================
 # 全局异常处理器
 # ============================================================
+
 
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc):

@@ -46,7 +46,7 @@ export default defineConfig(({mode}) => {
     server: {
       proxy: {
         '/lkapi': {
-          target: 'http://localhost:5136',
+          target: 'http://localhost:8001',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/lkapi/, ''),
         },

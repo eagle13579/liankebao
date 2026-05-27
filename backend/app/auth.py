@@ -1,11 +1,11 @@
 """JWT认证 + 密码哈希 + 微信登录"""
+
 import os
 import uuid
 from datetime import datetime, timedelta
-from typing import Optional, Set
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from passlib.hash import bcrypt as bcrypt_hasher
 from sqlalchemy.orm import Session
@@ -16,7 +16,7 @@ from app.models import User
 # JWT配置
 SECRET_KEY = os.environ.get("SECRET_KEY", "liankebao-jwt-secret-key-2024-nous")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30           # access token 有效期 30 分钟
+ACCESS_TOKEN_EXPIRE_MINUTES = 30  # access token 有效期 30 分钟
 REFRESH_TOKEN_EXPIRE_MINUTES = 30 * 24 * 7  # refresh token 有效期 7 天
 
 # HTTP Bearer token 安全方案
@@ -24,7 +24,7 @@ security = HTTPBearer(auto_error=False)
 
 # Token黑名单（内存中，生产环境建议改为 Redis）
 # 使用 set 存储已失效的 token jti
-_token_blacklist: Set[str] = set()
+_token_blacklist: set[str] = set()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -40,31 +40,35 @@ def hash_password(password: str) -> str:
     return bcrypt_hasher.hash(password)
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """创建JWT access token（短有效期）"""
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    to_encode.update({
-        "exp": expire,
-        "type": "access",
-        "jti": str(uuid.uuid4()),
-    })
+    to_encode.update(
+        {
+            "exp": expire,
+            "type": "access",
+            "jti": str(uuid.uuid4()),
+        }
+    )
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_refresh_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """创建JWT refresh token（长有效期，用于静默续期）"""
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES))
-    to_encode.update({
-        "exp": expire,
-        "type": "refresh",
-        "jti": str(uuid.uuid4()),
-    })
+    to_encode.update(
+        {
+            "exp": expire,
+            "type": "refresh",
+            "jti": str(uuid.uuid4()),
+        }
+    )
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def verify_token(token: str, expected_type: Optional[str] = None) -> Optional[dict]:
+def verify_token(token: str, expected_type: str | None = None) -> dict | None:
     """
     验证JWT token，返回 payload。
     同时检查黑名单。可指定期望的 token type（access/refresh）。
@@ -97,7 +101,7 @@ def add_token_to_blacklist(token: str) -> bool:
 
 
 def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
     db: Session = Depends(get_db),
 ) -> User:
     """依赖注入：从请求中获取当前用户"""

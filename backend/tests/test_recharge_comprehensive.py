@@ -11,10 +11,8 @@
 - 权限边界测试
 - 参数化测试覆盖多场景
 """
-import json
-import time
+
 import pytest
-from decimal import Decimal
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -46,11 +44,14 @@ class TestPrecreateRechargeComprehensive:
         )
         assert resp.status_code == 200, f"{role_fixture} 充值应成功: {resp.text}"
 
-    @pytest.mark.parametrize("bad_amount,expected_status", [
-        (0, 422),
-        (-50, 422),
-        (-0.01, 422),
-    ])
+    @pytest.mark.parametrize(
+        "bad_amount,expected_status",
+        [
+            (0, 422),
+            (-50, 422),
+            (-0.01, 422),
+        ],
+    )
     def test_precreate_invalid_amounts(self, client, buyer_headers, bad_amount, expected_status):
         """参数化：无效金额"""
         resp = client.post(
@@ -110,9 +111,7 @@ class TestRechargeCallbackChain:
     @pytest.mark.parametrize("amount", [10.00, 20.00, 50.00, 100.00, 500.00])
     def test_recharge_different_amounts(self, client, buyer_headers, amount):
         """参数化：不同金额的全链路充值"""
-        balance_before = client.get(
-            "/api/recharge/balance", headers=buyer_headers
-        ).json()["data"]["balance"]
+        balance_before = client.get("/api/recharge/balance", headers=buyer_headers).json()["data"]["balance"]
 
         order_no = self._create_recharge(client, buyer_headers, amount=amount)
 
@@ -123,11 +122,8 @@ class TestRechargeCallbackChain:
         assert resp.status_code == 200
         assert resp.json()["code"] == "SUCCESS"
 
-        balance_after = client.get(
-            "/api/recharge/balance", headers=buyer_headers
-        ).json()["data"]["balance"]
-        assert balance_after == balance_before + amount, \
-            f"余额应从 {balance_before} 变为 {balance_before + amount}"
+        balance_after = client.get("/api/recharge/balance", headers=buyer_headers).json()["data"]["balance"]
+        assert balance_after == balance_before + amount, f"余额应从 {balance_before} 变为 {balance_before + amount}"
 
     @pytest.mark.parametrize("repeat_times", [2, 3, 4])
     def test_callback_idempotent_multi_repeat(self, client, buyer_headers, repeat_times):
@@ -136,25 +132,24 @@ class TestRechargeCallbackChain:
 
         # 第一次回调
         client.post(self.CALLBACK_URL, json={"out_trade_no": order_no})
-        balance1 = client.get(
-            "/api/recharge/balance", headers=buyer_headers
-        ).json()["data"]["balance"]
+        balance1 = client.get("/api/recharge/balance", headers=buyer_headers).json()["data"]["balance"]
 
         # 重复回调
         for i in range(repeat_times - 1):
             resp = client.post(self.CALLBACK_URL, json={"out_trade_no": order_no})
-            assert resp.json()["code"] == "SUCCESS", f"第{i+2}次回调应成功"
+            assert resp.json()["code"] == "SUCCESS", f"第{i + 2}次回调应成功"
 
-        balance2 = client.get(
-            "/api/recharge/balance", headers=buyer_headers
-        ).json()["data"]["balance"]
+        balance2 = client.get("/api/recharge/balance", headers=buyer_headers).json()["data"]["balance"]
         assert balance1 == balance2, "幂等回调不应增加余额"
 
-    @pytest.mark.parametrize("callback_body,expected_field,expected_value", [
-        ({"out_trade_no": "RC9999999999999"}, "code", "FAIL"),
-        ({}, "code", "FAIL"),
-        ({"out_trade_no": ""}, "code", "FAIL"),
-    ])
+    @pytest.mark.parametrize(
+        "callback_body,expected_field,expected_value",
+        [
+            ({"out_trade_no": "RC9999999999999"}, "code", "FAIL"),
+            ({}, "code", "FAIL"),
+            ({"out_trade_no": ""}, "code", "FAIL"),
+        ],
+    )
     def test_callback_invalid_inputs(self, client, callback_body, expected_field, expected_value):
         """参数化：各种无效回调"""
         resp = client.post(self.CALLBACK_URL, json=callback_body)
@@ -162,9 +157,7 @@ class TestRechargeCallbackChain:
 
     # ---- 原始单测保留 ----
     def test_full_recharge_flow(self, client: TestClient, buyer_headers):
-        balance_before = client.get(
-            "/api/recharge/balance", headers=buyer_headers
-        ).json()["data"]["balance"]
+        balance_before = client.get("/api/recharge/balance", headers=buyer_headers).json()["data"]["balance"]
         order_no = self._create_recharge(client, buyer_headers, amount=30.00)
         resp = client.post(
             self.CALLBACK_URL,
@@ -173,19 +166,13 @@ class TestRechargeCallbackChain:
         assert resp.status_code == 200
         assert resp.json()["code"] == "SUCCESS"
 
-        query_resp = client.get(
-            f"/api/recharge/query/{order_no}", headers=buyer_headers
-        )
+        query_resp = client.get(f"/api/recharge/query/{order_no}", headers=buyer_headers)
         assert query_resp.json()["data"]["status"] == "paid"
 
-        balance_after = client.get(
-            "/api/recharge/balance", headers=buyer_headers
-        ).json()["data"]["balance"]
+        balance_after = client.get("/api/recharge/balance", headers=buyer_headers).json()["data"]["balance"]
         assert balance_after == balance_before + 30.00
 
-        logs_resp = client.get(
-            "/api/recharge/balance-logs", headers=buyer_headers
-        )
+        logs_resp = client.get("/api/recharge/balance-logs", headers=buyer_headers)
         assert logs_resp.status_code == 200
         logs = logs_resp.json()["data"]["items"]
         recharge_logs = [log for log in logs if log["direction"] == "IN"]
@@ -194,14 +181,10 @@ class TestRechargeCallbackChain:
     def test_callback_idempotent(self, client: TestClient, buyer_headers):
         order_no = self._create_recharge(client, buyer_headers, amount=10.00)
         client.post(self.CALLBACK_URL, json={"out_trade_no": order_no})
-        balance1 = client.get(
-            "/api/recharge/balance", headers=buyer_headers
-        ).json()["data"]["balance"]
+        balance1 = client.get("/api/recharge/balance", headers=buyer_headers).json()["data"]["balance"]
         resp2 = client.post(self.CALLBACK_URL, json={"out_trade_no": order_no})
         assert resp2.json()["code"] == "SUCCESS"
-        balance2 = client.get(
-            "/api/recharge/balance", headers=buyer_headers
-        ).json()["data"]["balance"]
+        balance2 = client.get("/api/recharge/balance", headers=buyer_headers).json()["data"]["balance"]
         assert balance1 == balance2
 
     def test_callback_invalid_order(self, client: TestClient):
@@ -217,25 +200,19 @@ class TestRechargeCallbackChain:
         assert "缺少订单号" in resp.json()["message"]
 
     def test_multiple_recharges_same_user(self, client: TestClient, buyer_headers):
-        balance_before = client.get(
-            "/api/recharge/balance", headers=buyer_headers
-        ).json()["data"]["balance"]
+        balance_before = client.get("/api/recharge/balance", headers=buyer_headers).json()["data"]["balance"]
         amounts = [20.00, 30.00, 50.00]
         total = sum(amounts)
         for amt in amounts:
             order_no = self._create_recharge(client, buyer_headers, amount=amt)
             client.post(self.CALLBACK_URL, json={"out_trade_no": order_no})
-        balance_after = client.get(
-            "/api/recharge/balance", headers=buyer_headers
-        ).json()["data"]["balance"]
+        balance_after = client.get("/api/recharge/balance", headers=buyer_headers).json()["data"]["balance"]
         assert balance_after == balance_before + total
 
     def test_callback_updates_logs(self, client: TestClient, buyer_headers):
         order_no = self._create_recharge(client, buyer_headers, amount=25.00)
         client.post(self.CALLBACK_URL, json={"out_trade_no": order_no})
-        logs_resp = client.get(
-            "/api/recharge/balance-logs", headers=buyer_headers
-        )
+        logs_resp = client.get("/api/recharge/balance-logs", headers=buyer_headers)
         items = logs_resp.json()["data"]["items"]
         matching = [log for log in items if log["biz_type"] == "recharge" and log["direction"] == "IN"]
         assert len(matching) >= 1
@@ -251,9 +228,7 @@ class TestConcurrentRechargeSafety:
     @pytest.mark.parametrize("n_orders", [3, 5, 10])
     def test_sequential_concurrent_recharges_param(self, client, buyer_headers, n_orders):
         """参数化：不同并发数的充值验证"""
-        balance_before = client.get(
-            "/api/recharge/balance", headers=buyer_headers
-        ).json()["data"]["balance"]
+        balance_before = client.get("/api/recharge/balance", headers=buyer_headers).json()["data"]["balance"]
 
         order_nos = []
         for i in range(n_orders):
@@ -271,16 +246,12 @@ class TestConcurrentRechargeSafety:
             )
             assert resp.json()["code"] == "SUCCESS"
 
-        balance_after = client.get(
-            "/api/recharge/balance", headers=buyer_headers
-        ).json()["data"]["balance"]
+        balance_after = client.get("/api/recharge/balance", headers=buyer_headers).json()["data"]["balance"]
         expected = balance_before + 10.00 * n_orders
         assert balance_after == expected
 
     def test_sequential_concurrent_recharges(self, client: TestClient, buyer_headers):
-        balance_before = client.get(
-            "/api/recharge/balance", headers=buyer_headers
-        ).json()["data"]["balance"]
+        balance_before = client.get("/api/recharge/balance", headers=buyer_headers).json()["data"]["balance"]
         order_nos = []
         for i in range(5):
             order_no = client.post(
@@ -295,14 +266,13 @@ class TestConcurrentRechargeSafety:
                 json={"out_trade_no": order_no},
             )
             assert resp.json()["code"] == "SUCCESS"
-        balance_after = client.get(
-            "/api/recharge/balance", headers=buyer_headers
-        ).json()["data"]["balance"]
+        balance_after = client.get("/api/recharge/balance", headers=buyer_headers).json()["data"]["balance"]
         expected = balance_before + 50.00
         assert balance_after == expected
 
     def test_recharge_row_lock_integrity(self, client: TestClient, buyer_headers, db_session: Session):
         from recharge.models import UserBalance
+
         user_id = 2  # buyer1
         bal = db_session.query(UserBalance).filter(UserBalance.user_id == user_id).first()
         version_before = bal.version
@@ -325,17 +295,18 @@ class TestAdminAdjustComprehensive:
 
     ADJUST_URL = "/api/recharge/adjust"
 
-    @pytest.mark.parametrize("adjust_amount,expected_delta", [
-        (100.00, 100.00),
-        (50.00, 50.00),
-        (0.00, 0.00),
-        (1.00, 1.00),
-    ])
+    @pytest.mark.parametrize(
+        "adjust_amount,expected_delta",
+        [
+            (100.00, 100.00),
+            (50.00, 50.00),
+            (0.00, 0.00),
+            (1.00, 1.00),
+        ],
+    )
     def test_adjust_increase_param(self, client, admin_headers, buyer_headers, adjust_amount, expected_delta):
         """参数化：增加余额"""
-        balance_before = client.get(
-            "/api/recharge/balance", headers=buyer_headers
-        ).json()["data"]["balance"]
+        balance_before = client.get("/api/recharge/balance", headers=buyer_headers).json()["data"]["balance"]
         resp = client.post(
             self.ADJUST_URL,
             headers=admin_headers,
@@ -345,9 +316,7 @@ class TestAdminAdjustComprehensive:
         assert resp.json()["data"]["after"] == balance_before + expected_delta
 
     def test_adjust_increase(self, client: TestClient, admin_headers, buyer_headers):
-        balance_before = client.get(
-            "/api/recharge/balance", headers=buyer_headers
-        ).json()["data"]["balance"]
+        balance_before = client.get("/api/recharge/balance", headers=buyer_headers).json()["data"]["balance"]
         resp = client.post(
             self.ADJUST_URL,
             headers=admin_headers,
@@ -357,9 +326,7 @@ class TestAdminAdjustComprehensive:
         assert resp.json()["data"]["after"] == balance_before + 100.00
 
     def test_adjust_decrease(self, client: TestClient, admin_headers, buyer_headers):
-        balance_before = client.get(
-            "/api/recharge/balance", headers=buyer_headers
-        ).json()["data"]["balance"]
+        balance_before = client.get("/api/recharge/balance", headers=buyer_headers).json()["data"]["balance"]
         resp = client.post(
             self.ADJUST_URL,
             headers=admin_headers,
@@ -474,9 +441,7 @@ class TestQueryRechargeOrderComprehensive:
         )
         order_no = resp.json()["data"]["order_no"]
         client.post("/api/recharge/callback/mock", json={"out_trade_no": order_no})
-        query_resp = client.get(
-            f"/api/recharge/query/{order_no}", headers=buyer_headers
-        )
+        query_resp = client.get(f"/api/recharge/query/{order_no}", headers=buyer_headers)
         assert query_resp.json()["data"]["status"] == "paid"
         assert query_resp.json()["data"]["paid_at"] is not None
 
@@ -494,9 +459,7 @@ class TestQueryRechargeOrderComprehensive:
             json={"amount": 10.00, "platform": "wxpay"},
         )
         order_no = resp.json()["data"]["order_no"]
-        query_resp = client.get(
-            f"/api/recharge/query/{order_no}", headers=promoter_headers
-        )
+        query_resp = client.get(f"/api/recharge/query/{order_no}", headers=promoter_headers)
         assert query_resp.status_code == 404
 
     def test_list_recharge_orders(self, client: TestClient, buyer_headers):

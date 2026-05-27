@@ -8,16 +8,17 @@ pytest 测试配置
 - 自动替换 app.database.engine / SessionLocal / get_db 为测试专用版本
 - 增强：db_session fixture, 搜索引擎重建, 清理搜索引擎缓存
 """
-import sys
-import os
+
 import json
-from typing import Generator, Dict
+import os
+import sys
+from collections.abc import Generator
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
 from passlib.hash import bcrypt as bcrypt_hasher
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 
 # ------------------------------------------------------------
 # 将项目根目录加入 sys.path，确保 from app.xxx 可正常导入
@@ -38,6 +39,7 @@ os.environ.setdefault("SEARCH_BACKEND", "memory")
 # ------------------------------------------------------------
 import tempfile
 import uuid
+
 _TEST_DB_NAME = f"chainke_test_{uuid.uuid4().hex[:8]}.db"
 _TEST_DB_PATH = os.path.join(tempfile.gettempdir(), _TEST_DB_NAME)
 # 确保没有旧文件残留
@@ -58,8 +60,8 @@ TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=TEST_ENG
 # ------------------------------------------------------------
 import app.database as db_module
 from app.database import Base
-from app.models import User, Product, Order, Withdrawal, BusinessNeed
-from recharge.models import UserBalance, RechargeOrder, BalanceLog
+from app.models import BusinessNeed, Order, Product, User, Withdrawal
+from recharge.models import UserBalance
 
 # 保存原始 get_db 函数引用（route 模块 import 时捕获的就是这个对象）
 _original_get_db = db_module.get_db
@@ -143,7 +145,7 @@ _TEST_USERS = [
 ]
 
 
-def _seed_data(db: Session) -> Dict[str, User]:
+def _seed_data(db: Session) -> dict[str, User]:
     """填充种子数据，返回 {username: user_obj} 字典"""
     db.add_all(_TEST_USERS)
     db.flush()
@@ -319,14 +321,17 @@ def setup_test_database():
 def clean_global_state():
     """每次测试前清理登录频率限制、token 黑名单、支付配置和搜索引擎缓存"""
     from app.routers.auth import _login_attempts
+
     _login_attempts.clear()
     from app.auth import _token_blacklist
+
     _token_blacklist.clear()
     from payment.config import _config_registry
+
     _config_registry.clear()
     # 清理搜索引擎单例，确保每次测试独立
-    from app.search_index import _search_engine_instance
-    from app.search_index import _is_sqlite_cache, _has_fts5_cache
+    from app.search_index import _has_fts5_cache, _is_sqlite_cache, _search_engine_instance
+
     _search_engine_instance = None
     _is_sqlite_cache = None
     _has_fts5_cache = None
@@ -343,10 +348,7 @@ def client() -> Generator[TestClient, None, None]:
     数据库依赖已在模块加载时通过 app.dependency_overrides 全局注册。
     """
     # 移除不兼容的旧式中间件（RequestLogMiddleware 使用旧式 (request, call_next) 签名）
-    app.user_middleware = [
-        m for m in app.user_middleware
-        if m.cls.__name__ != "RequestLogMiddleware"
-    ]
+    app.user_middleware = [m for m in app.user_middleware if m.cls.__name__ != "RequestLogMiddleware"]
     app.middleware_stack = None
 
     with TestClient(app) as c:
@@ -398,22 +400,22 @@ def supplier_token(client: TestClient) -> str:
 
 
 @pytest.fixture
-def buyer_headers(buyer_token: str) -> Dict[str, str]:
+def buyer_headers(buyer_token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {buyer_token}"}
 
 
 @pytest.fixture
-def promoter_headers(promoter_token: str) -> Dict[str, str]:
+def promoter_headers(promoter_token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {promoter_token}"}
 
 
 @pytest.fixture
-def admin_headers(admin_token: str) -> Dict[str, str]:
+def admin_headers(admin_token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {admin_token}"}
 
 
 @pytest.fixture
-def supplier_headers(supplier_token: str) -> Dict[str, str]:
+def supplier_headers(supplier_token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {supplier_token}"}
 
 
@@ -423,7 +425,8 @@ def supplier_headers(supplier_token: str) -> Dict[str, str]:
 @pytest.fixture
 def rebuilt_search_engine(db_session):
     """重建搜索引擎索引（基于种子数据中的 approved 产品）"""
-    from app.search_index import get_search_engine, rebuild_search_index
+    from app.search_index import get_search_engine
+
     engine = get_search_engine()
     rebuilt_search_index(db_session=db_session)
     return engine

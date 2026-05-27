@@ -160,7 +160,10 @@ export function LoginPage() {
               </button>
             </div>
             <button
-              onClick={() => {/* WeChat OAuth */}}
+              onClick={() => {
+                setError('请在微信客户端中打开使用微信一键登录');
+                setTimeout(() => setError(''), 3000);
+              }}
               className="w-full h-12 bg-[#07C160] text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] transition-all duration-150 shadow-sm hover:bg-[#06AD56]"
             >
               <MessageCircle className="w-5 h-5" />

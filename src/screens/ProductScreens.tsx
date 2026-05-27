@@ -1,11 +1,11 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Share2, Star, Minus, Plus, Heart, Headset, FileText, Factory, ExternalLink, MoreHorizontal, CheckCircle2, Camera, Percent } from 'lucide-react';
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { api } from '../api/client';
 import { ProductItem } from '../types';
 import { Loading, ErrorBlock, Empty, useApi } from '../components/StatusComponents';
 
-export const ProductDetailPage = React.memo(function ProductDetailPage() {
+export const ProductDetailPage = memo(function ProductDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const productId = (location.state as any)?.productId;
@@ -64,7 +64,7 @@ export const ProductDetailPage = React.memo(function ProductDetailPage() {
             <div className="space-y-1">
               <p className="font-bold text-on-surface">推广本产品，赚取售价的 <span className="text-primary-container">{product?.earn_per_share || 7}%</span></p>
             </div>
-            <button 
+            <button
               onClick={() => navigate('/promotion-center', { state: { transition: 'push' } })}
               className="bg-primary-container text-white px-4 py-2 rounded-xl font-bold text-xs active:scale-95"
             >
@@ -92,7 +92,7 @@ export const ProductDetailPage = React.memo(function ProductDetailPage() {
           <div className="flex flex-col items-center"><Headset className="w-6 h-6 text-on-surface" /><span className="text-[10px] font-bold">客服</span></div>
         </div>
         <div className="flex-1 flex gap-2">
-          <button 
+          <button
             onClick={() => navigate('/order-confirm', { state: { transition: 'slide_up' } })}
             className="flex-1 h-12 rounded-xl border-2 border-primary-container text-primary-container font-bold text-sm bg-white active:scale-95 transition-transform"
           >
@@ -107,7 +107,7 @@ export const ProductDetailPage = React.memo(function ProductDetailPage() {
     </div>
   );
 });
-export const MyProducts = React.memo(function MyProducts() {
+export const MyProducts = memo(function MyProducts() {
   const navigate = useNavigate();
 
   const { data: products, status, error, refetch } = useApi(
@@ -126,7 +126,7 @@ export const MyProducts = React.memo(function MyProducts() {
           <button onClick={() => navigate('/promotion-center', { state: { transition: 'push_back' } })}><ArrowLeft className="w-6 h-6 text-primary-container" /></button>
           <h1 className="font-manrope font-bold text-lg text-on-surface">我的产品</h1>
         </div>
-        <button 
+        <button
           onClick={() => navigate('/add-product', { state: { transition: 'push' } })}
           className="bg-primary-container text-white px-3 py-1.5 rounded-lg font-bold text-sm"
         >
@@ -169,7 +169,7 @@ export const MyProducts = React.memo(function MyProducts() {
     </div>
   );
 });
-export const AddProduct = React.memo(function AddProduct() {
+export const AddProduct = memo(function AddProduct() {
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
