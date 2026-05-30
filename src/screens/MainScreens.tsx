@@ -9,6 +9,7 @@ import { useState, useEffect, memo } from 'react';
 import { api } from '../api/client';
 import { ProductItem } from '../types';
 import { Loading, ErrorBlock, Empty, useApi } from '../components/StatusComponents';
+import { getFeaturePriorityByPainPoint, type PainPoint } from '../components/OnboardingPainSelector';
 import BorderGlow from '../components/BorderGlow';
 import SpotlightCard from '../components/SpotlightCard';
 
@@ -21,7 +22,7 @@ function BottomNav({ active }: { active: string }) {
     { id: 'home', icon: Home, label: '首页', path: '/home' },
     { id: 'product', icon: ShoppingBag, label: '产品池', path: '/product-pool' },
     { id: 'contacts', icon: Users, label: '人脉', path: '/contacts' },
-    { id: 'profile', icon: User, label: '我的', path: '/promotion-center' },
+    { id: 'profile', icon: User, label: '我的', path: '/profile' },
   ];
 
   return (
@@ -56,17 +57,79 @@ function BottomNav({ active }: { active: string }) {
 // ==============================
 //  LiankebaoHomepage
 // ==============================
+function safeImageUrl(url) {
+  if (!url || typeof url !== 'string') return 'https://via.placeholder.com/200';
+  if (url.startsWith('http://47.116.116.87')) return url.replace('http://47.116.116.87', '/lkapi');
+  if (url.startsWith('http://') && !url.startsWith('http://localhost')) return url.replace('http://', 'https://');
+  return url;
+}
+
 export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [currentBanner, setCurrentBanner] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [searchTracked, setSearchTracked] = useState(false);
+  const [featureOrder, setFeatureOrder] = useState<string[] | null>(null);
+  const [painPointLoaded, setPainPointLoaded] = useState(false);
+
+  // 从 /api/recommend/features 获取基于痛点的功能推荐排序
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.get<{features: {id: string}[]; pain_point: string | null}>('/api/recommend/features');
+        if (!cancelled && res.data?.features) {
+          const ordered = res.data.features.map((f: any) => f.id);
+          setFeatureOrder(ordered);
+        }
+      } catch {
+        // API不可用则不启用排序
+      } finally {
+        if (!cancelled) setPainPointLoaded(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // 获取当前用户ID
+  const getUserId = () => {
+    try {
+      const token = api.loadToken();
+      if (!token) return null;
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.user_id || payload.sub || null;
+    } catch { return null; }
+  };
+  const userId = getUserId();
+
+  // 个性化推荐（替代原来的简单 GET /api/products）
   const { data: products, status, error, refetch } = useApi(
-    () => api.get<{total: number; items: ProductItem[]}>('/api/products' + (search ? `?search=${search}` : '')).then(r => r.data?.items || []),
-    [search]
+    () => {
+      const queryParams = search
+        ? `/api/products?search=${encodeURIComponent(search)}&limit=4`
+        : `/api/recommend/products${userId ? `?user_id=${userId}` : ''}&limit=4`;
+      return api.get<{total: number; items: any[]}>(queryParams).then(r => {
+        // 兼容两种响应格式: {items: [...]} 和 {data: {items: [...]}}
+        if (r.data?.items) return r.data.items;
+        if ((r.data as any)?.items) return (r.data as any).items;
+        return r.data || [];
+      });
+    },
+    [search, userId]
   );
 
-  const displayProducts = (products || []).slice(0, 4);
+  // 搜索事件追踪（延迟触发，只在用户输入后标记）
+  useEffect(() => {
+    if (search && !searchTracked) {
+      const timer = setTimeout(() => {
+        api.track('search', { search_keyword: search });
+        setSearchTracked(true);
+      }, 2000); // 用户停止输入2秒后追踪
+      return () => clearTimeout(timer);
+    }
+    if (!search) setSearchTracked(false);
+  }, [search, searchTracked]);
 
   // Fetch unread notification count
   const fetchUnread = async () => {
@@ -95,12 +158,12 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
     },
     {
       tag: 'AI赋能', title: 'AI数字名片 · 智能获客', desc: '一键生成电子画册，精准触达潜在客户',
-      btnText: '立即体验', link: 'http://localhost:8003', external: true,
+      btnText: '立即体验', link: 'https://liankebao.top/digital-brochure/', external: true,
       bgImage: 'https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=800&h=400&fit=crop',
     },
     {
       tag: 'GEO诊断', title: 'AI诊断你的线上曝光', desc: '分析品牌在AI搜索引擎中的可见度，精准优化',
-      btnText: '开始诊断', link: 'http://localhost:5061', external: true,
+      btnText: '开始诊断', link: 'https://liankebao.top/geo/', external: true,
       bgImage: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=800&h=400&fit=crop',
     },
   ];
@@ -114,13 +177,18 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
   }, []);
 
   const featureCards = [
-    { icon: Database, label: '产品池', desc: '精选优质货源', color: 'from-sky-500 to-blue-600', bg: 'bg-sky-50', path: '/product-pool' },
-    { icon: TrendingUp, label: '推广中心', desc: '赚取高额分润', color: 'from-emerald-500 to-teal-600', bg: 'bg-emerald-50', path: '/promotion-center' },
-    { icon: Users, label: '人脉管理', desc: '高效触达客户', color: 'from-violet-500 to-purple-600', bg: 'bg-violet-50', path: '/contacts' },
-    { icon: Receipt, label: '我的订单', desc: '订单物流追踪', color: 'from-amber-500 to-orange-600', bg: 'bg-amber-50', path: '/my-orders' },
-    { icon: Target, label: '信任对接', desc: '精准匹配可信商机', color: 'from-rose-500 to-pink-600', bg: 'bg-rose-50', path: '/supply-demand' },
-    { icon: BarChart3, label: '数据洞察', desc: '生意增长分析', color: 'from-cyan-500 to-teal-600', bg: 'bg-cyan-50', path: '#data' },
+    { id: 'product-pool', icon: Database, label: '产品池', desc: '精选优质货源', color: 'from-sky-500 to-blue-600', bg: 'bg-sky-50', path: '/product-pool' },
+    { id: 'promotion-center', icon: TrendingUp, label: '推广中心', desc: '赚取高额分润', color: 'from-emerald-500 to-teal-600', bg: 'bg-emerald-50', path: '/promotion-center' },
+    { id: 'contacts', icon: Users, label: '人脉管理', desc: '高效触达客户', color: 'from-violet-500 to-purple-600', bg: 'bg-violet-50', path: '/contacts' },
+    { id: 'my-orders', icon: Receipt, label: '我的订单', desc: '订单物流追踪', color: 'from-amber-500 to-orange-600', bg: 'bg-amber-50', path: '/my-orders' },
+    { id: 'supply-demand', icon: Target, label: '信任对接', desc: '精准匹配可信商机', color: 'from-rose-500 to-pink-600', bg: 'bg-rose-50', path: '/supply-demand' },
+    { id: 'data', icon: BarChart3, label: '数据洞察', desc: '生意增长分析', color: 'from-cyan-500 to-teal-600', bg: 'bg-cyan-50', path: '#data' },
   ];
+
+  // 根据痛点排序功能卡片，API未返回时保持默认顺序
+  const orderedFeatureCards = featureOrder
+    ? featureOrder.map(id => featureCards.find(c => c.id === id)).filter(Boolean)
+    : featureCards;
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-b from-sky-50/50 via-white to-white font-sans pb-20">
@@ -170,7 +238,7 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
         {/* Feature Cards Grid */}
         <div className="px-4 py-3">
           <div className="grid grid-cols-4 gap-3">
-            {featureCards.map((card, i) => {
+            {orderedFeatureCards.map((card: any, i: number) => {
               const Icon = card.icon;
               return (
                 <button
@@ -271,9 +339,9 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
         <div className="px-4 py-2">
           <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-1">
             {[
-              { icon: Star, label: 'AI名片', color: 'text-amber-500', bg: 'bg-amber-50', link: 'http://localhost:8003', external: true },
-              { icon: Zap, label: 'GEO', color: 'text-violet-500', bg: 'bg-violet-50', link: 'http://localhost:5061', external: true },
-              { icon: Target, label: 'AI员工', color: 'text-sky-500', bg: 'bg-sky-50', link: 'http://localhost:5020', external: true },
+              { icon: Star, label: 'AI名片', color: 'text-amber-500', bg: 'bg-amber-50', link: 'https://liankebao.top/digital-brochure/', external: true },
+              { icon: Zap, label: 'GEO', color: 'text-violet-500', bg: 'bg-violet-50', link: 'https://liankebao.top/geo/', external: true },
+              { icon: Target, label: 'AI员工', color: 'text-sky-500', bg: 'bg-sky-50', link: 'https://liankebao.top/app/business-card', external: true },
               { icon: Globe, label: '信任对接', color: 'text-emerald-500', bg: 'bg-emerald-50', link: '/supply-demand', external: false },
               { icon: BarChart3, label: '数据洞察', color: 'text-blue-500', bg: 'bg-blue-50', link: '#', external: false },
               { icon: Grid, label: '全部产品', color: 'text-slate-500', bg: 'bg-slate-50', link: '/product-pool', external: false },
@@ -333,14 +401,18 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
             <Empty text="暂无推荐产品" />
           ) : (
             <div className="grid grid-cols-2 gap-4">
-              {displayProducts.map((item, i) => (
+              {products.map((item, i) => (
                 <SpotlightCard
                   key={i}
                   className="cursor-pointer"
                   spotlightColor="rgba(56, 189, 248, 0.12)"
                 >
                 <div
-                  onClick={() => navigate('/product-detail', { state: { transition: 'push', productId: item.id } })}
+                  onClick={() => {
+                    // 点击产品卡片追踪
+                    api.track('product_click', { target_id: item.id, target_type: 'product' });
+                    navigate('/product-detail', { state: { transition: 'push', productId: item.id } });
+                  }}
                   className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-md hover:border-sky-200 active:shadow-sm transition-all card-hover group"
                 >
                   <div className="aspect-square p-2 relative">
@@ -348,13 +420,20 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
                       推荐
                     </div>
                     <img
-                      src={item.images || 'https://via.placeholder.com/200'}
+                      src={safeImageUrl(typeof item.images === "string" ? (JSON.parse(item.images)[0]) : (Array.isArray(item.images) ? item.images[0] : item.images))}
                       className="w-full h-full object-cover rounded-xl bg-slate-50"
                       alt={item.name}
                     />
                   </div>
                   <div className="px-3 pb-3 space-y-2">
                     <h3 className="text-sm font-bold text-slate-800 line-clamp-2 leading-tight">{item.name}</h3>
+                    {item.tags && (
+                      <div className="flex flex-wrap gap-1">
+                        {item.tags.split(',').slice(0, 3).map((tag, ti) => (
+                          <span key={ti} className="text-[8px] bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded-full font-medium border border-sky-100">{tag}</span>
+                        ))}
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
                       <span className="font-manrope text-lg font-extrabold text-sky-600">¥{item.price.toFixed(2)}</span>
                     </div>
@@ -363,7 +442,7 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
                       <span className="text-[10px] font-bold text-emerald-700">推广赚 {item.earn_per_share}%</span>
                     </div>
                     <button
-                      onClick={(e) => { e.stopPropagation(); navigate('/product-detail', { state: { transition: 'push', productId: item.id } }); }}
+                      onClick={(e) => { e.stopPropagation(); api.track('product_click', { target_id: item.id, target_type: 'product' }); navigate('/product-detail', { state: { transition: 'push', productId: item.id } }); }}
                       className="w-full py-2.5 border-2 border-sky-200 text-sky-600 rounded-xl font-bold text-xs hover:bg-sky-500 hover:text-white hover:border-sky-500 active:scale-[0.97] transition-all mb-0.5"
                     >
                       查看详情
@@ -386,14 +465,15 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
   );
 });
 
-// Inline Handshake icon to avoid import conflict
+// Reuse the same Handshake icon as login page
 function HandshakeIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M11 17a4 4 0 0 1-8 0V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2Z" />
-      <path d="M16.7 13H19a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H7" />
-      <path d="M 7 17h.01" />
-      <path d="m11 8 2.3-2.3a2.4 2.4 0 0 1 3.4.9L18 8" />
+      <path d="m11 17 2 2a1 1 0 1 0 3-3" />
+      <path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4" />
+      <path d="m21 3 1 11h-2" />
+      <path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3" />
+      <path d="M3 4h8" />
     </svg>
   );
 }
@@ -486,9 +566,16 @@ export const ProductPool = memo(function ProductPool() {
                   onClick={() => navigate('/product-detail', { state: { transition: 'push', productId: item.id } })}
                   className="bg-white rounded-xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-md transition-all card-hover cursor-pointer"
                 >
-                  <img src={item.images || 'https://via.placeholder.com/200'} className="w-full aspect-square object-cover bg-slate-50" alt={item.name} />
+                  <img src={safeImageUrl(typeof item.images === "string" ? (JSON.parse(item.images)[0]) : (Array.isArray(item.images) ? item.images[0] : item.images))} className="w-full aspect-square object-cover bg-slate-50" alt={item.name} />
                   <div className="p-3 space-y-2">
                     <h3 className="text-xs font-bold line-clamp-2 h-8 text-slate-800">{item.name}</h3>
+                    {item.tags && (
+                      <div className="flex flex-wrap gap-1">
+                        {item.tags.split(',').slice(0, 3).map((tag, ti) => (
+                          <span key={ti} className="text-[8px] bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded-full font-medium border border-sky-100">{tag}</span>
+                        ))}
+                      </div>
+                    )}
                     <p className="text-sky-600 font-manrope font-bold">¥{item.price.toFixed(2)}</p>
                     <button
                       onClick={(e) => { e.stopPropagation(); navigate('/product-detail', { state: { transition: 'push', productId: item.id } }); }}

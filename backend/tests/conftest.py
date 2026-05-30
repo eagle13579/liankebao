@@ -319,7 +319,7 @@ def setup_test_database():
 # ============================================================
 @pytest.fixture(autouse=True)
 def clean_global_state():
-    """每次测试前清理登录频率限制、token 黑名单、支付配置和搜索引擎缓存"""
+    """每次测试前清理登录频率限制、token 黑名单、支付配置、搜索引擎缓存和速率限制器"""
     from app.routers.auth import _login_attempts
 
     _login_attempts.clear()
@@ -335,6 +335,10 @@ def clean_global_state():
     _search_engine_instance = None
     _is_sqlite_cache = None
     _has_fts5_cache = None
+    # 清理全局速率限制器
+    from app.rate_limiter import _limiter
+    if _limiter is not None:
+        _limiter._records.clear()
     yield
 
 
@@ -425,10 +429,10 @@ def supplier_headers(supplier_token: str) -> dict[str, str]:
 @pytest.fixture
 def rebuilt_search_engine(db_session):
     """重建搜索引擎索引（基于种子数据中的 approved 产品）"""
-    from app.search_index import get_search_engine
+    from app.search_index import get_search_engine, rebuild_search_index
 
     engine = get_search_engine()
-    rebuilt_search_index(db_session=db_session)
+    rebuild_search_index(db_session=db_session)
     return engine
 
 

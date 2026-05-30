@@ -1,0 +1,137 @@
+# ============================================================
+# 链客宝 Docker Compose — 生产环境部署
+# ============================================================
+# 构建: docker compose build
+# 启动: docker compose up -d
+# 停止: docker compose down
+# 日志: docker compose logs -f
+# ============================================================
+
+networks:
+  chainke_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  chainke_db_data:
+    driver: local
+  chainke_logs:
+    driver: local
+
+services:
+  # ============================================================
+  # 后端服务 (FastAPI + Uvicorn)
+  # ============================================================
+  backend:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: backend
+    image: liankebao-backend:latest
+    container_name: chainke-backend
+    restart: always
+    networks:
+      - chainke_net
+    ports:
+      - "8001:8001"
+    environment:
+      - PORT=8001
+      - PYTHONPATH=/app/backend
+      - TZ=Asia/Shanghai
+      - ENV=production
+      # 数据库配置
+      - DATABASE_URL=sqlite:///data/chainke.db
+      # 安全配置
+      - SECRET_KEY=${SECRET_KEY:-changeme-in-production}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
+      # 支付配置
+      - WECHAT_MCHID=${WECHAT_MCHID:-}
+      - WECHAT_API_KEY=${WECHAT_API_KEY:-}
+      - ALIPAY_APP_ID=${ALIPAY_APP_ID:-}
+      - ALIPAY_PRIVATE_KEY=${ALIPAY_PRIVATE_KEY:-}
+      # 其他配置
+      - USE_VECTOR_SEARCH=${USE_VECTOR_SEARCH:-0}
+      - SENTRY_DSN=${SENTRY_DSN:-}
+      - POSTHOG_API_KEY=${POSTHOG_API_KEY:-}
+    volumes:
+      - chainke_db_data:/app/backend/data
+      - chainke_logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+      start_interval: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: "2G"
+        reservations:
+          cpus: "0.5"
+          memory: "512M"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    stop_grace_period: 30s
+    stop_signal: SIGTERM
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  # ============================================================
+  # 前端服务 (Nginx + 静态文件)
+  # ============================================================
+  frontend:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: frontend
+    image: liankebao-frontend:latest
+    container_name: chainke-frontend
+    restart: always
+    networks:
+      - chainke_net
+    ports:
+      - "80:80"
+    environment:
+      - TZ=Asia/Shanghai
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+      start_interval: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "256M"
+        reservations:
+          cpus: "0.1"
+          memory: "64M"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    stop_grace_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - SETGID
+      - SETUID
+      - CHOWN

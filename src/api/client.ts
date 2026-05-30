@@ -33,4 +33,18 @@ export const api = {
   put: <T>(path: string, body: any) => request<T>(path, {method:'PUT', body: JSON.stringify(body)}),
   request: <T>(path: string, options?: RequestInit) => request<T>(path, options),
   saveToken, loadToken, removeToken,
+  // 埋点追踪辅助函数
+  track: (eventType: string, data?: Record<string, any>) => {
+    const userId = (() => {
+      try {
+        const token = loadToken();
+        if (!token) return null;
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.user_id || payload.sub || null;
+      } catch { return null; }
+    })();
+    const payload = { event_type: eventType, user_id: userId, ...data };
+    // 异步 fire-and-forget
+    request('/api/events/track', {method:'POST', body: JSON.stringify(payload)}).catch(() => {});
+  },
 };

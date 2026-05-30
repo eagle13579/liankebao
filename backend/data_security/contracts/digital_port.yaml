@@ -1,0 +1,1200 @@
+# ============================================================================
+# 中韩出海数智港模块 (Digital Port) 数据契约
+# 模块名: digital_port
+# 版本: 1.0
+# 契约 Schema: 2.0
+# ============================================================================
+# 中韩出海数智港 — 中韩跨境贸易综合服务平台
+# 涵盖：中韩企业库、跨境服务、政策资讯、展会活动、园区管理、跨境金融
+# ============================================================================
+
+module: digital_port
+version: "1.0"
+contract_schema: "2.0"
+description: "中韩出海数智港模块数据契约 —— 中韩跨境贸易综合服务，涵盖企业库、服务超市、政策资讯、展会、园区、金融"
+
+tables:
+  # --------------------------------------------------------------------------
+  # users — 核心用户表 (core schema)
+  # --------------------------------------------------------------------------
+  - name: users
+    description: "核心用户表 — 数智港可读写的用户字段子集"
+    allowed_fields:
+      - id
+      - uuid
+      - username
+      - nickname
+      - real_name
+      - email
+      - phone
+      - avatar_url
+      - gender
+      - language
+      - timezone
+      - country
+      - province
+      - city
+      - company
+      - position
+      - bio
+      - status
+      - created_at
+      - updated_at
+      - last_login_at
+    required:
+      - uuid
+      - username
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      username:
+        regex: "^[a-zA-Z0-9_@.\\-]{3,64}$"
+        min_length: 3
+        max_length: 64
+      email:
+        format: email
+        max_length: 255
+      phone:
+        format: phone
+        max_length: 20
+      status:
+        enum: ["active", "inactive", "suspended", "deleted"]
+      nickname:
+        max_length: 100
+      real_name:
+        max_length: 100
+    not_allowed:
+      - password_hash
+      - mfa_secret
+      - api_key
+      - login_attempts
+      - locked_until
+      - deleted_at
+
+  # --------------------------------------------------------------------------
+  # organizations — 组织表 (core schema)
+  # --------------------------------------------------------------------------
+  - name: organizations
+    description: "组织表 — 数智港中韩企业信息"
+    allowed_fields:
+      - id
+      - uuid
+      - name
+      - name_en
+      - name_ko
+      - short_name
+      - logo_url
+      - banner_url
+      - industry
+      - industry_category
+      - company_type
+      - registration_number
+      - tax_number
+      - address
+      - address_en
+      - address_ko
+      - country
+      - province
+      - city
+      - district
+      - zip_code
+      - contact_phone
+      - contact_email
+      - website
+      - social_links
+      - description
+      - description_en
+      - description_ko
+      - employee_count
+      - annual_revenue
+      - credit_level
+      - business_scope
+      - certifications
+      - status
+      - verified_at
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - name
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      name:
+        max_length: 200
+        min_length: 1
+      name_en:
+        max_length: 200
+      name_ko:
+        max_length: 200
+      logo_url:
+        format: uri
+        max_length: 1024
+      industry:
+        max_length: 100
+      company_type:
+        enum: ["chinese_enterprise", "korean_enterprise", "joint_venture",
+               "foreign_invested", "government", "association", "individual", "other"]
+      contact_email:
+        format: email
+        max_length: 255
+      contact_phone:
+        format: phone
+        max_length: 20
+      website:
+        format: uri
+        max_length: 1024
+      status:
+        enum: ["active", "inactive", "pending", "suspended", "deleted"]
+      credit_level:
+        enum: ["AAA", "AA", "A", "B", "C", "D"]
+      employee_count:
+        min: 0
+      annual_revenue:
+        min: 0.0
+      address:
+        max_length: 500
+      description:
+        max_length: 2000
+    not_allowed:
+      - financial_data_detail
+      - bank_accounts
+      - kyc_documents
+      - internal_risk_score
+      - deleted_at
+
+  # --------------------------------------------------------------------------
+  # members — 成员表 (core schema)
+  # --------------------------------------------------------------------------
+  - name: members
+    description: "组织成员表 — 数智港企业成员"
+    allowed_fields:
+      - id
+      - uuid
+      - user_id
+      - organization_id
+      - role
+      - roles
+      - department
+      - title
+      - is_primary
+      - is_admin
+      - status
+      - joined_at
+      - expired_at
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - user_id
+      - organization_id
+      - role
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      user_id:
+        min: 1
+      organization_id:
+        min: 1
+      role:
+        enum: ["owner", "admin", "manager", "member", "viewer"]
+      status:
+        enum: ["active", "inactive", "expired", "removed"]
+    not_allowed:
+      - permissions_bitmask
+      - internal_notes
+
+  # --------------------------------------------------------------------------
+  # products — 产品表 (core schema)
+  # --------------------------------------------------------------------------
+  - name: products
+    description: "产品表 — 数智港企业产品/服务展示"
+    allowed_fields:
+      - id
+      - uuid
+      - organization_id
+      - name
+      - name_en
+      - name_ko
+      - category
+      - sub_category
+      - description
+      - description_en
+      - description_ko
+      - keywords
+      - price_min
+      - price_max
+      - currency
+      - unit
+      - images
+      - thumbnail_url
+      - tags
+      - status
+      - is_featured
+      - sort_order
+      - created_at
+      - updated_at
+      - published_at
+    required:
+      - uuid
+      - organization_id
+      - name
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      organization_id:
+        min: 1
+      name:
+        max_length: 200
+        min_length: 1
+      category:
+        max_length: 100
+      description:
+        max_length: 4000
+      currency:
+        enum: ["CNY", "USD", "KRW", "JPY", "EUR", "GBP"]
+      thumbnail_url:
+        format: uri
+        max_length: 1024
+      status:
+        enum: ["draft", "published", "archived", "deleted"]
+      price_min:
+        min: 0.0
+    not_allowed:
+      - cost_price
+      - profit_margin
+      - inventory_quantity
+      - internal_notes
+
+  # --------------------------------------------------------------------------
+  # tags — 标签表 (core schema)
+  # --------------------------------------------------------------------------
+  - name: tags
+    description: "标签表 — 数智港企业/服务/资讯标签"
+    allowed_fields:
+      - id
+      - uuid
+      - name
+      - name_en
+      - name_ko
+      - slug
+      - type
+      - category
+      - icon
+      - color
+      - description
+      - sort_order
+      - is_system
+      - status
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - name
+      - type
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      name:
+        max_length: 100
+        min_length: 1
+      type:
+        enum: ["industry", "service", "policy", "exhibition", "region",
+               "certification", "finance", "logistics", "customs",
+               "legal", "tax", "culture", "system", "custom"]
+      status:
+        enum: ["active", "inactive", "deleted"]
+    not_allowed: []
+
+  # --------------------------------------------------------------------------
+  # user_tags — 用户标签关联表 (core schema)
+  # --------------------------------------------------------------------------
+  - name: user_tags
+    description: "用户标签关联 — 数智港用户兴趣/行业标签"
+    allowed_fields:
+      - id
+      - user_id
+      - tag_id
+      - tag_type
+      - source
+      - weight
+      - created_at
+    required:
+      - user_id
+      - tag_id
+    constraints:
+      user_id:
+        min: 1
+      tag_id:
+        min: 1
+      tag_type:
+        enum: ["industry", "service", "policy", "exhibition", "region",
+               "certification", "finance", "logistics", "customs",
+               "legal", "tax", "culture", "system", "custom"]
+      source:
+        enum: ["user_self", "system_auto", "admin_assign", "import", "ai_infer"]
+      weight:
+        min: 0.0
+        max: 1.0
+    not_allowed: []
+
+  # --------------------------------------------------------------------------
+  # events — 事件日志表 (core schema)
+  # --------------------------------------------------------------------------
+  - name: events
+    description: "事件日志表 — 数智港操作事件记录"
+    allowed_fields:
+      - id
+      - uuid
+      - event_type
+      - event_name
+      - module
+      - source
+      - user_id
+      - organization_id
+      - target_type
+      - target_id
+      - payload
+      - ip_address
+      - user_agent
+      - session_id
+      - request_id
+      - status
+      - duration_ms
+      - error_message
+      - created_at
+    required:
+      - uuid
+      - event_type
+      - event_name
+      - module
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      event_type:
+        enum: ["create", "read", "update", "delete", "login", "logout",
+               "apply", "approve", "reject", "register", "match",
+               "inquiry", "consult", "download", "favorite", "share",
+               "error", "other"]
+      module:
+        regex: "^[a-z_]{2,50}$"
+        max_length: 50
+      source:
+        enum: ["web", "mobile_ios", "mobile_android", "weapp", "api",
+               "admin", "system", "cron", "import"]
+      status:
+        enum: ["success", "failure", "pending", "processing"]
+      ip_address:
+        max_length: 45
+      error_message:
+        max_length: 2000
+    not_allowed:
+      - raw_request
+      - raw_response
+      - sensitive_data
+
+  # --------------------------------------------------------------------------
+  # dp_enterprises — 中韩企业库 (module_digital_port schema)
+  # --------------------------------------------------------------------------
+  - name: dp_enterprises
+    description: "中韩企业库 — 入驻数智港的中韩企业详细档案"
+    allowed_fields:
+      - id
+      - uuid
+      - organization_id
+      - enterprise_code
+      - enterprise_type
+      - enterprise_nature
+      - registration_country
+      - registration_province
+      - registration_city
+      - registered_capital
+      - registered_capital_currency
+      - paid_in_capital
+      - unified_social_code
+      - business_license_url
+      - legal_person_name
+      - legal_person_phone
+      - legal_person_email
+      - main_contact_name
+      - main_contact_phone
+      - main_contact_email
+      - main_contact_position
+      - office_address
+      - office_address_en
+      - office_address_ko
+      - factory_address
+      - factory_address_en
+      - factory_address_ko
+      - website_url
+      - company_email
+      - company_phone
+      - fax
+      - main_industry
+      - sub_industries
+      - main_products
+      - main_products_en
+      - main_products_ko
+      - main_markets
+      - export_countries
+      - import_countries
+      - annual_export_volume
+      - annual_import_volume
+      - export_volume_currency
+      - cooperation_intent
+      - cooperation_intent_en
+      - cooperation_intent_ko
+      - certifications
+      - certificates_images
+      - patent_count
+      - trademark_count
+      - brand_list
+      - company_profile
+      - company_profile_en
+      - company_profile_ko
+      - development_history
+      - honors
+      - social_media_links
+      - video_intro_url
+      - panoramic_url
+      - rating
+      - view_count
+      - match_count
+      - audit_status
+      - audit_comment
+      - verified_at
+      - status
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - organization_id
+      - enterprise_code
+      - enterprise_type
+      - registration_country
+      - main_industry
+      - main_contact_name
+      - main_contact_phone
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      organization_id:
+        min: 1
+      enterprise_code:
+        regex: "^E[A-Z0-9]{8,20}$"
+        max_length: 32
+      enterprise_type:
+        enum: ["chinese_enterprise", "korean_enterprise", "joint_venture",
+               "foreign_invested", "individual_business", "other"]
+      enterprise_nature:
+        enum: ["state_owned", "private", "foreign_funded", "joint_stock",
+               "collective", "limited_liability", "other"]
+      registration_country:
+        max_length: 100
+      registered_capital:
+        min: 0.0
+      registered_capital_currency:
+        enum: ["CNY", "KRW", "USD", "JPY", "EUR", "GBP"]
+      legal_person_phone:
+        format: phone
+        max_length: 20
+      legal_person_email:
+        format: email
+        max_length: 255
+      main_contact_phone:
+        format: phone
+        max_length: 20
+      main_contact_email:
+        format: email
+        max_length: 255
+      main_industry:
+        max_length: 100
+      annual_export_volume:
+        min: 0.0
+      annual_import_volume:
+        min: 0.0
+      patent_count:
+        min: 0
+      rating:
+        min: 0.0
+        max: 5.0
+      view_count:
+        min: 0
+      match_count:
+        min: 0
+      audit_status:
+        enum: ["pending", "approved", "rejected", "supplement"]
+      status:
+        enum: ["active", "inactive", "suspended", "deleted", "pending"]
+      company_profile:
+        max_length: 5000
+    not_allowed:
+      - legal_person_id_card_full
+      - financial_statements_raw
+      - bank_account_detail
+      - tax_return_data
+      - internal_credit_evaluation
+
+  # --------------------------------------------------------------------------
+  # dp_services — 跨境服务超市 (module_digital_port schema)
+  # --------------------------------------------------------------------------
+  - name: dp_services
+    description: "跨境服务超市 — 中韩跨境配套服务商与服务产品"
+    allowed_fields:
+      - id
+      - uuid
+      - provider_organization_id
+      - service_code
+      - service_type
+      - service_category
+      - name
+      - name_en
+      - name_ko
+      - description
+      - description_en
+      - description_ko
+      - service_scope
+      - coverage_countries
+      - coverage_cities
+      - pricing_model
+      - price_min
+      - price_max
+      - price_currency
+      - price_unit
+      - service_cycle
+      - service_lead_time
+      - qualifications
+      - certificates
+      - team_size
+      - case_count
+      - success_rate
+      - rating
+      - review_count
+      - thumbnail_url
+      - images
+      - tags
+      - contact_name
+      - contact_phone
+      - contact_email
+      - is_featured
+      - sort_order
+      - status
+      - audit_status
+      - published_at
+      - expired_at
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - provider_organization_id
+      - service_code
+      - service_type
+      - name
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      provider_organization_id:
+        min: 1
+      service_code:
+        regex: "^S[A-Z0-9]{8,20}$"
+        max_length: 32
+      service_type:
+        enum: ["logistics", "customs_clearance", "warehousing", "legal",
+               "accounting", "tax", "translation", "marketing", "consulting",
+               "certification", "insurance", "finance", "it_services",
+               "recruitment", "training", "exhibition", "other"]
+      service_category:
+        max_length: 100
+      name:
+        max_length: 300
+        min_length: 1
+      description:
+        max_length: 5000
+      pricing_model:
+        enum: ["fixed", "hourly", "project_based", "retainer",
+               "commission", "subscription", "negotiable", "free"]
+      price_min:
+        min: 0.0
+      price_currency:
+        enum: ["CNY", "KRW", "USD", "JPY", "EUR", "GBP"]
+      rating:
+        min: 0.0
+        max: 5.0
+      review_count:
+        min: 0
+      contact_phone:
+        format: phone
+        max_length: 20
+      contact_email:
+        format: email
+        max_length: 255
+      is_featured:
+        enum: [true, false]
+      sort_order:
+        min: 0
+      status:
+        enum: ["draft", "published", "unpublished", "archived", "deleted"]
+      audit_status:
+        enum: ["pending", "approved", "rejected", "supplement"]
+    not_allowed:
+      - provider_internal_cost
+      - profit_margin_detail
+      - competitor_analysis
+
+  # --------------------------------------------------------------------------
+  # dp_policies — 政策资讯 (module_digital_port schema)
+  # --------------------------------------------------------------------------
+  - name: dp_policies
+    description: "政策资讯 — 中韩两国跨境贸易政策、法规、补贴信息"
+    allowed_fields:
+      - id
+      - uuid
+      - title
+      - title_en
+      - title_ko
+      - summary
+      - summary_en
+      - summary_ko
+      - content
+      - content_en
+      - content_ko
+      - policy_type
+      - policy_category
+      - issuing_authority
+      - issuing_authority_en
+      - issuing_authority_ko
+      - document_no
+      - publish_date
+      - effective_date
+      - expiry_date
+      - applicable_countries
+      - applicable_industries
+      - applicable_regions
+      - target_audience
+      - benefits_summary
+      - application_conditions
+      - application_process
+      - application_deadline
+      - contact_department
+      - contact_phone
+      - contact_email
+      - related_documents
+      - source_url
+      - original_file_url
+      - tags
+      - importance
+      - urgency
+      - view_count
+      - favorite_count
+      - share_count
+      - status
+      - published_at
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - title
+      - policy_type
+      - issuing_authority
+      - publish_date
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      title:
+        max_length: 300
+        min_length: 1
+      title_en:
+        max_length: 300
+      title_ko:
+        max_length: 300
+      policy_type:
+        enum: ["tariff", "tax_incentive", "subsidy", "regulation",
+               "trade_agreement", "visa_policy", "standard", "certification",
+               "finance_policy", "logistics_policy", "other"]
+      policy_category:
+        max_length: 100
+      issuing_authority:
+        max_length: 200
+      target_audience:
+        enum: ["all", "chinese_enterprise", "korean_enterprise",
+               "individual", "association", "specific_industry"]
+      importance:
+        enum: ["low", "medium", "high", "urgent"]
+      urgency:
+        enum: ["low", "medium", "high", "critical"]
+      view_count:
+        min: 0
+      favorite_count:
+        min: 0
+      status:
+        enum: ["draft", "published", "archived", "deprecated"]
+      content:
+        max_length: 50000
+      summary:
+        max_length: 1000
+      source_url:
+        format: uri
+        max_length: 1024
+      contact_email:
+        format: email
+        max_length: 255
+    not_allowed:
+      - internal_analysis
+      - government_contact_internal
+
+  # --------------------------------------------------------------------------
+  # dp_exhibitions — 展会活动 (module_digital_port schema)
+  # --------------------------------------------------------------------------
+  - name: dp_exhibitions
+    description: "展会活动 — 中韩跨境展会、商务对接会、路演活动"
+    allowed_fields:
+      - id
+      - uuid
+      - title
+      - title_en
+      - title_ko
+      - subtitle
+      - subtitle_en
+      - subtitle_ko
+      - exhibition_type
+      - exhibition_category
+      - organizer_id
+      - organizer_name
+      - organizer_name_en
+      - organizer_name_ko
+      - organizer_contact
+      - organizer_phone
+      - organizer_email
+      - co_organizers
+      - supporters
+      - description
+      - description_en
+      - description_ko
+      - agenda
+      - agenda_en
+      - agenda_ko
+      - location
+      - location_en
+      - location_ko
+      - address
+      - address_en
+      - address_ko
+      - country
+      - city
+      - venue
+      - start_date
+      - end_date
+      - registration_start
+      - registration_end
+      - registration_fee
+      - fee_currency
+      - max_participants
+      - current_participants
+      - participants_list
+      - booth_price_min
+      - booth_price_max
+      - booth_price_currency
+      - available_booths
+      - total_booths
+      - industry_focus
+      - target_audience
+      - exhibitor_profile
+      - visitor_profile
+      - highlights
+      - highlights_en
+      - highlights_ko
+      - poster_url
+      - banner_url
+      - images
+      - video_url
+      - tags
+      - is_featured
+      - sort_order
+      - view_count
+      - registration_count
+      - favorite_count
+      - status
+      - published_at
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - title
+      - exhibition_type
+      - organizer_name
+      - start_date
+      - end_date
+      - location
+      - country
+      - city
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      title:
+        max_length: 300
+        min_length: 1
+      title_en:
+        max_length: 300
+      title_ko:
+        max_length: 300
+      exhibition_type:
+        enum: ["expo", "trade_fair", "matchmaking", "roadshow",
+               "seminar", "workshop", "networking", "online_expo",
+               "conference", "training", "other"]
+      exhibition_category:
+        max_length: 100
+      organizer_phone:
+        format: phone
+        max_length: 20
+      organizer_email:
+        format: email
+        max_length: 255
+      registration_fee:
+        min: 0.0
+      fee_currency:
+        enum: ["CNY", "KRW", "USD", "JPY", "EUR"]
+      max_participants:
+        min: 1
+      current_participants:
+        min: 0
+      booth_price_min:
+        min: 0.0
+      booth_price_max:
+        min: 0.0
+      view_count:
+        min: 0
+      registration_count:
+        min: 0
+      is_featured:
+        enum: [true, false]
+      sort_order:
+        min: 0
+      status:
+        enum: ["draft", "published", "registration_open", "registration_closed",
+               "ongoing", "completed", "cancelled", "postponed"]
+      description:
+        max_length: 10000
+    not_allowed:
+      - exhibitor_financial_info
+      - attendee_private_data
+      - internal_sponsor_contract
+
+  # --------------------------------------------------------------------------
+  # dp_parks — 产业园/园区管理 (module_digital_port schema)
+  # --------------------------------------------------------------------------
+  - name: dp_parks
+    description: "产业园 — 中韩跨境产业园区信息与入驻管理"
+    allowed_fields:
+      - id
+      - uuid
+      - name
+      - name_en
+      - name_ko
+      - park_code
+      - park_type
+      - operation_company
+      - operation_company_id
+      - country
+      - province
+      - city
+      - district
+      - address
+      - address_en
+      - address_ko
+      - longitude
+      - latitude
+      - area_size_sqm
+      - total_buildings
+      - total_floorspace
+      - available_floorspace
+      - rental_price_min
+      - rental_price_max
+      - rental_currency
+      - rental_unit
+      - property_fee
+      - property_fee_unit
+      - park_description
+      - park_description_en
+      - park_description_ko
+      - park_features
+      - park_features_en
+      - park_features_ko
+      - infrastructure
+      - supporting_services
+      - target_industries
+      - admission_requirements
+      - incentive_policies
+      - contact_name
+      - contact_phone
+      - contact_email
+      - images
+      - panoramic_url
+      - brochure_url
+      - video_url
+      - tags
+      - total_tenants
+      - current_tenants
+      - occupancy_rate
+      - rating
+      - view_count
+      - is_featured
+      - sort_order
+      - status
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - name
+      - park_code
+      - park_type
+      - country
+      - city
+      - address
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      name:
+        max_length: 300
+        min_length: 1
+      park_code:
+        regex: "^P[A-Z0-9]{6,20}$"
+        max_length: 32
+      park_type:
+        enum: ["industrial_park", "free_trade_zone", "logistics_park",
+               "tech_park", "business_park", "cross_border_park",
+               "economic_zone", "port_area", "other"]
+      area_size_sqm:
+        min: 0.0
+      available_floorspace:
+        min: 0.0
+      rental_price_min:
+        min: 0.0
+      rental_currency:
+        enum: ["CNY", "KRW", "USD", "JPY"]
+      rental_unit:
+        enum: ["per_sqm_month", "per_sqm_year", "per_month", "per_year"]
+      contact_phone:
+        format: phone
+        max_length: 20
+      contact_email:
+        format: email
+        max_length: 255
+      total_tenants:
+        min: 0
+      current_tenants:
+        min: 0
+      occupancy_rate:
+        min: 0.0
+        max: 100.0
+      rating:
+        min: 0.0
+        max: 5.0
+      view_count:
+        min: 0
+      is_featured:
+        enum: [true, false]
+      sort_order:
+        min: 0
+      status:
+        enum: ["planning", "construction", "operational", "full", "renovating", "closed"]
+      longitude:
+        min: -180.0
+        max: 180.0
+      latitude:
+        min: -90.0
+        max: 90.0
+    not_allowed:
+      - tenant_financial_data
+      - internal_lease_contracts
+      - park_operating_cost
+
+  # --------------------------------------------------------------------------
+  # dp_finance — 跨境金融 (module_digital_port schema)
+  # --------------------------------------------------------------------------
+  - name: dp_finance
+    description: "跨境金融 — 中韩跨境结算、汇兑、融资服务记录"
+    allowed_fields:
+      - id
+      - uuid
+      - finance_code
+      - enterprise_id
+      - organization_id
+      - user_id
+      - finance_type
+      - service_type
+      - service_provider_id
+      - service_provider_name
+      - application_date
+      - completion_date
+      - currency_from
+      - currency_to
+      - amount_from
+      - amount_to
+      - exchange_rate
+      - fee_amount
+      - fee_currency
+      - total_amount
+      - total_currency
+      - payment_method
+      - transaction_reference
+      - bank_name
+      - bank_account_suffix
+      - purpose
+      - purpose_en
+      - purpose_ko
+      - supporting_documents
+      - status
+      - progress_stage
+      - reject_reason
+      - approval_notes
+      - operator_id
+      - reviewer_id
+      - reviewed_at
+      - approved_at
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - finance_code
+      - enterprise_id
+      - finance_type
+      - amount_from
+      - currency_from
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      finance_code:
+        regex: "^F[A-Z0-9]{10,30}$"
+        max_length: 32
+      enterprise_id:
+        min: 1
+      finance_type:
+        enum: ["cross_border_payment", "forex_exchange", "trade_finance",
+               "letter_of_credit", "factoring", "supply_chain_finance",
+               "export_credit", "insurance", "other"]
+      service_type:
+        max_length: 100
+      currency_from:
+        enum: ["CNY", "KRW", "USD", "JPY", "EUR", "GBP", "HKD", "SGD"]
+      currency_to:
+        enum: ["CNY", "KRW", "USD", "JPY", "EUR", "GBP", "HKD", "SGD"]
+      amount_from:
+        min: 0.0
+      amount_to:
+        min: 0.0
+      exchange_rate:
+        min: 0.0
+      fee_amount:
+        min: 0.0
+      payment_method:
+        enum: ["bank_transfer", "swift", "alipay_crossborder",
+               "paypal", "wise", "other"]
+      status:
+        enum: ["pending", "processing", "completed", "failed", "cancelled",
+               "disputed", "refunded"]
+      progress_stage:
+        enum: ["application", "document_review", "exchange", "transfer",
+               "confirmation", "completed", "exception"]
+    not_allowed:
+      - bank_full_account_number
+      - payment_password
+      - api_credentials
+      - internal_credit_limit_detail
+      - counterparty_risk_report
+
+  # --------------------------------------------------------------------------
+  # dp_matches — 商务匹配 (module_digital_port schema)
+  # --------------------------------------------------------------------------
+  - name: dp_matches
+    description: "商务匹配 — 中韩企业智能匹配与对接记录"
+    allowed_fields:
+      - id
+      - uuid
+      - enterprise_id_a
+      - enterprise_id_b
+      - organization_id_a
+      - organization_id_b
+      - match_type
+      - match_score
+      - match_algorithm
+      - match_criteria
+      - match_reasons
+      - match_details
+      - match_source
+      - initiator_id
+      - initiator_type
+      - status
+      - contact_status
+      - contact_message
+      - meeting_scheduled
+      - meeting_date
+      - meeting_location
+      - meeting_notes
+      - follow_up_date
+      - conversion_status
+      - conversion_detail
+      - feedback_score_a
+      - feedback_score_b
+      - feedback_comment_a
+      - feedback_comment_b
+      - is_read_a
+      - is_read_b
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - enterprise_id_a
+      - enterprise_id_b
+      - match_type
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      enterprise_id_a:
+        min: 1
+      enterprise_id_b:
+        min: 1
+      match_type:
+        enum: ["ai_recommend", "auto", "manual", "exhibition", "search",
+               "scan", "import"]
+      match_score:
+        min: 0.0
+        max: 100.0
+      match_source:
+        enum: ["system", "admin", "user", "exhibition", "policy_match"]
+      initiator_type:
+        enum: ["enterprise_a", "enterprise_b", "system", "admin"]
+      status:
+        enum: ["pending", "contacted", "meeting_scheduled", "meeting_completed",
+               "negotiating", "cooperation", "closed", "cancelled", "expired"]
+      contact_status:
+        enum: ["not_contacted", "contacted", "in_discussion",
+               "meeting_done", "cooperation_started", "no_response"]
+      conversion_status:
+        enum: ["none", "potential", "in_progress", "converted", "failed"]
+      feedback_score_a:
+        min: 1
+        max: 5
+      feedback_score_b:
+        min: 1
+        max: 5
+      is_read_a:
+        enum: [true, false]
+      is_read_b:
+        enum: [true, false]
+    not_allowed:
+      - enterprise_credit_report
+      - internal_priority_evaluation
+      - negotiation_strategy_internal

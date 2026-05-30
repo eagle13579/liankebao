@@ -14,6 +14,7 @@ from app.schemas import (
     ApiResponse, OrderCreate, OrderStatusRequest, OrderResponse,
 )
 from app.auth import get_current_user
+from app.rbac import require_roles
 from payment import (
     WxPayApi, WxPayConfig, WxPayCallback,
     get_config, has_config, PLATFORM_WXPAY,
@@ -25,13 +26,16 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/orders", tags=["订单"])
 
+# 订单接口：admin/member/viewer 均可访问
+_order_access = require_roles(["admin", "member", "viewer"])
+
 # 微信支付配置（从环境变量读取）
 WECHAT_APPID = os.environ.get("WECHAT_APPID", "wxb4f6d89904200fd2")
 
 
 @router.post("", response_model=ApiResponse)
 def create_order(req: OrderCreate, db: Session = Depends(get_db),
-                 current_user: User = Depends(get_current_user)):
+                 current_user: User = Depends(_order_access)):
     """创建订单并返回支付参数"""
     # 验证产品
     product = db.query(Product).filter(
@@ -268,7 +272,7 @@ async def pay_notify(request: Request, db: Session = Depends(get_db)):
 
 @router.get("", response_model=ApiResponse)
 def get_orders(db: Session = Depends(get_db),
-               current_user: User = Depends(get_current_user)):
+               current_user: User = Depends(_order_access)):
     """获取订单列表（按角色过滤）"""
     if current_user.role == "admin":
         # 管理员看所有订单
@@ -318,7 +322,7 @@ def update_order_status(
     order_id: int,
     req: OrderStatusRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(_order_access),
 ):
     """更新订单状态（按角色限制）"""
     order = db.query(Order).filter(
@@ -390,7 +394,7 @@ def update_order_status(
 
 @router.get("/{order_id}", response_model=ApiResponse)
 def get_order(order_id: int, db: Session = Depends(get_db),
-              current_user: User = Depends(get_current_user)):
+              current_user: User = Depends(_order_access)):
     """获取订单详情"""
     order = db.query(Order).filter(
         Order.id == order_id,

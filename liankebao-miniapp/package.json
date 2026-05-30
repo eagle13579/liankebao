@@ -1,0 +1,15 @@
+{
+  "name": "liankebao-miniapp",
+  "version": "1.0.0",
+  "description": "链客宝原生微信小程序",
+  "private": true,
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^30.4.1",
+    "miniprogram-simulate": "^1.5.8"
+  }
+}

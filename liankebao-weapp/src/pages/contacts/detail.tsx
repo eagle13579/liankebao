@@ -18,7 +18,7 @@ export default class ContactDetail extends Component<{}, ContactDetailState> {
   }
 
   componentDidMount() {
-    const { id } = this.$router.params
+    const { id } = this.$router!.params
     if (id) {
       this.fetchDetail(id)
     } else {
@@ -76,7 +76,7 @@ export default class ContactDetail extends Component<{}, ContactDetailState> {
             <Text className='cd-error-icon'>⚠</Text>
             <Text className='cd-error-text'>{error}</Text>
             <Text className='cd-error-retry' onClick={() => {
-              const { id } = this.$router.params
+              const { id } = this.$router!.params
               if (id) this.fetchDetail(id)
             }}>点击重试</Text>
           </View>

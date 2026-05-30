@@ -20,6 +20,8 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user
 from app.database import get_db
 from app.models import Order, Product, User
+from app.rbac import require_roles
+from app.retry_engine import RetryTask, get_retry_engine
 from app.schemas import ApiResponse, OrderResponse
 
 # ===== IJPay 封装模块 =====
@@ -36,7 +38,13 @@ from payment import (
 
 logger = logging.getLogger(__name__)
 
+# ===== OpenTelemetry 自定义追踪 =====
+from app.telemetry import tracer
+
 router = APIRouter(prefix="/api/payment", tags=["支付"])
+
+# 支付接口需要 admin 或 member 角色
+_payment_access = require_roles(["admin", "member"])
 
 
 # ============================================================
@@ -117,7 +125,7 @@ async def _check_order_ownership(order_id: int, user: User, db: Session) -> Orde
 async def wxpay_unified_order(
     req: WxPayUnifiedOrderRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(_payment_access),
 ):
     """
     微信统一下单 (JSAPI)
@@ -125,64 +133,79 @@ async def wxpay_unified_order(
     使用 IJPay WxPayApi V3 接口。
     若配置不完整或调用失败，降级为 mock 模式。
     """
-    order = await _check_order_ownership(req.order_id, current_user, db)
-    product = db.query(Product).filter(Product.id == order.product_id, Product.is_deleted == False).first()
+    with tracer.start_as_current_span("payment.wxpay_unified_order") as span:
+        span.set_attribute("order_id", req.order_id)
+        span.set_attribute("user_id", current_user.id)
+        order = await _check_order_ownership(req.order_id, current_user, db)
+        product = db.query(Product).filter(Product.id == order.product_id, Product.is_deleted == False).first()
 
-    if order.status != "pending":
-        raise HTTPException(status_code=400, detail="订单不是待支付状态")
+        if order.status != "pending":
+            span.set_attribute("error", "order_not_pending")
+            span.set_attribute("order_status", order.status)
+            raise HTTPException(status_code=400, detail="订单不是待支付状态")
 
-    # 获取 openid
-    openid = req.openid or current_user.wechat_openid
-    if not openid:
-        raise HTTPException(status_code=400, detail="缺少用户微信 openid，无法发起微信支付")
+        # 获取 openid
+        openid = req.openid or current_user.wechat_openid
+        if not openid:
+            span.set_attribute("error", "missing_openid")
+            raise HTTPException(status_code=400, detail="缺少用户微信 openid，无法发起微信支付")
 
-    out_trade_no = f"LK{order.id:08d}{int(time.time())}"
-    total_fee = int(order.total_price * 100)
-    description = f"{product.name[:60]} x{order.quantity}" if product else f"订单 #{order.id}"
+        out_trade_no = f"LK{order.id:08d}{int(time.time())}"
+        total_fee = int(order.total_price * 100)
+        description = f"{product.name[:60]} x{order.quantity}" if product else f"订单 #{order.id}"
 
-    if has_config(PLATFORM_WXPAY):
-        try:
-            wxpay = _get_wxpay_api()
-            result = await wxpay.create_jsapi_order(
-                openid=openid,
-                out_trade_no=out_trade_no,
-                total_fee=total_fee,
-                description=description,
-                attach=json.dumps({"order_id": order.id}),
-            )
-        except Exception as e:
-            logger.error(f"IJPay 统一下单异常: {e}")
-            result = None
+        span.set_attribute("out_trade_no", out_trade_no)
+        span.set_attribute("total_fee_cents", total_fee)
+        span.set_attribute("product_name", product.name if product else "N/A")
 
-        if result and result.get("prepay_id"):
-            # 更新订单
-            order.prepay_id = result["prepay_id"]
-            order.payment_platform = PLATFORM_WXPAY
-            db.commit()
+        if has_config(PLATFORM_WXPAY):
+            try:
+                wxpay = _get_wxpay_api()
+                result = await wxpay.create_jsapi_order(
+                    openid=openid,
+                    out_trade_no=out_trade_no,
+                    total_fee=total_fee,
+                    description=description,
+                    attach=json.dumps({"order_id": order.id}),
+                )
+                span.set_attribute("ijpay_result", bool(result and result.get("prepay_id")))
+            except Exception as e:
+                logger.error(f"IJPay 统一下单异常: {e}")
+                span.record_exception(e)
+                span.set_attribute("ijpay_error", str(e))
+                result = None
 
-            payment_params = result["payment_params"]
-            payment_params["_mode"] = "real"
-            return ApiResponse(
-                code=200,
-                message="下单成功",
-                data={
-                    "order": OrderResponse.model_validate(order).model_dump(),
-                    "payment": payment_params,
-                },
-            )
+            if result and result.get("prepay_id"):
+                # 更新订单
+                order.prepay_id = result["prepay_id"]
+                order.payment_platform = PLATFORM_WXPAY
+                db.commit()
 
-        logger.warning("IJPay 统一下单失败，降级到 mock 模式")
+                payment_params = result["payment_params"]
+                payment_params["_mode"] = "real"
+                span.set_attribute("payment_mode", "real")
+                return ApiResponse(
+                    code=200,
+                    message="下单成功",
+                    data={
+                        "order": OrderResponse.model_validate(order).model_dump(),
+                        "payment": payment_params,
+                    },
+                )
 
-    # Mock 模式
-    mock = _mock_payment(order, total_fee, description)
-    return ApiResponse(
-        code=200,
-        message="下单成功 (mock)",
-        data={
-            "order": OrderResponse.model_validate(order).model_dump(),
-            "payment": mock,
-        },
-    )
+            logger.warning("IJPay 统一下单失败，降级到 mock 模式")
+
+        # Mock 模式
+        span.set_attribute("payment_mode", "mock")
+        mock = _mock_payment(order, total_fee, description)
+        return ApiResponse(
+            code=200,
+            message="下单成功 (mock)",
+            data={
+                "order": OrderResponse.model_validate(order).model_dump(),
+                "payment": mock,
+            },
+        )
 
 
 # ============================================================
@@ -206,60 +229,75 @@ async def wxpay_callback(
     body = await request.body()
     logger.info(f"收到支付回调: {body[:200]}")
 
-    # 获取回调头信息
-    wechat_signature = request.headers.get("Wechatpay-Signature", "")
-    wechat_serial = request.headers.get("Wechatpay-Serial", "")
-    wechat_timestamp = request.headers.get("Wechatpay-Timestamp", "")
-    wechat_nonce = request.headers.get("Wechatpay-Nonce", "")
+    with tracer.start_as_current_span("payment.wxpay_callback") as span:
+        # 获取回调头信息
+        wechat_signature = request.headers.get("Wechatpay-Signature", "")
+        wechat_serial = request.headers.get("Wechatpay-Serial", "")
+        wechat_timestamp = request.headers.get("Wechatpay-Timestamp", "")
+        wechat_nonce = request.headers.get("Wechatpay-Nonce", "")
 
-    # 判断是 V3 还是 V2
-    is_v3 = bool(wechat_signature and wechat_serial)
+        span.set_attribute("callback_headers_present", bool(wechat_signature))
 
-    if is_v3 and has_config(PLATFORM_WXPAY):
-        # --- V3 回调：IJPay 完整验签 + 解密 ---
-        callback = WxPayCallback()
-        notify_data = callback.verify_and_decrypt(
-            body=body,
-            wechatpay_signature=wechat_signature,
-            wechatpay_serial=wechat_serial,
-            wechatpay_timestamp=wechat_timestamp,
-            wechatpay_nonce=wechat_nonce,
-        )
-        if not notify_data:
-            logger.error("支付回调验签失败")
-            return {"code": "FAIL", "message": "验签失败"}
+        # 判断是 V3 还是 V2
+        is_v3 = bool(wechat_signature and wechat_serial)
+        span.set_attribute("callback_version", "v3" if is_v3 else "mock/compat")
 
-        out_trade_no = notify_data.get("out_trade_no", "")
-        transaction_id = notify_data.get("transaction_id", "")
-        trade_state = notify_data.get("trade_state", "")
-        success = trade_state in ("SUCCESS", "")
-    else:
-        # --- Mock 或 V2 兼容 ---
-        try:
-            body_str = body.decode("utf-8")
-            try:
-                notify_data = json.loads(body_str)
-            except json.JSONDecodeError:
-                # 可能是 XML (V2)
-                import xml.etree.ElementTree as ET
-
-                root = ET.fromstring(body_str)
-                notify_data = {child.tag: child.text for child in root}
+        if is_v3 and has_config(PLATFORM_WXPAY):
+            # --- V3 回调：IJPay 完整验签 + 解密 ---
+            callback = WxPayCallback()
+            notify_data = callback.verify_and_decrypt(
+                body=body,
+                wechatpay_signature=wechat_signature,
+                wechatpay_serial=wechat_serial,
+                wechatpay_timestamp=wechat_timestamp,
+                wechatpay_nonce=wechat_nonce,
+            )
+            if not notify_data:
+                logger.error("支付回调验签失败")
+                span.set_attribute("callback_result", "verify_failed")
+                # 将回调数据加入重试队列，后续补偿
+                _enqueue_retry(body, request)
+                return {"code": "FAIL", "message": "验签失败"}
 
             out_trade_no = notify_data.get("out_trade_no", "")
-            transaction_id = notify_data.get("transaction_id", "") or notify_data.get(
-                "wx_transaction_id", f"mock_tx_{int(time.time())}"
-            )
-            success = notify_data.get("result_code", "") in ("SUCCESS", "OK", "")
-        except Exception as e:
-            logger.error(f"回调解析失败: {e}")
-            out_trade_no = ""
-            transaction_id = f"mock_tx_{int(time.time())}"
-            success = True
+            transaction_id = notify_data.get("transaction_id", "")
+            trade_state = notify_data.get("trade_state", "")
+            success = trade_state in ("SUCCESS", "")
+            span.set_attribute("out_trade_no", out_trade_no)
+            span.set_attribute("trade_state", trade_state)
+        else:
+            # --- Mock 或 V2 兼容 ---
+            try:
+                body_str = body.decode("utf-8")
+                try:
+                    notify_data = json.loads(body_str)
+                except json.JSONDecodeError:
+                    # 可能是 XML (V2)
+                    import xml.etree.ElementTree as ET
 
-    if not success:
-        logger.warning(f"支付未成功: out_trade_no={out_trade_no}, state={notify_data.get('trade_state', '')}")
-        return {"code": "FAIL", "message": "支付未成功"}
+                    root = ET.fromstring(body_str)
+                    notify_data = {child.tag: child.text for child in root}
+
+                out_trade_no = notify_data.get("out_trade_no", "")
+                transaction_id = notify_data.get("transaction_id", "") or notify_data.get(
+                    "wx_transaction_id", f"mock_tx_{int(time.time())}"
+                )
+                success = notify_data.get("result_code", "") in ("SUCCESS", "OK", "")
+            except Exception as e:
+                logger.error(f"回调解析失败: {e}")
+                span.set_attribute("callback_parse_error", str(e))
+                # 将回调数据加入重试队列，后续补偿
+                _enqueue_retry(body, request)
+                out_trade_no = ""
+                transaction_id = f"mock_tx_{int(time.time())}"
+                success = True
+
+        span.set_attribute("callback_success", success)
+        span.set_attribute("out_trade_no", out_trade_no)
+
+        if not success:
+            logger.warning(f"支付未成功: out_trade_no={out_trade_no}, state={notify_data.get('trade_state', '')}")
+            return {"code": "FAIL", "message": "支付未成功"}
 
     # 更新订单
     if out_trade_no and out_trade_no.startswith("LK"):
@@ -310,7 +348,101 @@ async def wxpay_callback(
         logger.info(f"订单 {order.id} 支付成功（通过 prepay_id 匹配）")
         return {"code": "SUCCESS", "message": "成功"}
 
+    # 未匹配到订单，加入重试队列进行补偿
+    _enqueue_retry_for_unmatched(notify_data if is_v3 else notify_data, body, request)
     return {"code": "SUCCESS", "message": "已接收"}
+
+
+def _enqueue_retry_for_unmatched(notify_data: dict, body: bytes, request: Request) -> None:
+    """
+    当回调数据无法匹配到订单时，加入重试队列
+    """
+    try:
+        out_trade_no = notify_data.get("out_trade_no", "") if isinstance(notify_data, dict) else ""
+        import json
+        payload = json.dumps({
+            "body": body.decode("utf-8", errors="replace"),
+            "headers": {
+                "Wechatpay-Signature": request.headers.get("Wechatpay-Signature", ""),
+                "Wechatpay-Serial": request.headers.get("Wechatpay-Serial", ""),
+                "Wechatpay-Timestamp": request.headers.get("Wechatpay-Timestamp", ""),
+                "Wechatpay-Nonce": request.headers.get("Wechatpay-Nonce", ""),
+            },
+            "mode": _detect_callback_mode(request),
+            "out_trade_no": out_trade_no,
+        }, ensure_ascii=False)
+
+        from payment import get_config, PLATFORM_WXPAY, has_config
+        if has_config(PLATFORM_WXPAY):
+            cfg = get_config(PLATFORM_WXPAY)
+            target_url = cfg.notify_url
+        else:
+            target_url = ""
+        if not target_url:
+            scheme = request.headers.get("X-Forwarded-Proto", "https")
+            host = request.headers.get("X-Forwarded-Host", request.headers.get("Host", "localhost:7800"))
+            target_url = f"{scheme}://{host}/api/payment/wxpay/callback"
+
+        retry_engine = get_retry_engine()
+        task = RetryTask(target_url=target_url, payload=payload, max_retries=3)
+        retry_engine.add_task(task)
+        logger.info(f"未匹配订单的回调已加入重试队列: task_id={task.task_id}, out_trade_no={out_trade_no}")
+    except Exception as e:
+        logger.error(f"加入未匹配回调重试队列失败: {e}")
+
+
+def _enqueue_retry(body: bytes, request: Request) -> None:
+    """
+    将支付回调数据加入重试队列，以便后续补偿处理
+    """
+    try:
+        import os
+        # 获取本机回调地址（优先使用配置的 notify_url，其次从请求构造）
+        from payment import get_config, PLATFORM_WXPAY, has_config
+        if has_config(PLATFORM_WXPAY):
+            cfg = get_config(PLATFORM_WXPAY)
+            target_url = cfg.notify_url
+        else:
+            target_url = ""
+        if not target_url:
+            # 从请求构造本地回调地址
+            scheme = request.headers.get("X-Forwarded-Proto", "https")
+            host = request.headers.get("X-Forwarded-Host", request.headers.get("Host", "localhost:7800"))
+            target_url = f"{scheme}://{host}/api/payment/wxpay/callback"
+
+        # 构造重试任务：payload 包含原始请求体 + 回调头信息
+        import json
+        payload = json.dumps({
+            "body": body.decode("utf-8", errors="replace"),
+            "headers": {
+                "Wechatpay-Signature": request.headers.get("Wechatpay-Signature", ""),
+                "Wechatpay-Serial": request.headers.get("Wechatpay-Serial", ""),
+                "Wechatpay-Timestamp": request.headers.get("Wechatpay-Timestamp", ""),
+                "Wechatpay-Nonce": request.headers.get("Wechatpay-Nonce", ""),
+            },
+            "mode": _detect_callback_mode(request),
+        }, ensure_ascii=False)
+
+        retry_engine = get_retry_engine()
+        task = RetryTask(
+            target_url=target_url,
+            payload=payload,
+            max_retries=3,
+        )
+        retry_engine.add_task(task)
+        logger.info(f"支付回调已加入重试队列: task_id={task.task_id}, target_url={target_url}")
+    except Exception as e:
+        logger.error(f"加入支付回调重试队列失败: {e}")
+
+
+def _detect_callback_mode(request: Request) -> str:
+    """检测回调模式: v3 / v2 / mock"""
+    from payment import has_config, PLATFORM_WXPAY
+    sig = request.headers.get("Wechatpay-Signature", "")
+    serial = request.headers.get("Wechatpay-Serial", "")
+    if sig and serial and has_config(PLATFORM_WXPAY):
+        return "v3"
+    return "v2_or_mock"
 
 
 # ============================================================
@@ -322,7 +454,7 @@ async def wxpay_callback(
 async def wxpay_query(
     order_no: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(_payment_access),
 ):
     """查询订单支付状态"""
     query_type = Query(default="out_trade_no", description="查询类型: out_trade_no / transaction_id")
@@ -371,7 +503,7 @@ async def wxpay_query(
 async def wxpay_refund(
     req: WxPayRefundRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(_payment_access),
 ):
     """微信退款"""
     order = db.query(Order).filter(Order.id == req.order_id, Order.is_deleted == False).first()
@@ -446,7 +578,7 @@ async def wxpay_refund(
 async def alipay_unified_order(
     req: AliPayUnifiedOrderRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(_payment_access),
 ):
     """支付宝统一下单 (APP 支付)"""
     order = await _check_order_ownership(req.order_id, current_user, db)

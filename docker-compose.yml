@@ -86,6 +86,42 @@ services:
         max-file: "3"
 
   # ============================================================
+  # SEO Meta 代理服务 (轻量级 Node.js)
+  # 为 /app/card/:token 路由注入 og:meta 标签，无需完整 SSR
+  # ============================================================
+  meta-proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile.ssr
+      target: meta-proxy
+    container_name: liankebao-meta-proxy
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=production
+      - API_BASE=http://backend:8001
+      - META_PROXY_PORT=3002
+      - SITE_URL=https://liankebao.top
+      - TZ=Asia/Shanghai
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - liankebao-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================================
   # Redis 缓存服务（可选 — 用于会话缓存/消息队列）
   # ============================================================
   redis:

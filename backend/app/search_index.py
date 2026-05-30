@@ -9,6 +9,9 @@
 环境变量:
   SEARCH_BACKEND=auto|memory|fts5   (默认: auto)
   USE_JIEBA=1|0                      (默认: 1，memory 引擎使用 jieba 分词)
+  USE_VECTOR_SEARCH=0|1             (默认: 0，启用向量重排序)
+  EMBEDDING_PROVIDER=numpy|openai|deepseek  (默认: numpy)
+  RERANK_WEIGHT=0.3                 (向量重排序权重 0~1)
 
 功能:
   - 多字段搜索（产品名+描述+标签+品牌+分类）
@@ -18,6 +21,7 @@
   - 分页
   - 搜索结果高亮
   - 搜索建议/补全
+  - 向量重排序（USE_VECTOR_SEARCH=1 时启用，BM25+向量混合排序）
 """
 
 import json
@@ -35,6 +39,7 @@ logger = logging.getLogger(__name__)
 # ======================================================================
 SEARCH_BACKEND = os.environ.get("SEARCH_BACKEND", "auto").lower()
 USE_JIEBA = os.environ.get("USE_JIEBA", "1") == "1"
+USE_VECTOR_SEARCH = os.environ.get("USE_VECTOR_SEARCH", "0") == "1"
 
 # ======================================================================
 # 中文分词
@@ -554,6 +559,14 @@ class MemorySearchEngine(SearchEngine):
         for doc_id, score in page_items:
             doc = self._documents[doc_id]
             items.append(self._format_result(doc, score, query))
+
+        # 向量重排序（可配置，通过 USE_VECTOR_SEARCH 环境变量开启）
+        if USE_VECTOR_SEARCH:
+            try:
+                from app.vector_search import rerank as vector_rerank
+                items = vector_rerank(query, items)
+            except Exception as e:
+                logger.debug(f"向量重排序跳过: {e}")
 
         result["items"] = items
         result["total"] = total

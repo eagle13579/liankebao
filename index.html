@@ -7,6 +7,7 @@
     <meta name="keywords" content="链客宝, AI营销, 供需匹配, 企业家, 推广, 产品分销" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤝</text></svg>">
     <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#3B82F6">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="链客宝">
@@ -21,6 +22,16 @@
         window.addEventListener('load', function() {
           navigator.serviceWorker.register('/sw.js').then(function(reg) {
             console.log('[PWA] Service Worker 注册成功:', reg.scope);
+            // 检测更新
+            reg.onupdatefound = function() {
+              const installing = reg.installing;
+              installing.onstatechange = function() {
+                if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+                  // 新版本已缓存, 通知用户
+                  window.dispatchEvent(new CustomEvent('sw-update'));
+                }
+              };
+            };
           }).catch(function(err) {
             console.warn('[PWA] Service Worker 注册失败:', err);
           });

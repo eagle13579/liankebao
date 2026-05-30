@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "allowImportingTsExtensions": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "isolatedModules": true,
+    "lib": ["ES2022"],
+    "outDir": "./dist-ssr",
+    "rootDir": "."
+  },
+  "include": ["server"],
+  "exclude": ["node_modules", "dist", "dist-ssr"]
+}

@@ -5,6 +5,34 @@ import {defineConfig, loadEnv} from 'vite';
 
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
+  const isSSRBuild = process.env.SSR_BUILD === 'true';
+
+  // SSR build: 仅打包 entry-server.tsx 供服务端使用
+  if (isSSRBuild) {
+    return {
+      plugins: [react(), tailwindcss()],
+      publicDir: false,
+      build: {
+        outDir: 'dist-ssr',
+        ssr: 'src/entry-server.tsx',
+        rollupOptions: {
+          output: {
+            entryFileNames: 'entry-server.mjs',
+          },
+        },
+        minify: false,
+      },
+      resolve: {
+        alias: {
+          '@': path.resolve(__dirname, '.'),
+        },
+      },
+      define: {
+        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+      },
+    };
+  }
+
   return {
     base: '/app/',
     plugins: [react(), tailwindcss()],

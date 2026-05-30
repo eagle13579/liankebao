@@ -1,6 +1,6 @@
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Share2, Star, Minus, Plus, Heart, Headset, FileText, Factory, ExternalLink, MoreHorizontal, CheckCircle2, Camera, Percent } from 'lucide-react';
-import { useState, memo } from 'react';
+import { useState, memo, useEffect } from 'react';
 import { api } from '../api/client';
 import { ProductItem } from '../types';
 import { Loading, ErrorBlock, Empty, useApi } from '../components/StatusComponents';
@@ -8,7 +8,9 @@ import { Loading, ErrorBlock, Empty, useApi } from '../components/StatusComponen
 export const ProductDetailPage = memo(function ProductDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const productId = (location.state as any)?.productId;
+  const [searchParams] = useSearchParams();
+  // Read productId from navigation state (when coming from product list) or query param (when accessed via direct URL)
+  const productId = (location.state as any)?.productId || (searchParams.get('productId') ? Number(searchParams.get('productId')) : null);
 
   const { data: product, status, error, refetch } = useApi(
     () => productId
@@ -16,6 +18,13 @@ export const ProductDetailPage = memo(function ProductDetailPage() {
       : Promise.resolve(null),
     [productId]
   );
+
+  // 产品浏览追踪
+  useEffect(() => {
+    if (productId) {
+      api.track('product_view', { target_id: productId, target_type: 'product' });
+    }
+  }, [productId]);
 
   return (
     <div className="flex flex-col min-h-screen bg-neutral-bg font-sans pb-24">
@@ -37,13 +46,20 @@ export const ProductDetailPage = memo(function ProductDetailPage() {
         ) : (
         <>
         <section className="relative w-full h-[300px] bg-white">
-          <img src={product?.images || 'https://lh3.googleusercontent.com/aida-public/AB6AXuCxDuzSe7lVnjM65QVhevPH8mQiclvTp2xFfCIIqpkIXJB212yYQqTDLjaa9WYK2rlcM6OW-jYPbKhQhH-h3eDyxsMXQ9zrFlQXi2TYwR1XOoRTVNQRK_mYTQV4m9xFo9nO-RlfJBD0AanK7QTFmKOYiLgtcYN7nd8wELt8CmkWNUF9v5jSr1dEJw4iqwteayszTHxfczcAeaibO2m4q6NpjuE1v32CRNhiw_PQoVoRefyiI57ZYr19utJaeRPifgvrbmWPmF4W0zsQ'} className="w-full h-full object-cover" />
+          <img src={typeof product?.images === 'string' ? (JSON.parse(product.images)[0] || 'https://via.placeholder.com/200') : (Array.isArray(product?.images) ? product.images[0] : (product?.images || 'https://via.placeholder.com/200'))} className="w-full h-full object-cover" />
           <div className="absolute bottom-4 right-4 bg-black/20 backdrop-blur-md text-white px-3 py-1 rounded-full text-[10px] font-bold">1 / 1</div>
         </section>
 
         <section className="p-4 bg-white space-y-4">
           <div className="space-y-2">
             <h2 className="text-2xl font-bold text-on-surface">{product?.name || '高级护肝综合营养片'}</h2>
+            {product?.tags && (
+              <div className="flex flex-wrap gap-1.5">
+                {product.tags.split(',').map((tag, ti) => (
+                  <span key={ti} className="text-[10px] bg-sky-50 text-sky-600 px-2 py-0.5 rounded-full font-medium border border-sky-100">{tag}</span>
+                ))}
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <div className="flex text-primary-container"><Star className="w-4 h-4" fill="currentColor" /><Star className="w-4 h-4" fill="currentColor" /><Star className="w-4 h-4" fill="currentColor" /><Star className="w-4 h-4" fill="currentColor" /><Star className="w-4 h-4" /></div>
               <span className="text-text-muted text-xs">库存: {product?.stock || 0}</span>
@@ -151,7 +167,7 @@ export const MyProducts = memo(function MyProducts() {
           products.map((item, i) => (
             <div key={item.id || i} className="bg-white rounded-2xl overflow-hidden border border-border-light shadow-sm">
               <div className="p-4 flex gap-4">
-                <div className="w-20 h-20 rounded-xl overflow-hidden bg-slate-50"><img src={item.images || 'https://via.placeholder.com/200'} className="w-full h-full object-cover" /></div>
+                <div className="w-20 h-20 rounded-xl overflow-hidden bg-slate-50"><img src={typeof item.images === 'string' ? (JSON.parse(item.images)[0] || 'https://via.placeholder.com/200') : (Array.isArray(item.images) ? item.images[0] : (item.images || 'https://via.placeholder.com/200'))} className="w-full h-full object-cover" /></div>
                 <div className="flex-1 space-y-2">
                   <div className="flex justify-between items-start"><h3 className="font-bold text-sm line-clamp-1">{item.name}</h3><span className="text-[10px] font-bold text-success bg-emerald-50 px-2 py-0.5 rounded">{item.status === 'approved' ? '已上架' : item.status}</span></div>
                   <p className="text-primary-container font-manrope font-bold text-lg">¥{item.price.toFixed(2)}</p>

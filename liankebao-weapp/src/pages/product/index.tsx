@@ -18,7 +18,7 @@ export default class ProductDetail extends Component<{}, ProductDetailState> {
   }
 
   componentDidMount() {
-    const { id } = this.$router.params
+    const { id } = this.$router!.params
     if (id) {
       this.fetchProduct(id)
     } else {
@@ -92,7 +92,7 @@ export default class ProductDetail extends Component<{}, ProductDetailState> {
             <Text className='pd-error-icon'>⚠️</Text>
             <Text className='pd-error-text'>{error}</Text>
             <Text className='pd-error-retry' onClick={() => {
-              const { id } = this.$router.params
+              const { id } = this.$router!.params
               if (id) this.fetchProduct(id)
             }}>点击重试</Text>
           </View>

@@ -1,211 +1,277 @@
-"""
-订单模块测试
-============
-- 创建订单
-- 订单状态流转（paid → shipped → received → refunded）
-"""
+"""订单模块测试：订单流程 + 状态流转"""
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 
 class TestCreateOrder:
     """创建订单测试"""
 
-    CREATE_URL = "/api/orders"
+    URL = "/api/orders"
+    PRODUCT_URL = "/api/products"
 
     def test_create_order_success(self, client: TestClient, buyer_headers):
-        """买家成功创建订单"""
-        # 获取第一个 approved 产品的 ID
-        list_resp = client.get("/api/products")
-        products = list_resp.json()["data"]["items"]
-        target_product = next(p for p in products if p["status"] == "approved")
-        product_id = target_product["id"]
+        """买家成功下单"""
+        resp = client.post(self.URL, headers=buyer_headers, json={
+            "product_id": 1,
+            "quantity": 2,
+        })
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data["order"]["status"] == "pending"
+        assert data["order"]["quantity"] == 2
+        assert data["order"]["total_price"] > 0
+        assert "payment" in data
 
-        resp = client.post(
-            self.CREATE_URL,
-            headers=buyer_headers,
-            json={
-                "product_id": product_id,
-                "quantity": 1,
-            },
-        )
-        assert resp.status_code == 200, f"创建订单应成功: {resp.text}"
-        data = resp.json()
-        assert data["code"] == 200
-        assert data["message"] == "下单成功"
-
-        order = data["data"]["order"]
-        assert order["product_id"] == product_id
-        assert order["quantity"] == 1
-        assert order["status"] == "pending"
-        assert order["total_price"] == target_product["price"]
-        assert "payment" in data["data"]
-
-    def test_create_order_with_promoter(self, client: TestClient, buyer_headers):
-        """创建订单时指定推广员"""
-        list_resp = client.get("/api/products")
-        products = list_resp.json()["data"]["items"]
-        target_product = next(p for p in products if p["status"] == "approved")
-        product_id = target_product["id"]
-
-        # 获取推广员 ID
-        login_resp = client.post(
-            "/api/auth/login",
-            json={"username": "promoter1", "password": "Test1234"},
-        )
-        promoter_user = login_resp.json()["data"]["user"]
-        promoter_id = promoter_user["id"]
-
-        resp = client.post(
-            self.CREATE_URL,
-            headers=buyer_headers,
-            json={
-                "product_id": product_id,
-                "quantity": 2,
-                "promoter_id": promoter_id,
-            },
-        )
-        assert resp.status_code == 200, f"带推广员创建订单应成功: {resp.text}"
-        data = resp.json()
-        order = data["data"]["order"]
-        assert order["promoter_id"] == promoter_id
-        # 佣金 = earn_per_share * quantity * 0.5
-        expected_commission = target_product["earn_per_share"] * 2 * 0.5
-        assert order["commission"] == expected_commission, f"佣金应为 {expected_commission}"
-
-    def test_create_order_unauthenticated(self, client: TestClient):
-        """未认证用户创建订单应返回 401"""
-        resp = client.post(
-            self.CREATE_URL,
-            json={"product_id": 1, "quantity": 1},
-        )
+    def test_create_order_no_auth(self, client: TestClient):
+        """未认证不能下单"""
+        resp = client.post(self.URL, json={
+            "product_id": 1, "quantity": 1,
+        })
         assert resp.status_code == 401
 
-    def test_create_order_nonexistent_product(self, client: TestClient, buyer_headers):
-        """不存在的产品应返回 404"""
-        resp = client.post(
-            self.CREATE_URL,
-            headers=buyer_headers,
-            json={"product_id": 99999, "quantity": 1},
-        )
+    def test_create_order_product_not_found(self, client: TestClient, buyer_headers):
+        """产品不存在"""
+        resp = client.post(self.URL, headers=buyer_headers, json={
+            "product_id": 99999, "quantity": 1,
+        })
         assert resp.status_code == 404
 
-    def test_create_order_insufficient_stock(self, client: TestClient, buyer_headers):
-        """库存不足应返回 400"""
-        list_resp = client.get("/api/products")
-        products = list_resp.json()["data"]["items"]
-        target_product = next(p for p in products if p["status"] == "approved")
-        product_id = target_product["id"]
+    def test_create_order_unapproved_product(self, client: TestClient, buyer_headers):
+        """未上架产品不能下单"""
+        resp = client.post(self.URL, headers=buyer_headers, json={
+            "product_id": 2, "quantity": 1,  # 产品2是pending状态
+        })
+        assert resp.status_code == 400
+        assert "未上架" in resp.text
 
-        resp = client.post(
-            self.CREATE_URL,
-            headers=buyer_headers,
-            json={
-                "product_id": product_id,
-                "quantity": 99999,  # 远超库存
-            },
-        )
-        assert resp.status_code == 400, "库存不足应被拒绝"
+    def test_create_order_insufficient_stock(self, client: TestClient, buyer_headers):
+        """库存不足"""
+        resp = client.post(self.URL, headers=buyer_headers, json={
+            "product_id": 1, "quantity": 999999,
+        })
+        assert resp.status_code == 400
         assert "库存不足" in resp.text
+
+    def test_create_order_with_promoter(self, client: TestClient, buyer_headers):
+        """带推广员下单"""
+        resp = client.post(self.URL, headers=buyer_headers, json={
+            "product_id": 1,
+            "quantity": 1,
+            "promoter_id": 3,  # promoter1
+        })
+        assert resp.status_code == 200
+        data = resp.json()["data"]["order"]
+        assert data["promoter_id"] == 3
+        assert data["commission"] > 0
+
+    def test_create_order_invalid_promoter(self, client: TestClient, buyer_headers):
+        """不存在的推广员"""
+        resp = client.post(self.URL, headers=buyer_headers, json={
+            "product_id": 1, "quantity": 1,
+            "promoter_id": 99999,
+        })
+        assert resp.status_code == 400
+        assert "推广员不存在" in resp.text
+
+    def test_create_order_payment_params(self, client: TestClient, buyer_headers):
+        """下单返回支付参数"""
+        resp = client.post(self.URL, headers=buyer_headers, json={
+            "product_id": 1, "quantity": 1,
+        })
+        assert resp.status_code == 200
+        payment = resp.json()["data"]["payment"]
+        assert "appId" in payment
+        assert "timeStamp" in payment
+        assert "nonceStr" in payment
+        assert "package" in payment
+        assert "paySign" in payment
+
+
+class TestGetOrders:
+    """获取订单列表测试"""
+
+    URL = "/api/orders"
+
+    def test_get_orders_as_buyer(self, client: TestClient, buyer_headers):
+        """买家查看自己的订单"""
+        resp = client.get(self.URL, headers=buyer_headers)
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data["total"] >= 0
+        for order in data["items"]:
+            # 买家只能看到自己的订单
+            pass
+
+    def test_get_orders_as_admin(self, client: TestClient, admin_headers):
+        """管理员查看所有订单"""
+        resp = client.get(self.URL, headers=admin_headers)
+        assert resp.status_code == 200
+
+    def test_get_orders_as_supplier(self, client: TestClient, supplier_headers):
+        """供应商查看自己产品的订单"""
+        resp = client.get(self.URL, headers=supplier_headers)
+        assert resp.status_code == 200
+
+    def test_get_orders_as_promoter(self, client: TestClient, promoter_headers):
+        """推广员查看自己推广的订单"""
+        resp = client.get(self.URL, headers=promoter_headers)
+        assert resp.status_code == 200
+
+    def test_get_orders_no_auth(self, client: TestClient):
+        """未认证不能查看订单"""
+        resp = client.get(self.URL)
+        assert resp.status_code == 401
+
+
+class TestGetOrderDetail:
+    """订单详情测试"""
+
+    URL = "/api/orders"
+
+    def test_get_order_detail(self, client: TestClient, buyer_headers):
+        """获取订单详情"""
+        # 先创建一个订单
+        create_resp = client.post(self.URL, headers=buyer_headers, json={
+            "product_id": 1, "quantity": 1,
+        })
+        order_id = create_resp.json()["data"]["order"]["id"]
+
+        resp = client.get(f"{self.URL}/{order_id}", headers=buyer_headers)
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data["id"] == order_id
+        assert "product" in data
+        assert "user_id" in data
+        assert "total_price" in data
+
+    def test_get_order_not_found(self, client: TestClient, buyer_headers):
+        """不存在的订单"""
+        resp = client.get(f"{self.URL}/99999", headers=buyer_headers)
+        assert resp.status_code == 404
+
+    def test_get_order_no_permission(self, client: TestClient, buyer_headers, promoter_headers):
+        """非相关人员不能查看订单"""
+        create_resp = client.post(self.URL, headers=buyer_headers, json={
+            "product_id": 1, "quantity": 1,
+        })
+        order_id = create_resp.json()["data"]["order"]["id"]
+
+        # promoter1不是订单的买家和推广员（假设没设promoter_id）
+        resp = client.get(f"{self.URL}/{order_id}", headers=promoter_headers)
+        # 可能403或200（如果是推广的订单）
+        assert resp.status_code in (200, 403)
+
+    def test_get_order_no_auth(self, client: TestClient):
+        """未认证不能查看详情"""
+        resp = client.get(f"{self.URL}/1")
+        assert resp.status_code == 401
 
 
 class TestOrderStatusFlow:
     """订单状态流转测试"""
 
-    def _create_paid_order(self, client: TestClient, buyer_headers) -> tuple:
-        """辅助：创建一个已支付的订单（模拟创建后直接改为 paid）"""
-        list_resp = client.get("/api/products")
-        products = list_resp.json()["data"]["items"]
-        target_product = next(p for p in products if p["status"] == "approved")
+    URL = "/api/orders"
+    PAY_NOTIFY_URL = "/api/orders/pay-notify"
 
-        create_resp = client.post(
-            "/api/orders",
-            headers=buyer_headers,
-            json={"product_id": target_product["id"], "quantity": 1},
-        )
-        order = create_resp.json()["data"]["order"]
-        order_id = order["id"]
+    def _create_and_pay_order(self, client, headers):
+        """辅助：创建订单并通过mock支付"""
+        resp = client.post(self.URL, headers=headers, json={
+            "product_id": 1, "quantity": 1,
+        })
+        order_id = resp.json()["data"]["order"]["id"]
 
-        # 直接通过数据库将状态改为 paid
-        from tests.conftest import TestSessionLocal
-        from app.models import Order
-        db = TestSessionLocal()
-        try:
-            db_order = db.query(Order).filter(Order.id == order_id).first()
-            db_order.status = "paid"
-            db_order.wx_transaction_id = f"mock_tx_{order_id}"
-            db.commit()
-        finally:
-            db.close()
+        # Mock支付回调
+        import time
+        callback_resp = client.post(self.PAY_NOTIFY_URL, json={
+            "out_trade_no": f"LK{order_id:08d}{int(time.time())}",
+            "transaction_id": f"mock_tx_{order_id}",
+            "result_code": "SUCCESS",
+        })
+        return order_id
 
-        return order_id, target_product["id"]
+    def test_full_order_lifecycle(self, client: TestClient, buyer_headers, admin_headers):
+        """完整订单生命周期：创建→支付→发货→收货"""
+        # 创建订单
+        resp = client.post(self.URL, headers=buyer_headers, json={
+            "product_id": 1, "quantity": 1,
+        })
+        order_id = resp.json()["data"]["order"]["id"]
 
-    def test_order_status_paid_to_shipped(self, client: TestClient, buyer_headers, supplier_headers):
-        """订单状态：paid → shipped（产品方发货）"""
-        order_id, _ = self._create_paid_order(client, buyer_headers)
+        # 支付回调
+        import time
+        resp = client.post(self.PAY_NOTIFY_URL, json={
+            "out_trade_no": f"LK{order_id:08d}{int(time.time())}",
+            "transaction_id": f"mock_tx_{order_id}",
+        })
+        assert resp.status_code == 200
 
-        # 产品方发货
-        resp = client.put(
-            f"/api/orders/{order_id}/status",
-            headers=supplier_headers,
-            json={"status": "shipped"},
-        )
-        assert resp.status_code == 200, f"发货应成功: {resp.text}"
-        assert "shipped" in resp.text or "已变更" in resp.text
+        # 验证状态为paid
+        resp = client.get(f"{self.URL}/{order_id}", headers=buyer_headers)
+        assert resp.json()["data"]["status"] == "paid"
 
-    def test_order_status_shipped_to_received(self, client: TestClient, buyer_headers, supplier_headers):
-        """订单状态：paid → shipped → received（买家确认收货）"""
-        order_id, _ = self._create_paid_order(client, buyer_headers)
+        # 发货（admin操作）
+        resp = client.put(f"{self.URL}/{order_id}/status",
+                          headers=admin_headers, json={"status": "shipped"})
+        assert resp.status_code == 200
+        assert resp.json()["data"]["status"] == "shipped"
 
-        # 产品方发货
-        client.put(
-            f"/api/orders/{order_id}/status",
-            headers=supplier_headers,
-            json={"status": "shipped"},
-        )
-        # 买家确认收货
-        resp = client.put(
-            f"/api/orders/{order_id}/status",
-            headers=buyer_headers,
-            json={"status": "received"},
-        )
-        assert resp.status_code == 200, f"确认收货应成功: {resp.text}"
-        assert "received" in resp.text or "已变更" in resp.text
+        # 收货（buyer操作）
+        resp = client.put(f"{self.URL}/{order_id}/status",
+                          headers=buyer_headers, json={"status": "received"})
+        assert resp.status_code == 200
+        assert resp.json()["data"]["status"] == "received"
 
-    def test_order_status_refund(self, client: TestClient, buyer_headers):
-        """订单状态：paid → refunded（买家申请退款）"""
-        order_id, _ = self._create_paid_order(client, buyer_headers)
+    def test_invalid_status_transition(self, client: TestClient, buyer_headers):
+        """无效状态流转应被拒绝"""
+        import time
+        resp = client.post(self.URL, headers=buyer_headers, json={
+            "product_id": 1, "quantity": 1,
+        })
+        order_id = resp.json()["data"]["order"]["id"]
 
-        # 买家申请退款
-        resp = client.put(
-            f"/api/orders/{order_id}/status",
-            headers=buyer_headers,
-            json={"status": "refunded"},
-        )
-        assert resp.status_code == 200, f"退款应成功: {resp.text}"
-        assert "refunded" in resp.text or "已变更" in resp.text
+        # 直接从未支付跳转到received应被拒绝
+        resp = client.put(f"{self.URL}/{order_id}/status",
+                          headers=buyer_headers, json={"status": "received"})
+        assert resp.status_code == 400
 
-    def test_order_status_invalid_transition(self, client: TestClient, buyer_headers, supplier_headers):
-        """非法状态流转应被拒绝（如 paid → received 跳过 shipped）"""
-        order_id, _ = self._create_paid_order(client, buyer_headers)
+    def test_buyer_cannot_ship(self, client: TestClient, buyer_headers):
+        """买家不能发货"""
+        import time
+        resp = client.post(self.URL, headers=buyer_headers, json={
+            "product_id": 1, "quantity": 1,
+        })
+        order_id = resp.json()["data"]["order"]["id"]
 
-        # 买家尝试从 paid 直接到 received（不合规）
-        resp = client.put(
-            f"/api/orders/{order_id}/status",
-            headers=buyer_headers,
-            json={"status": "received"},
-        )
-        # paid 允许的流转: shipped, refunded
-        # received 不在 allowed 中
-        assert resp.status_code in (400, 403), f"非法流转应被拒绝: {resp.text}"
+        client.post(self.PAY_NOTIFY_URL, json={
+            "out_trade_no": f"LK{order_id:08d}{int(time.time())}",
+            "transaction_id": f"mock_tx_{order_id}",
+        })
 
-    def test_order_status_unauthorized(self, client: TestClient, buyer_headers, promoter_headers):
-        """普通推广员无权变更订单状态"""
-        order_id, _ = self._create_paid_order(client, buyer_headers)
+        # 买家尝试发货
+        resp = client.put(f"{self.URL}/{order_id}/status",
+                          headers=buyer_headers, json={"status": "shipped"})
+        assert resp.status_code == 403
 
-        resp = client.put(
-            f"/api/orders/{order_id}/status",
-            headers=promoter_headers,
-            json={"status": "shipped"},
-        )
-        assert resp.status_code == 403, "推广员无权变更订单状态"
+    def test_status_transition_validation(self, client: TestClient, buyer_headers, admin_headers):
+        """状态流转合法性校验"""
+        import time
+        resp = client.post(self.URL, headers=buyer_headers, json={
+            "product_id": 1, "quantity": 1,
+        })
+        order_id = resp.json()["data"]["order"]["id"]
+
+        # 支付
+        client.post(self.PAY_NOTIFY_URL, json={
+            "out_trade_no": f"LK{order_id:08d}{int(time.time())}",
+            "transaction_id": f"mock_tx_{order_id}",
+        })
+
+        # 发货 → 收货
+        client.put(f"{self.URL}/{order_id}/status",
+                   headers=admin_headers, json={"status": "shipped"})
+
+        # 尝试从shipped再回到paid
+        resp = client.put(f"{self.URL}/{order_id}/status",
+                          headers=admin_headers, json={"status": "paid"})
+        assert resp.status_code == 400

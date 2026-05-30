@@ -3,6 +3,7 @@ import { Handshake, MessageCircle, Smartphone, Mail, ShieldCheck, Network, Arrow
 import { useState } from 'react';
 import { api } from '../api/client';
 import { Loading } from '../components/StatusComponents';
+import { OnboardingPainSelector, type PainPoint } from '../components/OnboardingPainSelector';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -41,12 +42,15 @@ export function LoginPage() {
       {/* Subtle grid pattern overlay */}
       <div className="absolute inset-0 bg-[linear-gradient(rgba(14,165,233,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(14,165,233,0.03)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" />
 
-      <header className="fixed top-0 w-full z-50 bg-white/60 backdrop-blur-md border-b border-sky-100/50 flex justify-between items-center px-4 h-14">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg brand-gradient flex items-center justify-center shadow-sm">
-            <Handshake className="w-4 h-4 text-white" />
+      <header className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-xl border-b border-sky-100/50 flex items-center justify-between px-4 h-16">
+        <div className="flex items-center gap-2.5">
+          <div className="w-10 h-10 rounded-xl brand-gradient flex items-center justify-center shadow-md shadow-sky-500/20">
+            <Handshake className="w-6 h-6 text-white" />
           </div>
-          <span className="text-base font-bold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent font-manrope">链客宝</span>
+          <div>
+            <h1 className="font-manrope text-xl font-extrabold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent leading-tight">链客宝</h1>
+            <p className="text-[10px] text-slate-400 font-medium tracking-wider -mt-0.5">企业信任关系网，对接更快更准</p>
+          </div>
         </div>
         <button
           onClick={() => navigate('/register', { state: { transition: 'push' } })}
@@ -245,6 +249,7 @@ export function UserRegistration() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [registerSuccess, setRegisterSuccess] = useState(false);
+  const [onboardingPainPoint, setOnboardingPainPoint] = useState<PainPoint | null>(null);
 
   const handleFinish = async () => {
     setLoading(true);
@@ -254,9 +259,32 @@ export function UserRegistration() {
         username, password, name, phone, company, position, role
       });
       if (res.code === 200) {
+        // 注册成功后保存token，用于后续保存痛点偏好
+        const token = (res.data as any)?.token || (res.data as any)?.access_token;
+        if (token) api.saveToken(token);
+
+        // 如果选择了痛点偏好，立即保存
+        if (onboardingPainPoint) {
+          try {
+            await api.post('/api/auth/onboarding-preference', {
+              pain_point: onboardingPainPoint
+            });
+          } catch (e) {
+            // 痛点保存失败不影响注册成功
+            console.warn('保存痛点偏好失败', e);
+          }
+        }
+
         setRegisterSuccess(true);
         setTimeout(() => {
-          navigate('/', { state: { transition: 'push' } });
+          // 根据痛点引导到不同页面
+          const redirectMap: Record<string, string> = {
+            low_acquisition_cost: '/product-pool',
+            lack_trust: '/supply-demand',
+            distribution_pain: '/promotion-center',
+          };
+          const target = onboardingPainPoint ? redirectMap[onboardingPainPoint] : '/home';
+          navigate(target, { state: { transition: 'push' } });
         }, 2000);
       } else {
         setError(res.message || '注册失败');
@@ -355,6 +383,12 @@ export function UserRegistration() {
             ))}
           </div>
         </section>
+
+        {/* 核心痛点选择器 */}
+        <OnboardingPainSelector
+          selected={onboardingPainPoint}
+          onSelect={setOnboardingPainPoint}
+        />
 
         {error && (
           <div className="flex items-center gap-2 bg-red-50 border border-red-100 rounded-xl px-4 py-2.5">

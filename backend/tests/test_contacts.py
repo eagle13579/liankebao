@@ -10,7 +10,7 @@
 - 删除联系人（正常/不存在/跨用户隔离）
 - 批量创建联系人
 """
-import pytest
+
 from fastapi.testclient import TestClient
 
 
@@ -106,6 +106,7 @@ class TestListContacts:
         """未认证返回401"""
         resp = client.get(self.LIST_URL)
         assert resp.status_code == 401
+
 
 class TestCreateContact:
     """创建联系人测试"""

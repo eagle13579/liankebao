@@ -13,15 +13,19 @@ from app.schemas import (
     ApiResponse, DashboardResponse, ProductResponse, ProductReviewRequest,
     UpdateUserRoleRequest, UserResponse, WithdrawalResponse,
 )
-from app.auth import get_current_admin
+
+from app.rbac import require_roles
 
 router = APIRouter(prefix="/api/admin", tags=["管理后台"])
+
+# admin 全部接口都需要 admin 角色
+_admin_only = require_roles(["admin"])
 
 
 @router.get("/dashboard", response_model=ApiResponse)
 def get_dashboard(
     db: Session = Depends(get_db),
-    admin: User = Depends(get_current_admin),
+    admin: User = Depends(_admin_only),
 ):
     """获取管理后台数据看板"""
     total_users = db.query(User).filter(User.is_deleted == False).count()
@@ -67,7 +71,7 @@ def get_dashboard(
 @router.get("/users", response_model=ApiResponse)
 def list_users(
     db: Session = Depends(get_db),
-    admin: User = Depends(get_current_admin),
+    admin: User = Depends(_admin_only),
 ):
     """获取用户列表"""
     users = db.query(User).filter(
@@ -89,7 +93,7 @@ def update_user_role(
     user_id: int,
     req: UpdateUserRoleRequest,
     db: Session = Depends(get_db),
-    admin: User = Depends(get_current_admin),
+    admin: User = Depends(_admin_only),
 ):
     """管理员修改用户角色"""
     # 管理员不可修改自己的角色
@@ -118,7 +122,7 @@ def update_user_role(
 def list_all_products(
     status: str = None,
     db: Session = Depends(get_db),
-    admin: User = Depends(get_current_admin),
+    admin: User = Depends(_admin_only),
 ):
     """获取所有产品（管理后台）"""
     query = db.query(Product).filter(Product.is_deleted == False)
@@ -141,7 +145,7 @@ def review_product(
     product_id: int,
     req: ProductReviewRequest,
     db: Session = Depends(get_db),
-    admin: User = Depends(get_current_admin),
+    admin: User = Depends(_admin_only),
 ):
     """审核产品（通过/驳回）"""
     product = db.query(Product).filter(
@@ -171,7 +175,7 @@ def review_product(
 def list_withdrawals(
     status: str = None,
     db: Session = Depends(get_db),
-    admin: User = Depends(get_current_admin),
+    admin: User = Depends(_admin_only),
 ):
     """获取提现申请列表"""
     query = db.query(Withdrawal).filter(Withdrawal.is_deleted == False)
@@ -194,7 +198,7 @@ def review_withdrawal(
     withdrawal_id: int,
     req: ProductReviewRequest,
     db: Session = Depends(get_db),
-    admin: User = Depends(get_current_admin),
+    admin: User = Depends(_admin_only),
 ):
     """审核提现申请"""
     withdrawal = db.query(Withdrawal).filter(

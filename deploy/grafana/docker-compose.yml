@@ -1,0 +1,91 @@
+# ============================================================
+# Grafana + Tempo + Prometheus — 链客宝本地可观测栈
+# ============================================================
+# 一键启动:
+#   docker compose -f deploy/grafana/docker-compose.yml up -d
+#
+# 访问入口:
+#   Grafana:          http://localhost:3000  (admin/admin)
+#   Tempo:            http://localhost:3200
+#   Prometheus:       http://localhost:9090
+#
+# 应用通过 OTEL_EXPORTER_OTLP_ENDPOINT 将链路数据直接发送到 Tempo:
+#   OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+#
+# 预置 Dashboard:
+#   - 链客宝全链路追踪概览 (ID: chainke-tracing-overview)
+#   - 链客宝服务健康看板 (ID: chainke-service-health)
+# ============================================================
+
+services:
+  # ===== Tempo — 分布式追踪后端 (兼容 Jaeger/OTLP) =====
+  tempo:
+    image: grafana/tempo:2.7.1
+    container_name: chainke-tempo
+    command: ["-config.file=/etc/tempo-config.yaml"]
+    restart: unless-stopped
+    ports:
+      # OTLP gRPC (接收 OpenTelemetry 数据)
+      - "4317:4317"
+      # OTLP HTTP (接收 OpenTelemetry 数据)
+      - "4318:4318"
+      # Tempo HTTP API (Grafana 数据源)
+      - "3200:3200"
+    volumes:
+      - ./tempo-config.yaml:/etc/tempo-config.yaml
+      - tempo-data:/tmp/tempo
+    networks:
+      - chainke-observability
+
+  # ===== Prometheus — 指标存储与查询 =====
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: chainke-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+      - "--web.enable-lifecycle"
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    networks:
+      - chainke-observability
+
+  # ===== Grafana — 可视化面板 =====
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: chainke-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_INSTALL_PLUGINS=grafana-tempo-datasource
+    volumes:
+      - ./grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - ./grafana-dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml
+      - ./dashboards:/var/lib/grafana/dashboards
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - tempo
+      - prometheus
+    networks:
+      - chainke-observability
+
+volumes:
+  tempo-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  chainke-observability:
+    name: chainke-observability
+    driver: bridge

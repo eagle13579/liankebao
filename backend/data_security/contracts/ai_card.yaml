@@ -1,0 +1,1092 @@
+# ============================================================================
+# AI 名片模块 (AI Card) 数据契约
+# 模块名: ai_card
+# 版本: 1.0
+# 契约 Schema: 2.0
+# ============================================================================
+# 本契约定义了 AI名片功能模块在 core schema 和自身 schema 中
+# 所有表的字段白名单、必填约束、校验规则与禁用字段。
+# ============================================================================
+
+module: ai_card
+version: "1.0"
+contract_schema: "2.0"
+description: "AI名片模块数据契约 —— 涵盖名片档案、电子画册、供需匹配、访客日志等子模块"
+
+tables:
+  # --------------------------------------------------------------------------
+  # users — 核心用户表 (core schema)
+  # --------------------------------------------------------------------------
+  - name: users
+    description: "核心用户表 — AI名片模块可读写的用户字段子集"
+    allowed_fields:
+      - id
+      - uuid
+      - username
+      - nickname
+      - real_name
+      - email
+      - phone
+      - avatar_url
+      - gender
+      - language
+      - timezone
+      - country
+      - province
+      - city
+      - company
+      - position
+      - bio
+      - website
+      - wechat_openid
+      - wechat_unionid
+      - status
+      - created_at
+      - updated_at
+      - last_login_at
+    required:
+      - uuid
+      - username
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      username:
+        regex: "^[a-zA-Z0-9_@.\\-]{3,64}$"
+        min_length: 3
+        max_length: 64
+      email:
+        format: email
+        max_length: 255
+      phone:
+        format: phone
+        max_length: 20
+      gender:
+        enum: ["male", "female", "other", "unknown"]
+      status:
+        enum: ["active", "inactive", "suspended", "deleted"]
+      language:
+        enum: ["zh-CN", "en-US", "ko-KR", "ja-JP"]
+      nickname:
+        max_length: 100
+      real_name:
+        max_length: 100
+      company:
+        max_length: 200
+      position:
+        max_length: 200
+      bio:
+        max_length: 500
+      avatar_url:
+        format: uri
+        max_length: 1024
+      website:
+        format: uri
+        max_length: 1024
+    not_allowed:
+      - password_hash
+      - password_salt
+      - mfa_secret
+      - mfa_enabled
+      - api_key
+      - api_key_hashed
+      - secret_question
+      - secret_answer
+      - login_attempts
+      - locked_until
+      - deleted_at
+      - internal_notes
+      - internal_tags
+
+  # --------------------------------------------------------------------------
+  # organizations — 组织表 (core schema)
+  # --------------------------------------------------------------------------
+  - name: organizations
+    description: "组织表 — AI名片模块可读写的组织字段子集"
+    allowed_fields:
+      - id
+      - uuid
+      - name
+      - name_en
+      - name_ko
+      - short_name
+      - logo_url
+      - banner_url
+      - industry
+      - industry_category
+      - company_type
+      - registration_number
+      - tax_number
+      - address
+      - address_en
+      - country
+      - province
+      - city
+      - district
+      - zip_code
+      - contact_phone
+      - contact_email
+      - website
+      - social_links
+      - description
+      - description_en
+      - description_ko
+      - employee_count_min
+      - employee_count_max
+      - annual_revenue
+      - credit_level
+      - business_scope
+      - certifications
+      - status
+      - verified_at
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - name
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      name:
+        max_length: 200
+        min_length: 1
+      name_en:
+        max_length: 200
+      name_ko:
+        max_length: 200
+      logo_url:
+        format: uri
+        max_length: 1024
+      industry:
+        max_length: 100
+      industry_category:
+        max_length: 100
+      company_type:
+        enum: ["enterprise", "individual", "government", "nonprofit", "other"]
+      contact_email:
+        format: email
+        max_length: 255
+      contact_phone:
+        format: phone
+        max_length: 20
+      website:
+        format: uri
+        max_length: 1024
+      status:
+        enum: ["active", "inactive", "pending", "suspended", "deleted"]
+      employee_count_min:
+        min: 0
+      employee_count_max:
+        min: 0
+      credit_level:
+        enum: ["AAA", "AA", "A", "B", "C", "D"]
+      address:
+        max_length: 500
+      description:
+        max_length: 2000
+    not_allowed:
+      - internal_rating
+      - risk_level
+      - compliance_flags
+      - kyc_documents
+      - legal_representative_id
+      - bank_accounts
+      - financial_data
+      - internal_tags
+      - deleted_at
+
+  # --------------------------------------------------------------------------
+  # members — 成员表 (core schema)
+  # --------------------------------------------------------------------------
+  - name: members
+    description: "组织成员表 — 用户与组织的关联关系"
+    allowed_fields:
+      - id
+      - uuid
+      - user_id
+      - organization_id
+      - role
+      - roles
+      - department
+      - title
+      - is_primary
+      - is_admin
+      - status
+      - joined_at
+      - expired_at
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - user_id
+      - organization_id
+      - role
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      user_id:
+        min: 1
+      organization_id:
+        min: 1
+      role:
+        enum: ["owner", "admin", "manager", "member", "viewer", "guest"]
+      roles:
+        type: list
+      department:
+        max_length: 200
+      title:
+        max_length: 200
+      is_primary:
+        enum: [true, false]
+      is_admin:
+        enum: [true, false]
+      status:
+        enum: ["active", "inactive", "expired", "removed"]
+    not_allowed:
+      - permissions_bitmask
+      - internal_notes
+
+  # --------------------------------------------------------------------------
+  # products — 产品表 (core schema)
+  # --------------------------------------------------------------------------
+  - name: products
+    description: "产品表 — AI名片可读写的产品字段子集"
+    allowed_fields:
+      - id
+      - uuid
+      - organization_id
+      - name
+      - name_en
+      - name_ko
+      - category
+      - sub_category
+      - description
+      - description_en
+      - description_ko
+      - keywords
+      - price_min
+      - price_max
+      - currency
+      - unit
+      - images
+      - thumbnail_url
+      - tags
+      - status
+      - is_featured
+      - sort_order
+      - created_at
+      - updated_at
+      - published_at
+    required:
+      - uuid
+      - organization_id
+      - name
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      organization_id:
+        min: 1
+      name:
+        max_length: 200
+        min_length: 1
+      name_en:
+        max_length: 200
+      name_ko:
+        max_length: 200
+      category:
+        max_length: 100
+      description:
+        max_length: 4000
+      price_min:
+        min: 0.0
+      price_max:
+        min: 0.0
+      currency:
+        max_length: 3
+        enum: ["CNY", "USD", "KRW", "JPY", "EUR", "GBP", "HKD", "SGD"]
+      unit:
+        max_length: 50
+      images:
+        type: list
+      thumbnail_url:
+        format: uri
+        max_length: 1024
+      status:
+        enum: ["draft", "published", "archived", "deleted"]
+      is_featured:
+        enum: [true, false]
+      sort_order:
+        min: 0
+    not_allowed:
+      - cost_price
+      - profit_margin
+      - supplier_info
+      - inventory_quantity
+      - inventory_alert
+      - internal_notes
+
+  # --------------------------------------------------------------------------
+  # tags — 标签表 (core schema)
+  # --------------------------------------------------------------------------
+  - name: tags
+    description: "标签表 — 系统级标签定义"
+    allowed_fields:
+      - id
+      - uuid
+      - name
+      - name_en
+      - name_ko
+      - slug
+      - type
+      - category
+      - icon
+      - color
+      - description
+      - sort_order
+      - is_system
+      - status
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - name
+      - type
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      name:
+        max_length: 100
+        min_length: 1
+      slug:
+        regex: "^[a-z0-9_-]{1,100}$"
+        max_length: 100
+      type:
+        enum: ["industry", "product", "skill", "interest", "region",
+               "certification", "custom", "system"]
+      category:
+        max_length: 100
+      sort_order:
+        min: 0
+      is_system:
+        enum: [true, false]
+      status:
+        enum: ["active", "inactive", "deleted"]
+    not_allowed: []
+
+  # --------------------------------------------------------------------------
+  # user_tags — 用户标签关联表 (core schema)
+  # --------------------------------------------------------------------------
+  - name: user_tags
+    description: "用户标签关联表 — 用户与标签的多对多关系"
+    allowed_fields:
+      - id
+      - user_id
+      - tag_id
+      - tag_type
+      - source
+      - weight
+      - created_at
+    required:
+      - user_id
+      - tag_id
+    constraints:
+      user_id:
+        min: 1
+      tag_id:
+        min: 1
+      tag_type:
+        enum: ["industry", "product", "skill", "interest", "region",
+               "certification", "custom", "system"]
+      source:
+        enum: ["user_self", "system_auto", "admin_assign", "import",
+               "ai_infer", "match_derive"]
+      weight:
+        min: 0.0
+        max: 1.0
+    not_allowed: []
+
+  # --------------------------------------------------------------------------
+  # events — 事件日志表 (core schema)
+  # --------------------------------------------------------------------------
+  - name: events
+    description: "事件日志表 — AI名片模块操作事件记录"
+    allowed_fields:
+      - id
+      - uuid
+      - event_type
+      - event_name
+      - module
+      - source
+      - user_id
+      - organization_id
+      - target_type
+      - target_id
+      - payload
+      - ip_address
+      - user_agent
+      - session_id
+      - request_id
+      - status
+      - duration_ms
+      - error_message
+      - created_at
+    required:
+      - uuid
+      - event_type
+      - event_name
+      - module
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      event_type:
+        enum: ["create", "read", "update", "delete", "login", "logout",
+               "share", "export", "import", "match", "scan", "sync",
+               "verify", "reject", "approve", "error", "other"]
+      event_name:
+        max_length: 200
+      module:
+        regex: "^[a-z_]{2,50}$"
+        max_length: 50
+      source:
+        enum: ["web", "mobile_ios", "mobile_android", "weapp", "api",
+               "admin", "system", "cron", "import"]
+      target_type:
+        max_length: 50
+      status:
+        enum: ["success", "failure", "pending", "processing"]
+      duration_ms:
+        min: 0
+      ip_address:
+        max_length: 45
+      user_agent:
+        max_length: 500
+      request_id:
+        max_length: 64
+      error_message:
+        max_length: 2000
+    not_allowed:
+      - user_token
+      - raw_request
+      - raw_response
+      - sensitive_data
+
+  # --------------------------------------------------------------------------
+  # card_profiles — 名片档案表 (module_ai_card schema)
+  # --------------------------------------------------------------------------
+  - name: card_profiles
+    description: "AI名片档案 — 用户数字名片的核心数据"
+    allowed_fields:
+      - id
+      - uuid
+      - user_id
+      - organization_id
+      - template_id
+      - display_name
+      - display_name_en
+      - display_name_ko
+      - department
+      - position
+      - position_en
+      - position_ko
+      - mobile
+      - phone_office
+      - email_work
+      - email_personal
+      - wechat_id
+      - whatsapp
+      - kakao_talk
+      - telegram
+      - linkedin_url
+      - facebook_url
+      - twitter_url
+      - instagram_url
+      - youtube_url
+      - tiktok_url
+      - website_url
+      - company_website
+      - qr_code_url
+      - avatar_url
+      - cover_url
+      - company_logo_url
+      - slogan
+      - slogan_en
+      - slogan_ko
+      - introduction
+      - introduction_en
+      - introduction_ko
+      - skills
+      - expertise
+      - certifications
+      - education
+      - honors
+      - languages
+      - service_items
+      - business_hours
+      - address
+      - address_en
+      - address_ko
+      - map_location
+      - tags
+      - theme_color
+      - font_style
+      - layout_style
+      - is_public
+      - allow_download
+      - allow_share
+      - allow_comment
+      - visit_count
+      - share_count
+      - download_count
+      - like_count
+      - rating
+      - status
+      - published_at
+      - expired_at
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - user_id
+      - display_name
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      user_id:
+        min: 1
+      display_name:
+        max_length: 200
+        min_length: 1
+      display_name_en:
+        max_length: 200
+      display_name_ko:
+        max_length: 200
+      mobile:
+        format: phone
+        max_length: 20
+      email_work:
+        format: email
+        max_length: 255
+      email_personal:
+        format: email
+        max_length: 255
+      wechat_id:
+        max_length: 50
+      qr_code_url:
+        format: uri
+        max_length: 1024
+      avatar_url:
+        format: uri
+        max_length: 1024
+      cover_url:
+        format: uri
+        max_length: 1024
+      slogan:
+        max_length: 200
+      introduction:
+        max_length: 2000
+      skills:
+        type: list
+      languages:
+        type: list
+      theme_color:
+        regex: "^#[0-9a-fA-F]{6}$"
+        max_length: 7
+      layout_style:
+        enum: ["classic", "modern", "minimal", "business", "creative"]
+      is_public:
+        enum: [true, false]
+      allow_download:
+        enum: [true, false]
+      allow_share:
+        enum: [true, false]
+      status:
+        enum: ["draft", "published", "archived", "disabled"]
+      visit_count:
+        min: 0
+      rating:
+        min: 0.0
+        max: 5.0
+    not_allowed:
+      - internal_score
+      - ai_analysis_raw
+      - face_encoding
+      - voiceprint_data
+      - id_card_info
+      - passport_info
+
+  # --------------------------------------------------------------------------
+  # brochures — 电子画册表 (module_ai_card schema)
+  # --------------------------------------------------------------------------
+  - name: brochures
+    description: "电子画册 — 企业产品与服务展示"
+    allowed_fields:
+      - id
+      - uuid
+      - organization_id
+      - user_id
+      - title
+      - title_en
+      - title_ko
+      - subtitle
+      - subtitle_en
+      - subtitle_ko
+      - cover_image_url
+      - brochure_type
+      - category
+      - pages
+      - content
+      - content_en
+      - content_ko
+      - summary
+      - summary_en
+      - summary_ko
+      - file_url
+      - file_size
+      - file_format
+      - page_count
+      - is_public
+      - allow_download
+      - tags
+      - view_count
+      - download_count
+      - share_count
+      - like_count
+      - sort_order
+      - status
+      - published_at
+      - expired_at
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - organization_id
+      - title
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      organization_id:
+        min: 1
+      title:
+        max_length: 200
+        min_length: 1
+      title_en:
+        max_length: 200
+      title_ko:
+        max_length: 200
+      brochure_type:
+        enum: ["company_intro", "product_catalog", "service_guide",
+               "portfolio", "case_study", "newsletter", "recruitment",
+               "event_brochure", "other"]
+      cover_image_url:
+        format: uri
+        max_length: 1024
+      file_url:
+        format: uri
+        max_length: 1024
+      file_format:
+        enum: ["pdf", "pptx", "docx", "xlsx", "jpg", "png", "mp4",
+               "keynote", "pages", "numbers", "other"]
+      file_size:
+        min: 0
+      page_count:
+        min: 1
+      is_public:
+        enum: [true, false]
+      allow_download:
+        enum: [true, false]
+      status:
+        enum: ["draft", "published", "archived", "deleted"]
+      sort_order:
+        min: 0
+      content:
+        max_length: 50000
+      summary:
+        max_length: 500
+    not_allowed:
+      - internal_review_notes
+      - approval_workflow
+
+  # --------------------------------------------------------------------------
+  # supplies — 供应信息表 (module_ai_card schema)
+  # --------------------------------------------------------------------------
+  - name: supplies
+    description: "供应信息 — 用户/企业发布的供应需求"
+    allowed_fields:
+      - id
+      - uuid
+      - organization_id
+      - user_id
+      - title
+      - title_en
+      - title_ko
+      - category
+      - sub_category
+      - description
+      - description_en
+      - description_ko
+      - product_name
+      - product_name_en
+      - product_name_ko
+      - product_images
+      - product_video_url
+      - specification
+      - specification_en
+      - specification_ko
+      - brand
+      - model
+      - origin
+      - min_order_quantity
+      - max_order_quantity
+      - price
+      - price_currency
+      - price_unit
+      - price_type
+      - delivery_terms
+      - payment_terms
+      - valid_from
+      - valid_until
+      - supply_volume
+      - supply_volume_unit
+      - certifications
+      - tags
+      - contact_name
+      - contact_phone
+      - contact_email
+      - is_urgent
+      - is_featured
+      - view_count
+      - inquiry_count
+      - match_count
+      - sort_order
+      - status
+      - published_at
+      - expired_at
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - organization_id
+      - title
+      - category
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      organization_id:
+        min: 1
+      title:
+        max_length: 200
+        min_length: 1
+      category:
+        max_length: 100
+      description:
+        max_length: 5000
+      brand:
+        max_length: 200
+      model:
+        max_length: 200
+      origin:
+        max_length: 100
+      min_order_quantity:
+        min: 1
+      price:
+        min: 0.0
+      price_currency:
+        enum: ["CNY", "USD", "KRW", "JPY", "EUR", "GBP", "HKD", "SGD"]
+      price_type:
+        enum: ["fixed", "negotiable", "range", "auction", "on_request"]
+      delivery_terms:
+        enum: ["EXW", "FOB", "CIF", "DDP", "DAP", "CFR", "CIP", "FCA"]
+      payment_terms:
+        max_length: 500
+      contact_email:
+        format: email
+        max_length: 255
+      contact_phone:
+        format: phone
+        max_length: 20
+      is_urgent:
+        enum: [true, false]
+      is_featured:
+        enum: [true, false]
+      status:
+        enum: ["draft", "published", "matched", "closed", "expired", "deleted"]
+      supply_volume:
+        min: 0
+      view_count:
+        min: 0
+      inquiry_count:
+        min: 0
+      sort_order:
+        min: 0
+    not_allowed:
+      - cost_price
+      - wholesale_price
+      - supplier_cost
+      - inventory_level
+      - internal_notes
+      - blacklist_flags
+
+  # --------------------------------------------------------------------------
+  # demands — 需求信息表 (module_ai_card schema)
+  # --------------------------------------------------------------------------
+  - name: demands
+    description: "需求信息 — 用户/企业发布的采购需求"
+    allowed_fields:
+      - id
+      - uuid
+      - organization_id
+      - user_id
+      - title
+      - title_en
+      - title_ko
+      - category
+      - sub_category
+      - description
+      - description_en
+      - description_ko
+      - product_name
+      - product_name_en
+      - product_name_ko
+      - expected_price_min
+      - expected_price_max
+      - price_currency
+      - quantity
+      - quantity_unit
+      - purchase_frequency
+      - delivery_terms
+      - payment_terms
+      - preferred_origin
+      - certifications_required
+      - valid_from
+      - valid_until
+      - urgency
+      - tags
+      - contact_name
+      - contact_phone
+      - contact_email
+      - is_urgent
+      - is_featured
+      - view_count
+      - proposal_count
+      - match_count
+      - sort_order
+      - status
+      - published_at
+      - expired_at
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - organization_id
+      - title
+      - category
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      organization_id:
+        min: 1
+      title:
+        max_length: 200
+        min_length: 1
+      category:
+        max_length: 100
+      description:
+        max_length: 5000
+      expected_price_min:
+        min: 0.0
+      expected_price_max:
+        min: 0.0
+      price_currency:
+        enum: ["CNY", "USD", "KRW", "JPY", "EUR", "GBP", "HKD", "SGD"]
+      quantity:
+        min: 1
+      urgency:
+        enum: ["low", "medium", "high", "urgent"]
+      delivery_terms:
+        enum: ["EXW", "FOB", "CIF", "DDP", "DAP", "CFR", "CIP", "FCA"]
+      contact_email:
+        format: email
+        max_length: 255
+      contact_phone:
+        format: phone
+        max_length: 20
+      is_urgent:
+        enum: [true, false]
+      is_featured:
+        enum: [true, false]
+      status:
+        enum: ["draft", "published", "matching", "closed", "expired", "deleted"]
+      view_count:
+        min: 0
+      proposal_count:
+        min: 0
+      sort_order:
+        min: 0
+    not_allowed:
+      - budget_limit_internal
+      - evaluator_notes
+      - shortlist_candidates
+      - decision_criteria
+
+  # --------------------------------------------------------------------------
+  # matches — 匹配记录表 (module_ai_card schema)
+  # --------------------------------------------------------------------------
+  - name: matches
+    description: "供需匹配记录 — AI名片智能匹配引擎的结果"
+    allowed_fields:
+      - id
+      - uuid
+      - supply_id
+      - demand_id
+      - supply_organization_id
+      - demand_organization_id
+      - supply_user_id
+      - demand_user_id
+      - match_type
+      - match_score
+      - match_algorithm
+      - match_reasons
+      - match_details
+      - status
+      - initiator_id
+      - initiator_type
+      - contact_status
+      - contact_message
+      - responded_at
+      - confirmed_at
+      - completed_at
+      - cancelled_at
+      - cancel_reason
+      - feedback_score
+      - feedback_comment
+      - is_read
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - supply_id
+      - demand_id
+      - match_type
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      supply_id:
+        min: 1
+      demand_id:
+        min: 1
+      match_type:
+        enum: ["auto", "manual", "ai_recommend", "search", "scan"]
+      match_score:
+        min: 0.0
+        max: 100.0
+      match_algorithm:
+        max_length: 100
+      status:
+        enum: ["pending", "contacted", "negotiating", "confirmed",
+               "completed", "cancelled", "expired"]
+      initiator_type:
+        enum: ["supply_side", "demand_side", "system", "admin"]
+      contact_status:
+        enum: ["not_contacted", "contacted", "meeting_scheduled",
+               "meeting_done", "deal_closed", "no_response"]
+      feedback_score:
+        min: 1
+        max: 5
+      is_read:
+        enum: [true, false]
+    not_allowed:
+      - internal_priority_score
+      - blacklist_match
+      - compliance_risk_score
+
+  # --------------------------------------------------------------------------
+  # visitor_logs — 访客日志表 (module_ai_card schema)
+  # --------------------------------------------------------------------------
+  - name: visitor_logs
+    description: "访客日志 — 谁在何时查看了谁的名片"
+    allowed_fields:
+      - id
+      - uuid
+      - visitor_user_id
+      - visitor_name
+      - visitor_company
+      - visitor_position
+      - visitor_ip
+      - visitor_country
+      - visitor_city
+      - target_user_id
+      - target_card_id
+      - target_organization_id
+      - action_type
+      - duration_seconds
+      - page_viewed
+      - device_type
+      - browser
+      - os
+      - referer
+      - source
+      - latitude
+      - longitude
+      - is_favorited
+      - is_followed
+      - contact_requested
+      - note
+      - tags
+      - created_at
+    required:
+      - uuid
+      - visitor_user_id
+      - target_user_id
+      - action_type
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      visitor_user_id:
+        min: 1
+      target_user_id:
+        min: 1
+      action_type:
+        enum: ["view", "scan_qr", "save_contact", "share", "like",
+               "comment", "download", "request_contact", "follow",
+               "bookmark", "report"]
+      duration_seconds:
+        min: 0
+      device_type:
+        enum: ["mobile", "tablet", "desktop", "unknown"]
+      source:
+        enum: ["qrcode", "link", "search", "recommendation", "scan",
+               "social_share", "email", "sms", "unknown"]
+      is_favorited:
+        enum: [true, false]
+      is_followed:
+        enum: [true, false]
+      contact_requested:
+        enum: [true, false]
+      note:
+        max_length: 500
+      visitor_ip:
+        max_length: 45
+      latitude:
+        min: -90.0
+        max: 90.0
+      longitude:
+        min: -180.0
+        max: 180.0
+    not_allowed:
+      - exact_location
+      - device_id
+      - fingerprint
+      - idfa
+      - imei
+      - ga_client_id

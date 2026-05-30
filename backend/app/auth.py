@@ -51,6 +51,33 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
             "jti": str(uuid.uuid4()),
         }
     )
+    # 如果用户有 organization_id，注入 JWT
+    user_id = data.get("sub")
+    if user_id:
+        from app.database import is_multi_tenant, SessionLocal
+
+        if is_multi_tenant():
+            try:
+                db = SessionLocal()
+                user = db.query(User).filter(User.username == user_id).first()
+                if user:
+                    if user.organization_id:
+                        to_encode["org_id"] = user.organization_id
+                    # 注入角色信息
+                    to_encode["role"] = user.role or "viewer"
+                db.close()
+            except Exception:
+                pass
+        else:
+            # SQLite 模式：直接从数据库查角色
+            try:
+                db = SessionLocal()
+                user = db.query(User).filter(User.username == user_id).first()
+                if user:
+                    to_encode["role"] = user.role or "viewer"
+                db.close()
+            except Exception:
+                pass
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 

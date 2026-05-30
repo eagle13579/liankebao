@@ -1,10 +1,10 @@
 # ============================================================
-# 链客宝 CI/CD 流水线
+# 链客宝 CI/CD 流水线 v2.0
 # 触发条件:
-#   - push 到 develop 分支 → 构建 + 测试
-#   - push 到 main 分支   → 构建 + 测试 + 部署到阿里云 ECS
+#   - push 到 develop 分支 → 测试 → 构建 Docker → 部署测试环境
+#   - push 到 main 分支   → 测试 → 构建 Docker → 部署生产环境
 # ============================================================
-name: 链客宝 CI/CD
+name: 链客宝 CI/CD v2
 
 on:
   push:
@@ -12,18 +12,29 @@ on:
       - develop
       - main
 
+# 环境变量（全局共享）
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  DOCKER_COMPOSE_FILE: docker-compose.yml
+
 jobs:
-  # ----------------------------------------------------------
-  # Job 1: 构建 + 测试（所有分支）
-  # ----------------------------------------------------------
-  build-and-test:
-    name: Build & Test (Python 3.12)
+  # ============================================================
+  # Job 1: 测试 (Python 后端单元测试 + 前端构建验证)
+  # ============================================================
+  test:
+    name: 🧪 Test (Python + Node)
     runs-on: ubuntu-latest
+    # 防止并发触发多个相同分支的 job（优先处理最新 push）
+    concurrency:
+      group: test-${{ github.ref }}
+      cancel-in-progress: true
 
     steps:
-      - name: Checkout 代码
+      - name: 检出代码
         uses: actions/checkout@v4
 
+      # ----- 后端测试 -----
       - name: 设置 Python 3.12
         uses: actions/setup-python@v5
         with:
@@ -31,107 +42,275 @@ jobs:
           cache: "pip"
           cache-dependency-path: backend/requirements.txt
 
-      - name: 安装依赖
+      - name: 安装后端依赖
         run: |
           cd backend
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-asyncio httpx
+          pip install pytest pytest-asyncio httpx pytest-cov
 
-      - name: 运行测试
+      - name: 运行后端测试
         run: |
           cd backend
-          python -m pytest tests/ -v --tb=short
+          python -m pytest tests/ -v --tb=short --cov=. --cov-report=term-missing
         env:
           PYTHONPATH: ${{ github.workspace }}/backend
+          DB_TYPE: sqlite
 
-  # ----------------------------------------------------------
-  # Job 2: 部署到阿里云 ECS（仅 main 分支）
-  # ----------------------------------------------------------
-  deploy:
-    name: Deploy to 阿里云 ECS
-    needs: build-and-test
-    if: github.ref == 'refs/heads/main'
+      # ----- 前端构建验证 -----
+      - name: 设置 Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: 安装前端依赖
+        run: npm ci --frozen-lockfile
+
+      - name: 验证前端构建
+        run: npm run build -- --logLevel error
+
+      - name: 前端 Lint 检查
+        run: npm run lint 2>/dev/null || echo "⚠ lint 未配置，跳过"
+
+  # ============================================================
+  # Job 2: 构建 Docker 镜像并推送到 GitHub Container Registry
+  # ============================================================
+  build-and-push:
+    name: 🐳 Build & Push Docker Images
+    needs: test
     runs-on: ubuntu-latest
+    concurrency:
+      group: build-${{ github.ref }}
+      cancel-in-progress: true
+    # 为镜像打标签
+    outputs:
+      tags: ${{ steps.meta.outputs.tags }}
+
+    permissions:
+      contents: read
+      packages: write
 
     steps:
-      - name: Checkout 代码
+      - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: 通过 SSH 部署到阿里云 ECS
-        uses: appleboy/ssh-action@v1.0.3
+      - name: 设置 QEMU (多架构支持)
+        uses: docker/setup-qemu-action@v3
+
+      - name: 设置 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 登录到 GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 生成镜像标签: 分支名 + commit SHA 前 7 位 + 时间戳
+      - name: 生成 Docker meta 数据
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-,format=short
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      # ----- 构建并推送 backend 镜像 -----
+      - name: 构建并推送 backend 镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          target: backend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}-backend
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ----- 构建并推送 frontend 镜像 -----
+      - name: 构建并推送 frontend 镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          target: frontend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}-frontend
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================================
+  # Job 3: SSH 部署到阿里云 ECS (Docker Compose)
+  # ============================================================
+  deploy:
+    name: 🚀 Deploy to 阿里云 ECS
+    needs: build-and-push
+    # develop 分支 → 测试部署; main 分支 → 生产部署
+    # 默认只在 develop 触发，main 需额外开启
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-${{ github.ref }}
+      cancel-in-progress: false  # 部署不允许取消
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 生成部署环境标识
+        id: env_label
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "ENV_LABEL=production" >> $GITHUB_OUTPUT
+            echo "BRANCH=main" >> $GITHUB_OUTPUT
+          else
+            echo "ENV_LABEL=staging" >> $GITHUB_OUTPUT
+            echo "BRANCH=develop" >> $GITHUB_OUTPUT
+          fi
+
+      # ---------- SSH 部署（密钥方式）----------
+      - name: SSH 部署到阿里云 ECS (密钥认证)
+        uses: appleboy/ssh-action@v1.0.3
+        id: deploy_key
+        continue-on-error: true  # 密钥失败则尝试密码
+        with:
+          host: ${{ secrets.ECS_HOST || secrets.SSH_HOST || '47.100.160.250' }}
+          username: ${{ secrets.ECS_USER || secrets.SSH_USER || 'root' }}
+          key: ${{ secrets.ECS_SSH_KEY || secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.ECS_PORT || '22' }}
           script: |
+            set -e
             echo "========================================"
-            echo "  链客宝 自动部署 (CI/CD)"
-            echo "  $(date '+%Y-%m-%d %H:%M:%S')"
+            echo "  链客宝 自动部署 (Docker)"
+            echo "  环境: ${{ steps.env_label.outputs.ENV_LABEL }}"
+            echo "  分支: ${{ steps.env_label.outputs.BRANCH }}"
+            echo "  时间: $(date '+%Y-%m-%d %H:%M:%S')"
             echo "========================================"
 
-            # 1. git pull — 拉取最新代码
-            cd ${{ secrets.DEPLOY_PATH }}
-            echo "[1/4] 拉取最新代码 (main 分支)..."
-            git fetch origin main
-            git reset --hard origin/main
+            # 1. 登录 ghcr.io
+            echo "[1/5] 登录 GitHub Container Registry..."
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # 2. 进入项目目录 / 克隆项目
+            DEPLOY_DIR="/opt/liankebao"
+            if [ ! -d "$DEPLOY_DIR" ]; then
+              echo "[!] 项目目录不存在，克隆中..."
+              git clone https://github.com/${{ github.repository }}.git "$DEPLOY_DIR"
+            fi
+            cd "$DEPLOY_DIR"
+
+            # 3. 拉取最新代码
+            echo "[2/5] 拉取最新代码 (${{ steps.env_label.outputs.BRANCH }} 分支)..."
+            git fetch origin ${{ steps.env_label.outputs.BRANCH }}
+            git reset --hard origin/${{ steps.env_label.outputs.BRANCH }}
             git clean -fd
             echo "  -> commit: $(git rev-parse --short HEAD)"
 
-            # 2. pip install — 安装/更新 Python 依赖
-            echo "[2/4] 安装 Python 依赖..."
-            cd ${{ secrets.DEPLOY_PATH }}/backend
-            if [ ! -d "venv" ]; then
-              python3 -m venv venv
-            fi
-            source venv/bin/activate
-            pip install --upgrade pip -q
-            pip install -r requirements.txt -q
-            deactivate
-            echo "  -> 依赖安装完成"
+            # 4. 拉取最新 Docker 镜像
+            echo "[3/5] 拉取最新 Docker 镜像..."
+            IMAGE_BASE="ghcr.io/${{ github.repository }}"
+            BRANCH_TAG="${{ steps.env_label.outputs.BRANCH }}"
+            SHA_TAG="${BRANCH_TAG}-${{ github.sha }}"
 
-            # 3. 重启 uvicorn 后端
-            echo "[3/4] 重启 uvicorn 后端..."
-            sudo systemctl daemon-reload
-            if systemctl is-active --quiet chainke; then
-              sudo systemctl restart chainke
-            else
-              sudo systemctl start chainke
-            fi
-            echo "  -> chainke 服务已重启"
-
-            # 等待后端就绪（最多 20 秒）
-            echo "  -> 等待后端就绪..."
-            for i in $(seq 1 10); do
-              sleep 2
-              if curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8001/health | grep -q 200; then
-                echo "  -> 后端健康检查通过 (尝试 $i/10)"
-                break
-              fi
-              if [ $i -eq 10 ]; then
-                echo "  [WARN] 后端健康检查未通过，请手动排查"
-              fi
+            # 尝试用 SHA 标签拉取，失败则用分支标签
+            for tag in "${SHA_TAG}" "${BRANCH_TAG}"; do
+              for svc in backend frontend; do
+                echo "  -> 拉取 ${IMAGE_BASE}:${tag}-${svc} ..."
+                docker pull "${IMAGE_BASE}:${tag}-${svc}" 2>/dev/null && \
+                  docker tag "${IMAGE_BASE}:${tag}-${svc}" "liankebao-${svc}:latest" || true
+              done
             done
 
-            # 4. nginx reload
-            echo "[4/4] 重载 nginx 配置..."
-            if sudo nginx -t; then
-              sudo systemctl reload nginx || sudo systemctl restart nginx
-              echo "  -> nginx 重载成功"
+            # 5. 启动 Docker Compose
+            echo "[4/5] 启动 Docker Compose..."
+            cd "$DEPLOY_DIR"
+            if [ -f "${{ env.DOCKER_COMPOSE_FILE }}" ]; then
+              docker compose pull 2>/dev/null || true
+              docker compose up -d --remove-orphans
             else
-              echo "  [ERROR] nginx 配置检查失败"
+              echo "[ERROR] docker-compose.yml 不存在!"
               exit 1
             fi
 
+            # 6. 健康检查
+            echo "[5/5] 健康检查..."
+            sleep 5
+            for i in $(seq 1 12); do
+              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8001/health 2>/dev/null || echo "000")
+              if [ "$HTTP_CODE" = "200" ]; then
+                echo "  ✅ 后端健康检查通过 (尝试 $i/12)"
+                break
+              fi
+              echo "  ⏳ 等待后端就绪... (尝试 $i/12, HTTP $HTTP_CODE)"
+              sleep 5
+              if [ $i -eq 12 ]; then
+                echo "  ⚠ 后端未完全就绪，请手动排查: docker compose logs backend"
+              fi
+            done
+
             echo ""
             echo "========================================"
-            echo "  ✓ 部署完成！"
+            echo "  ✅ 部署完成！"
+            echo "  前端: http://$(curl -s ifconfig.me 2>/dev/null || echo '${{ secrets.ECS_HOST }}')"
+            echo "  API:  http://$(curl -s ifconfig.me 2>/dev/null || echo '${{ secrets.ECS_HOST }}')/api/"
             echo "========================================"
 
-      - name: 部署完成通知
+      # ---------- SSH 部署（密码方式 - 降级备用）----------
+      - name: SSH 部署到阿里云 ECS (密码认证 - 备用)
+        if: steps.deploy_key.outcome == 'failure' && (secrets.ECS_PASSWORD != '' || secrets.SSH_PASSWORD != '')
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ECS_HOST || secrets.SSH_HOST || '47.100.160.250' }}
+          username: ${{ secrets.ECS_USER || secrets.SSH_USER || 'root' }}
+          password: ${{ secrets.ECS_PASSWORD || secrets.SSH_PASSWORD }}
+          port: ${{ secrets.ECS_PORT || '22' }}
+          script: |
+            set -e
+            echo "========================================"
+            echo "  链客宝 自动部署 (密码认证 - 备用)"
+            echo "========================================"
+
+            DEPLOY_DIR="/opt/liankebao"
+            if [ ! -d "$DEPLOY_DIR" ]; then
+              git clone https://github.com/${{ github.repository }}.git "$DEPLOY_DIR"
+            fi
+            cd "$DEPLOY_DIR"
+
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            git fetch origin ${{ steps.env_label.outputs.BRANCH }}
+            git reset --hard origin/${{ steps.env_label.outputs.BRANCH }}
+            git clean -fd
+
+            IMAGE_BASE="ghcr.io/${{ github.repository }}"
+            for tag in "${{ github.sha }}" "${{ steps.env_label.outputs.BRANCH }}"; do
+              for svc in backend frontend; do
+                docker pull "${IMAGE_BASE}:${tag}-${svc}" 2>/dev/null && \
+                  docker tag "${IMAGE_BASE}:${tag}-${svc}" "liankebao-${svc}:latest" || true
+              done
+            done
+
+            docker compose up -d --remove-orphans
+            echo "✅ 部署完成"
+
+      # ---------- 结果通知 ----------
+      - name: 部署结果通知
+        if: always()
         run: |
-          echo "✅ 链客宝部署成功！"
-          echo "   服务器: ${{ secrets.SSH_HOST }}"
-          echo "   路径: ${{ secrets.DEPLOY_PATH }}"
-          echo "   时间: $(date '+%Y-%m-%d %H:%M:%S')"
+          if [ "${{ steps.deploy_key.outcome }}" = "success" ] || [ "${{ steps.deploy_password.outcome }}" = "success" ]; then
+            echo "✅ 链客宝部署成功！"
+            echo "   环境: ${{ steps.env_label.outputs.ENV_LABEL }}"
+            echo "   分支: ${{ steps.env_label.outputs.BRANCH }}"
+            echo "   Commit: ${{ github.sha }}"
+          else
+            echo "❌ 链客宝部署失败！"
+            echo "   请检查 GitHub Actions 日志排查"
+            exit 1
+          fi

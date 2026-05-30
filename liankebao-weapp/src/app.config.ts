@@ -62,6 +62,42 @@ export default {
         'index',
       ],
     },
+    /* ===== 新增页面 - GAP-3 覆盖率提升 ===== */
+    {
+      root: 'pages/promoter',
+      name: 'promoter',
+      pages: [
+        'index',
+      ],
+    },
+    {
+      root: 'pages/activities',
+      name: 'activities',
+      pages: [
+        'index',
+      ],
+    },
+    {
+      root: 'pages/admin',
+      name: 'admin',
+      pages: [
+        'index',
+      ],
+    },
+    {
+      root: 'pages/search',
+      name: 'search',
+      pages: [
+        'index',
+      ],
+    },
+    {
+      root: 'pages/imports',
+      name: 'imports',
+      pages: [
+        'index',
+      ],
+    },
   ],
   window: {
     navigationStyle: 'custom',

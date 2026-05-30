@@ -1,0 +1,87 @@
+# ============================================================
+# 链客宝 — 前端 Deployment (Nginx + React SPA)
+# ============================================================
+# 说明: Nginx 容器提供静态文件服务和 API 反向代理。
+#       前端构建产物在 Dockerfile 中复制到 Nginx 镜像。
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chainke-frontend
+  namespace: chainke
+  labels:
+    app: chainke
+    component: frontend
+    version: stable
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: chainke
+      component: frontend
+  template:
+    metadata:
+      labels:
+        app: chainke
+        component: frontend
+        version: stable
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: frontend
+          image: registry.cn-hangzhou.aliyuncs.com/chainke/frontend:{VERSION}
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          # ==================================================
+          # 存活探针
+          # ==================================================
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          # ==================================================
+          # 就绪探针
+          # ==================================================
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          # ==================================================
+          # 资源限制
+          # ==================================================
+          resources:
+            requests:
+              cpu: "128m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          # ==================================================
+          # 环境变量
+          # ==================================================
+          env:
+            - name: TZ
+              value: "Asia/Shanghai"
+      # 镜像拉取密钥（如需私有仓库认证）
+      # imagePullSecrets:
+      #   - name: aliyun-acr-secret

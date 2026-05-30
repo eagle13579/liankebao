@@ -1,0 +1,24 @@
+# ============================================================
+# 链客宝 — 前端 Service (ClusterIP)
+# ============================================================
+# 说明: 内部 ClusterIP 服务，供 Ingress 路由流量到 Nginx。
+#       端口 80 对应 Nginx HTTP 服务端口。
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: chainke-frontend
+  namespace: chainke
+  labels:
+    app: chainke
+    component: frontend
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
+  selector:
+    app: chainke
+    component: frontend

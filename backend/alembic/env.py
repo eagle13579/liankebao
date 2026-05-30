@@ -19,8 +19,14 @@ if config.config_file_name is not None:
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from app.database import Base
+
+from app.database import Base, DB_TYPE
 import app.models  # noqa: F401 - ensure all models are registered
+
+# 注册多租户模型（仅 PostgreSQL 模式）
+if DB_TYPE == "postgres":
+    import app.tenant  # noqa: F401
+
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
@@ -29,19 +35,26 @@ target_metadata = Base.metadata
 # ... etc.
 
 
+def get_url():
+    """从应用配置获取数据库 URL"""
+    if DB_TYPE == "postgres":
+        PG_URL = os.environ.get("PG_URL", "")
+        if PG_URL:
+            return PG_URL
+        PG_HOST = os.environ.get("PG_HOST", "localhost")
+        PG_PORT = os.environ.get("PG_PORT", "5432")
+        PG_USER = os.environ.get("PG_USER", "")
+        PG_PASSWORD = os.environ.get("PG_PASSWORD", "")
+        PG_DATABASE = os.environ.get("PG_DATABASE", "")
+        if all([PG_USER, PG_PASSWORD, PG_DATABASE]):
+            return f"postgresql+psycopg2://{PG_USER}:{PG_PASSWORD}@{PG_HOST}:{PG_PORT}/{PG_DATABASE}"
+    # Fallback to ini or SQLite
+    return config.get_main_option("sqlalchemy.url")
+
+
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode.
-
-    This configures the context with just a URL
-    and not an Engine, though an Engine is acceptable
-    here as well.  By skipping the Engine creation
-    we don't even need a DBAPI to be available.
-
-    Calls to context.execute() here emit the given string to the
-    script output.
-
-    """
-    url = config.get_main_option("sqlalchemy.url")
+    """Run migrations in 'offline' mode."""
+    url = get_url()
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -54,14 +67,14 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode.
+    """Run migrations in 'online' mode."""
+    # Override sqlalchemy.url with the runtime URL
+    url = get_url()
+    cfg = config.get_section(config.config_ini_section, {})
+    cfg["sqlalchemy.url"] = url
 
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
-
-    """
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        cfg,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )

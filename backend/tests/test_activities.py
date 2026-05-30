@@ -5,6 +5,7 @@
 - 创建活动（合法/非法action_type）
 - 边界条件和权限隔离
 """
+
 import pytest
 from fastapi.testclient import TestClient
 

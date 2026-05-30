@@ -27,5 +27,5 @@
     "noEmit": true
   },
   "include": ["src"],
-  "exclude": ["node_modules", "liankebao-weapp", "dist"]
+  "exclude": ["node_modules", "liankebao-weapp", "dist", "dist-ssr", "server"]
 }

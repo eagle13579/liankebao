@@ -96,11 +96,28 @@ else:  # sqlite (default)
         connect_args={"check_same_thread": False},
         echo=False,
     )
+    # SQLite写锁缓解：繁忙时最多等待5秒再抛异常
+    from sqlalchemy import event
+
+    @event.listens_for(engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA busy_timeout=5000")
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.close()
     logger.info(f"SQLite 数据库路径: {DB_PATH}")
 
 engine = engine  # 确保非 None
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+# ===== OpenTelemetry SQLAlchemy 追踪挂载 =====
+try:
+    from app.telemetry import instrument_sqlalchemy
+    instrument_sqlalchemy(engine)
+except Exception as e:
+    logger.debug(f"OpenTelemetry SQLAlchemy 追踪挂载跳过: {e}")
 
 
 def get_db_url() -> str:
@@ -117,18 +134,47 @@ def get_db_url() -> str:
     return url_str
 
 
+def is_multi_tenant() -> bool:
+    """判断当前是否为多租户模式（仅 PostgreSQL 启用）"""
+    return DB_TYPE == "postgres"
+
+
 def get_db():
-    """FastAPI依赖注入：获取数据库会话"""
+    """
+    FastAPI依赖注入：获取数据库会话。
+    - SQLite 模式: 返回普通会话（无租户过滤）
+    - PostgreSQL 模式: 自动从 TenantContext 读取当前 org_id 并附加过滤
+    """
     db = SessionLocal()
     try:
+        if is_multi_tenant():
+            # 惰性导入避免循环依赖
+            from app.tenant import get_current_org_id
+
+            org_id = get_current_org_id()
+            if org_id is not None:
+                # 在数据库会话上设置一个自定义属性，供查询层使用
+                db.info["tenant_org_id"] = org_id
         yield db
     finally:
         db.close()
 
 
+def get_db_for_tenant():
+    """
+    FastAPI依赖注入：显式租户感知数据库会话。
+    与 get_db() 行为完全一致，但语义更清晰，建议新增路由使用此名称。
+    """
+    yield from get_db()
+
+
 def init_db():
     """初始化数据库：创建表并填充种子数据（如为空）"""
-    from app.models import User, Product, Order, Withdrawal, Contact, ImportHistory, Activity  # noqa
+    from app.models import User, Product, Order, Withdrawal, Contact, ImportHistory, Activity, BusinessCard, UserEvent  # noqa
+
+    # === 多租户：PostgreSQL 模式下创建租户表 ===
+    if is_multi_tenant():
+        from app.tenant import Organization, Membership  # noqa: F401
 
     # === 创建表（如果不存在） ===
     Base.metadata.create_all(bind=engine)
@@ -452,6 +498,35 @@ def init_db():
 
         db.commit()
         print(f"种子数据填充完成：{len(users)}个用户, {len(products)}个产品, {len(orders)}个订单, {len(withdrawals)}个提现记录")
+
+        # === 多租户：创建默认组织（仅 PostgreSQL 模式首次初始化） ===
+        if is_multi_tenant():
+            from app.tenant import Organization, Membership
+
+            existing_orgs = db.query(Organization).count()
+            if existing_orgs == 0:
+                default_org = Organization(
+                    name="链客宝科技有限公司",
+                    slug="liankebao",
+                    plan="enterprise",
+                    settings={"display_name": "链客宝", "timezone": "Asia/Shanghai"},
+                )
+                db.add(default_org)
+                db.flush()
+                print(f"创建默认组织: {default_org.name} (slug={default_org.slug})")
+
+                # 将所有现有用户关联到默认组织
+                for user_obj in db.query(User).all():
+                    membership = Membership(
+                        user_id=user_obj.id,
+                        org_id=default_org.id,
+                        role="admin" if user_obj.role == "admin" else "member",
+                    )
+                    db.add(membership)
+                    user_obj.organization_id = default_org.id
+
+                db.commit()
+                print(f"已将 {db.query(User).count()} 个用户关联到默认组织")
 
     except Exception as e:
         db.rollback()

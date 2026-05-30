@@ -2,7 +2,11 @@ import { BrowserRouter as Router, Routes, Route, useLocation, Link } from 'react
 import { AnimatePresence } from 'motion/react';
 import ErrorBoundary from './components/ErrorBoundary';
 import PageTransition from './components/PageTransition';
+import PwaUpdatePrompt from './pwa';
 import React, { Suspense, lazy } from 'react';
+import { I18nProvider } from './i18n';
+import { Globe } from 'lucide-react';
+import { useLocale } from './i18n';
 
 // Lazy-loaded screen components for code splitting
 const LoginPageLazy = lazy(() => import('./screens/AuthScreens').then(m => ({ default: m.LoginPage })));
@@ -33,9 +37,14 @@ const ContactsPageLazy = lazy(() => import('./pages/ContactsPage'));
 const ContactsImportPageLazy = lazy(() => import('./pages/ContactsImportPage'));
 const ContactDetailPageLazy = lazy(() => import('./pages/ContactDetailPage'));
 const ContactMergePageLazy = lazy(() => import('./pages/ContactMergePage'));
+const ProfilePageLazy = lazy(() => import('./pages/ProfilePage'));
+const BusinessCardPageLazy = lazy(() => import('./pages/BusinessCardPage'));
+const BIPageLazy = lazy(() => import('./pages/BIPage'));
 const SupplyDemandHallLazy = lazy(() => import('./screens/SupplyDemandScreens').then(m => ({ default: m.SupplyDemandHall })));
 const NeedDetailLazy = lazy(() => import('./screens/SupplyDemandScreens').then(m => ({ default: m.NeedDetail })));
 const PostNeedLazy = lazy(() => import('./screens/PostNeedScreen').then(m => ({ default: m.PostNeed })));
+const PromoterPageLazy = lazy(() => import('./screens/PromoterScreen').then(m => ({ default: m.PromoterPage })));
+const ActivityLogLazy = lazy(() => import('./screens/ActivityScreens').then(m => ({ default: m.ActivityLog })));
 
 function LazyPage({ children }: { children: React.ReactNode }) {
   return (
@@ -82,6 +91,12 @@ function AnimatedRoutes() {
         <Route path="/supply-demand" element={<PageTransition><LazyPage><SupplyDemandHallLazy /></LazyPage></PageTransition>} />
         <Route path="/supply-demand/post" element={<PageTransition><LazyPage><PostNeedLazy /></LazyPage></PageTransition>} />
         <Route path="/supply-demand/:id" element={<PageTransition><LazyPage><NeedDetailLazy /></LazyPage></PageTransition>} />
+        <Route path="/business-card" element={<PageTransition><LazyPage><BusinessCardPageLazy /></LazyPage></PageTransition>} />
+        <Route path="/card/:token" element={<PageTransition><LazyPage><BusinessCardPageLazy /></LazyPage></PageTransition>} />
+        <Route path="/profile" element={<PageTransition><LazyPage><ProfilePageLazy /></LazyPage></PageTransition>} />
+        <Route path="/bi" element={<PageTransition><LazyPage><BIPageLazy /></LazyPage></PageTransition>} />
+        <Route path="/promoter" element={<PageTransition><LazyPage><PromoterPageLazy /></LazyPage></PageTransition>} />
+        <Route path="/activities" element={<PageTransition><LazyPage><ActivityLogLazy /></LazyPage></PageTransition>} />
       </Routes>
     </AnimatePresence>
   );
@@ -89,18 +104,41 @@ function AnimatedRoutes() {
 
 export default function App() {
   return (
-    <Router basename="/app">
-      <ErrorBoundary>
-      <div className="bg-neutral-bg min-h-screen text-on-surface select-none">
-        <AnimatedRoutes />
-        
-        {/* Hidden toggle for Admin vs User experience - not in spec but useful for preview */}
-        <div className="fixed bottom-20 left-4 z-[9999] flex gap-2 opacity-5 pointer-events-none hover:opacity-100 hover:pointer-events-auto transition-opacity">
-          <Link to="/" className="p-2 bg-white rounded shadow text-[10px]">User</Link>
-          <Link to="/admin" className="p-2 bg-white rounded shadow text-[10px]">Admin</Link>
-        </div>
+    <I18nProvider>
+      <Router basename="/app">
+        <AppContent />
+      </Router>
+    </I18nProvider>
+  );
+}
+
+function AppContent() {
+  const { locale, setLocale } = useLocale();
+
+  return (
+    <ErrorBoundary>
+    <div className="bg-neutral-bg min-h-screen text-on-surface select-none">
+      <AnimatedRoutes />
+      <PwaUpdatePrompt />
+
+      {/* Language toggle - top right corner */}
+      <div className="fixed top-3 right-3 z-[9999]">
+        <button
+          onClick={() => setLocale(locale === 'zh' ? 'en' : 'zh')}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-white/80 backdrop-blur-md rounded-full border border-border-light shadow-sm text-xs font-medium text-on-surface hover:bg-white hover:shadow-md transition-all active:scale-95"
+          title={locale === 'zh' ? 'Switch to English' : '切换到中文'}
+        >
+          <Globe className="w-3.5 h-3.5" />
+          {locale === 'zh' ? 'EN' : '中'}
+        </button>
       </div>
-      </ErrorBoundary>
-    </Router>
+
+      {/* Hidden toggle for Admin vs User experience - not in spec but useful for preview */}
+      <div className="fixed bottom-20 left-4 z-[9999] flex gap-2 opacity-5 pointer-events-none hover:opacity-100 hover:pointer-events-auto transition-opacity">
+        <Link to="/" className="p-2 bg-white rounded shadow text-[10px]">User</Link>
+        <Link to="/admin" className="p-2 bg-white rounded shadow text-[10px]">Admin</Link>
+      </div>
+    </div>
+    </ErrorBoundary>
   );
 }

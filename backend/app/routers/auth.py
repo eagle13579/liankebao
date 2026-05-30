@@ -23,6 +23,7 @@ from app.auth import (
 )
 from app.database import get_db
 from app.models import User
+from app.posthog_middleware import capture_user_registered
 from app.schemas import (
     ApiResponse,
     LoginRequest,
@@ -176,6 +177,23 @@ def register(
     db.add(user)
     db.commit()
     db.refresh(user)
+
+    # PostHog 用户注册埋点
+    try:
+        capture_user_registered(
+            user_id=str(user.id),
+            traits={
+                "username": user.username,
+                "name": user.name or "",
+                "phone": user.phone or "",
+                "company": user.company or "",
+                "position": user.position or "",
+                "role": user.role or "",
+                "source": "web",
+            },
+        )
+    except Exception:
+        pass
 
     return ApiResponse(
         code=200,

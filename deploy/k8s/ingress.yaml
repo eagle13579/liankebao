@@ -1,0 +1,119 @@
+# ============================================================
+# 链客宝 — Ingress (阿里云 ACK ALB Ingress)
+# ============================================================
+# 说明:
+#   - 使用阿里云 ALB (Application Load Balancer) Ingress Controller
+#   - api.liankebao.top -> chainke-backend:8001 (后端 API)
+#   - liankebao.top     -> chainke-frontend:80   (前端 SPA)
+#   - 通过 cert-manager 自动签发 Let's Encrypt SSL 证书
+#
+# 前置条件:
+#   1. 安装 ALB Ingress Controller:
+#      helm install albb-ingress-controller ...
+#   2. 安装 cert-manager:
+#      kubectl apply -f https://github.com/cert-manager/cert-manager/releases/...
+#   3. 创建 ClusterIssuer (参见下方示例)
+# ============================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: chainke-ingress
+  namespace: chainke
+  labels:
+    app: chainke
+    component: ingress
+  annotations:
+    # ========================================================
+    # 阿里云 ALB Ingress 注解
+    # ========================================================
+    # 指定 Ingress Controller 类别
+    kubernetes.io/ingress.class: "alb"
+    # ALB 规格 (shared: 共享型共享带宽, performance: 性能型)
+    alb.ingress.kubernetes.io/load-balancer-name: "chainke-alb"
+    alb.ingress.kubernetes.io/scheme: "internet"
+    # 监听协议
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    # HTTP 重定向到 HTTPS
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    # 会话保持
+    alb.ingress.kubernetes.io/sticky-session: "on"
+    alb.ingress.kubernetes.io/sticky-session-type: "server"
+    alb.ingress.kubernetes.io/cookie-timeout: "86400"
+    # 健康检查
+    alb.ingress.kubernetes.io/healthcheck-enabled: "true"
+    alb.ingress.kubernetes.io/healthcheck-path: "/health"
+    alb.ingress.kubernetes.io/healthcheck-protocol: "HTTP"
+    alb.ingress.kubernetes.io/healthy-threshold-count: "2"
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: "3"
+
+    # ========================================================
+    # cert-manager 注解 (自动签发 SSL 证书)
+    # ========================================================
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    cert-manager.io/acme-challenge-type: "http01"
+
+spec:
+  # TLS 配置 — cert-manager 自动管理
+  tls:
+    - hosts:
+        - liankebao.top
+        - api.liankebao.top
+      secretName: chainke-tls
+
+  # ==========================================================
+  # 路由规则
+  # ==========================================================
+  rules:
+    # ========================================================
+    # API 子域名 -> 后端服务
+    # ========================================================
+    - host: api.liankebao.top
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: chainke-backend
+                port:
+                  number: 8001
+
+    # ========================================================
+    # 主域名 -> 前端 SPA
+    # ========================================================
+    - host: liankebao.top
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: chainke-frontend
+                port:
+                  number: 80
+
+---
+# ============================================================
+# cert-manager ClusterIssuer (Let's Encrypt 生产)
+# ============================================================
+# 说明: 全局证书签发器，所有 Ingress 共用。
+#       部署前需确保 DNS 解析已指向 ALB 地址。
+# ============================================================
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+  namespace: chainke
+spec:
+  acme:
+    # 正式 API (生产环境)
+    server: https://acme-v02.api.letsencrypt.org/directory
+    # 测试 API (先测试，避免速率限制)
+    # server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: admin@liankebao.top
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+      - http01:
+          ingress:
+            class: alb

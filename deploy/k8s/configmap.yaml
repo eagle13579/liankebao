@@ -1,0 +1,53 @@
+# ============================================================
+# 链客宝 — ConfigMap (环境变量配置)
+# ============================================================
+# 说明: 通过 ConfigMap 注入非敏感环境变量到 Pod 中。
+#       敏感信息（密码、密钥、Token）应使用 Secret 管理。
+# ============================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chainke-config
+  namespace: chainke
+  labels:
+    app: chainke
+    component: config
+data:
+  # ==========================================================
+  # 应用基本配置
+  # ==========================================================
+  APP_ENV: "production"
+  TZ: "Asia/Shanghai"
+  PYTHONUNBUFFERED: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+  PYTHONPATH: "/app/backend"
+
+  # ==========================================================
+  # 数据库配置
+  # ==========================================================
+  DB_TYPE: "mysql"
+  # PostgreSQL 示例:
+  # DB_TYPE: "postgres"
+  # SQLite 示例:
+  # DB_TYPE: "sqlite"
+
+  # MySQL/PostgreSQL 连接参数（DATABASE_URL 优先）
+  PG_HOST: "chainke-mysql.chainke.svc.cluster.local"
+  PG_PORT: "3306"
+  PG_DATABASE: "chainke"
+
+  # ==========================================================
+  # 日志级别
+  # ==========================================================
+  LOG_LEVEL: "INFO"
+
+  # ==========================================================
+  # Sentry 错误追踪配置（DSN 本身建议存入 Secret）
+  # ==========================================================
+  SENTRY_TRACES_SAMPLE_RATE: "0.2"
+  SENTRY_ENVIRONMENT: "production"
+
+  # ==========================================================
+  # CORS 配置
+  # ==========================================================
+  CORS_ORIGINS: "https://liankebao.top,https://api.liankebao.top"

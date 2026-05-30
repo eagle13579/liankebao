@@ -15,8 +15,13 @@ from app.schemas import (
     ApiResponse, ProductCreate, ProductUpdate, ProductResponse,
 )
 from app.auth import get_current_user
+from app.rbac import require_roles
 
 router = APIRouter(prefix="/api/products", tags=["产品"])
+
+# 产品接口：admin/member/viewer 均可访问
+_product_read = require_roles(["admin", "member", "viewer"])
+_product_write = require_roles(["admin", "member"])
 
 
 @router.get("", response_model=ApiResponse)
@@ -110,7 +115,7 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
 def create_product(
     req: ProductCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(_product_write),
 ):
     """创建产品"""
     product = Product(
@@ -149,7 +154,7 @@ def update_product(
     product_id: int,
     req: ProductUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(_product_write),
 ):
     """更新产品（仅自己创建的产品）"""
     product = db.query(Product).filter(
@@ -186,7 +191,7 @@ def update_product(
 def delete_product(
     product_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(_product_write),
 ):
     """删除产品（仅自己创建的产品或管理员可操作）"""
     product = db.query(Product).filter(

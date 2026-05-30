@@ -1,6 +1,6 @@
 import Taro from '@tarojs/taro'
 
-const API_BASE = 'https://www.liankebao.com/api'
+const API_BASE = '/miniapp-api/api'
 
 export const api = {
   get: (path: string) => request(path),

@@ -1,0 +1,383 @@
+{
+  "report": {
+    "project": "链客宝 (LianKeBao)",
+    "scan_time": "2026-05-29T02:27:50.493122+00:00",
+    "scan_duration_seconds": 1.03,
+    "security_score": 0.0,
+    "severity_summary": {
+      "HIGH": 9,
+      "INFO": 26,
+      "CRITICAL": 1,
+      "OK": 11,
+      "MEDIUM": 3
+    },
+    "category_summary": {
+      "env_leak": 30,
+      "hardcoded_key": 1,
+      "dependency": 1,
+      "hardcoded_secret": 1,
+      "security_config": 15,
+      "file_permission": 2
+    },
+    "overall_assessment": "严重"
+  },
+  "findings": [
+    {
+      "category": "env_leak",
+      "severity": "HIGH",
+      "title": ".env 文件权限过于开放: .env",
+      "detail": "权限模式: 0o666, 建议设为 600 或 640",
+      "file": ".env"
+    },
+    {
+      "category": "env_leak",
+      "severity": "INFO",
+      "title": "检测到 Django/FastAPI 密钥 (SECRET_KEY)",
+      "detail": ".env 中包含 Django/FastAPI 密钥 配置项 (这是正常的, 仅确认配置存在)",
+      "file": ".env",
+      "key_type": "SECRET_KEY"
+    },
+    {
+      "category": "env_leak",
+      "severity": "INFO",
+      "title": "检测到 通用 API 密钥 (API_KEY)",
+      "detail": ".env 中包含 通用 API 密钥 配置项 (这是正常的, 仅确认配置存在)",
+      "file": ".env",
+      "key_type": "API_KEY"
+    },
+    {
+      "category": "env_leak",
+      "severity": "INFO",
+      "title": "检测到 PostgreSQL 密码 (PG_PASSWORD)",
+      "detail": ".env 中包含 PostgreSQL 密码 配置项 (这是正常的, 仅确认配置存在)",
+      "file": ".env",
+      "key_type": "PG_PASSWORD"
+    },
+    {
+      "category": "env_leak",
+      "severity": "INFO",
+      "title": "检测到 Sentry DSN (可能包含秘钥) (SENTRY_DSN)",
+      "detail": ".env 中包含 Sentry DSN (可能包含秘钥) 配置项 (这是正常的, 仅确认配置存在)",
+      "file": ".env",
+      "key_type": "SENTRY_DSN"
+    },
+    {
+      "category": "env_leak",
+      "severity": "INFO",
+      "title": "检测到 通用令牌/Token (TOKEN)",
+      "detail": ".env 中包含 通用令牌/Token 配置项 (这是正常的, 仅确认配置存在)",
+      "file": ".env",
+      "key_type": "TOKEN"
+    },
+    {
+      "category": "env_leak",
+      "severity": "INFO",
+      "title": "检测到 通用密码 (PASSWORD)",
+      "detail": ".env 中包含 通用密码 配置项 (这是正常的, 仅确认配置存在)",
+      "file": ".env",
+      "key_type": "PASSWORD"
+    },
+    {
+      "category": "env_leak",
+      "severity": "INFO",
+      "title": "检测到 私钥 (PRIVATE_KEY)",
+      "detail": ".env 中包含 私钥 配置项 (这是正常的, 仅确认配置存在)",
+      "file": ".env",
+      "key_type": "PRIVATE_KEY"
+    },
+    {
+      "category": "env_leak",
+      "severity": "HIGH",
+      "title": ".env 文件权限过于开放: .env.example",
+      "detail": "权限模式: 0o666, 建议设为 600 或 640",
+      "file": ".env.example"
+    },
+    {
+      "category": "env_leak",
+      "severity": "INFO",
+      "title": "检测到 Django/FastAPI 密钥 (SECRET_KEY)",
+      "detail": ".env.example 中包含 Django/FastAPI 密钥 配置项 (这是正常的, 仅确认配置存在)",
+      "file": ".env.example",
+      "key_type": "SECRET_KEY"
+    },
+    {
+      "category": "env_leak",
+      "severity": "INFO",
+      "title": "检测到 通用 API 密钥 (API_KEY)",
+      "detail": ".env.example 中包含 通用 API 密钥 配置项 (这是正常的, 仅确认配置存在)",
+      "file": ".env.example",
+      "key_type": "API_KEY"
+    },
+    {
+      "category": "env_leak",
+      "severity": "INFO",
+      "title": "检测到 PostgreSQL 密码 (PG_PASSWORD)",
+      "detail": ".env.example 中包含 PostgreSQL 密码 配置项 (这是正常的, 仅确认配置存在)",
+      "file": ".env.example",
+      "key_type": "PG_PASSWORD"
+    },
+    {
+      "category": "env_leak",
+      "severity": "INFO",
+      "title": "检测到 Sentry DSN (可能包含秘钥) (SENTRY_DSN)",
+      "detail": ".env.example 中包含 Sentry DSN (可能包含秘钥) 配置项 (这是正常的, 仅确认配置存在)",
+      "file": ".env.example",
+      "key_type": "SENTRY_DSN"
+    },
+    {
+      "category": "env_leak",
+      "severity": "INFO",
+      "title": "检测到 云服务 Access Key (ACCESS_KEY_ID)",
+      "detail": ".env.example 中包含 云服务 Access Key 配置项 (这是正常的, 仅确认配置存在)",
+      "file": ".env.example",
+      "key_type": "ACCESS_KEY_ID"
+    },
+    {
+      "category": "env_leak",
+      "severity": "INFO",
+      "title": "检测到 通用令牌/Token (TOKEN)",
+      "detail": ".env.example 中包含 通用令牌/Token 配置项 (这是正常的, 仅确认配置存在)",
+      "file": ".env.example",
+      "key_type": "TOKEN"
+    },
+    {
+      "category": "env_leak",
+      "severity": "INFO",
+      "title": "检测到 通用密码 (PASSWORD)",
+      "detail": ".env.example 中包含 通用密码 配置项 (这是正常的, 仅确认配置存在)",
+      "file": ".env.example",
+      "key_type": "PASSWORD"
+    },
+    {
+      "category": "env_leak",
+      "severity": "HIGH",
+      "title": ".env 文件权限过于开放: backend\\.env.example",
+      "detail": "权限模式: 0o666, 建议设为 600 或 640",
+      "file": "backend\\.env.example"
+    },
+    {
+      "category": "env_leak",
+      "severity": "INFO",
+      "title": "检测到 Django/FastAPI 密钥 (SECRET_KEY)",
+      "detail": "backend\\.env.example 中包含 Django/FastAPI 密钥 配置项 (这是正常的, 仅确认配置存在)",
+      "file": "backend\\.env.example",
+      "key_type": "SECRET_KEY"
+    },
+    {
+      "category": "env_leak",
+      "severity": "INFO",
+      "title": "检测到 PostgreSQL 密码 (PG_PASSWORD)",
+      "detail": "backend\\.env.example 中包含 PostgreSQL 密码 配置项 (这是正常的, 仅确认配置存在)",
+      "file": "backend\\.env.example",
+      "key_type": "PG_PASSWORD"
+    },
+    {
+      "category": "env_leak",
+      "severity": "INFO",
+      "title": "检测到 Sentry DSN (可能包含秘钥) (SENTRY_DSN)",
+      "detail": "backend\\.env.example 中包含 Sentry DSN (可能包含秘钥) 配置项 (这是正常的, 仅确认配置存在)",
+      "file": "backend\\.env.example",
+      "key_type": "SENTRY_DSN"
+    },
+    {
+      "category": "env_leak",
+      "severity": "INFO",
+      "title": "检测到 通用密码 (PASSWORD)",
+      "detail": "backend\\.env.example 中包含 通用密码 配置项 (这是正常的, 仅确认配置存在)",
+      "file": "backend\\.env.example",
+      "key_type": "PASSWORD"
+    },
+    {
+      "category": "env_leak",
+      "severity": "CRITICAL",
+      "title": ".env 文件位于 Web 可访问目录: deploy\\.env.example",
+      "detail": "deploy\\.env.example 可能通过 Web 服务器被公开访问! 请将其移至项目根目录或上级目录。",
+      "file": "deploy\\.env.example"
+    },
+    {
+      "category": "env_leak",
+      "severity": "HIGH",
+      "title": ".env 文件权限过于开放: deploy\\.env.example",
+      "detail": "权限模式: 0o666, 建议设为 600 或 640",
+      "file": "deploy\\.env.example"
+    },
+    {
+      "category": "env_leak",
+      "severity": "INFO",
+      "title": "检测到 Django/FastAPI 密钥 (SECRET_KEY)",
+      "detail": "deploy\\.env.example 中包含 Django/FastAPI 密钥 配置项 (这是正常的, 仅确认配置存在)",
+      "file": "deploy\\.env.example",
+      "key_type": "SECRET_KEY"
+    },
+    {
+      "category": "env_leak",
+      "severity": "INFO",
+      "title": "检测到 通用 API 密钥 (API_KEY)",
+      "detail": "deploy\\.env.example 中包含 通用 API 密钥 配置项 (这是正常的, 仅确认配置存在)",
+      "file": "deploy\\.env.example",
+      "key_type": "API_KEY"
+    },
+    {
+      "category": "env_leak",
+      "severity": "INFO",
+      "title": "检测到 微信 AppSecret (WECHAT_APP_SECRET)",
+      "detail": "deploy\\.env.example 中包含 微信 AppSecret 配置项 (这是正常的, 仅确认配置存在)",
+      "file": "deploy\\.env.example",
+      "key_type": "WECHAT_APP_SECRET"
+    },
+    {
+      "category": "env_leak",
+      "severity": "INFO",
+      "title": "检测到 支付宝私钥 (ALIPAY_PRIVATE_KEY)",
+      "detail": "deploy\\.env.example 中包含 支付宝私钥 配置项 (这是正常的, 仅确认配置存在)",
+      "file": "deploy\\.env.example",
+      "key_type": "ALIPAY_PRIVATE_KEY"
+    },
+    {
+      "category": "env_leak",
+      "severity": "INFO",
+      "title": "检测到 PostgreSQL 密码 (PG_PASSWORD)",
+      "detail": "deploy\\.env.example 中包含 PostgreSQL 密码 配置项 (这是正常的, 仅确认配置存在)",
+      "file": "deploy\\.env.example",
+      "key_type": "PG_PASSWORD"
+    },
+    {
+      "category": "env_leak",
+      "severity": "INFO",
+      "title": "检测到 通用密码 (PASSWORD)",
+      "detail": "deploy\\.env.example 中包含 通用密码 配置项 (这是正常的, 仅确认配置存在)",
+      "file": "deploy\\.env.example",
+      "key_type": "PASSWORD"
+    },
+    {
+      "category": "env_leak",
+      "severity": "INFO",
+      "title": "检测到 私钥 (PRIVATE_KEY)",
+      "detail": "deploy\\.env.example 中包含 私钥 配置项 (这是正常的, 仅确认配置存在)",
+      "file": "deploy\\.env.example",
+      "key_type": "PRIVATE_KEY"
+    },
+    {
+      "category": "hardcoded_key",
+      "severity": "OK",
+      "title": "未检测到硬编码 API Key",
+      "detail": "已扫描 318 个文件, 未发现硬编码密钥"
+    },
+    {
+      "category": "dependency",
+      "severity": "INFO",
+      "title": "快速模式: 跳过 PyPI 网络查询",
+      "detail": "使用 --quick 标志跳过了在线漏洞查询"
+    },
+    {
+      "category": "hardcoded_secret",
+      "severity": "OK",
+      "title": "未检测到硬编码密钥",
+      "detail": "已扫描 214 个代码文件"
+    },
+    {
+      "category": "security_config",
+      "severity": "HIGH",
+      "title": "未启用: HSTS 安全头",
+      "detail": "main.py 中未检测到 Strict-Transport-Security"
+    },
+    {
+      "category": "security_config",
+      "severity": "HIGH",
+      "title": "未启用: 点击劫持保护",
+      "detail": "main.py 中未检测到 X-Frame-Options"
+    },
+    {
+      "category": "security_config",
+      "severity": "HIGH",
+      "title": "未启用: 内容安全策略",
+      "detail": "main.py 中未检测到 Content-Security-Policy"
+    },
+    {
+      "category": "security_config",
+      "severity": "HIGH",
+      "title": "未启用: MIME 类型嗅探防护",
+      "detail": "main.py 中未检测到 X-Content-Type-Options"
+    },
+    {
+      "category": "security_config",
+      "severity": "HIGH",
+      "title": "未启用: XSS 保护",
+      "detail": "main.py 中未检测到 X-XSS-Protection"
+    },
+    {
+      "category": "security_config",
+      "severity": "OK",
+      "title": "已启用: 速率限制中间件",
+      "detail": "main.py 中包含 RateLimitMiddleware"
+    },
+    {
+      "category": "security_config",
+      "severity": "OK",
+      "title": "已启用: 请求体大小限制",
+      "detail": "main.py 中包含 limit_request_size"
+    },
+    {
+      "category": "security_config",
+      "severity": "OK",
+      "title": "已集成: security_hardening 模块",
+      "detail": "main.py 中已导入 security_hardening"
+    },
+    {
+      "category": "security_config",
+      "severity": "OK",
+      "title": "Nginx 已配置: SSL 协议限制 (TLSv1.2+)",
+      "detail": "nginx.conf 中包含 ssl_protocols"
+    },
+    {
+      "category": "security_config",
+      "severity": "OK",
+      "title": "Nginx 已配置: 加密套件限制",
+      "detail": "nginx.conf 中包含 ssl_ciphers"
+    },
+    {
+      "category": "security_config",
+      "severity": "OK",
+      "title": "Nginx 已配置: HSTS 头",
+      "detail": "nginx.conf 中包含 Strict-Transport-Security"
+    },
+    {
+      "category": "security_config",
+      "severity": "OK",
+      "title": "Nginx 已配置: CSP 头",
+      "detail": "nginx.conf 中包含 Content-Security-Policy"
+    },
+    {
+      "category": "security_config",
+      "severity": "OK",
+      "title": "Nginx 已配置: X-Frame-Options",
+      "detail": "nginx.conf 中包含 X-Frame-Options"
+    },
+    {
+      "category": "security_config",
+      "severity": "MEDIUM",
+      "title": "Nginx 未配置: 隐藏 Nginx 版本",
+      "detail": "nginx.conf 中未检测到 server_tokens off"
+    },
+    {
+      "category": "security_config",
+      "severity": "OK",
+      "title": ".env 已在 .gitignore 中",
+      "detail": ".env 文件不会被提交到 Git"
+    },
+    {
+      "category": "file_permission",
+      "severity": "MEDIUM",
+      "title": "文件权限过于开放: .env",
+      "detail": "权限: 0o666 — 建议设为 600 或 640",
+      "file": ".env"
+    },
+    {
+      "category": "file_permission",
+      "severity": "MEDIUM",
+      "title": "文件权限过于开放: deploy\\k8s\\configmap.yaml",
+      "detail": "权限: 0o666 — 建议设为 600 或 640",
+      "file": "deploy\\k8s\\configmap.yaml"
+    }
+  ]
+}

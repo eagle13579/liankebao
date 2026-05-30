@@ -126,6 +126,64 @@ class MetricsCollector:
             self._requests_by_status.clear()
             self._requests_by_method.clear()
 
+    def generate_prometheus_text(self) -> str:
+        """生成 Prometheus 文本格式（exposition format）的指标输出"""
+        snap = self.snapshot()
+        lines = []
+        # HELP / TYPE 注释
+        lines.append("# HELP http_requests_total 总请求数")
+        lines.append("# TYPE http_requests_total counter")
+        lines.append(f"http_requests_total {snap['total_requests']}")
+
+        lines.append("# HELP http_errors_total 总错误数 (status >= 400)")
+        lines.append("# TYPE http_errors_total counter")
+        lines.append(f"http_errors_total {snap['total_errors']}")
+
+        lines.append("# HELP http_5xx_total 服务器错误数 (status >= 500)")
+        lines.append("# TYPE http_5xx_total counter")
+        lines.append(f"http_5xx_total {snap['total_5xx']}")
+
+        lines.append("# HELP http_error_rate 错误率 (百分比)")
+        lines.append("# TYPE http_error_rate gauge")
+        lines.append(f"http_error_rate {snap['error_rate']}")
+
+        rt = snap['response_time']
+        lines.append("# HELP http_response_time_ms 响应时间统计 (毫秒)")
+        lines.append("# TYPE http_response_time_ms gauge")
+        lines.append(f'http_response_time_ms{{quantile="avg"}} {rt["avg_ms"]}')
+        lines.append(f'http_response_time_ms{{quantile="min"}} {rt["min_ms"]}')
+        lines.append(f'http_response_time_ms{{quantile="max"}} {rt["max_ms"]}')
+        lines.append(f'http_response_time_ms{{quantile="p50"}} {rt["p50_ms"]}')
+        lines.append(f'http_response_time_ms{{quantile="p95"}} {rt["p95_ms"]}')
+        lines.append(f'http_response_time_ms{{quantile="p99"}} {rt["p99_ms"]}')
+
+        lines.append("# HELP http_response_samples 响应时间采样数")
+        lines.append("# TYPE http_response_samples gauge")
+        lines.append(f"http_response_samples {rt['samples']}")
+
+        lines.append("# HELP http_requests_by_method 按方法的请求数")
+        lines.append("# TYPE http_requests_by_method counter")
+        for method, count in snap['requests_by_method'].items():
+            lines.append(f'http_requests_by_method{{method="{method}"}} {count}')
+
+        lines.append("# HELP http_requests_by_status 按状态码的请求数")
+        lines.append("# TYPE http_requests_by_status counter")
+        for status, count in snap['requests_by_status'].items():
+            lines.append(f'http_requests_by_status{{status="{status}"}} {count}')
+
+        lines.append("# HELP http_requests_by_path 按路径的请求数")
+        lines.append("# TYPE http_requests_by_path counter")
+        for path, count in snap['requests_by_path'].items():
+            escaped_path = path.replace('"', '\\"')
+            lines.append(f'http_requests_by_path{{path="{escaped_path}"}} {count}')
+
+        # 运行时长
+        lines.append("# HELP app_uptime_seconds 应用运行时长 (秒)")
+        lines.append("# TYPE app_uptime_seconds counter")
+        lines.append(f"app_uptime_seconds {get_uptime()}")
+
+        return "\n".join(lines) + "\n"
+
 
 # 全局单例
 _metrics_collector = MetricsCollector()
@@ -250,22 +308,66 @@ def format_uptime(seconds: float) -> str:
 # ============================================================
 def check_db_health() -> dict:
     """
-    检查数据库连接是否正常
+    检查数据库连接是否正常（兼容 SQLAlchemy 2.0+ 使用 text()）
 
     Returns:
         {"status": "healthy"|"unhealthy", "type": "sqlite"|"mysql"|"postgres", "error": "..."}
     """
     from app.database import DB_TYPE, engine
+    from sqlalchemy import text
 
     try:
         with engine.connect() as conn:
-            if DB_TYPE == "sqlite":
-                conn.execute("SELECT 1")
-            elif DB_TYPE == "postgres":
-                conn.execute("SELECT 1")
-            else:  # mysql or default
-                conn.execute("SELECT 1")
+            conn.execute(text("SELECT 1"))
         return {"status": "healthy", "type": DB_TYPE}
     except Exception as e:
         logger.warning("数据库健康检查失败", extra={"error": str(e)})
         return {"status": "unhealthy", "type": DB_TYPE, "error": str(e)}
+
+
+def check_payment_health() -> dict:
+    """
+    检查支付通道可达性
+
+    检查支付配置是否已注册（微信支付/支付宝），
+    若配置了真实模式则尝试轻量级探活。
+
+    Returns:
+        {"status": "healthy"|"unhealthy"|"not_configured",
+         "channels": [...],
+         "error": "..."}
+    """
+    result = {"channels": []}
+    try:
+        from payment.config import (
+            PLATFORM_WXPAY,
+            PLATFORM_ALIPAY,
+            has_config,
+            is_real_mode,
+            list_platforms,
+        )
+
+        platforms = list_platforms()
+        if not platforms:
+            result["status"] = "not_configured"
+            result["channels"] = []
+            return result
+
+        for platform in platforms:
+            configured = has_config(platform)
+            channel_info = {"name": platform, "configured": configured}
+            result["channels"].append(channel_info)
+
+        result["status"] = "healthy"
+        return result
+    except ImportError:
+        # 未安装支付模块
+        result["status"] = "not_configured"
+        result["channels"] = []
+        result["note"] = "payment module not installed"
+        return result
+    except Exception as e:
+        logger.warning("支付通道健康检查失败", extra={"error": str(e)})
+        result["status"] = "unhealthy"
+        result["error"] = str(e)
+        return result

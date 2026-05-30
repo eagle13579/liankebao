@@ -10,6 +10,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 
+# ===== 安全加固模块 (AES-256-GCM + CSP + SQL注入检测) =====
+from app.security_hardening import SecurityHeadersMiddleware, init_security_hardening
+
+# 应用启动时初始化安全加固 (密钥加载、轮换检查等)
+init_security_hardening()
+
+# ===== OpenTelemetry APM 全链路追踪（最先加载，早于任何路由） =====
+try:
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+    instrument_fastapi = FastAPIInstrumentor.instrument_app
+except ImportError:
+
+    def instrument_fastapi(app):
+        pass
+
+
 # ===== LLM Cost Controller（零依赖轻量级Token消耗监控） =====
 from llm_cost_controller import get_cost_controller as _get_cost_controller
 
@@ -29,15 +46,27 @@ from app.logging_config import get_current_log_level, get_user_id, set_log_level
 
 setup_logging()
 
+# ===== Sentry 错误追踪（惰性初始化，依赖 SENTRY_DSN 环境变量） =====
+from app.sentry_config import setup_sentry
+
+setup_sentry()
+
 logger = logging.getLogger(__name__)
 
 # ===== 统一数据库（SQLite/MySQL 自适应） =====
 import admin_config as admin_config_module
+import app.bi_routes as bi_module
 import app.routers.activities as activities_module
+import app.routers.business_card as business_card_module
 import app.routers.contacts as contacts_module
+import app.routers.crm as crm_module
+import app.routers.enterprise as enterprise_module
+import app.routers.events as events_module
 import app.routers.insights as insights_module
 import app.routers.needs as needs_module
+import app.routers.onboarding as onboarding_module
 import app.routers.payment as payment_module
+import app.routers.recommend as recommend_module
 import invoice as invoice_module
 import matching_engine as matching_engine_module
 import recharge.callback as recharge_callback_module
@@ -51,6 +80,7 @@ from app.models import User
 
 # ===== 通知系统 & WebSocket =====
 from app.notifications import NotificationManager
+from app.retry_engine import get_retry_engine
 from app.routers import admin, auth, orders, products, promoter, search
 from app.routers import imports as import_router
 from app.websocket_manager import ws_manager
@@ -73,6 +103,18 @@ app = FastAPI(
         "url": "https://www.go-aiport.com",
     },
 )
+
+# ===== OpenTelemetry FastAPI 自动追踪挂载（路由注册前） =====
+
+instrument_fastapi(app)
+
+# ===== 数据安全中间件（可选，默认关闭，由 SECURITY_MIDDLEWARE_ENABLED 环境变量控制） =====
+from app.security_middleware_injection import (
+    close_security_middleware,
+    init_security_middleware,
+)
+
+init_security_middleware(app)
 
 
 # ===== OpenAPI schema 定制（添加 servers 配置） =====
@@ -122,15 +164,143 @@ app.add_middleware(
         "https://liankebao.top",
         "https://www.liankebao.top",
     ],
-    allow_origin_regex="https?://localhost(:\\d+)?",
+    allow_origin_regex="https?://localhost(:\\\\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# ===== PostHog 行为分析中间件（在 CORS 之后，惰性初始化） =====
+try:
+    from app.posthog_middleware import PostHogMiddleware
+
+    app.add_middleware(PostHogMiddleware)
+    logger.info("PostHog 行为分析中间件已注册")
+except Exception as e:
+    logger.warning(f"PostHog 行为分析中间件注册失败: {e}")
+
+# ===== 多租户中间件（PostgreSQL 模式启用，SQLite 模式跳过） =====
+try:
+    from app.tenant_middleware import TenantMiddleware
+
+    app.add_middleware(TenantMiddleware)
+    logger.info("多租户中间件已注册")
+except Exception as e:
+    logger.warning(f"多租户中间件注册失败: {e}")
+
+# ===== Feature Flags 灰度发布中间件（在 Rate Limiter 之后） =====
+try:
+    from app.feature_flags import register_feature_flags
+
+    register_feature_flags(app)
+    logger.info("Feature Flags 灰度发布系统已注册")
+except Exception as e:
+    logger.warning(f"Feature Flags 灰度发布系统注册失败: {e}")
+
+# ===== Circuit Breaker 熔断器路由（在 Feature Flags 之后） =====
+try:
+    from app.circuit_breaker import register_circuit_breakers
+
+    register_circuit_breakers(app)
+    logger.info("Circuit Breaker 熔断器路由已注册")
+except Exception as e:
+    logger.warning(f"Circuit Breaker 熔断器路由注册失败: {e}")
+
+# ===== Rate Limiting 中间件（滑动窗口，零依赖） =====
+# 必须在 CORSMiddleware 之后，确保 CORS 头已预先处理
+from app.rate_limiter import (
+    MemoryRateLimiter,
+    extract_client_ip,
+    extract_user_id,
+    get_rate_limiter,
+    get_route_limit,
+    is_rate_limiting_enabled,
+)
+
+
+class RateLimitMiddleware:
+    """FastAPI 速率限制中间件
+
+    基于滑动窗口算法，支持 per-IP 和 per-user 限流，
+    对 /api/auth/*、/api/search/*、/api/payment/* 等关键路由配置差异化速率。
+    """
+
+    def __init__(self, app):
+        self.app = app
+        self.limiter: MemoryRateLimiter = get_rate_limiter()
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        if not is_rate_limiting_enabled():
+            await self.app(scope, receive, send)
+            return
+
+        # 构造 Request 对象用于提取信息
+        from fastapi import Request
+        from fastapi.responses import JSONResponse
+
+        request = Request(scope, receive)
+
+        path = request.url.path
+
+        # 跳过非 API 路径（静态资源、健康检查等）
+        if not path.startswith("/api/") or path.startswith("/api/v1/"):
+            await self.app(scope, receive, send)
+            return
+
+        # 提取客户端 IP
+        client_ip = extract_client_ip(request)
+
+        # 提取用户标识（如已认证）
+        user_id = extract_user_id(request)
+
+        # 获取路径对应的速率上限
+        route_limit = get_route_limit(path)
+
+        # 优先使用用户级限流（如已认证），否则使用 IP 级限流
+        rate_key = user_id if user_id else f"ip:{client_ip}"
+
+        allowed, retry_after = self.limiter.check(rate_key, limit=route_limit)
+
+        if not allowed:
+            logger.warning(
+                "rate_limit_exceeded",
+                extra={
+                    "path": path,
+                    "client_ip": client_ip,
+                    "user_id": user_id or "",
+                    "rate_key": rate_key,
+                    "limit": route_limit,
+                    "retry_after": retry_after,
+                },
+            )
+            response = JSONResponse(
+                status_code=429,
+                content={
+                    "detail": "Rate limit exceeded",
+                    "retry_after": retry_after,
+                },
+                headers={
+                    "Retry-After": str(retry_after),
+                    "X-RateLimit-Limit": str(route_limit),
+                    "X-RateLimit-Remaining": "0",
+                },
+            )
+            await response(scope, receive, send)
+            return
+
+        await self.app(scope, receive, send)
+
+
+app.add_middleware(RateLimitMiddleware)
+
 # ===== 可观测性：指标收集器 =====
 from app.observability import (
     check_db_health,
+    check_payment_health,
     format_uptime,
     get_metrics_collector,
     get_system_info,
@@ -201,17 +371,9 @@ async def add_request_id(request: Request, call_next):
     return response
 
 
-# ===== 安全响应头中间件 =====
-@app.middleware("http")
-async def add_security_headers(request: Request, call_next):
-    """每次响应注入安全头：HSTS、X-Frame-Options、X-Content-Type-Options、CSP、Referrer-Policy"""
-    response = await call_next(request)
-    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'"
-    response.headers["Referrer-Policy"] = "no-referrer-when-downgrade"
-    return response
+# ===== 安全响应头中间件（增强版 — 由 security_hardening 模块提供） =====
+# 使用 ASGI 中间件方式注册, 继承已有的 CSP/XSS/HSTS 等安全头
+app.add_middleware(SecurityHeadersMiddleware)
 
 
 # ===== 请求大小限制（POST 请求体不超过 1MB） =====
@@ -246,15 +408,22 @@ router_modules = [
     search,
     import_router,
     contacts_module,
+    crm_module,
+    enterprise_module,
     activities_module,
     payment_module,
+    events_module,
     insights_module,
     needs_module,
+    onboarding_module,
+    recommend_module,
+    business_card_module,
     recharge_module,
     invoice_module,
     reconciliation_module,
     admin_config_module,
     matching_engine_module,
+    bi_module,
 ]
 
 # 第一轮：/api/v1/ 版本化路由
@@ -273,16 +442,23 @@ app.include_router(admin.router)
 app.include_router(search.router)
 app.include_router(import_router.router)
 app.include_router(contacts_module.router)
+app.include_router(crm_module.router)
+app.include_router(enterprise_module.router)
+app.include_router(events_module.router)
 app.include_router(payment_module.router)
 app.include_router(insights_module.router)
 app.include_router(needs_module.router)
+app.include_router(onboarding_module.router)
+app.include_router(recommend_module.router)
+app.include_router(business_card_module.router)
 app.include_router(recharge_module.router)
 app.include_router(recharge_callback_module.callback_router)
 app.include_router(invoice_module.router)
 app.include_router(reconciliation_module.router)
 app.include_router(admin_config_module.router)
 app.include_router(matching_engine_module.router)
-from fastapi.responses import FileResponse
+app.include_router(bi_module.router)
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
@@ -576,6 +752,15 @@ def on_startup():
 
     try:
         init_db()
+        # 注册慢查询监听器
+        try:
+            from app.database import engine
+            from app.slow_query_warning import register_slow_query_listener
+
+            register_slow_query_listener(engine)
+        except Exception as sqe:
+            logger.warning(f"慢查询监听器注册失败: {sqe}")
+
         # 确保系统预设配置存在
         from admin_config import ensure_preset_configs
 
@@ -592,6 +777,14 @@ def on_startup():
     port = os.environ.get("PORT", os.environ.get("UVICORN_PORT", "7800"))
     route_count = len(app.routes)
 
+    # ---- 启动重试引擎 ----
+    try:
+        _retry_engine = get_retry_engine()
+        _retry_engine.start()
+        logger.info("重试引擎已启动")
+    except Exception as e:
+        logger.warning(f"重试引擎启动失败: {e}")
+
     startup_info = {
         "event": "startup",
         "hostname": hostname,
@@ -600,14 +793,63 @@ def on_startup():
         "route_count": route_count,
         "python_version": os.sys.version.split()[0],
         "log_level": logging.getLevelName(logging.getLogger().level),
+        "vector_search": os.environ.get("USE_VECTOR_SEARCH", "0"),
+        "embedding_provider": os.environ.get("EMBEDDING_PROVIDER", "numpy"),
     }
     logger.info("服务启动完成", extra=startup_info)
+
+    # 向量搜索状态日志
+    vs_enabled = os.environ.get("USE_VECTOR_SEARCH", "0") == "1"
+    if vs_enabled:
+        ep = os.environ.get("EMBEDDING_PROVIDER", "numpy")
+        logger.info(f"向量搜索已启用: provider={ep}, rerank_weight={os.environ.get('RERANK_WEIGHT', '0.3')}")
+        # 启动向量索引自动同步
+        from app.vector_search import sync_vector_index
+
+        try:
+            db_session = next(get_db())
+            sync_result = sync_vector_index(db_session)
+            db_session.close()
+            logger.info("向量索引启动同步完成", extra=sync_result)
+        except Exception as vsync_e:
+            logger.warning(f"向量索引启动同步失败: {vsync_e}")
+    else:
+        logger.info("向量搜索未启用（设置 USE_VECTOR_SEARCH=1 开启）")
 
 
 @app.on_event("shutdown")
 def on_shutdown():
-    """应用关闭时记录关闭信息"""
+    """应用关闭时记录关闭信息并停止重试引擎"""
     import socket
+
+    # ---- 关闭安全中间件 ----
+    try:
+        close_security_middleware()
+        logger.info("安全中间件已关闭")
+    except Exception as e:
+        logger.warning(f"安全中间件关闭异常: {e}")
+
+    # ---- 停止重试引擎 ----
+    try:
+        _retry_engine = get_retry_engine()
+        _retry_engine.stop()
+        logger.info("重试引擎已停止")
+    except Exception as e:
+        logger.warning(f"重试引擎停止异常: {e}")
+
+    # ---- 关闭 PostHog 客户端 ----
+    try:
+        from app.posthog_config import close_posthog
+
+        close_posthog()
+    except Exception:
+        pass
+
+    # ---- 关闭 OpenTelemetry 追踪 ----
+    try:
+        pass
+    except Exception:
+        pass
 
     try:
         uptime_sec = get_uptime()
@@ -634,26 +876,78 @@ def root():
     }
 
 
-@app.get("/health", summary="健康检查", description="服务健康检查端点，返回系统状态（数据库连接/磁盘/内存/运行时长）")
+@app.get("/health", summary="深度健康检查", description="深度健康检查：检查数据库连接池、支付通道可达性、系统资源状态")
 def health():
-    """增强型健康检查：返回系统状态（数据库连接/磁盘/内存/运行时长）"""
+    """深度健康检查：检查DB连接池、支付通道可达性、系统资源"""
     db_health = check_db_health()
+    payment_health = check_payment_health()
     sys_info = get_system_info()
 
-    overall_status = "ok" if db_health["status"] == "healthy" else "degraded"
+    # 综合状态: 数据库必须健康，支付通道忽略 not_configured
+    all_healthy = db_health["status"] == "healthy" and payment_health["status"] in ("healthy", "not_configured")
 
+    overall_status = "ok" if all_healthy else "degraded"
+    http_status = 200 if all_healthy else 503
+
+    return JSONResponse(
+        status_code=http_status,
+        content={
+            "status": overall_status,
+            "database": db_health,
+            "payment": payment_health,
+            "system": sys_info,
+            "version": "1.0.0",
+        },
+    )
+
+
+@app.get("/health/live", summary="存活检查", description="轻量级存活检查，仅确认服务进程是否运行")
+def health_live():
+    """存活检查：仅确认服务进程在运行"""
     return {
-        "status": overall_status,
-        "database": db_health,
-        "system": sys_info,
-        "version": "1.0.0",
+        "status": "alive",
+        "uptime_sec": round(get_uptime()),
     }
 
 
-@app.get("/metrics", summary="应用指标", description="应用指标端点：请求量/错误率/响应时间统计")
-def metrics():
-    """应用指标端点：请求量/错误率/响应时间统计"""
-    return _metrics.snapshot()
+@app.get("/health/ready", summary="就绪检查", description="就绪检查：确认数据库和支付通道是否可用")
+def health_ready():
+    """就绪检查：确认数据库和支付通道是否可用"""
+    db_health = check_db_health()
+    payment_health = check_payment_health()
+
+    ready = db_health["status"] == "healthy" and payment_health["status"] in ("healthy", "not_configured")
+
+    http_status = 200 if ready else 503
+
+    return JSONResponse(
+        status_code=http_status,
+        content={
+            "status": "ready" if ready else "not_ready",
+            "database": db_health,
+            "payment": payment_health,
+        },
+    )
+
+
+@app.get(
+    "/metrics", summary="应用指标", description="应用指标端点：返回Prometheus格式指标（支持 ?format=json 获取JSON格式）"
+)
+def metrics(format: str = "prometheus"):
+    """应用指标端点：返回Prometheus格式或JSON格式"""
+    from app.observability import get_metrics_collector
+
+    mc = get_metrics_collector()
+
+    if format == "json":
+        return mc.snapshot()
+
+    # 默认: Prometheus 文本格式
+    return Response(
+        content=mc.generate_prometheus_text(),
+        media_type="text/plain; charset=utf-8",
+        headers={"Content-Type": "text/plain; charset=utf-8"},
+    )
 
 
 # ============================================================
@@ -683,4 +977,24 @@ async def global_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=500,
         content={"code": 500, "message": "服务器内部错误", "detail": detail},
+    )
+
+
+# ===== Sentry ASGI 中间件（包裹在最后，确保捕获所有异常） =====
+from app.sentry_config import wrap_with_sentry
+
+app = wrap_with_sentry(app)
+
+# ===== 直接启动入口 =====
+if __name__ == "__main__":
+    import uvicorn
+
+    port = int(os.environ.get("PORT", "8000"))
+    print(f"🚀 链客宝后端 API :{port}")
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=port,
+        reload=False,
+        log_level="info",
     )

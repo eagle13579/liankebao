@@ -21,6 +21,9 @@ from sqlalchemy import desc, or_
 
 logger = logging.getLogger(__name__)
 
+# ===== OpenTelemetry 自定义追踪 =====
+from app.telemetry import tracer
+
 from app.database import get_db
 from app.models import Product
 from app.schemas import ApiResponse, ProductResponse
@@ -50,41 +53,44 @@ def search_products(
 ):
     """
     产品搜索
-
     支持多维度筛选、全文搜索和中英文混合搜索。已上架 (approved) 产品可见。
-
-    参数说明:
-    - q: 搜索关键词，匹配产品名称、描述、标签、品牌（无需完整匹配，智能分词）
-    - category: 按分类精确筛选
-    - region: 按产地/地区筛选（模糊匹配规格JSON中的"产地"字段）
-    - min_price / max_price: 价格区间筛选
-    - sort_by: 排序方式
-      - relevance（默认）: 按文本相关性降序
-      - price_asc: 按价格升序（同价按相关性）
-      - price_desc: 按价格降序（同价按相关性）
-      - newest: 按创建时间降序（最新优先）
-    - page / page_size: 分页
-    - highlight: 是否返回高亮片段
     """
-    # 校验排序参数
-    if sort_by not in VALID_SORT_OPTIONS:
-        sort_by = "relevance"
-
-    # 如果没有搜索词但有筛选条件，使用传统 SQL 方式（更高效）
-    if not q or not q.strip():
-        return _search_with_sql(
-            db=db,
-            category=category,
-            region=region,
-            min_price=min_price,
-            max_price=max_price,
-            sort_by=sort_by,
-            page=page,
-            page_size=page_size,
-        )
-
-    # 有搜索词 → 使用搜索引擎
+    # 初始化搜索 span
+    _search_span = None
     try:
+        _search_span = tracer.start_as_current_span("search.products")
+        _search_span.__enter__()
+        _search_span.set_attribute("query", q or "")
+        _search_span.set_attribute("category", category or "")
+        _search_span.set_attribute("region", region or "")
+        _search_span.set_attribute("sort_by", sort_by)
+        _search_span.set_attribute("page", page)
+        _search_span.set_attribute("page_size", page_size)
+    except Exception:
+        _search_span = None
+
+    try:
+        # 校验排序参数
+        if sort_by not in VALID_SORT_OPTIONS:
+            sort_by = "relevance"
+
+        # 如果没有搜索词但有筛选条件，使用传统 SQL 方式（更高效）
+        if not q or not q.strip():
+            result = _search_with_sql(
+                db=db,
+                category=category,
+                region=region,
+                min_price=min_price,
+                max_price=max_price,
+                sort_by=sort_by,
+                page=page,
+                page_size=page_size,
+            )
+            if _search_span:
+                _search_span.set_attribute("search_mode", "sql_fallback")
+            return result
+
+        # 有搜索词 → 使用搜索引擎
         engine = get_search_engine()
 
         # 构建过滤器
@@ -109,6 +115,8 @@ def search_products(
 
         # 如果没有结果，回退到 SQL LIKE 搜索（模糊匹配更宽松）
         if not result["items"]:
+            if _search_span:
+                _search_span.set_attribute("search_mode", "engine_empty_fallback")
             return _search_with_sql(
                 db=db,
                 q=q,
@@ -156,6 +164,11 @@ def search_products(
                 item_data["_score"] = item.get("score", 0.0)
                 items.append(item_data)
 
+        if _search_span:
+            _search_span.set_attribute("search_mode", "engine")
+            _search_span.set_attribute("result_count", len(items))
+            _search_span.set_attribute("total_results", result["total"])
+
         return ApiResponse(
             code=200,
             message="success",
@@ -170,6 +183,9 @@ def search_products(
 
     except Exception as e:
         logger.error(f"搜索引擎查询失败: {e}，回退到 SQL 方式", exc_info=True)
+        if _search_span:
+            _search_span.set_attribute("error", str(e))
+            _search_span.set_attribute("search_mode", "error_fallback")
         return _search_with_sql(
             db=db,
             q=q,
@@ -181,6 +197,12 @@ def search_products(
             page=page,
             page_size=page_size,
         )
+    finally:
+        if _search_span:
+            try:
+                _search_span.__exit__(None, None, None)
+            except Exception:
+                pass
 
 
 def _search_with_sql(
@@ -386,4 +408,234 @@ def search_engine_stats():
         return ApiResponse(
             code=500,
             message=f"获取搜索引擎状态失败: {e}",
+        )
+
+
+# ======================================================================
+# 向量搜索 + 重排序路由（可选，USE_VECTOR_SEARCH=1 时启用）
+# ======================================================================
+
+
+@router.get("/vector", response_model=ApiResponse)
+def vector_search(
+    q: str = Query("", description="搜索关键词"),
+    top_k: int = Query(20, ge=1, le=100, description="返回结果数量"),
+    db: Session = Depends(get_db),
+):
+    """向量语义搜索（需 USE_VECTOR_SEARCH=1）
+
+    使用 embedding 向量进行语义匹配，不再依赖关键词字面匹配。
+    返回结果按语义相似度降序排列。
+    """
+    if not q or not q.strip():
+        return ApiResponse(code=200, message="success", data={"items": [], "total": 0})
+
+    try:
+        from app.vector_search import (
+            USE_VECTOR_SEARCH,
+            VectorSearchIndex,
+            build_document_text,
+            get_vector_index,
+        )
+
+        if not USE_VECTOR_SEARCH:
+            return ApiResponse(
+                code=400,
+                message="向量搜索未启用（请设置 USE_VECTOR_SEARCH=1）",
+            )
+
+        # 从数据库加载产品到向量索引
+        from app.models import Product
+
+        vindex = get_vector_index()
+
+        # 如果索引为空，重建
+        if vindex.size == 0:
+            products = (
+                db.query(Product)
+                .filter(
+                    Product.status == "approved",
+                    Product.is_deleted == False,
+                )
+                .all()
+            )
+            for p in products:
+                region = ""
+                if p.specs:
+                    try:
+                        specs = json.loads(p.specs)
+                        region = specs.get("产地", specs.get("产地/发货地", ""))
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+                text = build_document_text(
+                    title=p.name or "",
+                    content=p.description or "",
+                    category=p.category or "",
+                    tags=p.tags or "",
+                    brand=p.brand or "",
+                )
+                vindex.add_document(
+                    doc_id=p.id,
+                    text=text,
+                    metadata={
+                        "region": region,
+                        "price": p.price or 0.0,
+                        "category": p.category or "",
+                    },
+                )
+            logger.info(f"向量搜索索引重建完成: {vindex.size} 个文档")
+
+        # 向量搜索
+        results = vindex.search(query=q, top_k=top_k)
+
+        # 从数据库补充完整信息
+        product_ids = [r["id"] for r in results]
+        products_map = {
+            p.id: p
+            for p in db.query(Product).filter(
+                Product.id.in_(product_ids),
+                Product.is_deleted == False,
+            ).all()
+        }
+
+        items = []
+        for r in results:
+            p = products_map.get(r["id"])
+            if p:
+                item = ProductResponse.model_validate(p).model_dump()
+                item["_vector_score"] = r["score"]
+                item["_search_type"] = "vector"
+                items.append(item)
+
+        return ApiResponse(
+            code=200,
+            message="success",
+            data={
+                "total": len(items),
+                "items": items,
+                "query": q,
+                "engine": "vector",
+                "provider": getattr(vindex.stats, "provider", "numpy"),
+            },
+        )
+
+    except Exception as e:
+        logger.error(f"向量搜索失败: {e}", exc_info=True)
+        return ApiResponse(code=500, message=f"向量搜索失败: {e}")
+
+
+@router.get("/rerank", response_model=ApiResponse)
+def rerank_search(
+    q: str = Query("", description="搜索关键词"),
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页条数"),
+    db: Session = Depends(get_db),
+):
+    """BM25 + 向量重排序混合搜索（需 USE_VECTOR_SEARCH=1）
+
+    先用 BM25 做初步召回，再用向量相似度对结果重排序。
+    比纯 BM25 更准确，比纯向量搜索更可靠（避免遗漏精确匹配）。
+    """
+    if not q or not q.strip():
+        return ApiResponse(code=200, message="success", data={"items": [], "total": 0})
+
+    try:
+        from app.search_index import get_search_engine, highlight_text, highlight_title
+        from app.vector_search import USE_VECTOR_SEARCH, rerank as vector_rerank
+
+        if not USE_VECTOR_SEARCH:
+            return ApiResponse(
+                code=400,
+                message="向量重排序未启用（请设置 USE_VECTOR_SEARCH=1）",
+            )
+
+        # 先用 BM25 搜索（请求更多结果给重排序留空间）
+        engine = get_search_engine()
+        bm25_result = engine.search(
+            query=q.strip(),
+            page=1,
+            page_size=page_size * 3,  # 多取一些供重排序筛选
+            sort_by="relevance",
+        )
+
+        if not bm25_result["items"]:
+            return ApiResponse(
+                code=200,
+                message="success",
+                data={"items": [], "total": 0, "query": q},
+            )
+
+        # 向量重排序
+        reranked = vector_rerank(q, bm25_result["items"])
+
+        # 分页
+        offset = (page - 1) * page_size
+        page_items = reranked[offset : offset + page_size]
+
+        # 从数据库补充完整信息
+        from app.models import Product
+        from app.schemas import ProductResponse
+
+        product_ids = [item["id"] for item in page_items]
+        products_map = {
+            p.id: p
+            for p in db.query(Product).filter(
+                Product.id.in_(product_ids),
+                Product.is_deleted == False,
+            ).all()
+        }
+
+        items = []
+        for item in page_items:
+            p = products_map.get(item["id"])
+            if p:
+                item_data = ProductResponse.model_validate(p).model_dump()
+                item_data["highlight_title"] = item.get(
+                    "highlight_title",
+                    highlight_title(p.name or "", q),
+                )
+                item_data["highlight_content"] = item.get(
+                    "highlight_content",
+                    highlight_text(p.description or "", q, max_length=200),
+                )
+                item_data["_bm25_score"] = item.get("score", 0.0)
+                item_data["_vector_score"] = item.get("_vector_score", 0.0)
+                item_data["_final_score"] = item.get("_final_score", item.get("score", 0.0))
+                item_data["_search_type"] = "hybrid"
+                items.append(item_data)
+
+        return ApiResponse(
+            code=200,
+            message="success",
+            data={
+                "total": len(reranked),
+                "page": page,
+                "page_size": page_size,
+                "query": q,
+                "items": items,
+                "engine": "hybrid",
+            },
+        )
+
+    except Exception as e:
+        logger.error(f"向量重排序搜索失败: {e}", exc_info=True)
+        return ApiResponse(code=500, message=f"向量重排序搜索失败: {e}")
+
+
+@router.get("/vector/stats", response_model=ApiResponse)
+def vector_search_stats():
+    """获取向量搜索状态和统计"""
+    try:
+        from app.vector_search import get_vector_index
+
+        vindex = get_vector_index()
+        return ApiResponse(
+            code=200,
+            message="success",
+            data=vindex.stats,
+        )
+    except Exception as e:
+        return ApiResponse(
+            code=500,
+            message=f"获取向量搜索状态失败: {e}",
         )
