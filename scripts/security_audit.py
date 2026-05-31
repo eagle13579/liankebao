@@ -18,12 +18,10 @@
 """
 
 import argparse
-import email.utils
 import json
 import logging
 import os
 import re
-import subprocess
 import sys
 import time
 import urllib.request
@@ -97,18 +95,30 @@ def scan_env_leaks(base_dir: str = "") -> List[Dict[str, Any]]:
     # 1a. 查找 .env 文件
     env_files = []
     for root, dirs, files in os.walk(base_dir):
-        dirs[:] = [d for d in dirs if d not in ("venv", "venv_new", "__pycache__", ".git", "node_modules")]
+        dirs[:] = [
+            d
+            for d in dirs
+            if d not in ("venv", "venv_new", "__pycache__", ".git", "node_modules")
+        ]
         for f in files:
-            if f in (".env", ".env.example", ".env.local", ".env.production", ".env.development"):
+            if f in (
+                ".env",
+                ".env.example",
+                ".env.local",
+                ".env.production",
+                ".env.development",
+            ):
                 env_files.append(os.path.join(root, f))
 
     if not env_files:
-        findings.append({
-            "category": "env_leak",
-            "severity": "INFO",
-            "title": "未找到 .env 文件",
-            "detail": "项目根目录及子目录未发现 .env 或 .env.* 文件。若已通过环境变量配置, 可忽略此信息。",
-        })
+        findings.append(
+            {
+                "category": "env_leak",
+                "severity": "INFO",
+                "title": "未找到 .env 文件",
+                "detail": "项目根目录及子目录未发现 .env 或 .env.* 文件。若已通过环境变量配置, 可忽略此信息。",
+            }
+        )
     else:
         for env_path in env_files:
             rel_path = os.path.relpath(env_path, base_dir)
@@ -119,25 +129,29 @@ def scan_env_leaks(base_dir: str = "") -> List[Dict[str, Any]]:
             )
 
             if is_exposed:
-                findings.append({
-                    "category": "env_leak",
-                    "severity": "CRITICAL",
-                    "title": f".env 文件位于 Web 可访问目录: {rel_path}",
-                    "detail": f"{rel_path} 可能通过 Web 服务器被公开访问! 请将其移至项目根目录或上级目录。",
-                    "file": rel_path,
-                })
+                findings.append(
+                    {
+                        "category": "env_leak",
+                        "severity": "CRITICAL",
+                        "title": f".env 文件位于 Web 可访问目录: {rel_path}",
+                        "detail": f"{rel_path} 可能通过 Web 服务器被公开访问! 请将其移至项目根目录或上级目录。",
+                        "file": rel_path,
+                    }
+                )
 
             # 检查 .env 文件权限 (Unix only)
             try:
                 mode = os.stat(env_path).st_mode
                 if mode & 0o004:  # world-readable
-                    findings.append({
-                        "category": "env_leak",
-                        "severity": "HIGH",
-                        "title": f".env 文件权限过于开放: {rel_path}",
-                        "detail": f"权限模式: {oct(mode & 0o777)}, 建议设为 600 或 640",
-                        "file": rel_path,
-                    })
+                    findings.append(
+                        {
+                            "category": "env_leak",
+                            "severity": "HIGH",
+                            "title": f".env 文件权限过于开放: {rel_path}",
+                            "detail": f"权限模式: {oct(mode & 0o777)}, 建议设为 600 或 640",
+                            "file": rel_path,
+                        }
+                    )
             except Exception:
                 pass
 
@@ -147,32 +161,62 @@ def scan_env_leaks(base_dir: str = "") -> List[Dict[str, Any]]:
                     content = f.read()
                 for pattern, desc in _SENSITIVE_KEY_PATTERNS.items():
                     if pattern in content:
-                        findings.append({
-                            "category": "env_leak",
-                            "severity": "INFO",
-                            "title": f"检测到 {desc} ({pattern})",
-                            "detail": f"{rel_path} 中包含 {desc} 配置项 (这是正常的, 仅确认配置存在)",
-                            "file": rel_path,
-                            "key_type": pattern,
-                        })
+                        findings.append(
+                            {
+                                "category": "env_leak",
+                                "severity": "INFO",
+                                "title": f"检测到 {desc} ({pattern})",
+                                "detail": f"{rel_path} 中包含 {desc} 配置项 (这是正常的, 仅确认配置存在)",
+                                "file": rel_path,
+                                "key_type": pattern,
+                            }
+                        )
             except Exception:
                 pass
 
     # 1b. 扫描代码中的硬编码 API key
     high_entropy_patterns = [
-        (re.compile(r'(?:"|'"'"')?(sk-[A-Za-z0-9]{20,})(?:"|'"'"')?'), "OpenAI API Key (sk-...)"),
-        (re.compile(r'(?:"|'"'"')?(ghp_[A-Za-z0-9]{36})(?:"|'"'"')?'), "GitHub Personal Access Token"),
-        (re.compile(r'(?:"|'"'"')?(AIza[0-9A-Za-z_-]{35})(?:"|'"'"')?'), "Google API Key"),
-        (re.compile(r'(?:"|'"'"')?(AKIA[0-9A-Z]{16})(?:"|'"'"')?'), "AWS Access Key ID"),
+        (
+            re.compile(r'(?:"|' "'" ')?(sk-[A-Za-z0-9]{20,})(?:"|' "'" ")?"),
+            "OpenAI API Key (sk-...)",
+        ),
+        (
+            re.compile(r'(?:"|' "'" ')?(ghp_[A-Za-z0-9]{36})(?:"|' "'" ")?"),
+            "GitHub Personal Access Token",
+        ),
+        (
+            re.compile(r'(?:"|' "'" ')?(AIza[0-9A-Za-z_-]{35})(?:"|' "'" ")?"),
+            "Google API Key",
+        ),
+        (
+            re.compile(r'(?:"|' "'" ')?(AKIA[0-9A-Z]{16})(?:"|' "'" ")?"),
+            "AWS Access Key ID",
+        ),
     ]
 
     # 仅扫描 Python 和 JS/TS 文件
-    scan_extensions = {".py", ".js", ".ts", ".jsx", ".tsx", ".sh", ".yaml", ".yml", ".toml", ".ini", ".conf"}
+    scan_extensions = {
+        ".py",
+        ".js",
+        ".ts",
+        ".jsx",
+        ".tsx",
+        ".sh",
+        ".yaml",
+        ".yml",
+        ".toml",
+        ".ini",
+        ".conf",
+    }
     scanned_files = 0
     key_findings = 0
 
     for root, dirs, files in os.walk(base_dir):
-        dirs[:] = [d for d in dirs if d not in ("venv", "venv_new", "__pycache__", ".git", "node_modules")]
+        dirs[:] = [
+            d
+            for d in dirs
+            if d not in ("venv", "venv_new", "__pycache__", ".git", "node_modules")
+        ]
         for f in files:
             ext = os.path.splitext(f)[1].lower()
             if ext not in scan_extensions:
@@ -191,29 +235,40 @@ def scan_env_leaks(base_dir: str = "") -> List[Dict[str, Any]]:
                             # 排除测试/示例/文档中的假 key
                             is_example = any(
                                 kw in line.lower()
-                                for kw in ("example", "test", "dummy", "placeholder", "your-", "xxxx")
+                                for kw in (
+                                    "example",
+                                    "test",
+                                    "dummy",
+                                    "placeholder",
+                                    "your-",
+                                    "xxxx",
+                                )
                             )
                             if not is_example:
                                 key_findings += 1
-                                findings.append({
-                                    "category": "hardcoded_key",
-                                    "severity": "HIGH",
-                                    "title": f"检测到硬编码 {key_name}",
-                                    "detail": f"{os.path.relpath(filepath, base_dir)}:{lineno}",
-                                    "file": os.path.relpath(filepath, base_dir),
-                                    "line": lineno,
-                                    "key_type": key_name,
-                                })
+                                findings.append(
+                                    {
+                                        "category": "hardcoded_key",
+                                        "severity": "HIGH",
+                                        "title": f"检测到硬编码 {key_name}",
+                                        "detail": f"{os.path.relpath(filepath, base_dir)}:{lineno}",
+                                        "file": os.path.relpath(filepath, base_dir),
+                                        "line": lineno,
+                                        "key_type": key_name,
+                                    }
+                                )
             except Exception:
                 continue
 
     if key_findings == 0:
-        findings.append({
-            "category": "hardcoded_key",
-            "severity": "OK",
-            "title": "未检测到硬编码 API Key",
-            "detail": f"已扫描 {scanned_files} 个文件, 未发现硬编码密钥",
-        })
+        findings.append(
+            {
+                "category": "hardcoded_key",
+                "severity": "OK",
+                "title": "未检测到硬编码 API Key",
+                "detail": f"已扫描 {scanned_files} 个文件, 未发现硬编码密钥",
+            }
+        )
 
     return findings
 
@@ -250,7 +305,9 @@ def _get_latest_version(package: str) -> Optional[str]:
     """查询 PyPI 获取包的最新版本。"""
     try:
         url = _PYPI_ADVISORY_URL.format(package=package)
-        req = urllib.request.Request(url, headers={"User-Agent": "LianKeBao-Security-Audit/1.0"})
+        req = urllib.request.Request(
+            url, headers={"User-Agent": "LianKeBao-Security-Audit/1.0"}
+        )
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read())
             return data.get("info", {}).get("version")
@@ -259,7 +316,9 @@ def _get_latest_version(package: str) -> Optional[str]:
         return None
 
 
-def scan_dependency_vulnerabilities(requirements_path: Optional[str] = None) -> List[Dict[str, Any]]:
+def scan_dependency_vulnerabilities(
+    requirements_path: Optional[str] = None,
+) -> List[Dict[str, Any]]:
     """扫描 requirements.txt 中的已知漏洞。
 
     检查:
@@ -282,19 +341,23 @@ def scan_dependency_vulnerabilities(requirements_path: Optional[str] = None) -> 
         },
         "sqlalchemy": {"2.0.0": "多版本已知问题, 建议升级至 2.0.35+"},
         "jose": {"3.3.0": "python-jose 已被 pyjwt 取代, 建议迁移"},
-        "passlib": {"1.7.4": "passlib 已停止维护 (2023), 建议迁移至 argon2-cffi 或 bcrypt"},
+        "passlib": {
+            "1.7.4": "passlib 已停止维护 (2023), 建议迁移至 argon2-cffi 或 bcrypt"
+        },
     }
 
     try:
         with open(requirements_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
     except FileNotFoundError:
-        findings.append({
-            "category": "dependency",
-            "severity": "WARN",
-            "title": "未找到 requirements.txt",
-            "detail": f"路径: {requirements_path}",
-        })
+        findings.append(
+            {
+                "category": "dependency",
+                "severity": "WARN",
+                "title": "未找到 requirements.txt",
+                "detail": f"路径: {requirements_path}",
+            }
+        )
         return findings
 
     for line in lines:
@@ -309,12 +372,14 @@ def scan_dependency_vulnerabilities(requirements_path: Optional[str] = None) -> 
             match = re.match(r"^([a-zA-Z0-9_.-]+)\s*$", line)
             if match:
                 pkg_name = match.group(1).lower()
-                findings.append({
-                    "category": "dependency",
-                    "severity": "INFO",
-                    "title": f"依赖 {pkg_name} 未指定版本号",
-                    "detail": f"建议锁定版本号以避免非预期更新",
-                })
+                findings.append(
+                    {
+                        "category": "dependency",
+                        "severity": "INFO",
+                        "title": f"依赖 {pkg_name} 未指定版本号",
+                        "detail": "建议锁定版本号以避免非预期更新",
+                    }
+                )
             continue
 
         pkg_name = match.group(1).lower()
@@ -325,38 +390,44 @@ def scan_dependency_vulnerabilities(requirements_path: Optional[str] = None) -> 
             vuln_map = KNOWN_VULNS[pkg_name]
             for affected_ver, desc in vuln_map.items():
                 if _parse_version(pkg_version) <= _parse_version(affected_ver):
-                    findings.append({
-                        "category": "dependency",
-                        "severity": "HIGH",
-                        "title": f"{pkg_name}=={pkg_version}: {desc}",
-                        "detail": f"当前版本 {pkg_version}, 影响版本 <= {affected_ver}",
-                        "package": pkg_name,
-                        "current_version": pkg_version,
-                    })
+                    findings.append(
+                        {
+                            "category": "dependency",
+                            "severity": "HIGH",
+                            "title": f"{pkg_name}=={pkg_version}: {desc}",
+                            "detail": f"当前版本 {pkg_version}, 影响版本 <= {affected_ver}",
+                            "package": pkg_name,
+                            "current_version": pkg_version,
+                        }
+                    )
 
         # 查询 PyPI 最新版本
         try:
             latest = _get_latest_version(pkg_name)
             if latest and _parse_version(pkg_version) < _parse_version(latest):
-                findings.append({
-                    "category": "dependency",
-                    "severity": "MEDIUM",
-                    "title": f"{pkg_name}: {pkg_version} -> {latest} (可用更新)",
-                    "detail": f"当前版本 {pkg_version}, 最新版本 {latest}",
-                    "package": pkg_name,
-                    "current_version": pkg_version,
-                    "latest_version": latest,
-                })
+                findings.append(
+                    {
+                        "category": "dependency",
+                        "severity": "MEDIUM",
+                        "title": f"{pkg_name}: {pkg_version} -> {latest} (可用更新)",
+                        "detail": f"当前版本 {pkg_version}, 最新版本 {latest}",
+                        "package": pkg_name,
+                        "current_version": pkg_version,
+                        "latest_version": latest,
+                    }
+                )
         except Exception:
             continue
 
     # 总结
-    findings.append({
-        "category": "dependency",
-        "severity": "INFO",
-        "title": "依赖扫描完成",
-        "detail": f"已扫描 {len([l for l in lines if l.strip() and not l.startswith('#')])} 个依赖项",
-    })
+    findings.append(
+        {
+            "category": "dependency",
+            "severity": "INFO",
+            "title": "依赖扫描完成",
+            "detail": f"已扫描 {len([l for l in lines if l.strip() and not l.startswith('#')])} 个依赖项",
+        }
+    )
 
     return findings
 
@@ -364,6 +435,7 @@ def scan_dependency_vulnerabilities(requirements_path: Optional[str] = None) -> 
 # ======================================================================
 # 3. API Key 硬编码检查 (深度扫描)
 # ======================================================================
+
 
 def _is_high_entropy_string(s: str) -> bool:
     """简单熵值检查: 判断字符串是否可能是密钥。"""
@@ -391,14 +463,18 @@ def scan_hardcoded_secrets(base_dir: str = "") -> List[Dict[str, Any]]:
     findings: List[Dict[str, Any]] = []
     scan_extensions = {".py", ".js", ".ts"}
     secret_assign_pattern = re.compile(
-        r'(?:(?:SECRET|SECRET_KEY|PASSWORD|TOKEN|API_KEY|PRIVATE_KEY|PUBLIC_KEY)'
+        r"(?:(?:SECRET|SECRET_KEY|PASSWORD|TOKEN|API_KEY|PRIVATE_KEY|PUBLIC_KEY)"
         r'\s*[=:]\s*["\']([A-Za-z0-9+/=_\-]{20,})["\'])',
         re.IGNORECASE,
     )
 
     scanned_files = 0
     for root, dirs, files in os.walk(base_dir):
-        dirs[:] = [d for d in dirs if d not in ("venv", "venv_new", "__pycache__", ".git", "node_modules")]
+        dirs[:] = [
+            d
+            for d in dirs
+            if d not in ("venv", "venv_new", "__pycache__", ".git", "node_modules")
+        ]
         for f in files:
             ext = os.path.splitext(f)[1].lower()
             if ext not in scan_extensions:
@@ -413,30 +489,37 @@ def scan_hardcoded_secrets(base_dir: str = "") -> List[Dict[str, Any]]:
                 for match in secret_assign_pattern.finditer(content):
                     secret_value = match.group(1)
                     # 排除示例/测试值
-                    if any(kw in secret_value.lower() for kw in ("your", "xxxx", "test", "example", "changeme")):
+                    if any(
+                        kw in secret_value.lower()
+                        for kw in ("your", "xxxx", "test", "example", "changeme")
+                    ):
                         continue
                     if _is_high_entropy_string(secret_value):
-                        findings.append({
-                            "category": "hardcoded_secret",
-                            "severity": "HIGH",
-                            "title": "检测到疑似硬编码密钥",
-                            "detail": (
-                                f"{os.path.relpath(filepath, base_dir)}: "
-                                f"...{secret_value[:12]}****{secret_value[-4:]}... "
-                                f"(长度: {len(secret_value)})"
-                            ),
-                            "file": os.path.relpath(filepath, base_dir),
-                        })
+                        findings.append(
+                            {
+                                "category": "hardcoded_secret",
+                                "severity": "HIGH",
+                                "title": "检测到疑似硬编码密钥",
+                                "detail": (
+                                    f"{os.path.relpath(filepath, base_dir)}: "
+                                    f"...{secret_value[:12]}****{secret_value[-4:]}... "
+                                    f"(长度: {len(secret_value)})"
+                                ),
+                                "file": os.path.relpath(filepath, base_dir),
+                            }
+                        )
             except Exception:
                 continue
 
     if not findings:
-        findings.append({
-            "category": "hardcoded_secret",
-            "severity": "OK",
-            "title": "未检测到硬编码密钥",
-            "detail": f"已扫描 {scanned_files} 个代码文件",
-        })
+        findings.append(
+            {
+                "category": "hardcoded_secret",
+                "severity": "OK",
+                "title": "未检测到硬编码密钥",
+                "detail": f"已扫描 {scanned_files} 个代码文件",
+            }
+        )
 
     return findings
 
@@ -444,6 +527,7 @@ def scan_hardcoded_secrets(base_dir: str = "") -> List[Dict[str, Any]]:
 # ======================================================================
 # 4. 安全配置检查
 # ======================================================================
+
 
 def check_security_configuration(base_dir: str = "") -> List[Dict[str, Any]]:
     """检查项目的安全配置。"""
@@ -470,35 +554,43 @@ def check_security_configuration(base_dir: str = "") -> List[Dict[str, Any]]:
 
         for keyword, desc in checks:
             if keyword in content:
-                findings.append({
-                    "category": "security_config",
-                    "severity": "OK",
-                    "title": f"已启用: {desc}",
-                    "detail": f"main.py 中包含 {keyword}",
-                })
+                findings.append(
+                    {
+                        "category": "security_config",
+                        "severity": "OK",
+                        "title": f"已启用: {desc}",
+                        "detail": f"main.py 中包含 {keyword}",
+                    }
+                )
             else:
-                findings.append({
-                    "category": "security_config",
-                    "severity": "HIGH",
-                    "title": f"未启用: {desc}",
-                    "detail": f"main.py 中未检测到 {keyword}",
-                })
+                findings.append(
+                    {
+                        "category": "security_config",
+                        "severity": "HIGH",
+                        "title": f"未启用: {desc}",
+                        "detail": f"main.py 中未检测到 {keyword}",
+                    }
+                )
 
         # 检查是否引入了 security_hardening
         if "security_hardening" in content:
-            findings.append({
-                "category": "security_config",
-                "severity": "OK",
-                "title": "已集成: security_hardening 模块",
-                "detail": "main.py 中已导入 security_hardening",
-            })
+            findings.append(
+                {
+                    "category": "security_config",
+                    "severity": "OK",
+                    "title": "已集成: security_hardening 模块",
+                    "detail": "main.py 中已导入 security_hardening",
+                }
+            )
         else:
-            findings.append({
-                "category": "security_config",
-                "severity": "WARN",
-                "title": "未集成: security_hardening 模块",
-                "detail": "main.py 中未导入 security_hardening — 建议添加",
-            })
+            findings.append(
+                {
+                    "category": "security_config",
+                    "severity": "WARN",
+                    "title": "未集成: security_hardening 模块",
+                    "detail": "main.py 中未导入 security_hardening — 建议添加",
+                }
+            )
 
     # 4b. 检查 nginx 安全配置
     nginx_conf = os.path.join(base_dir, "deploy", "nginx.conf")
@@ -517,19 +609,23 @@ def check_security_configuration(base_dir: str = "") -> List[Dict[str, Any]]:
 
         for keyword, desc in nginx_checks:
             if keyword in content:
-                findings.append({
-                    "category": "security_config",
-                    "severity": "OK",
-                    "title": f"Nginx 已配置: {desc}",
-                    "detail": f"nginx.conf 中包含 {keyword}",
-                })
+                findings.append(
+                    {
+                        "category": "security_config",
+                        "severity": "OK",
+                        "title": f"Nginx 已配置: {desc}",
+                        "detail": f"nginx.conf 中包含 {keyword}",
+                    }
+                )
             else:
-                findings.append({
-                    "category": "security_config",
-                    "severity": "MEDIUM",
-                    "title": f"Nginx 未配置: {desc}",
-                    "detail": f"nginx.conf 中未检测到 {keyword}",
-                })
+                findings.append(
+                    {
+                        "category": "security_config",
+                        "severity": "MEDIUM",
+                        "title": f"Nginx 未配置: {desc}",
+                        "detail": f"nginx.conf 中未检测到 {keyword}",
+                    }
+                )
 
     # 4c. 检查是否存在 .gitignore
     gitignore = os.path.join(base_dir, ".gitignore")
@@ -537,26 +633,32 @@ def check_security_configuration(base_dir: str = "") -> List[Dict[str, Any]]:
         with open(gitignore, "r", encoding="utf-8") as f:
             content = f.read()
         if ".env" in content:
-            findings.append({
-                "category": "security_config",
-                "severity": "OK",
-                "title": ".env 已在 .gitignore 中",
-                "detail": ".env 文件不会被提交到 Git",
-            })
+            findings.append(
+                {
+                    "category": "security_config",
+                    "severity": "OK",
+                    "title": ".env 已在 .gitignore 中",
+                    "detail": ".env 文件不会被提交到 Git",
+                }
+            )
         else:
-            findings.append({
-                "category": "security_config",
-                "severity": "HIGH",
-                "title": ".env 未在 .gitignore 中",
-                "detail": "危险! .env 文件可能会被提交到 Git 仓库",
-            })
+            findings.append(
+                {
+                    "category": "security_config",
+                    "severity": "HIGH",
+                    "title": ".env 未在 .gitignore 中",
+                    "detail": "危险! .env 文件可能会被提交到 Git 仓库",
+                }
+            )
     else:
-        findings.append({
-            "category": "security_config",
-            "severity": "MEDIUM",
-            "title": "未找到 .gitignore 文件",
-            "detail": "建议创建 .gitignore 并添加 .env/密钥文件",
-        })
+        findings.append(
+            {
+                "category": "security_config",
+                "severity": "MEDIUM",
+                "title": "未找到 .gitignore 文件",
+                "detail": "建议创建 .gitignore 并添加 .env/密钥文件",
+            }
+        )
 
     return findings
 
@@ -564,6 +666,7 @@ def check_security_configuration(base_dir: str = "") -> List[Dict[str, Any]]:
 # ======================================================================
 # 5. 文件权限检查
 # ======================================================================
+
 
 def check_file_permissions(base_dir: str = "") -> List[Dict[str, Any]]:
     """检查敏感文件的权限设置。"""
@@ -588,7 +691,11 @@ def check_file_permissions(base_dir: str = "") -> List[Dict[str, Any]]:
     import fnmatch
 
     for root, dirs, files in os.walk(base_dir):
-        dirs[:] = [d for d in dirs if d not in ("venv", "venv_new", "__pycache__", ".git", "node_modules")]
+        dirs[:] = [
+            d
+            for d in dirs
+            if d not in ("venv", "venv_new", "__pycache__", ".git", "node_modules")
+        ]
         for f in files:
             if any(fnmatch.fnmatch(f, pat) for pat in target_patterns):
                 filepath = os.path.join(root, f)
@@ -597,21 +704,25 @@ def check_file_permissions(base_dir: str = "") -> List[Dict[str, Any]]:
                     rel_path = os.path.relpath(filepath, base_dir)
 
                     if mode & 0o004:  # world-readable
-                        findings.append({
-                            "category": "file_permission",
-                            "severity": "MEDIUM",
-                            "title": f"文件权限过于开放: {rel_path}",
-                            "detail": f"权限: {oct(mode & 0o777)} — 建议设为 600 或 640",
-                            "file": rel_path,
-                        })
+                        findings.append(
+                            {
+                                "category": "file_permission",
+                                "severity": "MEDIUM",
+                                "title": f"文件权限过于开放: {rel_path}",
+                                "detail": f"权限: {oct(mode & 0o777)} — 建议设为 600 或 640",
+                                "file": rel_path,
+                            }
+                        )
                     else:
-                        findings.append({
-                            "category": "file_permission",
-                            "severity": "OK",
-                            "title": f"文件权限正常: {rel_path}",
-                            "detail": f"权限: {oct(mode & 0o777)}",
-                            "file": rel_path,
-                        })
+                        findings.append(
+                            {
+                                "category": "file_permission",
+                                "severity": "OK",
+                                "title": f"文件权限正常: {rel_path}",
+                                "detail": f"权限: {oct(mode & 0o777)}",
+                                "file": rel_path,
+                            }
+                        )
                 except Exception:
                     continue
 
@@ -622,6 +733,7 @@ def check_file_permissions(base_dir: str = "") -> List[Dict[str, Any]]:
 # 6. 报告生成
 # ======================================================================
 
+
 def generate_report(
     env_findings: List[Dict[str, Any]],
     dep_findings: List[Dict[str, Any]],
@@ -630,7 +742,9 @@ def generate_report(
     perm_findings: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
     """生成统一的安全审计报告。"""
-    all_findings = env_findings + dep_findings + secret_findings + config_findings + perm_findings
+    all_findings = (
+        env_findings + dep_findings + secret_findings + config_findings + perm_findings
+    )
 
     # 按严重级别统计
     severity_count = defaultdict(int)
@@ -662,11 +776,15 @@ def generate_report(
             "severity_summary": dict(severity_count),
             "category_summary": dict(category_count),
             "overall_assessment": (
-                "优秀" if score >= 9 else
-                "良好" if score >= 7 else
-                "一般" if score >= 5 else
-                "较差" if score >= 3 else
-                "严重"
+                "优秀"
+                if score >= 9
+                else "良好"
+                if score >= 7
+                else "一般"
+                if score >= 5
+                else "较差"
+                if score >= 3
+                else "严重"
             ),
         },
         "findings": all_findings,
@@ -678,25 +796,25 @@ def print_summary(report: Dict[str, Any]) -> None:
     rep = report["report"]
     findings = report["findings"]
 
-    print(f"\n{'='*60}")
-    print(f"  链客宝 安全审计报告")
-    print(f"{'='*60}")
+    print(f"\n{'=' * 60}")
+    print("  链客宝 安全审计报告")
+    print(f"{'=' * 60}")
     print(f"  项目:     {rep['project']}")
     print(f"  时间:     {rep['scan_time']}")
     print(f"  安全评分: {rep['security_score']}/10 ({rep['overall_assessment']})")
     print(f"  发现总数: {len(findings)}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     severity_count = rep["severity_summary"]
     if severity_count:
-        print(f"\n  严重级别分布:")
+        print("\n  严重级别分布:")
         for sev in ("CRITICAL", "HIGH", "MEDIUM", "WARN", "OK", "INFO"):
             if sev in severity_count:
                 print(f"    {sev:10s}: {severity_count[sev]}")
 
-    print(f"\n{'='*60}")
-    print(f"  详细发现:")
-    print(f"{'='*60}")
+    print(f"\n{'=' * 60}")
+    print("  详细发现:")
+    print(f"{'=' * 60}")
 
     for i, f in enumerate(findings, 1):
         sev = f["severity"]
@@ -713,14 +831,15 @@ def print_summary(report: Dict[str, Any]) -> None:
         if "file" in f:
             print(f"          文件: {f['file']}")
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"  评分: {rep['security_score']}/10 ({rep['overall_assessment']})")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
 
 # ======================================================================
 # 主入口
 # ======================================================================
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -736,8 +855,12 @@ def main():
     )
     parser.add_argument("--output", "-o", type=str, help="输出 JSON 报告文件路径")
     parser.add_argument("--verbose", "-v", action="store_true", help="详细日志输出")
-    parser.add_argument("--quick", "-q", action="store_true", help="快速模式 (跳过网络查询)")
-    parser.add_argument("--project-dir", type=str, default=_PROJECT_ROOT, help="项目根目录路径")
+    parser.add_argument(
+        "--quick", "-q", action="store_true", help="快速模式 (跳过网络查询)"
+    )
+    parser.add_argument(
+        "--project-dir", type=str, default=_PROJECT_ROOT, help="项目根目录路径"
+    )
     args = parser.parse_args()
 
     if args.verbose:
@@ -745,32 +868,38 @@ def main():
 
     start = time.time()
 
-    print(f"\n🔐 链客宝安全审计 — 开始扫描...")
+    print("\n🔐 链客宝安全审计 — 开始扫描...")
     print(f"   项目路径: {args.project_dir}")
     if args.quick:
-        print(f"   模式: 快速 (跳过网络查询)")
+        print("   模式: 快速 (跳过网络查询)")
 
     # 执行扫描
-    print(f"\n  [1/5] .env 泄露检查...")
+    print("\n  [1/5] .env 泄露检查...")
     env_findings = scan_env_leaks(args.project_dir)
 
-    print(f"  [2/5] 依赖漏洞扫描...")
-    dep_findings = scan_dependency_vulnerabilities(
-        os.path.join(args.project_dir, "backend", "requirements.txt")
-    ) if not args.quick else [{
-        "category": "dependency",
-        "severity": "INFO",
-        "title": "快速模式: 跳过 PyPI 网络查询",
-        "detail": "使用 --quick 标志跳过了在线漏洞查询",
-    }]
+    print("  [2/5] 依赖漏洞扫描...")
+    dep_findings = (
+        scan_dependency_vulnerabilities(
+            os.path.join(args.project_dir, "backend", "requirements.txt")
+        )
+        if not args.quick
+        else [
+            {
+                "category": "dependency",
+                "severity": "INFO",
+                "title": "快速模式: 跳过 PyPI 网络查询",
+                "detail": "使用 --quick 标志跳过了在线漏洞查询",
+            }
+        ]
+    )
 
-    print(f"  [3/5] API Key 硬编码检查...")
+    print("  [3/5] API Key 硬编码检查...")
     secret_findings = scan_hardcoded_secrets(args.project_dir)
 
-    print(f"  [4/5] 安全配置检查...")
+    print("  [4/5] 安全配置检查...")
     config_findings = check_security_configuration(args.project_dir)
 
-    print(f"  [5/5] 文件权限检查...")
+    print("  [5/5] 文件权限检查...")
     perm_findings = check_file_permissions(args.project_dir)
 
     # 生成报告

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """链客宝自动恢复脚本 — scripts/ 入口包装器"""
+
 import sys
 from pathlib import Path
 

@@ -31,7 +31,7 @@ import shutil
 import subprocess
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 # ── 路径常量 ────────────────────────────────────────────────────────────────
@@ -216,7 +216,9 @@ def backup_sqlite(
         gz_size = gz_path.stat().st_size
         db_size = db_path.stat().st_size
         ratio = (1 - gz_size / db_size) * 100 if db_size > 0 else 0
-        print(f"[OK] GZip 压缩完成: {gz_path.name} ({gz_size:,} bytes, 压缩率 {ratio:.1f}%)")
+        print(
+            f"[OK] GZip 压缩完成: {gz_path.name} ({gz_size:,} bytes, 压缩率 {ratio:.1f}%)"
+        )
     except OSError as e:
         print(f"[ERROR] GZip 压缩失败: {e}", file=sys.stderr)
         # 保留未压缩版本
@@ -251,13 +253,19 @@ def backup_postgres(
     pg_port = os.environ.get("PG_PORT") or env_vars.get("PG_PORT", "5432")
     pg_user = os.environ.get("PG_USER") or env_vars.get("PG_USER", "")
     pg_password = os.environ.get("PG_PASSWORD") or env_vars.get("PG_PASSWORD", "")
-    pg_database = os.environ.get("PG_DATABASE") or env_vars.get("PG_DATABASE", "chainke")
+    pg_database = os.environ.get("PG_DATABASE") or env_vars.get(
+        "PG_DATABASE", "chainke"
+    )
 
     if not pg_host:
-        print("[ERROR] PostgreSQL 备份需要设置 PG_HOST (环境变量或 .env)", file=sys.stderr)
+        print(
+            "[ERROR] PostgreSQL 备份需要设置 PG_HOST (环境变量或 .env)", file=sys.stderr
+        )
         return False
     if not pg_user:
-        print("[ERROR] PostgreSQL 备份需要设置 PG_USER (环境变量或 .env)", file=sys.stderr)
+        print(
+            "[ERROR] PostgreSQL 备份需要设置 PG_USER (环境变量或 .env)", file=sys.stderr
+        )
         return False
 
     ts = timestamp_str()
@@ -273,7 +281,9 @@ def backup_postgres(
         print(f"           -> 压缩到: {gz_path.name}")
         print(f"[DRY-RUN] 保留天数: {retention_days}")
         rotate_old_backups(backup_dir, "chainke_pg_*.sql", retention_days, dry_run=True)
-        rotate_old_backups(backup_dir, "chainke_pg_*.sql.gz", retention_days, dry_run=True)
+        rotate_old_backups(
+            backup_dir, "chainke_pg_*.sql.gz", retention_days, dry_run=True
+        )
         return True
 
     # 1. pg_dump
@@ -283,18 +293,23 @@ def backup_postgres(
 
     pg_dump_cmd = [
         "pg_dump",
-        "-h", pg_host,
-        "-p", str(pg_port),
-        "-U", pg_user,
-        "-d", pg_database,
-        "--no-owner",          # 避免跨环境 owner 问题
-        "--no-acl",            # 避免权限问题
-        "--format=custom",     # 自定义格式，支持 pg_restore
-        "-f", str(backup_path),
+        "-h",
+        pg_host,
+        "-p",
+        str(pg_port),
+        "-U",
+        pg_user,
+        "-d",
+        pg_database,
+        "--no-owner",  # 避免跨环境 owner 问题
+        "--no-acl",  # 避免权限问题
+        "--format=custom",  # 自定义格式，支持 pg_restore
+        "-f",
+        str(backup_path),
     ]
 
     try:
-        print(f"[INFO] 执行 pg_dump...")
+        print("[INFO] 执行 pg_dump...")
         result = subprocess.run(
             pg_dump_cmd,
             env=env,
@@ -303,7 +318,9 @@ def backup_postgres(
             timeout=600,  # 最长 10 分钟
         )
         if result.returncode != 0:
-            print(f"[ERROR] pg_dump 失败 (exit code={result.returncode})", file=sys.stderr)
+            print(
+                f"[ERROR] pg_dump 失败 (exit code={result.returncode})", file=sys.stderr
+            )
             if result.stderr:
                 for line in result.stderr.strip().split("\n"):
                     print(f"  stderr: {line}", file=sys.stderr)
@@ -328,7 +345,9 @@ def backup_postgres(
         backup_path.unlink()
         gz_size = gz_path.stat().st_size
         ratio = (1 - gz_size / dump_size) * 100 if dump_size > 0 else 0
-        print(f"[OK] GZip 压缩完成: {gz_path.name} ({gz_size:,} bytes, 压缩率 {ratio:.1f}%)")
+        print(
+            f"[OK] GZip 压缩完成: {gz_path.name} ({gz_size:,} bytes, 压缩率 {ratio:.1f}%)"
+        )
     except OSError as e:
         print(f"[ERROR] GZip 压缩失败: {e}", file=sys.stderr)
         return False
@@ -414,8 +433,12 @@ def print_summary(
     status = "成功" if success else "失败"
     sep = "=" * 50
     print(f"\n{sep}")
-    print(f"{prefix}链客宝数据库备份报告 ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})")
-    print(f"{prefix}类型: {backup_type.upper()} | 状态: {status} | 保留: {retention_days} 天")
+    print(
+        f"{prefix}链客宝数据库备份报告 ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})"
+    )
+    print(
+        f"{prefix}类型: {backup_type.upper()} | 状态: {status} | 保留: {retention_days} 天"
+    )
     print(f"{sep}")
 
 

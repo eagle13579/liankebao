@@ -135,7 +135,9 @@ FRIENDLY_ENDPOINTS: Dict[str, Dict[str, str]] = {
 }
 
 
-def load_openapi_schema(url: Optional[str] = None, cache_path: Optional[str] = None) -> Dict:
+def load_openapi_schema(
+    url: Optional[str] = None, cache_path: Optional[str] = None
+) -> Dict:
     """从 URL 或缓存文件加载 OpenAPI Schema"""
     # 优先从 URL 加载
     if url:
@@ -358,12 +360,14 @@ def generate_ts_sdk(schema: Dict) -> str:
                     )
                     is_required = param.get("required", False)
                     default = param_schema.get("default")
-                    ep["query_params"].append({
-                        "name": param["name"],
-                        "type": ts_type,
-                        "required": is_required,
-                        "default": default,
-                    })
+                    ep["query_params"].append(
+                        {
+                            "name": param["name"],
+                            "type": ts_type,
+                            "required": is_required,
+                            "default": default,
+                        }
+                    )
 
             # --- Response Type (从 data 字段提取) ---
             responses = detail.get("responses", {})
@@ -390,9 +394,9 @@ def generate_ts_sdk(schema: Dict) -> str:
                         if props:
                             # 生成匿名类型
                             op_name = detail.get("operationId", "anonymous")
-                            type_name = _to_pascal_case(
-                                op_name.replace("_", " ")
-                            ) + "Response"
+                            type_name = (
+                                _to_pascal_case(op_name.replace("_", " ")) + "Response"
+                            )
                             all_types[type_name] = props
                             ep["response_type"] = type_name
                             used_types.add(type_name)
@@ -402,7 +406,7 @@ def generate_ts_sdk(schema: Dict) -> str:
     # ===== 构建 SDK 源码 =====
     lines: List[str] = [
         "// ============================================================",
-        '// 链客宝 API SDK — 由 scripts/generate_api_sdk.py 自动生成',
+        "// 链客宝 API SDK — 由 scripts/generate_api_sdk.py 自动生成",
         "// 生成时间: " + __import__("datetime").datetime.now().isoformat(),
         "// ============================================================",
         "",
@@ -463,16 +467,14 @@ def generate_ts_sdk(schema: Dict) -> str:
             continue
 
         lines.append("")
-        lines.append(f"/**")
+        lines.append("/**")
         if ep.get("summary"):
             lines.append(f" * {ep['summary']}")
         if ep.get("description"):
             # 只取第一行
             desc_first = ep["description"].split("\n")[0].strip()
             lines.append(f" * {desc_first}")
-        lines.append(
-            f" * {ep['method']} {ep['path']}"
-        )
+        lines.append(f" * {ep['method']} {ep['path']}")
         lines.append(" */")
 
         # 构建参数
@@ -499,7 +501,7 @@ def generate_ts_sdk(schema: Dict) -> str:
         req_body_type = ep.get("request_body")
         if req_body_type:
             params.append(f"data: {req_body_type}")
-            param_docs.append(f" * @param data - 请求体")
+            param_docs.append(" * @param data - 请求体")
 
         # 可选 query params 放到对象参数中
         if optional_query_params:
@@ -517,8 +519,10 @@ def generate_ts_sdk(schema: Dict) -> str:
         # 函数签名
         response_type = ep.get("response_type", "any")
         params_str = ", ".join(params)
-        
-        lines.append(f"export async function {func_name}({params_str}): Promise<ApiResult<{response_type}>> {{")
+
+        lines.append(
+            f"export async function {func_name}({params_str}): Promise<ApiResult<{response_type}>> {{"
+        )
 
         # 构建 URL
         ts_path = ep["path"]
@@ -527,9 +531,7 @@ def generate_ts_sdk(schema: Dict) -> str:
             ts_path = ts_path.replace(f"{{{p_name}}}", f"${{{p_name}}}")
 
         # 只添加必需的 query 参数到 path
-        has_required_query = any(
-            qp.get("required") for qp in ep["query_params"]
-        )
+        has_required_query = any(qp.get("required") for qp in ep["query_params"])
 
         # 构建 URL
         lines.append(f"  let path: string = `{ts_path}`;")
@@ -537,7 +539,9 @@ def generate_ts_sdk(schema: Dict) -> str:
         # 处理 query 参数（必需的拼到path，可选的从 params 对象取）
         required_query = [qp for qp in ep["query_params"] if qp.get("required")]
         if required_query:
-            qs_expr = "&".join(f"{qp['name']}=${{{qp['name']}}}" for qp in required_query)
+            qs_expr = "&".join(
+                f"{qp['name']}=${{{qp['name']}}}" for qp in required_query
+            )
             lines.append(f"  path += `?{qs_expr}`;")
 
         if optional_query_params:
@@ -550,7 +554,9 @@ def generate_ts_sdk(schema: Dict) -> str:
             lines.append(",\n".join(qs_parts))
             lines.append("  ].filter(Boolean);")
             lines.append("  if (queryParts.length > 0) {")
-            lines.append("    path += (path.includes('?') ? '&' : '?') + queryParts.join('&');")
+            lines.append(
+                "    path += (path.includes('?') ? '&' : '?') + queryParts.join('&');"
+            )
             lines.append("  }")
 
         # 发送请求
@@ -582,21 +588,79 @@ def generate_ts_sdk(schema: Dict) -> str:
     lines.append("")
 
     groups = {
-        "auth": ["login", "register", "getCurrentUser", "refreshToken", "logout", "wechatLogin"],
-        "products": ["getProducts", "getProduct", "createProduct", "updateProduct", "deleteProduct"],
+        "auth": [
+            "login",
+            "register",
+            "getCurrentUser",
+            "refreshToken",
+            "logout",
+            "wechatLogin",
+        ],
+        "products": [
+            "getProducts",
+            "getProduct",
+            "createProduct",
+            "updateProduct",
+            "deleteProduct",
+        ],
         "orders": ["getOrders", "createOrder", "getOrder", "updateOrderStatus"],
-        "cards": ["scanCard", "generateCard", "listCards", "getCard", "deleteCard", "getCardByToken", "matchCard"],
-        "search": ["search", "vectorSearch", "getSearchCategories", "getSearchSuggestions"],
-        "bi": ["getOverview", "getRevenue", "getTopProducts", "getUserGrowth", "getCardStats"],
-        "admin": ["getDashboard", "getAdminUsers", "updateUserRole", "getAdminProducts", "reviewProduct", "getAdminWithdrawals", "reviewWithdrawal"],
-        "contacts": ["getContacts", "createContact", "getContact", "updateContact", "deleteContact"],
+        "cards": [
+            "scanCard",
+            "generateCard",
+            "listCards",
+            "getCard",
+            "deleteCard",
+            "getCardByToken",
+            "matchCard",
+        ],
+        "search": [
+            "search",
+            "vectorSearch",
+            "getSearchCategories",
+            "getSearchSuggestions",
+        ],
+        "bi": [
+            "getOverview",
+            "getRevenue",
+            "getTopProducts",
+            "getUserGrowth",
+            "getCardStats",
+        ],
+        "admin": [
+            "getDashboard",
+            "getAdminUsers",
+            "updateUserRole",
+            "getAdminProducts",
+            "reviewProduct",
+            "getAdminWithdrawals",
+            "reviewWithdrawal",
+        ],
+        "contacts": [
+            "getContacts",
+            "createContact",
+            "getContact",
+            "updateContact",
+            "deleteContact",
+        ],
         "activities": ["getActivities", "createActivity"],
         "needs": ["getNeeds", "createNeed", "updateNeed", "deleteNeed"],
         "promoter": ["getEarnings", "withdraw", "getWithdrawals"],
         "imports": ["importPreview", "importConfirm", "getImportHistory"],
         "payment": ["wxpayUnifiedOrder", "wxpayQueryOrder", "getPaymentConfig"],
-        "recharge": ["getRechargeBalance", "createRechargePrecreate", "queryRechargeOrder", "getRechargeList", "getBalanceLogs"],
-        "system": ["getLogLevel", "setLogLevel", "getCostUsage", "getCostBreakdown", "getCostModels"],
+        "recharge": [
+            "getRechargeBalance",
+            "createRechargePrecreate",
+            "queryRechargeOrder",
+            "getRechargeList",
+            "getBalanceLogs",
+        ],
+        "system": [
+            "getLogLevel",
+            "setLogLevel",
+            "getCostUsage",
+            "getCostBreakdown",
+            "getCostModels",
+        ],
         "notifications": ["getNotifications"],
         "health": ["healthCheck", "healthLiveness", "healthReadiness"],
     }
@@ -684,7 +748,7 @@ def main():
             print(f"[INFO] Schema 已缓存到 {cache_path}")
 
         # 生成 SDK
-        print(f"[INFO] 生成 TypeScript SDK...")
+        print("[INFO] 生成 TypeScript SDK...")
         ts_code = generate_ts_sdk(schema)
 
         # 确保输出目录存在
