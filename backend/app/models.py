@@ -35,11 +35,17 @@ class User(Base):
     position = Column(String(100), nullable=True)
     role = Column(String(20), nullable=False, default="buyer")  # buyer/promoter/supplier/admin
     avatar = Column(String(500), nullable=True)
-    onboarding_pain_point = Column(String(50), nullable=True, comment="用户核心痛点标签: low_acquisition_cost / lack_trust / distribution_pain")
+    onboarding_pain_point = Column(
+        String(50), nullable=True, comment="用户核心痛点标签: low_acquisition_cost / lack_trust / distribution_pain"
+    )
     version = Column(BigInteger, nullable=False, default=1, comment="乐观锁版本号")
     created_at = Column(DateTime, default=datetime.utcnow)
     deleted_at = Column(DateTime, nullable=True)
     is_deleted = Column(Boolean, default=False)
+
+    # 密码重置
+    password_reset_token = Column(String(255), nullable=True, index=True, comment="密码重置令牌")
+    password_reset_expires = Column(DateTime, nullable=True, comment="密码重置令牌过期时间")
 
     # 多租户
     organization_id = _org_fk()
@@ -411,9 +417,5 @@ class EnterpriseRelation(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # 关系
-    source_enterprise = relationship(
-        "Enterprise", foreign_keys=[source_id], back_populates="source_relations"
-    )
-    target_enterprise = relationship(
-        "Enterprise", foreign_keys=[target_id], back_populates="target_relations"
-    )
+    source_enterprise = relationship("Enterprise", foreign_keys=[source_id], back_populates="source_relations")
+    target_enterprise = relationship("Enterprise", foreign_keys=[target_id], back_populates="target_relations")

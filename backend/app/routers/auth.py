@@ -3,6 +3,7 @@
 import logging
 import os
 import re
+import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta
 
@@ -26,9 +27,11 @@ from app.models import User
 from app.posthog_middleware import capture_user_registered
 from app.schemas import (
     ApiResponse,
+    ForgotPasswordRequest,
     LoginRequest,
     RefreshTokenRequest,
     RegisterRequest,
+    ResetPasswordRequest,
     UserResponse,
     WechatLoginRequest,
 )
@@ -376,4 +379,100 @@ def wechat_login(
             "openid": openid,
             "session_key": session_key,
         },
+    )
+
+
+@router.post("/forgot-password", response_model=ApiResponse)
+def forgot_password(
+    req: ForgotPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    忘记密码 — 生成重置令牌并通过console.log输出（无短信/邮件对接）
+    接收 email（即username），生成带过期时间的重置令牌
+    """
+    # 查找用户（支持 email / username）
+    user = db.query(User).filter(User.username == req.email, User.is_deleted == False).first()
+    if not user:
+        # 安全起见，不暴露用户是否存在
+        logger.info(f"密码重置请求：用户不存在 email={req.email}")
+        return ApiResponse(
+            code=200,
+            message="如果该邮箱已注册，重置链接已发送（请在控制台查看重置令牌）",
+            data=None,
+        )
+
+    # 生成重置令牌
+    reset_token = str(uuid.uuid4())
+    user.password_reset_token = reset_token
+    user.password_reset_expires = datetime.utcnow() + timedelta(hours=1)  # 1小时有效
+
+    db.commit()
+
+    # 控制台输出重置令牌（模拟邮件/短信发送）
+    reset_link = f"/reset-password?token={reset_token}"
+    print("=" * 60)
+    print(f"  [密码重置] 用户: {user.username} ({user.name})")
+    print(f"  重置令牌: {reset_token}")
+    print(f"  重置链接: {reset_link}")
+    print(f"  过期时间: {user.password_reset_expires}")
+    print("=" * 60)
+    logger.info(f"密码重置令牌已生成: user={user.username}, token={reset_token}, expires={user.password_reset_expires}")
+
+    return ApiResponse(
+        code=200,
+        message="如果该邮箱已注册，重置链接已发送（请在控制台查看重置令牌）",
+        data={
+            "reset_token": reset_token,  # 开发阶段直接返回令牌方便测试
+            "expires_in": 3600,
+        },
+    )
+
+
+@router.post("/reset-password", response_model=ApiResponse)
+def reset_password(
+    req: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    重置密码 — 接收重置令牌和新密码
+    验证令牌有效且未过期，然后更新密码
+    """
+    # 查找持有该令牌的用户
+    user = (
+        db.query(User)
+        .filter(
+            User.password_reset_token == req.token,
+            User.is_deleted == False,
+        )
+        .first()
+    )
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="无效的重置令牌",
+        )
+
+    # 检查令牌是否已过期
+    if user.password_reset_expires is None or user.password_reset_expires < datetime.utcnow():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="重置令牌已过期，请重新申请",
+        )
+
+    # 更新密码
+    user.password_hash = hash_password(req.password)
+    # 清除重置令牌（一次性使用）
+    user.password_reset_token = None
+    user.password_reset_expires = None
+
+    db.commit()
+
+    logger.info(f"密码重置成功: user={user.username}")
+
+    return ApiResponse(
+        code=200,
+        message="密码重置成功",
+        data=None,
     )

@@ -120,6 +120,19 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str = Field(..., min_length=1)
 
 
+class ForgotPasswordRequest(BaseModel):
+    """忘记密码请求"""
+
+    email: str = Field(..., description="注册邮箱（即username）")
+
+
+class ResetPasswordRequest(BaseModel):
+    """重置密码请求"""
+
+    token: str = Field(..., min_length=1, description="重置令牌")
+    password: str = Field(..., min_length=8, max_length=128, description="新密码")
+
+
 class TokenResponse(BaseModel):
     token: str
     user: UserResponse
@@ -568,6 +581,7 @@ class DealActivityCreate(BaseModel):
 
 class EnterpriseCreate(BaseModel):
     """创建企业请求"""
+
     name: str = Field(..., min_length=1, max_length=200)
     short_name: str | None = None
     credit_code: str | None = Field(None, max_length=18)
@@ -586,6 +600,7 @@ class EnterpriseCreate(BaseModel):
 
 class EnterpriseUpdate(BaseModel):
     """更新企业请求"""
+
     short_name: str | None = None
     credit_code: str | None = None
     legal_person: str | None = None
@@ -602,6 +617,7 @@ class EnterpriseUpdate(BaseModel):
 
 class EnterpriseResponse(BaseModel):
     """企业响应"""
+
     id: int
     name: str
     short_name: str | None = None
@@ -626,6 +642,7 @@ class EnterpriseResponse(BaseModel):
 
 class EnterpriseRelationCreate(BaseModel):
     """创建企业关系请求"""
+
     target_id: int
     relation_type: str = Field(..., pattern=r"^(invest|compete|supply|subsidiary|partner|customer)$")
     relation_label: str | None = None
@@ -635,6 +652,7 @@ class EnterpriseRelationCreate(BaseModel):
 
 class EnterpriseRelationResponse(BaseModel):
     """企业关系响应"""
+
     id: int
     source_id: int
     target_id: int
@@ -650,4 +668,5 @@ class EnterpriseRelationResponse(BaseModel):
 
 class EnterpriseEnrichRequest(BaseModel):
     """企业信息补全请求"""
+
     name: str = Field(..., min_length=1, max_length=200)

@@ -13,6 +13,9 @@ export function AdminBackend() {
   const [activeSection, setActiveSection] = useState('dashboard');
   const [searchUser, setSearchUser] = useState('');
   const [userRoleUpdating, setUserRoleUpdating] = useState<number | null>(null);
+  const [userPage, setUserPage] = useState(1);
+  const [userTotal, setUserTotal] = useState(0);
+  const USER_PAGE_SIZE = 10;
 
   const { data: dashboard, status: dashStatus, error: dashError, refetch: dashRefetch } = useApi<AdminDashboardData | null>(
     () => api.get<AdminDashboardData>('/api/admin/dashboard').then(r => r.code === 200 && r.data ? r.data : null),
@@ -29,9 +32,22 @@ export function AdminBackend() {
     []
   );
 
-  const { data: users, status: userStatus, error: userError, refetch: userRefetch } = useApi<AdminUserItem[]>(
-    () => api.get<{total: number; items: AdminUserItem[]}>('/api/admin/users').then(r => r.code === 200 && r.data ? r.data.items : []),
-    []
+  const { data: userData, status: userStatus, error: userError, refetch: userRefetch } = useApi<{total: number; page: number; page_size: number; items: AdminUserItem[]}>(
+    () => {
+      const params = new URLSearchParams();
+      if (searchUser) params.set('search', searchUser);
+      params.set('page', String(userPage));
+      params.set('page_size', String(USER_PAGE_SIZE));
+      return api.get<{total: number; page: number; page_size: number; items: AdminUserItem[]}>('/api/admin/users?' + params.toString())
+        .then(r => {
+          if (r.code === 200 && r.data) {
+            setUserTotal(r.data.total);
+            return r.data;
+          }
+          return { total: 0, page: 1, page_size: USER_PAGE_SIZE, items: [] };
+        });
+    },
+    [searchUser, userPage]
   );
 
   const handleReview = async (id: number, action: 'approve' | 'reject') => {
@@ -52,10 +68,6 @@ export function AdminBackend() {
     } catch {}
     setUserRoleUpdating(null);
   };
-
-  const filteredUsers = users ? users.filter(u =>
-    !searchUser || u.name.includes(searchUser) || u.username.includes(searchUser) || (u.phone && u.phone.includes(searchUser))
-  ) : [];
 
   const roleColor = (role: string) => {
     const m: Record<string, string> = {
@@ -395,11 +407,11 @@ export function AdminBackend() {
                   type="text"
                   placeholder="搜索用户..."
                   value={searchUser}
-                  onChange={e => setSearchUser(e.target.value)}
+                  onChange={e => { setSearchUser(e.target.value); setUserPage(1); }}
                   className="pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 w-48"
                 />
                 {searchUser && (
-                  <button onClick={() => setSearchUser('')} className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <button onClick={() => { setSearchUser(''); setUserPage(1); }} className="absolute right-3 top-1/2 -translate-y-1/2">
                     <X className="w-3.5 h-3.5 text-slate-400" />
                   </button>
                 )}
@@ -410,7 +422,7 @@ export function AdminBackend() {
                 <div className="p-8"><Loading text="加载用户列表..." /></div>
               ) : userStatus === 'error' ? (
                 <div className="p-8"><ErrorBlock message={userError} onRetry={userRefetch} /></div>
-              ) : filteredUsers.length === 0 ? (
+              ) : (userData?.items?.length || 0) === 0 ? (
                 <div className="p-8"><Empty text={searchUser ? '未找到匹配用户' : '暂无用户'} icon="👤" /></div>
               ) : (
               <table className="w-full text-left">
@@ -418,7 +430,7 @@ export function AdminBackend() {
                   <tr><th className="px-6 py-4">用户</th><th className="px-6 py-4">用户名</th><th className="px-6 py-4">角色</th><th className="px-6 py-4">手机</th><th className="px-6 py-4">公司</th><th className="px-6 py-4">注册时间</th><th className="px-6 py-4 text-right">操作</th></tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
-                  {filteredUsers.map((u) => (
+                  {(userData?.items || []).map((u) => (
                     <tr key={u.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -458,6 +470,30 @@ export function AdminBackend() {
                   ))}
                 </tbody>
               </table>
+              )}
+              {/* 分页控件 */}
+              {userData && userTotal > USER_PAGE_SIZE && (
+                <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between">
+                  <span className="text-sm text-slate-500">
+                    共 {userTotal} 条，第 {userData.page}/{Math.ceil(userTotal / USER_PAGE_SIZE)} 页
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      disabled={userData.page <= 1}
+                      onClick={() => setUserPage(p => Math.max(1, p - 1))}
+                      className="px-3 py-1.5 text-sm font-bold rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      上一页
+                    </button>
+                    <button
+                      disabled={userData.page >= Math.ceil(userTotal / USER_PAGE_SIZE)}
+                      onClick={() => setUserPage(p => p + 1)}
+                      className="px-3 py-1.5 text-sm font-bold rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      下一页
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           </section>

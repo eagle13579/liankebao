@@ -3,7 +3,7 @@
 import logging
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
@@ -93,16 +93,28 @@ def get_dashboard(
 
 @router.get("/users", response_model=ApiResponse)
 def list_users(
+    search: str = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
     db: Session = Depends(get_db),
     admin: User = Depends(_admin_only),
 ):
-    """获取用户列表"""
-    users = (
-        db.query(User)
-        .filter(
-            User.is_deleted == False,
+    """获取用户列表（服务端分页 + 搜索）"""
+    query = db.query(User).filter(User.is_deleted == False)
+
+    if search:
+        like = f"%{search}%"
+        query = query.filter(
+            User.name.ilike(like)
+            | User.username.ilike(like)
+            | User.phone.ilike(like)
         )
-        .order_by(desc(User.created_at))
+
+    total = query.count()
+    users = (
+        query.order_by(desc(User.created_at))
+        .offset((page - 1) * page_size)
+        .limit(page_size)
         .all()
     )
 
@@ -110,7 +122,9 @@ def list_users(
         code=200,
         message="success",
         data={
-            "total": len(users),
+            "total": total,
+            "page": page,
+            "page_size": page_size,
             "items": [UserResponse.model_validate(u).model_dump() for u in users],
         },
     )
