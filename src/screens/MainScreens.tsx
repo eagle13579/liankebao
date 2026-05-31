@@ -340,16 +340,53 @@ export const ProductPool = memo(function ProductPool() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('全部');
+  const [sortBy, setSortBy] = useState('relevance');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [categories, setCategories] = useState<string[]>(['全部']);
+  const pageSize = 12;
 
   const params = new URLSearchParams();
-  if (search) params.set('search', search);
+  if (search) params.set('q', search);
   if (category && category !== '全部') params.set('category', category);
+  params.set('sort_by', sortBy);
+  params.set('page', String(page));
+  params.set('page_size', String(pageSize));
   const qs = params.toString();
 
   const { data: products, status, error, refetch } = useApi(
-    () => api.get<{total: number; items: ProductItem[]}>('/api/products' + (qs ? `?${qs}` : '')).then(r => r.data?.items || []),
-    [search, category]
+    () => api.get<{total: number; items: ProductItem[]}>('/api/search' + (qs ? `?${qs}` : ''))
+      .then(r => {
+        if (r.data) setTotal(r.data.total);
+        return r.data?.items || [];
+      }),
+    [search, category, sortBy, page]
   );
+
+  // Load categories dynamically from API
+  useEffect(() => {
+    api.get<{categories: string[]}>('/api/search/categories')
+      .then(r => {
+        if (r.data?.categories && r.data.categories.length > 0) {
+          setCategories(['全部', ...r.data.categories]);
+        }
+      })
+      .catch(() => { /* keep default ['全部'] */ });
+  }, []);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [search, category, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  const sortOptions = [
+    { value: 'relevance', label: '相关性' },
+    { value: 'price_asc', label: '价格升序' },
+    { value: 'price_desc', label: '价格降序' },
+    { value: 'newest', label: '最新' },
+  ];
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-b from-sky-50/30 via-white to-white font-sans pb-20">
@@ -380,7 +417,7 @@ export const ProductPool = memo(function ProductPool() {
 
         {/* Category Tabs - Dynamically from API */}
         <div className="flex overflow-x-auto no-scrollbar gap-2 px-4 py-3">
-          {['全部', '大健康', '企业服务', '教育培训', 'SaaS硬件', '食品/大健康', '企业家服务'].map((cat, i) => (
+          {categories.map((cat, i) => (
             <span
               key={i}
               onClick={() => setCategory(cat)}
@@ -393,6 +430,19 @@ export const ProductPool = memo(function ProductPool() {
               {cat.replace('/大健康', '')}
             </span>
           ))}
+        </div>
+
+        {/* Sort Dropdown */}
+        <div className="flex justify-end px-4 pb-2">
+          <select
+            value={sortBy}
+            onChange={e => setSortBy(e.target.value)}
+            className="text-xs font-medium bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-slate-600 focus:ring-2 focus:ring-sky-500/15 focus:border-sky-500 outline-none cursor-pointer transition-all shadow-sm"
+          >
+            {sortOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
         </div>
 
         <div className="px-4 pt-4">
@@ -414,34 +464,82 @@ export const ProductPool = memo(function ProductPool() {
           ) : !products || products.length === 0 ? (
             <Empty text="暂无产品" />
           ) : (
-            <div className="grid grid-cols-2 gap-3">
-              {products.map((item, i) => (
-                <div
-                  key={item.id || i}
-                  onClick={() => navigate('/product-detail', { state: { transition: 'push', productId: item.id } })}
-                  className="bg-white rounded-xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-md transition-all card-hover cursor-pointer"
-                >
-                  <img src={safeImageUrl(typeof item.images === "string" ? (JSON.parse(item.images || '[]')[0]) : (Array.isArray(item.images) ? item.images[0] : item.images))} className="w-full aspect-square object-cover bg-slate-50" alt={item.name} />
-                  <div className="p-3 space-y-2">
-                    <h3 className="text-xs font-bold line-clamp-2 h-8 text-slate-800">{item.name}</h3>
-                    {item.tags && (
-                      <div className="flex flex-wrap gap-1">
-                        {item.tags.split(',').slice(0, 3).map((tag, ti) => (
-                          <span key={ti} className="text-[8px] bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded-full font-medium border border-sky-100">{tag}</span>
-                        ))}
-                      </div>
-                    )}
-                    <p className="text-sky-600 font-manrope font-bold">¥{item.price.toFixed(2)}</p>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); navigate('/product-detail', { state: { transition: 'push', productId: item.id } }); }}
-                      className="w-full py-1.5 border border-sky-200 text-sky-600 rounded-full text-[10px] font-bold hover:bg-sky-500 hover:text-white hover:border-sky-500 active:scale-95 transition-all"
-                    >
-                      查看详情
-                    </button>
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                {products.map((item, i) => (
+                  <div
+                    key={item.id || i}
+                    onClick={() => navigate('/product-detail', { state: { transition: 'push', productId: item.id } })}
+                    className="bg-white rounded-xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-md transition-all card-hover cursor-pointer"
+                  >
+                    <img src={safeImageUrl(typeof item.images === "string" ? (JSON.parse(item.images || '[]')[0]) : (Array.isArray(item.images) ? item.images[0] : item.images))} className="w-full aspect-square object-cover bg-slate-50" alt={item.name} />
+                    <div className="p-3 space-y-2">
+                      <h3 className="text-xs font-bold line-clamp-2 h-8 text-slate-800">{item.name}</h3>
+                      {item.tags && (
+                        <div className="flex flex-wrap gap-1">
+                          {item.tags.split(',').slice(0, 3).map((tag, ti) => (
+                            <span key={ti} className="text-[8px] bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded-full font-medium border border-sky-100">{tag}</span>
+                          ))}
+                        </div>
+                      )}
+                      <p className="text-sky-600 font-manrope font-bold">¥{item.price.toFixed(2)}</p>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); navigate('/product-detail', { state: { transition: 'push', productId: item.id } }); }}
+                        className="w-full py-1.5 border border-sky-200 text-sky-600 rounded-full text-[10px] font-bold hover:bg-sky-500 hover:text-white hover:border-sky-500 active:scale-95 transition-all"
+                      >
+                        查看详情
+                      </button>
+                    </div>
                   </div>
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-6 mb-4">
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                    className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-sky-50 hover:border-sky-200 hover:text-sky-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                  >
+                    上一页
+                  </button>
+                  {(() => {
+                    const buttons: number[] = [];
+                    const maxVisible = 5;
+                    if (totalPages <= maxVisible) {
+                      for (let i = 1; i <= totalPages; i++) buttons.push(i);
+                    } else if (page <= 3) {
+                      for (let i = 1; i <= maxVisible; i++) buttons.push(i);
+                    } else if (page >= totalPages - 2) {
+                      for (let i = totalPages - maxVisible + 1; i <= totalPages; i++) buttons.push(i);
+                    } else {
+                      for (let i = page - 2; i <= page + 2; i++) buttons.push(i);
+                    }
+                    return buttons.map(pageNum => (
+                      <button
+                        key={pageNum}
+                        onClick={() => setPage(pageNum)}
+                        className={`w-8 h-8 text-xs font-bold rounded-lg border transition-all ${
+                          pageNum === page
+                            ? 'bg-sky-500 text-white border-sky-500 shadow-sm'
+                            : 'bg-white text-slate-500 border-slate-200 hover:bg-sky-50 hover:border-sky-200 hover:text-sky-600'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    ));
+                  })()}
+                  <button
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages}
+                    className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-sky-50 hover:border-sky-200 hover:text-sky-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                  >
+                    下一页
+                  </button>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
       </main>
