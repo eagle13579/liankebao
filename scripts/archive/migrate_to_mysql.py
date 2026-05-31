@@ -16,9 +16,9 @@ SQLite → MySQL 数据迁移脚本（增强版）
     DATABASE_URL: MySQL 连接串       — 必须设置
     SQLITE_PATH: SQLite 数据库路径   — 可选，有默认路径
 """
+
 import os
 import sys
-import json
 import argparse
 from datetime import datetime
 
@@ -26,14 +26,13 @@ from datetime import datetime
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
-from sqlalchemy import create_engine, MetaData, Table, inspect, text
-from sqlalchemy.orm import sessionmaker
-from tabulate import tabulate  # 可选依赖，用于表格输出
+from sqlalchemy import create_engine, inspect
 
 
 # ============================================================
 # 辅助函数
 # ============================================================
+
 
 def print_banner(title):
     """打印分隔横幅"""
@@ -48,16 +47,25 @@ def print_table(headers, rows):
     """打印表格（带或不带 tabulate）"""
     try:
         from tabulate import tabulate as tb
+
         print(tb(rows, headers=headers, tablefmt="simple"))
     except ImportError:
         # fallback: 手动对齐
-        col_widths = [max(len(str(h)), max((len(str(r[i])) for r in rows), default=0)) for i, h in enumerate(headers)]
+        col_widths = [
+            max(len(str(h)), max((len(str(r[i])) for r in rows), default=0))
+            for i, h in enumerate(headers)
+        ]
         header_line = "  ".join(h.ljust(col_widths[i]) for i, h in enumerate(headers))
         print("  " + "-" * len(header_line))
         print("  " + header_line)
         print("  " + "-" * len(header_line))
         for row in rows:
-            print("  " + "  ".join(str(row[i]).ljust(col_widths[i]) for i in range(len(headers))))
+            print(
+                "  "
+                + "  ".join(
+                    str(row[i]).ljust(col_widths[i]) for i in range(len(headers))
+                )
+            )
         print("  " + "-" * len(header_line))
 
 
@@ -83,7 +91,9 @@ def get_mysql_engine(mysql_url: str = None):
     url = mysql_url or os.environ.get("DATABASE_URL", "")
     if not url:
         print("错误: 未设置 DATABASE_URL 环境变量")
-        print("示例: DATABASE_URL=mysql+pymysql://user:pass@host:3306/dbname?charset=utf8mb4")
+        print(
+            "示例: DATABASE_URL=mysql+pymysql://user:pass@host:3306/dbname?charset=utf8mb4"
+        )
         sys.exit(1)
 
     # 脱敏显示
@@ -100,6 +110,7 @@ def get_mysql_engine(mysql_url: str = None):
 # ============================================================
 # 预迁移验证
 # ============================================================
+
 
 def pre_validate(sqlite_engine) -> dict:
     """
@@ -180,13 +191,23 @@ def pre_validate(sqlite_engine) -> dict:
 # 数据迁移
 # ============================================================
 
+
 def create_mysql_tables(mysql_engine):
     """使用 SQLAlchemy ORM 在 MySQL 上创建表"""
     print_banner("创建 MySQL 表结构")
 
     # 使用 models 的 Base（它与 database.py 共享同一个 Base）
     # 这里我们直接使用 SQLAlchemy 的 metadata
-    from app.models import User, Product, Order, Withdrawal, Contact, ImportHistory, Activity, BusinessNeed  # noqa
+    from app.models import (
+        User,
+        Product,
+        Order,
+        Withdrawal,
+        Contact,
+        ImportHistory,
+        Activity,
+        BusinessNeed,
+    )  # noqa
 
     # 获取 app.database 中定义的 Base（所有模型共享的 Base）
     from app.database import Base as AppBase
@@ -239,7 +260,7 @@ def migrate_table(sqlite_engine, mysql_engine, table_name: str, truncate: bool =
         batch_size = 100
         inserted = 0
         for i in range(0, total, batch_size):
-            batch = rows[i:i + batch_size]
+            batch = rows[i : i + batch_size]
             params_list = []
             for row in batch:
                 params = {}
@@ -257,7 +278,11 @@ def migrate_table(sqlite_engine, mysql_engine, table_name: str, truncate: bool =
             # 进度提示
             if total > batch_size:
                 pct = min(100, int(inserted / total * 100))
-                print(f"\r  [{table_name:15s}] {inserted}/{total} ({pct}%)...", end="", flush=True)
+                print(
+                    f"\r  [{table_name:15s}] {inserted}/{total} ({pct}%)...",
+                    end="",
+                    flush=True,
+                )
 
         transaction.commit()
         print(f"\r  [{table_name:15s}] {inserted}/{total} 迁移完成 ✓")
@@ -272,6 +297,7 @@ def migrate_table(sqlite_engine, mysql_engine, table_name: str, truncate: bool =
 # ============================================================
 # 迁移后校验
 # ============================================================
+
 
 def verify_migration(sqlite_engine, mysql_engine) -> dict:
     """
@@ -293,13 +319,17 @@ def verify_migration(sqlite_engine, mysql_engine) -> dict:
         for table in get_all_tables_in_order():
             # SQLite 行数
             try:
-                sqlite_count = sqlite_conn.execute(f"SELECT COUNT(*) FROM {table}").scalar()
+                sqlite_count = sqlite_conn.execute(
+                    f"SELECT COUNT(*) FROM {table}"
+                ).scalar()
             except Exception:
                 sqlite_count = -1
 
             # MySQL 行数
             try:
-                mysql_count = mysql_conn.execute(f"SELECT COUNT(*) FROM {table}").scalar()
+                mysql_count = mysql_conn.execute(
+                    f"SELECT COUNT(*) FROM {table}"
+                ).scalar()
             except Exception:
                 mysql_count = -1
 
@@ -330,7 +360,9 @@ def verify_migration(sqlite_engine, mysql_engine) -> dict:
             print("\n  校验失败: 部分表数据不一致! ✗")
             for table, info in report["row_counts"].items():
                 if not info["match"]:
-                    print(f"    {table}: SQLite={info['sqlite']}, MySQL={info['mysql']}")
+                    print(
+                        f"    {table}: SQLite={info['sqlite']}, MySQL={info['mysql']}"
+                    )
 
         return report
 
@@ -342,6 +374,7 @@ def verify_migration(sqlite_engine, mysql_engine) -> dict:
 # ============================================================
 # 主流程
 # ============================================================
+
 
 def cmd_migrate(args):
     """执行完整迁移流程"""
@@ -374,7 +407,11 @@ def cmd_migrate(args):
             if total_records == 0:
                 print("\n  源数据库无数据，无需迁移。")
                 return
-            confirm = input(f"\n  确认迁移 {total_records} 条记录到 MySQL? (y/N): ").strip().lower()
+            confirm = (
+                input(f"\n  确认迁移 {total_records} 条记录到 MySQL? (y/N): ")
+                .strip()
+                .lower()
+            )
             if confirm not in ("y", "yes"):
                 print("  已取消")
                 return
@@ -387,7 +424,9 @@ def cmd_migrate(args):
     totals = {}
     for table_name in get_all_tables_in_order():
         try:
-            count = migrate_table(sqlite_engine, mysql_engine, table_name, truncate=not args.no_truncate)
+            count = migrate_table(
+                sqlite_engine, mysql_engine, table_name, truncate=not args.no_truncate
+            )
             totals[table_name] = count
         except Exception as e:
             print(f"  [{table_name}] 迁移失败: {e}")
@@ -407,7 +446,11 @@ def cmd_migrate(args):
     print(f"  源:    SQLite ({sqlite_engine.url})")
     safe_url = mysql_url
     if ":" in safe_url and "@" in safe_url:
-        safe_url = safe_url.split("@", 1)[0].split(":", 1)[0] + ":****@" + safe_url.split("@", 1)[1]
+        safe_url = (
+            safe_url.split("@", 1)[0].split(":", 1)[0]
+            + ":****@"
+            + safe_url.split("@", 1)[1]
+        )
     print(f"  目标:  MySQL ({safe_url})")
     print(f"  记录:  {total} 条")
     print(f"  状态:  {'全部通过 ✓' if not args.skip_verify else '跳过校验'}")
@@ -451,13 +494,23 @@ def main():
         """,
     )
 
-    parser.add_argument("--verify", action="store_true", help="仅执行数据一致性校验，不迁移")
+    parser.add_argument(
+        "--verify", action="store_true", help="仅执行数据一致性校验，不迁移"
+    )
     parser.add_argument("--sqlite-path", type=str, default="", help="SQLite 数据库路径")
-    parser.add_argument("--skip-validate", action="store_true", help="跳过迁移前数据验证")
+    parser.add_argument(
+        "--skip-validate", action="store_true", help="跳过迁移前数据验证"
+    )
     parser.add_argument("--skip-verify", action="store_true", help="跳过迁移后数据校验")
-    parser.add_argument("--no-truncate", action="store_true", help="不清空目标表（追加模式）")
-    parser.add_argument("--force", action="store_true", help="忽略部分表迁移错误，继续执行")
-    parser.add_argument("--yes", "-y", action="store_true", help="自动确认（跳过交互提示）")
+    parser.add_argument(
+        "--no-truncate", action="store_true", help="不清空目标表（追加模式）"
+    )
+    parser.add_argument(
+        "--force", action="store_true", help="忽略部分表迁移错误，继续执行"
+    )
+    parser.add_argument(
+        "--yes", "-y", action="store_true", help="自动确认（跳过交互提示）"
+    )
 
     args = parser.parse_args()
 

@@ -11,11 +11,11 @@ SQLite → PostgreSQL 数据迁移 CLI 脚本
     PG_HOST, PG_PORT, PG_USER, PG_PASSWORD, PG_DATABASE  — PostgreSQL 连接
     SQLITE_PATH                                           — SQLite 数据库路径（可选，有默认值）
 """
+
 import os
 import sys
 import json
 import argparse
-from datetime import datetime
 
 # 添加项目根目录到 path
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -26,6 +26,7 @@ def check_psycopg2():
     """检查 psycopg2 是否已安装"""
     try:
         import psycopg2  # noqa: F401
+
         return True
     except ImportError:
         return False
@@ -74,7 +75,7 @@ def cmd_export(args):
         total = sum(len(v) for k, v in data.items() if isinstance(v, list))
 
         print()
-        print(f"导出完成!")
+        print("导出完成!")
         print(f"  输出文件: {output_path}")
         print(f"  总记录数: {total}")
         print(f"  导出时间: {data.get('export_time', 'N/A')}")
@@ -90,10 +91,7 @@ def cmd_export(args):
 def cmd_import(args):
     """--import: 从 JSON 导入到 PostgreSQL"""
     if not check_psycopg2():
-        print(
-            "错误: psycopg2 未安装。\n"
-            "请执行: pip install psycopg2-binary"
-        )
+        print("错误: psycopg2 未安装。\n请执行: pip install psycopg2-binary")
         sys.exit(1)
 
     from app.database_postgres import import_to_postgres
@@ -102,10 +100,7 @@ def cmd_import(args):
     required_vars = ["PG_HOST", "PG_USER", "PG_PASSWORD", "PG_DATABASE"]
     missing = [v for v in required_vars if not os.environ.get(v, "")]
     if missing:
-        print(
-            f"错误: 缺少 PostgreSQL 环境变量: {', '.join(missing)}\n"
-            f"请设置后再试。"
-        )
+        print(f"错误: 缺少 PostgreSQL 环境变量: {', '.join(missing)}\n请设置后再试。")
         sys.exit(1)
 
     # 获取 JSON 数据
@@ -118,10 +113,7 @@ def cmd_import(args):
         )
 
     if not os.path.exists(json_path):
-        print(
-            f"错误: 导入文件不存在: {json_path}\n"
-            f"请先执行 --export 导出数据。"
-        )
+        print(f"错误: 导入文件不存在: {json_path}\n请先执行 --export 导出数据。")
         sys.exit(1)
 
     with open(json_path, "r", encoding="utf-8") as f:
@@ -165,10 +157,7 @@ def cmd_import(args):
 def cmd_verify(args):
     """--verify: 验证 SQLite 和 PostgreSQL 数据一致性"""
     if not check_psycopg2():
-        print(
-            "错误: psycopg2 未安装。\n"
-            "请执行: pip install psycopg2-binary"
-        )
+        print("错误: psycopg2 未安装。\n请执行: pip install psycopg2-binary")
         sys.exit(1)
 
     from app.database_postgres import verify_data_consistency
@@ -176,10 +165,7 @@ def cmd_verify(args):
     required_vars = ["PG_HOST", "PG_USER", "PG_PASSWORD", "PG_DATABASE"]
     missing = [v for v in required_vars if not os.environ.get(v, "")]
     if missing:
-        print(
-            f"错误: 缺少 PostgreSQL 环境变量: {', '.join(missing)}\n"
-            f"请设置后再试。"
-        )
+        print(f"错误: 缺少 PostgreSQL 环境变量: {', '.join(missing)}\n请设置后再试。")
         sys.exit(1)
 
     sqlite_path = args.sqlite_path or get_sqlite_path()
@@ -253,26 +239,36 @@ def main():
         "--export", action="store_true", help="从 SQLite 导出数据为 JSON"
     )
     parser.add_argument(
-        "--import", action="store_true", dest="import_",
+        "--import",
+        action="store_true",
+        dest="import_",
         help="从 JSON 导入到 PostgreSQL",
     )
     parser.add_argument(
         "--verify", action="store_true", help="验证 SQLite 和 PostgreSQL 数据一致性"
     )
     parser.add_argument(
-        "--sqlite-path", type=str, default="",
+        "--sqlite-path",
+        type=str,
+        default="",
         help="SQLite 数据库路径（默认: backend/data/chainke.db）",
     )
     parser.add_argument(
-        "--output", type=str, default="",
+        "--output",
+        type=str,
+        default="",
         help="导出 JSON 文件路径（默认: data/postgres_migrate_export.json）",
     )
     parser.add_argument(
-        "--input", type=str, default="",
+        "--input",
+        type=str,
+        default="",
         help="导入 JSON 文件路径（默认: data/postgres_migrate_export.json）",
     )
     parser.add_argument(
-        "--yes", "-y", action="store_true",
+        "--yes",
+        "-y",
+        action="store_true",
         help="自动确认导入（跳过确认提示）",
     )
 

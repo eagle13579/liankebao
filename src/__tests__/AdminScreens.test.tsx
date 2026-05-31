@@ -35,7 +35,13 @@ beforeEach(() => {
       return Promise.resolve({
         code: 200,
         data: {
-          dashboard: { today_revenue: 15800, today_orders: 23, active_promoters: 45, pending_products: 5 },
+          total_revenue: 15800,
+          today_orders: 23,
+          total_orders: 230,
+          total_users: 1200,
+          total_products: 45,
+          pending_review_products: 5,
+          pending_withdrawals: 3,
         },
       });
     }
@@ -43,9 +49,10 @@ beforeEach(() => {
       return Promise.resolve({
         code: 200,
         data: {
-          products: [
-            { id: 1, name: '智能健康手表 S3', company: '科技有限公司', price: 1299, created_at: '2025-05-28T10:00:00Z' },
-            { id: 2, name: '高端商务茶礼套装', company: '贸易有限公司', price: 688, created_at: '2025-05-27T10:00:00Z' },
+          total: 2,
+          items: [
+            { id: 1, name: '智能健康手表 S3', company: '科技有限公司', price: 1299, status: 'pending', created_at: '2025-05-28T10:00:00Z' },
+            { id: 2, name: '高端商务茶礼套装', company: '贸易有限公司', price: 688, status: 'pending', created_at: '2025-05-27T10:00:00Z' },
           ],
         },
       });
@@ -54,7 +61,8 @@ beforeEach(() => {
       return Promise.resolve({
         code: 200,
         data: {
-          withdrawals: [
+          total: 2,
+          items: [
             { id: 1, user_name: '张三', amount: 500, status: 'pending', created_at: '2025-05-28T10:00:00Z' },
             { id: 2, user_name: '李四', amount: 1200, status: 'pending', created_at: '2025-05-27T10:00:00Z' },
           ],
@@ -76,7 +84,7 @@ describe('AdminBackend (管理后台) - Smoke Tests', () => {
     renderWithRouter(<AdminBackend />);
 
     await waitFor(() => {
-      expect(screen.getByText('管理后台')).toBeInTheDocument();
+      expect(screen.getByText('企盟 · 管理后台')).toBeInTheDocument();
     });
   });
 
@@ -84,31 +92,29 @@ describe('AdminBackend (管理后台) - Smoke Tests', () => {
     renderWithRouter(<AdminBackend />);
 
     await waitFor(() => {
-      expect(screen.getByText('今日交易额')).toBeInTheDocument();
-      expect(screen.getByText('今日订单数')).toBeInTheDocument();
-      expect(screen.getByText('活跃推广员')).toBeInTheDocument();
-      expect(screen.getByText('待审核产品')).toBeInTheDocument();
+      expect(screen.getByText('总交易额')).toBeInTheDocument();
+      expect(screen.getByText('总订单数')).toBeInTheDocument();
+      expect(screen.getByText('注册用户')).toBeInTheDocument();
+      expect(screen.getByText('全部产品')).toBeInTheDocument();
     });
   });
 
-  // TODO: mock数据格式需对齐 useApi hook 的 data.dashboard 结构
-  it.skip('renders dashboard values from API', async () => {
+  it('renders dashboard values from API', async () => {
     renderWithRouter(<AdminBackend />);
 
     await waitFor(() => {
-      // toLocaleString() produces "15,800" not "15,800.00"
-      expect(screen.getByText('15,800')).toBeInTheDocument();
+      // Value is rendered as "¥15,800.00" — use regex to match the number
+      expect(screen.getByText(/15,800/)).toBeInTheDocument();
       expect(screen.getByText('23')).toBeInTheDocument();
-      expect(screen.getByText('45')).toBeInTheDocument();
-      expect(screen.getByText('5')).toBeInTheDocument();
     }, { timeout: 5000 });
   });
 
-  it('renders product review section', async () => {
+  it('renders product review section with 待审核产品 heading', async () => {
     renderWithRouter(<AdminBackend />);
 
     await waitFor(() => {
-      expect(screen.getByText('产品审核')).toBeInTheDocument();
+      // Appears as both section heading and in the pending items list
+      expect(screen.getAllByText('待审核产品').length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -120,20 +126,19 @@ describe('AdminBackend (管理后台) - Smoke Tests', () => {
     });
   });
 
-  it('renders withdrawal review section', async () => {
+  it('shows pending review alert when there are pending products', async () => {
     renderWithRouter(<AdminBackend />);
 
     await waitFor(() => {
-      expect(screen.getByText('提现审核')).toBeInTheDocument();
+      expect(screen.getByText('5 个产品待审核')).toBeInTheDocument();
     });
   });
 
-  it('shows withdrawal items', async () => {
+  it('shows withdrawal pending alert when there are pending withdrawals', async () => {
     renderWithRouter(<AdminBackend />);
 
     await waitFor(() => {
-      expect(screen.getByText('张三')).toBeInTheDocument();
-      expect(screen.getByText('李四')).toBeInTheDocument();
+      expect(screen.getByText('3 笔提现待处理')).toBeInTheDocument();
     });
   });
 
@@ -154,7 +159,6 @@ describe('AdminBackend (管理后台) - Interaction Tests', () => {
     renderWithRouter(<AdminBackend />);
 
     await waitFor(() => {
-      // Find all approve buttons
       const approveBtns = screen.getAllByText('通过');
       expect(approveBtns.length).toBeGreaterThanOrEqual(1);
       fireEvent.click(approveBtns[0]);
@@ -203,13 +207,13 @@ describe('AdminBackend (管理后台) - Edge Cases', () => {
   it('shows empty state when no products pending review', async () => {
     mockGet.mockImplementation((url: string) => {
       if (url.includes('/api/admin/dashboard')) {
-        return Promise.resolve({ code: 200, data: { dashboard: { today_revenue: 0, today_orders: 0, active_promoters: 0, pending_products: 0 } } });
+        return Promise.resolve({ code: 200, data: { total_revenue: 0, today_orders: 0, total_orders: 0, total_users: 0, total_products: 0, pending_review_products: 0, pending_withdrawals: 0 } });
       }
       if (url.includes('/api/admin/products')) {
-        return Promise.resolve({ code: 200, data: { products: [] } });
+        return Promise.resolve({ code: 200, data: { total: 0, items: [] } });
       }
       if (url.includes('/api/admin/withdrawals')) {
-        return Promise.resolve({ code: 200, data: { withdrawals: [] } });
+        return Promise.resolve({ code: 200, data: { total: 0, items: [] } });
       }
       return Promise.resolve({ code: 200, data: null });
     });

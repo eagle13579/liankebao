@@ -23,12 +23,10 @@
     # 不交互确认（自动化 CI/CD）
     python scripts/one_click_migrate.py --to mysql --yes
 """
+
 import os
 import sys
-import json
 import argparse
-import subprocess
-from datetime import datetime
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
@@ -78,10 +76,14 @@ def check_environment(target: str) -> list:
 def run_mysql_migration(args) -> bool:
     """执行 MySQL 迁移"""
     from scripts.migrate_to_mysql import (
-        get_sqlite_engine, get_mysql_engine,
-        pre_validate, create_mysql_tables,
-        migrate_table, verify_migration,
-        get_all_tables_in_order, print_banner,
+        get_sqlite_engine,
+        get_mysql_engine,
+        pre_validate,
+        create_mysql_tables,
+        migrate_table,
+        verify_migration,
+        get_all_tables_in_order,
+        print_banner,
     )
 
     sqlite_path = args.sqlite_path or os.environ.get("SQLITE_PATH", "")
@@ -116,7 +118,9 @@ def run_mysql_migration(args) -> bool:
     totals = {}
     for table_name in get_all_tables_in_order():
         try:
-            count = migrate_table(sqlite_engine, mysql_engine, table_name, truncate=True)
+            count = migrate_table(
+                sqlite_engine, mysql_engine, table_name, truncate=True
+            )
             totals[table_name] = count
         except Exception as e:
             print(f"  [{table_name}] 迁移失败: {e}")
@@ -140,7 +144,11 @@ def run_postgres_migration(args) -> bool:
         print("错误: psycopg2 未安装。请执行: pip install psycopg2-binary")
         return False
 
-    from app.database_postgres import export_from_sqlite, import_to_postgres, verify_data_consistency
+    from app.database_postgres import (
+        export_from_sqlite,
+        import_to_postgres,
+        verify_data_consistency,
+    )
 
     sqlite_path = args.sqlite_path or os.environ.get("SQLITE_PATH", "")
 
@@ -176,7 +184,11 @@ def run_postgres_migration(args) -> bool:
 
     # 确认
     if not args.yes:
-        confirm = input(f"\n  确认导入 {total_records} 条记录到 PostgreSQL? (y/N): ").strip().lower()
+        confirm = (
+            input(f"\n  确认导入 {total_records} 条记录到 PostgreSQL? (y/N): ")
+            .strip()
+            .lower()
+        )
         if confirm not in ("y", "yes"):
             print("  已取消")
             return False
@@ -185,7 +197,7 @@ def run_postgres_migration(args) -> bool:
     print_banner("Step 3/4 - 导入到 PostgreSQL")
     try:
         stats = import_to_postgres(data)
-        print(f"  导入完成:")
+        print("  导入完成:")
         for table, count in stats.items():
             print(f"    {table}: {count} 条")
     except Exception as e:
@@ -242,20 +254,28 @@ def main():
     )
 
     parser.add_argument(
-        "--to", "-t", type=str, required=True,
+        "--to",
+        "-t",
+        type=str,
+        required=True,
         choices=["mysql", "postgres"],
         help="目标数据库类型: mysql / postgres",
     )
     parser.add_argument(
-        "--sqlite-path", type=str, default="",
+        "--sqlite-path",
+        type=str,
+        default="",
         help="SQLite 数据库路径（默认: backend/data/chainke.db）",
     )
     parser.add_argument(
-        "--yes", "-y", action="store_true",
+        "--yes",
+        "-y",
+        action="store_true",
         help="自动确认所有提示（非交互模式）",
     )
     parser.add_argument(
-        "--verify-only", action="store_true",
+        "--verify-only",
+        action="store_true",
         help="仅执行数据一致性校验，不做迁移",
     )
 
@@ -265,14 +285,14 @@ def main():
     print_banner(f"链客宝 一键迁移工具 — SQLite → {args.to.upper()}")
     print(f"  目标数据库: {args.to}")
     if args.verify_only:
-        print(f"  模式:       仅校验")
+        print("  模式:       仅校验")
     print(f"  项目路径:   {PROJECT_ROOT}")
 
     # 检查环境变量
     missing = check_environment(args.to)
     if missing:
         print(f"错误: 缺少必要环境变量: {', '.join(missing)}")
-        print(f"请设置后再试。使用 --help 查看说明。")
+        print("请设置后再试。使用 --help 查看说明。")
         sys.exit(1)
 
     # 执行
@@ -281,6 +301,7 @@ def main():
         if args.verify_only:
             # 仅校验
             from scripts.migrate_to_mysql import cmd_verify
+
             success = cmd_verify(args)
         else:
             success = run_mysql_migration(args)
@@ -288,6 +309,7 @@ def main():
         if args.verify_only:
             # 仅校验 — 调用 postgres 的 verify
             from app.database_postgres import verify_data_consistency
+
             sqlite_path = args.sqlite_path or os.environ.get("SQLITE_PATH", "")
             if not sqlite_path or not os.path.exists(sqlite_path):
                 base_dir = os.path.join(PROJECT_ROOT, "data")
