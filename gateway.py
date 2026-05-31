@@ -40,7 +40,7 @@ ROUTES = [
     ("/api/brochures/",   "http://localhost:8003",  lambda p: "/api/brochure/" + p.split("/api/brochures/", 1)[1]),
     ("/api/brochure/",    "http://localhost:8003",  None),
     ("/api/tag/",         "http://localhost:8003",  None),
-    ("/api/match/",       "http://localhost:8003",  None),
+    ("/api/match/",       "http://localhost:8000",  None),
     ("/api/external/",    "http://localhost:8003",  None),
     ("/api/digital-brochure/auth/", "http://localhost:8003",  lambda p: "/api/auth/" + p.split("/api/digital-brochure/auth/", 1)[1]),
     ("/api/geo/diagnose", "http://localhost:5061",  None),
