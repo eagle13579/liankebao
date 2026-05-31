@@ -3,7 +3,7 @@ import {
   Search, Home, Grid, User, ChevronRight, Bell, ShoppingBag, Receipt, TrendingUp,
   Users, Database, BarChart3, Target, Globe, FileText, HelpCircle, Package,
   Settings, Crown, GraduationCap, Share2, CheckCircle2, X, Image, Copy, Link,
-  TableProperties, FolderKanban, HandCoins, Shapes, Sparkles
+  TableProperties, FolderKanban, HandCoins, Shapes, Sparkles, QrCode
 } from 'lucide-react';
 import { useState, useEffect, memo } from 'react';
 import { api } from '../api/client';
@@ -18,7 +18,7 @@ function BottomNav({ active }: { active: string }) {
   const items = [
     { id: 'home', icon: Home, label: '首页', path: '/home' },
     { id: 'product', icon: ShoppingBag, label: '产品池', path: '/product-pool' },
-    { id: 'contacts', icon: Users, label: '人脉', path: '/contacts' },
+    { id: 'business-card', icon: QrCode, label: 'AI名片', path: '/business-card' },
     { id: 'profile', icon: User, label: '我的', path: '/profile' },
   ];
 
