@@ -383,8 +383,17 @@ export const ProductPool = memo(function ProductPool() {
   const { data: products, status, error, refetch } = useApi(
     () => api.get<{total: number; items: ProductItem[]}>('/api/search' + (qs ? `?${qs}` : ''))
       .then(r => {
-        if (r.data) setTotal(r.data.total);
-        return r.data?.items || [];
+        if (r.data?.items && r.data.items.length > 0) {
+          setTotal(r.data.total);
+          return r.data.items;
+        }
+        // 数据库为空时使用模拟产品数据
+        setTotal(MOCK_PRODUCTS.length);
+        return filterMockProducts(search, category, sortBy, page);
+      })
+      .catch(() => {
+        setTotal(MOCK_PRODUCTS.length);
+        return filterMockProducts(search, category, sortBy, page);
       }),
     [search, category, sortBy, page]
   );
@@ -395,9 +404,13 @@ export const ProductPool = memo(function ProductPool() {
       .then(r => {
         if (r.data?.categories && r.data.categories.length > 0) {
           setCategories(['全部', ...r.data.categories]);
+        } else {
+          setCategories(['全部', 'AI工具', '企业服务', '营销工具', '数据服务', '开发服务', '培训服务']);
         }
       })
-      .catch(() => { /* keep default ['全部'] */ });
+      .catch(() => {
+        setCategories(['全部', 'AI工具', '企业服务', '营销工具', '数据服务', '开发服务', '培训服务']);
+      });
   }, []);
 
   // Reset to page 1 when filters change
@@ -406,6 +419,37 @@ export const ProductPool = memo(function ProductPool() {
   }, [search, category, sortBy]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  // ===== 模拟产品数据（数据库为空时展示） =====
+  const MOCK_PRODUCTS: ProductItem[] = [
+    { id: 1, name: '企业AI数字名片 Pro', description: 'AI智能识别+翻页图册+一键分享，让每一次社交都成为商机', price: 299, earn_per_share: 89, category: 'AI工具', stock: 999, images: '', status: 'active', owner_id: 1, tags: 'AI,名片,企业' },
+    { id: 2, name: '智能供需匹配服务', description: 'AI算法精准匹配买家和供应商，让企业对接效率提升10倍', price: 1999, earn_per_share: 599, category: '企业服务', stock: 999, images: '', status: 'active', owner_id: 1, tags: '匹配,AI,供需' },
+    { id: 3, name: '企业信任认证套餐', description: '企业实名认证+信用评分+资质展示，构建可信商业网络', price: 499, earn_per_share: 149, category: '企业服务', stock: 999, images: '', status: 'active', owner_id: 1, tags: '认证,信任,企业' },
+    { id: 4, name: '社交裂变推广工具', description: '三级分润+专属推广链接+数据看板，让客户成为您的推广大使', price: 799, earn_per_share: 239, category: '营销工具', stock: 999, images: '', status: 'active', owner_id: 1, tags: '推广,裂变,分销' },
+    { id: 5, name: '企业CRM轻量版', description: '客户管理+跟进记录+标签分类+数据洞察，精准经营每一位客户', price: 399, earn_per_share: 119, category: '企业服务', stock: 999, images: '', status: 'active', owner_id: 1, tags: 'CRM,客户,管理' },
+    { id: 6, name: 'AI销售助手', description: '智能话术推荐+跟进提醒+成交预测，让销售业绩提升50%', price: 599, earn_per_share: 179, category: 'AI工具', stock: 999, images: '', status: 'active', owner_id: 1, tags: 'AI,销售,助手' },
+    { id: 7, name: '企业大数据洞察', description: '行业趋势分析+竞品监控+商机挖掘，数据驱动决策', price: 2999, earn_per_share: 899, category: '数据服务', stock: 999, images: '', status: 'active', owner_id: 1, tags: '数据,洞察,分析' },
+    { id: 8, name: '微信小程序搭建服务', description: '专业团队为企业定制微信小程序，快速上线获客新渠道', price: 4999, earn_per_share: 1499, category: '开发服务', stock: 999, images: '', status: 'active', owner_id: 1, tags: '小程序,开发,微信' },
+    { id: 9, name: '企业培训课程包', description: 'AI营销+私域运营+销售技巧，助力企业团队能力升级', price: 199, earn_per_share: 59, category: '培训服务', stock: 999, images: '', status: 'active', owner_id: 1, tags: '培训,课程,营销' },
+    { id: 10, name: '企业AI名片 基础版', description: '电子名片+联系方式+社交链接，免费开启数字化社交', price: 0, earn_per_share: 0, category: 'AI工具', stock: 999, images: '', status: 'active', owner_id: 1, tags: '免费,名片,基础' },
+  ];
+
+  function filterMockProducts(searchTerm: string, cat: string, sort: string, pg: number): ProductItem[] {
+    let filtered = [...MOCK_PRODUCTS];
+    if (searchTerm) {
+      const q = searchTerm.toLowerCase();
+      filtered = filtered.filter(p => p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q) || (p.tags && p.tags.toLowerCase().includes(q)));
+    }
+    if (cat && cat !== '全部') {
+      filtered = filtered.filter(p => p.category === cat);
+    }
+    if (sort === 'price_asc') filtered.sort((a, b) => a.price - b.price);
+    else if (sort === 'price_desc') filtered.sort((a, b) => b.price - a.price);
+    else if (sort === 'newest') filtered.sort((a, b) => b.id - a.id);
+    // 分页
+    const start = (pg - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }
 
   const sortOptions = [
     { value: 'relevance', label: '相关性' },
@@ -511,6 +555,12 @@ export const ProductPool = memo(function ProductPool() {
         )}
 
         <div className="px-4 pt-4">
+          {products && products.length > 0 && total === 10 && (
+            <div className="mb-3 flex items-center gap-2 text-[10px] text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+              <Sparkles className="w-3 h-3 shrink-0" />
+              <span>当前为模拟数据，接入真实数据后自动替换</span>
+            </div>
+          )}
           {status === 'loading' ? (
             <div className="grid grid-cols-2 gap-3">
               {[1,2,3,4].map(i => (
