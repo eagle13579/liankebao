@@ -67,15 +67,21 @@ logger = logging.getLogger("auto_recover")
 BACKEND_PORT = int(os.environ.get("BACKEND_PORT", "8001"))
 BACKEND_HOST = os.environ.get("BACKEND_HOST", "127.0.0.1")
 DOCKER_SERVICE_NAME = os.environ.get("DOCKER_SERVICE_NAME", "chainke-backend")
-UVICORN_CMD = os.environ.get("UVICORN_CMD", "uvicorn app.main:app --host 0.0.0.0 --port {} --workers 2 --log-level info".format(BACKEND_PORT))
+UVICORN_CMD = os.environ.get(
+    "UVICORN_CMD",
+    "uvicorn app.main:app --host 0.0.0.0 --port {} --workers 2 --log-level info".format(
+        BACKEND_PORT
+    ),
+)
 
 MEMORY_THRESHOLD = int(os.environ.get("MEMORY_THRESHOLD", "80"))  # %
-DISK_THRESHOLD = int(os.environ.get("DISK_THRESHOLD", "90"))     # %
-CHECK_INTERVAL = int(os.environ.get("CHECK_INTERVAL", "30"))     # 秒
+DISK_THRESHOLD = int(os.environ.get("DISK_THRESHOLD", "90"))  # %
+CHECK_INTERVAL = int(os.environ.get("CHECK_INTERVAL", "30"))  # 秒
 MAX_RETRIES = int(os.environ.get("MAX_RETRIES", "3"))
 
 # Docker compose 项目路径
 DOCKER_COMPOSE_DIR = _BASE_DIR / "deploy"
+
 
 # ============================================================
 # 恢复操作状态跟踪
@@ -136,15 +142,17 @@ def send_alert(title: str, message: str, level: str = "ERROR"):
     try:
         sys.path.insert(0, str(_BASE_DIR))
         from deploy.alert_manager import _dispatcher
+
         _dispatcher.dispatch(title, message, level)
     except ImportError:
-        logger.error(f"无法导入alert_manager，告警未发送: [{level}] {title} - {message}")
+        logger.error(
+            f"无法导入alert_manager，告警未发送: [{level}] {title} - {message}"
+        )
         # 降级：写入日志文件
         alert_log = LOG_DIR / "recovery_alerts.log"
         with open(alert_log, "a", encoding="utf-8") as f:
             f.write(
-                f"[{level}] {datetime.now().isoformat()} - {title}\n"
-                f"  {message}\n\n"
+                f"[{level}] {datetime.now().isoformat()} - {title}\n  {message}\n\n"
             )
 
 
@@ -176,6 +184,7 @@ def _run_docker_compose(args: list[str]) -> tuple[bool, str]:
 # 检测与恢复
 # ============================================================
 
+
 # ---- 1. 端口检测 ----
 def check_port(host: str, port: int) -> bool:
     """检查端口是否可达"""
@@ -195,10 +204,7 @@ def check_port(host: str, port: int) -> bool:
 def recover_port(host: str, port: int) -> bool:
     """端口不通 → 重启uvicorn"""
     retries = state.increment_port(port)
-    logger.warning(
-        f"端口 {host}:{port} 不可达 "
-        f"(第{retries}/{MAX_RETRIES}次重试)"
-    )
+    logger.warning(f"端口 {host}:{port} 不可达 (第{retries}/{MAX_RETRIES}次重试)")
 
     if retries > MAX_RETRIES:
         send_alert(
@@ -218,7 +224,7 @@ def recover_port(host: str, port: int) -> bool:
     success, output = _run_docker_compose(["restart", DOCKER_SERVICE_NAME])
 
     if success:
-        logger.info(f"docker compose restart 成功")
+        logger.info("docker compose restart 成功")
         # 等待服务启动
         time.sleep(10)
         if check_port(host, port):
@@ -234,7 +240,7 @@ def recover_port(host: str, port: int) -> bool:
             )
             return True
         else:
-            logger.warning(f"服务重启后端口仍未恢复，将进行下一次重试")
+            logger.warning("服务重启后端口仍未恢复，将进行下一次重试")
     else:
         logger.error(f"docker compose restart 失败: {output}")
         send_alert(
@@ -266,7 +272,9 @@ def check_memory() -> tuple[bool, float]:
 def recover_memory() -> bool:
     """内存>80% → 重启服务"""
     retries = state.increment_memory()
-    logger.warning(f"内存使用率超过 {MEMORY_THRESHOLD}% (第{retries}/{MAX_RETRIES}次重试)")
+    logger.warning(
+        f"内存使用率超过 {MEMORY_THRESHOLD}% (第{retries}/{MAX_RETRIES}次重试)"
+    )
 
     if retries > MAX_RETRIES:
         send_alert(
@@ -285,7 +293,7 @@ def recover_memory() -> bool:
     success, output = _run_docker_compose(["restart", DOCKER_SERVICE_NAME])
 
     if success:
-        logger.info(f"docker compose restart 成功 (内存恢复)")
+        logger.info("docker compose restart 成功 (内存恢复)")
         state._memory_retries = 0
         send_alert(
             title="内存告警恢复",
@@ -329,7 +337,9 @@ def check_disk() -> tuple[bool, float]:
 def clean_disk() -> bool:
     """磁盘>90% → 清理日志/临时文件"""
     retries = state.increment_disk()
-    logger.warning(f"磁盘使用率超过 {DISK_THRESHOLD}% (第{retries}/{MAX_RETRIES}次重试)")
+    logger.warning(
+        f"磁盘使用率超过 {DISK_THRESHOLD}% (第{retries}/{MAX_RETRIES}次重试)"
+    )
 
     if retries > MAX_RETRIES:
         send_alert(
@@ -377,6 +387,7 @@ def clean_disk() -> bool:
                     f.unlink()
                 elif f.is_dir():
                     import shutil
+
                     shutil.rmtree(str(f), ignore_errors=True)
 
         # 清理 Docker 系统（可选）
@@ -488,6 +499,7 @@ def is_running() -> bool:
                 pid = int(f.read().strip())
             if sys.platform == "win32":
                 import ctypes
+
                 handle = ctypes.windll.kernel32.OpenProcess(0x0400, False, pid)
                 if handle:
                     ctypes.windll.kernel32.CloseHandle(handle)
@@ -549,6 +561,7 @@ def main():
             try:
                 if sys.platform == "win32":
                     import ctypes
+
                     handle = ctypes.windll.kernel32.OpenProcess(0x0001, False, pid)
                     if handle:
                         ctypes.windll.kernel32.TerminateProcess(handle, 0)
@@ -558,7 +571,7 @@ def main():
                 print(f"✅ 自动恢复已停止 (PID: {pid})")
                 remove_pid()
             except ProcessLookupError:
-                print(f"⚠️ 进程不存在，清理PID文件")
+                print("⚠️ 进程不存在，清理PID文件")
                 remove_pid()
             except Exception as e:
                 print(f"❌ 停止失败: {e}")

@@ -3,7 +3,7 @@
 # 链客宝 蓝绿部署脚本 (Blue-Green Deployment)
 # 服务器: 阿里云 ECS (47.100.160.250)
 # 用途: 实现零停机蓝绿部署，支持自动切换和回滚
-# 
+#
 # 目录结构:
 #   /opt/liankebao-blue/   — Blue 环境（端口 18001）
 #   /opt/liankebao-green/  — Green 环境（端口 18002）

@@ -15,18 +15,15 @@
 
 import argparse
 import atexit
-import json
 import logging
 import os
 import smtplib
 import sys
 import time
-import uuid
-from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from email.mime.text import MIMEText
 from pathlib import Path
-from threading import Lock, Thread
+from threading import Lock
 
 import requests
 
@@ -81,20 +78,23 @@ PID_FILE = PID_DIR / "alert_manager.pid"
 
 # ---- 告警升级 (PagerDuty风格) ----
 ALERT_ESCALATION_MINUTES = int(os.environ.get("ALERT_ESCALATION_MINUTES", "5"))
-DINGTALK_ESCALATION_WEBHOOK = os.environ.get("DINGTALK_ESCALATION_WEBHOOK", DINGTALK_WEBHOOK)
+DINGTALK_ESCALATION_WEBHOOK = os.environ.get(
+    "DINGTALK_ESCALATION_WEBHOOK", DINGTALK_WEBHOOK
+)
 
 # ---- 维护窗口 ----
 # 格式: "MON 02:00-04:00" 或 "SAT,SUN 00:00-23:59" 或 "* 03:00-05:00"
 MAINTENANCE_WINDOWS = os.environ.get("MAINTENANCE_WINDOWS", "")
 # 示例: MAINTENANCE_WINDOWS="WED 03:00-05:00,SAT 22:00-23:00"
 
+
 # ============================================================
 # 告警级别
 # ============================================================
 class AlertLevel:
-    INFO = "INFO"          # 仅日志
-    WARNING = "WARNING"    # 通知（钉钉/飞书）
-    ERROR = "ERROR"        # 即时通知（钉钉+飞书+邮件）
+    INFO = "INFO"  # 仅日志
+    WARNING = "WARNING"  # 通知（钉钉/飞书）
+    ERROR = "ERROR"  # 即时通知（钉钉+飞书+邮件）
     CRITICAL = "CRITICAL"  # 电话模拟（所有通道 + 日志高亮）
 
     LEVELS = [INFO, WARNING, ERROR, CRITICAL]
@@ -146,8 +146,13 @@ class MaintenanceWindow:
 
     # 星期名称映射
     WEEKDAY_MAP = {
-        "MON": 0, "TUE": 1, "WED": 2, "THU": 3,
-        "FRI": 4, "SAT": 5, "SUN": 6,
+        "MON": 0,
+        "TUE": 1,
+        "WED": 2,
+        "THU": 3,
+        "FRI": 4,
+        "SAT": 5,
+        "SUN": 6,
     }
 
     def __init__(self, spec: str):
@@ -209,7 +214,9 @@ class MaintenanceWindow:
             return self.start_minute <= current_minute < self.end_minute
         else:
             # 跨天区间, 如 22:00-02:00
-            return current_minute >= self.start_minute or current_minute < self.end_minute
+            return (
+                current_minute >= self.start_minute or current_minute < self.end_minute
+            )
 
 
 class MaintenanceWindowManager:
@@ -240,7 +247,9 @@ class MaintenanceWindowManager:
                 if w.is_active(now):
                     end_hour = w.end_minute // 60
                     end_min = w.end_minute % 60
-                    return now.replace(hour=end_hour, minute=end_min, second=0, microsecond=0)
+                    return now.replace(
+                        hour=end_hour, minute=end_min, second=0, microsecond=0
+                    )
         return None
 
 
@@ -280,7 +289,9 @@ class AlertEscalationManager:
             return
         with self._lock:
             if alert_key not in self._entries:
-                self._entries[alert_key] = self.EscalationEntry(alert_key, title, message, level)
+                self._entries[alert_key] = self.EscalationEntry(
+                    alert_key, title, message, level
+                )
                 logger.info(f"告警已注册升级追踪: {alert_key}")
 
     def acknowledge(self, alert_key: str, by: str = "system") -> bool:
@@ -316,7 +327,10 @@ class AlertEscalationManager:
             for alert_key, entry in list(self._entries.items()):
                 if entry.acknowledged:
                     # 已确认的告警, 超过1小时清理
-                    if entry.acknowledged_at and (now - entry.acknowledged_at).total_seconds() > 3600:
+                    if (
+                        entry.acknowledged_at
+                        and (now - entry.acknowledged_at).total_seconds() > 3600
+                    ):
                         del self._entries[alert_key]
                     continue
 
@@ -324,23 +338,29 @@ class AlertEscalationManager:
                 if elapsed >= self._escalation_minutes * 60:
                     # 未确认且超时, 需要升级
                     entry.escalation_count += 1
-                    escalate_level = "ESCALATED_CRITICAL" if entry.level == AlertLevel.CRITICAL else "ESCALATED_ERROR"
-                    escalations.append((
-                        alert_key,
-                        f"[升级#{entry.escalation_count}] {entry.title}",
+                    escalate_level = (
+                        "ESCALATED_CRITICAL"
+                        if entry.level == AlertLevel.CRITICAL
+                        else "ESCALATED_ERROR"
+                    )
+                    escalations.append(
                         (
-                            f"⚠️ **告警升级通知**\n\n"
-                            f"原始告警: {entry.title}\n"
-                            f"告警级别: {entry.level}\n"
-                            f"创建时间: {entry.created_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
-                            f"未确认时长: {elapsed:.0f}秒\n"
-                            f"升级次数: #{entry.escalation_count}\n\n"
-                            f"---\n{entry.message}\n\n"
-                            f"**请立即处理! 若已处理请确认:**\n"
-                            f"`python alert_manager.py --ack {alert_key}`\n"
-                            f"`python alert_manager.py --ack-all`"
-                        ),
-                    ))
+                            alert_key,
+                            f"[升级#{entry.escalation_count}] {entry.title}",
+                            (
+                                f"⚠️ **告警升级通知**\n\n"
+                                f"原始告警: {entry.title}\n"
+                                f"告警级别: {entry.level}\n"
+                                f"创建时间: {entry.created_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                                f"未确认时长: {elapsed:.0f}秒\n"
+                                f"升级次数: #{entry.escalation_count}\n\n"
+                                f"---\n{entry.message}\n\n"
+                                f"**请立即处理! 若已处理请确认:**\n"
+                                f"`python alert_manager.py --ack {alert_key}`\n"
+                                f"`python alert_manager.py --ack-all`"
+                            ),
+                        )
+                    )
                     # 重置创建时间, 防止重复升级 (每小时最多升级一次)
                     entry.created_at = now
 
@@ -351,8 +371,10 @@ class AlertEscalationManager:
         now = datetime.now(UTC)
         with self._lock:
             expired = [
-                k for k, v in self._entries.items()
-                if v.acknowledged and v.acknowledged_at
+                k
+                for k, v in self._entries.items()
+                if v.acknowledged
+                and v.acknowledged_at
                 and (now - v.acknowledged_at).total_seconds() > 7200  # 2小时后清理
             ]
             for k in expired:
@@ -389,7 +411,7 @@ class DingTalkNotifier:
                     "title": f"[{level}] {title}",
                     "text": (
                         f"### 🔔 链客宝告警\n"
-                        f"> **级别**: <font color=\"{color}\">{level}</font>\n"
+                        f'> **级别**: <font color="{color}">{level}</font>\n'
                         f"> **标题**: {title}\n"
                         f"> **时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
                         f"{message}\n\n"
@@ -436,10 +458,18 @@ class FeishuNotifier:
                         "template": tag_color,
                     },
                     "elements": [
-                        {"tag": "markdown", "content": f"**时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"},
+                        {
+                            "tag": "markdown",
+                            "content": f"**时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                        },
                         {"tag": "markdown", "content": message},
                         {"tag": "hr"},
-                        {"tag": "note", "elements": [{"tag": "plain_text", "content": "链客宝告警管理系统"}]},
+                        {
+                            "tag": "note",
+                            "elements": [
+                                {"tag": "plain_text", "content": "链客宝告警管理系统"}
+                            ],
+                        },
                     ],
                 },
             }
@@ -526,8 +556,12 @@ class AlertDispatcher:
             )
             # 仍然记录日志, 但不发送通知
             logger.log(
-                logging.CRITICAL if level == AlertLevel.CRITICAL else (
-                    logging.ERROR if level == AlertLevel.ERROR else (
+                logging.CRITICAL
+                if level == AlertLevel.CRITICAL
+                else (
+                    logging.ERROR
+                    if level == AlertLevel.ERROR
+                    else (
                         logging.WARNING if level == AlertLevel.WARNING else logging.INFO
                     )
                 ),
@@ -540,10 +574,12 @@ class AlertDispatcher:
             return True
 
         logger.log(
-            logging.CRITICAL if level == AlertLevel.CRITICAL else (
-                logging.ERROR if level == AlertLevel.ERROR else (
-                    logging.WARNING if level == AlertLevel.WARNING else logging.INFO
-                )
+            logging.CRITICAL
+            if level == AlertLevel.CRITICAL
+            else (
+                logging.ERROR
+                if level == AlertLevel.ERROR
+                else (logging.WARNING if level == AlertLevel.WARNING else logging.INFO)
             ),
             f"[{level}] 发送告警: {title}\n{message}",
         )
@@ -643,7 +679,11 @@ class AlertRuleEngine:
 
                 # 服务离线>30秒（假设60秒检查间隔，连续1次即>30秒）
                 if self._consecutive_failures >= 1:
-                    offline_seconds = (now - self._health_offline_since).total_seconds() if self._health_offline_since else 60
+                    offline_seconds = (
+                        (now - self._health_offline_since).total_seconds()
+                        if self._health_offline_since
+                        else 60
+                    )
                     if offline_seconds >= 30:
                         _dispatcher.dispatch(
                             title="服务离线告警",
@@ -653,7 +693,9 @@ class AlertRuleEngine:
                                 f"离线时长: {offline_seconds:.0f}秒\n"
                                 f"检测时间: {now.strftime('%Y-%m-%d %H:%M:%S')}"
                             ),
-                            level=AlertLevel.CRITICAL if offline_seconds > 120 else AlertLevel.ERROR,
+                            level=AlertLevel.CRITICAL
+                            if offline_seconds > 120
+                            else AlertLevel.ERROR,
                         )
             else:
                 # 恢复通知
@@ -761,7 +803,9 @@ _rule_engine = AlertRuleEngine()
 # ============================================================
 def health_check_loop():
     """定期健康检查循环"""
-    logger.info(f"健康检查循环启动，目标: {HEALTH_CHECK_URL}，间隔: {HEALTH_CHECK_INTERVAL}s")
+    logger.info(
+        f"健康检查循环启动，目标: {HEALTH_CHECK_URL}，间隔: {HEALTH_CHECK_INTERVAL}s"
+    )
     escalation_check_counter = 0
     while True:
         try:
@@ -881,10 +925,15 @@ def _show_maintenance_status():
 
     print("📋 维护窗口状态:")
     for w in maintenance_manager.windows:
-        days_str = ", ".join(
-            [k for k, v in MaintenanceWindow.WEEKDAY_MAP.items() if v in w.days]
-        ) or "每天"
-        print(f"  {days_str} {w.start_minute//60:02d}:{w.start_minute%60:02d} - {w.end_minute//60:02d}:{w.end_minute%60:02d}")
+        days_str = (
+            ", ".join(
+                [k for k, v in MaintenanceWindow.WEEKDAY_MAP.items() if v in w.days]
+            )
+            or "每天"
+        )
+        print(
+            f"  {days_str} {w.start_minute // 60:02d}:{w.start_minute % 60:02d} - {w.end_minute // 60:02d}:{w.end_minute % 60:02d}"
+        )
 
     now = datetime.now()
     if maintenance_manager.is_in_maintenance(now):
@@ -892,17 +941,27 @@ def _show_maintenance_status():
         end_str = end.strftime("%H:%M") if end else "?"
         print(f"  🟢 当前在维护窗口内 (预计结束: {end_str})")
     else:
-        print(f"  🔴 当前不在维护窗口内")
+        print("  🔴 当前不在维护窗口内")
+
 
 def main():
     parser = argparse.ArgumentParser(description="链客宝告警管理器")
     parser.add_argument("--daemon", action="store_true", help="以守护进程模式运行")
     parser.add_argument("--stop", action="store_true", help="停止运行中的告警管理器")
     parser.add_argument("--status", action="store_true", help="查看运行状态")
-    parser.add_argument("--check-once", action="store_true", help="执行一次健康检查并退出")
-    parser.add_argument("--ack", type=str, default="", help="确认指定告警 (告警key, 如 'ERROR:服务离线告警')")
+    parser.add_argument(
+        "--check-once", action="store_true", help="执行一次健康检查并退出"
+    )
+    parser.add_argument(
+        "--ack",
+        type=str,
+        default="",
+        help="确认指定告警 (告警key, 如 'ERROR:服务离线告警')",
+    )
     parser.add_argument("--ack-all", action="store_true", help="确认所有未处理告警")
-    parser.add_argument("--maintenance-status", action="store_true", help="查看维护窗口状态")
+    parser.add_argument(
+        "--maintenance-status", action="store_true", help="查看维护窗口状态"
+    )
     args = parser.parse_args()
 
     if args.status:
@@ -941,6 +1000,7 @@ def main():
             try:
                 if sys.platform == "win32":
                     import ctypes
+
                     handle = ctypes.windll.kernel32.OpenProcess(0x0001, False, pid)
                     if handle:
                         ctypes.windll.kernel32.TerminateProcess(handle, 0)
@@ -983,7 +1043,9 @@ def main():
     logger.info(f"告警频率限制: {ALERT_COOLDOWN}秒")
     logger.info(f"告警升级: {ALERT_ESCALATION_MINUTES}分钟未确认升级")
     maint_count = len(_maintenance_manager.windows)
-    logger.info(f"维护窗口: {'已配置' + str(maint_count) + '个' if maint_count else '未配置'}")
+    logger.info(
+        f"维护窗口: {'已配置' + str(maint_count) + '个' if maint_count else '未配置'}"
+    )
     if _maintenance_manager.is_in_maintenance():
         logger.info("  → 当前在维护窗口内, 告警将被静默")
     logger.info("=" * 50)
