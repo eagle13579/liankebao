@@ -19,6 +19,7 @@ function BottomNav({ active }: { active: string }) {
     { id: 'home', icon: Home, label: '首页', path: '/home' },
     { id: 'product', icon: ShoppingBag, label: '产品池', path: '/product-pool' },
     { id: 'business-card', icon: QrCode, label: 'AI名片', path: '/business-card' },
+    { id: 'membership', icon: Crown, label: '会员中心', path: '/membership' },
     { id: 'profile', icon: User, label: '我的', path: '/profile' },
   ];
 
@@ -128,7 +129,7 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
       badge: missionStatus.track_split?.badge,
       gradient: 'from-violet-500 via-purple-500 to-indigo-600',
       shadow: 'shadow-violet-500/30',
-      path: '/my-orders',
+      path: '/promotion-center',
     },
   ];
 
