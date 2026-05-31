@@ -12,9 +12,8 @@ PostHog 行为分析中间件
 
 import logging
 import time
-from datetime import UTC, datetime
 
-from fastapi import Request, Response
+from fastapi import Request
 
 from app.posthog_config import capture_event, identify_user
 

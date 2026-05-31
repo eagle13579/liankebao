@@ -19,10 +19,9 @@ import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
@@ -65,8 +64,8 @@ class FeatureFlag:
     default: bool = False
     strategy: RolloutStrategy = RolloutStrategy.NEVER
     rollout_percentage: int = 0  # 0-100
-    org_whitelist: List[int] = field(default_factory=list)
-    environments: List[str] = field(default_factory=lambda: ["dev", "staging"])
+    org_whitelist: list[int] = field(default_factory=list)
+    environments: list[str] = field(default_factory=lambda: ["dev", "staging"])
     enabled: bool = False
     owner: str = ""
     created_at: str = ""
@@ -77,7 +76,7 @@ class FeatureFlag:
 # 内置默认 Flag 定义
 # ============================================================
 
-BUILTIN_FLAGS: Dict[str, Dict[str, Any]] = {
+BUILTIN_FLAGS: dict[str, dict[str, Any]] = {
     "new_ai_pipeline": {
         "key": "new_ai_pipeline",
         "description": "新AI名片智能处理管线（替代旧pipeline）",
@@ -148,7 +147,7 @@ class FlagsConfigManager:
     def __init__(self, config_path: str = FLAGS_CONFIG_PATH):
         self._config_path = config_path
         self._lock = threading.RLock()
-        self._flags: Dict[str, FeatureFlag] = {}
+        self._flags: dict[str, FeatureFlag] = {}
         self._last_mtime: float = 0
         self._last_reload: float = 0
         self._reload_interval: float = 10.0  # 最小重新加载间隔（秒）
@@ -161,10 +160,7 @@ class FlagsConfigManager:
         if os.path.exists(self._config_path):
             try:
                 self._load_from_file()
-                logger.info(
-                    f"Feature Flags 配置已加载: {self._config_path} "
-                    f"({len(self._flags)} flags)"
-                )
+                logger.info(f"Feature Flags 配置已加载: {self._config_path} ({len(self._flags)} flags)")
                 return
             except Exception as e:
                 logger.warning(f"Feature Flags 配置加载失败，使用默认值: {e}")
@@ -178,7 +174,7 @@ class FlagsConfigManager:
 
     def _load_from_file(self) -> None:
         """从 JSON 文件加载配置"""
-        with open(self._config_path, "r", encoding="utf-8") as f:
+        with open(self._config_path, encoding="utf-8") as f:
             raw = json.load(f)
 
         flags = {}
@@ -241,13 +237,13 @@ class FlagsConfigManager:
 
     # ---- 查询 ----
 
-    def get_flag(self, key: str) -> Optional[FeatureFlag]:
+    def get_flag(self, key: str) -> FeatureFlag | None:
         """获取指定 flag 的配置"""
         self.reload_if_needed()
         with self._lock:
             return self._flags.get(key)
 
-    def get_all_flags(self) -> Dict[str, FeatureFlag]:
+    def get_all_flags(self) -> dict[str, FeatureFlag]:
         """获取所有 flags"""
         self.reload_if_needed()
         with self._lock:
@@ -256,9 +252,9 @@ class FlagsConfigManager:
     def is_enabled(
         self,
         key: str,
-        user_id: Optional[int] = None,
-        org_id: Optional[int] = None,
-        env: Optional[str] = None,
+        user_id: int | None = None,
+        org_id: int | None = None,
+        env: str | None = None,
     ) -> bool:
         """判断指定 flag 对某个用户是否启用
 
@@ -313,29 +309,25 @@ class FlagsConfigManager:
 
     def get_user_flags(
         self,
-        user_id: Optional[int] = None,
-        org_id: Optional[int] = None,
-        env: Optional[str] = None,
-    ) -> Dict[str, bool]:
+        user_id: int | None = None,
+        org_id: int | None = None,
+        env: str | None = None,
+    ) -> dict[str, bool]:
         """获取用户可用的所有 flags（key → enabled 布尔值）"""
         result = {}
         with self._lock:
             keys = list(self._flags.keys())
         for key in keys:
-            result[key] = self.is_enabled(
-                key, user_id=user_id, org_id=org_id, env=env
-            )
+            result[key] = self.is_enabled(key, user_id=user_id, org_id=org_id, env=env)
         # 包含未在 JSON 中但内置定义的 flags
         for key in BUILTIN_FLAGS:
             if key not in result:
-                result[key] = self.is_enabled(
-                    key, user_id=user_id, org_id=org_id, env=env
-                )
+                result[key] = self.is_enabled(key, user_id=user_id, org_id=org_id, env=env)
         return result
 
     # ---- 管理 ----
 
-    def set_flag(self, key: str, updates: Dict[str, Any]) -> Optional[FeatureFlag]:
+    def set_flag(self, key: str, updates: dict[str, Any]) -> FeatureFlag | None:
         """更新 flag 配置（线程安全）"""
         with self._lock:
             flag = self._flags.get(key)
@@ -377,7 +369,7 @@ class FlagsConfigManager:
                 return True
             return False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """导出所有 flags 为可序列化字典"""
         result = {}
         with self._lock:
@@ -386,7 +378,9 @@ class FlagsConfigManager:
                     "key": flag.key,
                     "description": flag.description,
                     "default": flag.default,
-                    "strategy": flag.strategy.value if isinstance(flag.strategy, RolloutStrategy) else str(flag.strategy),
+                    "strategy": flag.strategy.value
+                    if isinstance(flag.strategy, RolloutStrategy)
+                    else str(flag.strategy),
                     "rollout_percentage": flag.rollout_percentage,
                     "org_whitelist": flag.org_whitelist,
                     "environments": flag.environments,
@@ -406,7 +400,7 @@ class FlagsConfigManager:
 # 全局单例
 # ============================================================
 
-_flags_manager: Optional[FlagsConfigManager] = None
+_flags_manager: FlagsConfigManager | None = None
 
 
 def get_flags_manager() -> FlagsConfigManager:
@@ -515,8 +509,14 @@ async def admin_set_flag(request: Request):
 
     # 提取可更新的字段
     updatable_fields = [
-        "enabled", "description", "strategy", "rollout_percentage",
-        "org_whitelist", "environments", "default", "owner",
+        "enabled",
+        "description",
+        "strategy",
+        "rollout_percentage",
+        "org_whitelist",
+        "environments",
+        "default",
+        "owner",
     ]
     updates = {}
     for field in updatable_fields:

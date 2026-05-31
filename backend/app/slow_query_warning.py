@@ -104,9 +104,7 @@ def register_slow_query_listener(engine: Engine) -> None:
             )
 
     _registered = True
-    logger.info(
-        f"慢查询监听器已注册: warning > {WARN_THRESHOLD_MS}ms, error > {ERROR_THRESHOLD_MS}ms"
-    )
+    logger.info(f"慢查询监听器已注册: warning > {WARN_THRESHOLD_MS}ms, error > {ERROR_THRESHOLD_MS}ms")
 
 
 def _safe_repr(params) -> str:

@@ -8,15 +8,12 @@
   4. 纯 Python 标准库实现，零外部依赖
 """
 
-import json
 import logging
 import sqlite3
 import threading
 import time
 import uuid
-from dataclasses import dataclass, asdict
-from datetime import datetime, timezone
-from typing import Optional
+from dataclasses import asdict, dataclass
 from urllib import request as urllib_request
 from urllib.error import URLError
 
@@ -26,17 +23,19 @@ logger = logging.getLogger(__name__)
 # 数据类
 # ============================================================
 
+
 @dataclass
 class RetryTask:
     """重试任务"""
+
     task_id: str = ""
     target_url: str = ""
-    payload: str = ""           # JSON 字符串
+    payload: str = ""  # JSON 字符串
     max_retries: int = 3
     attempt: int = 0
-    next_run_at: Optional[float] = None  # unix timestamp
-    status: str = "pending"     # pending / processing / completed / dead / failed
-    created_at: Optional[float] = None
+    next_run_at: float | None = None  # unix timestamp
+    status: str = "pending"  # pending / processing / completed / dead / failed
+    created_at: float | None = None
     last_error: str = ""
 
     def to_dict(self) -> dict:
@@ -47,7 +46,7 @@ class RetryTask:
 # SQLite 数据库管理
 # ============================================================
 
-_RETRY_DB_PATH: Optional[str] = None
+_RETRY_DB_PATH: str | None = None
 
 
 def _get_db_path() -> str:
@@ -57,6 +56,7 @@ def _get_db_path() -> str:
         return _RETRY_DB_PATH
     # 与主应用数据目录保持一致
     import os
+
     base_dir = os.environ.get(
         "SQLITE_DIR",
         os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"),
@@ -106,6 +106,7 @@ def _init_table() -> None:
 # RetryEngine — 重试引擎
 # ============================================================
 
+
 class RetryEngine:
     """
     重试引擎
@@ -123,7 +124,7 @@ class RetryEngine:
             poll_interval: 轮询间隔（秒），每次轮询拉取到期 pending 任务
         """
         self._poll_interval = poll_interval
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
         self._lock = threading.Lock()
         _init_table()
@@ -179,8 +180,13 @@ class RetryEngine:
                 WHERE task_id=?
                 """,
                 (
-                    task.target_url, task.payload, task.max_retries, task.attempt,
-                    task.next_run_at, task.status, task.last_error,
+                    task.target_url,
+                    task.payload,
+                    task.max_retries,
+                    task.attempt,
+                    task.next_run_at,
+                    task.status,
+                    task.last_error,
                     task.task_id,
                 ),
             )
@@ -319,11 +325,15 @@ class RetryEngine:
             # 计算退避时间
             next_run = self._backoff(new_attempt)
             self._update_status(
-                task_id, "pending", attempt=new_attempt,
-                next_run_at=next_run, last_error=last_error,
+                task_id,
+                "pending",
+                attempt=new_attempt,
+                next_run_at=next_run,
+                last_error=last_error,
             )
-            logger.info(f"任务将在下次重试: task_id={task_id}, "
-                        f"attempt={new_attempt}/{max_retries}, next_run_at={next_run}")
+            logger.info(
+                f"任务将在下次重试: task_id={task_id}, attempt={new_attempt}/{max_retries}, next_run_at={next_run}"
+            )
 
     def _backoff(self, attempt: int) -> float:
         """
@@ -339,8 +349,8 @@ class RetryEngine:
         self,
         task_id: str,
         status: str,
-        attempt: Optional[int] = None,
-        next_run_at: Optional[float] = None,
+        attempt: int | None = None,
+        next_run_at: float | None = None,
         last_error: str = "",
     ) -> None:
         """更新任务状态"""
@@ -369,6 +379,7 @@ class RetryEngine:
 # ============================================================
 # DeadLetterManager — 死信管理器
 # ============================================================
+
 
 class DeadLetterManager:
     """
@@ -505,8 +516,8 @@ class DeadLetterManager:
 # 便捷函数：创建全局单例
 # ============================================================
 
-_engine_instance: Optional[RetryEngine] = None
-_dlm_instance: Optional[DeadLetterManager] = None
+_engine_instance: RetryEngine | None = None
+_dlm_instance: DeadLetterManager | None = None
 
 
 def get_retry_engine() -> RetryEngine:

@@ -38,9 +38,7 @@ def setup_sentry() -> None:
         sentry_sdk.init(
             dsn=dsn,
             environment=os.environ.get("ENV", "development"),
-            traces_sample_rate=float(
-                os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "1.0")
-            ),
+            traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "1.0")),
             integrations=[
                 LoggingIntegration(
                     level=logging.INFO,

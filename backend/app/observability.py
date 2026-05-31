@@ -147,7 +147,7 @@ class MetricsCollector:
         lines.append("# TYPE http_error_rate gauge")
         lines.append(f"http_error_rate {snap['error_rate']}")
 
-        rt = snap['response_time']
+        rt = snap["response_time"]
         lines.append("# HELP http_response_time_ms 响应时间统计 (毫秒)")
         lines.append("# TYPE http_response_time_ms gauge")
         lines.append(f'http_response_time_ms{{quantile="avg"}} {rt["avg_ms"]}')
@@ -163,17 +163,17 @@ class MetricsCollector:
 
         lines.append("# HELP http_requests_by_method 按方法的请求数")
         lines.append("# TYPE http_requests_by_method counter")
-        for method, count in snap['requests_by_method'].items():
+        for method, count in snap["requests_by_method"].items():
             lines.append(f'http_requests_by_method{{method="{method}"}} {count}')
 
         lines.append("# HELP http_requests_by_status 按状态码的请求数")
         lines.append("# TYPE http_requests_by_status counter")
-        for status, count in snap['requests_by_status'].items():
+        for status, count in snap["requests_by_status"].items():
             lines.append(f'http_requests_by_status{{status="{status}"}} {count}')
 
         lines.append("# HELP http_requests_by_path 按路径的请求数")
         lines.append("# TYPE http_requests_by_path counter")
-        for path, count in snap['requests_by_path'].items():
+        for path, count in snap["requests_by_path"].items():
             escaped_path = path.replace('"', '\\"')
             lines.append(f'http_requests_by_path{{path="{escaped_path}"}} {count}')
 
@@ -313,8 +313,9 @@ def check_db_health() -> dict:
     Returns:
         {"status": "healthy"|"unhealthy", "type": "sqlite"|"mysql"|"postgres", "error": "..."}
     """
-    from app.database import DB_TYPE, engine
     from sqlalchemy import text
+
+    from app.database import DB_TYPE, engine
 
     try:
         with engine.connect() as conn:
@@ -340,8 +341,8 @@ def check_payment_health() -> dict:
     result = {"channels": []}
     try:
         from payment.config import (
-            PLATFORM_WXPAY,
             PLATFORM_ALIPAY,
+            PLATFORM_WXPAY,
             has_config,
             is_real_mode,
             list_platforms,

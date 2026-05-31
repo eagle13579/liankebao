@@ -74,3 +74,13 @@ out/
 .serverless/
 .fusebox/
 .vite/
+
+# SSR build output
+dist-ssr/
+
+# Generated reports
+HEALTH_SCAN_REPORT.md
+
+# Generated cache / artifacts
+backend/openapi_cache.json
+security_audit_report.json

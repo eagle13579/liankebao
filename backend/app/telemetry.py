@@ -41,6 +41,7 @@ def get_tracer():
     global _tracer
     if _tracer is None:
         from opentelemetry import trace
+
         _tracer = trace.get_tracer(__name__)
     return _tracer
 
@@ -130,6 +131,7 @@ def _register_instrumentors(provider):
     # -- FastAPI 自动追踪 --
     try:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
         _instrumentors.append(("fastapi", FastAPIInstrumentor))
         logger.debug("FastAPIInstrumentor 已注册")
     except ImportError as e:
@@ -138,6 +140,7 @@ def _register_instrumentors(provider):
     # -- SQLAlchemy 数据库追踪 --
     try:
         from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+
         _instrumentors.append(("sqlalchemy", SQLAlchemyInstrumentor))
         logger.debug("SQLAlchemyInstrumentor 已注册")
     except ImportError as e:
@@ -198,7 +201,6 @@ def span_from_headers(headers: dict) -> object:
         with tracer.start_as_current_span("op", context=ctx):
             ...
     """
-    from opentelemetry import propagators
     from opentelemetry.trace.propagation import tracecontext
 
     carrier = {}

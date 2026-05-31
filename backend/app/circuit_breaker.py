@@ -15,9 +15,10 @@ import functools
 import logging
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -28,10 +29,10 @@ logger = logging.getLogger(__name__)
 # 配置常量
 # ============================================================
 
-DEFAULT_FAILURE_THRESHOLD = 5       # 连续失败 N 次后熔断
-DEFAULT_RECOVERY_TIMEOUT = 30       # 熔断后等待 N 秒进入 HALF_OPEN
-DEFAULT_HALF_OPEN_MAX = 3           # HALF_OPEN 状态下最多允许 N 次请求
-DEFAULT_SUCCESS_THRESHOLD = 3       # HALF_OPEN 下连续成功 N 次后恢复 CLOSED
+DEFAULT_FAILURE_THRESHOLD = 5  # 连续失败 N 次后熔断
+DEFAULT_RECOVERY_TIMEOUT = 30  # 熔断后等待 N 秒进入 HALF_OPEN
+DEFAULT_HALF_OPEN_MAX = 3  # HALF_OPEN 状态下最多允许 N 次请求
+DEFAULT_SUCCESS_THRESHOLD = 3  # HALF_OPEN 下连续成功 N 次后恢复 CLOSED
 
 
 # ============================================================
@@ -40,9 +41,9 @@ DEFAULT_SUCCESS_THRESHOLD = 3       # HALF_OPEN 下连续成功 N 次后恢复 C
 
 
 class CircuitState(str, Enum):
-    CLOSED = "CLOSED"          # 正常
-    OPEN = "OPEN"              # 熔断
-    HALF_OPEN = "HALF_OPEN"    # 半开（尝试恢复）
+    CLOSED = "CLOSED"  # 正常
+    OPEN = "OPEN"  # 熔断
+    HALF_OPEN = "HALF_OPEN"  # 半开（尝试恢复）
 
 
 # ============================================================
@@ -66,7 +67,7 @@ class CircuitBreakerInstance:
     total_successes: int = 0
     total_rejected: int = 0
     consecutive_successes: int = 0  # HALF_OPEN 下连续成功次数
-    consecutive_failures: int = 0   # CLOSED 下连续失败次数
+    consecutive_failures: int = 0  # CLOSED 下连续失败次数
 
     # 可配置参数
     failure_threshold: int = DEFAULT_FAILURE_THRESHOLD
@@ -75,7 +76,7 @@ class CircuitBreakerInstance:
     success_threshold: int = DEFAULT_SUCCESS_THRESHOLD
 
     # 滑动窗口记录（最近 N 次调用的成功/失败）
-    recent_results: List[bool] = field(default_factory=list)
+    recent_results: list[bool] = field(default_factory=list)
     max_recent_results: int = 100
 
     def reset(self) -> None:
@@ -88,7 +89,7 @@ class CircuitBreakerInstance:
         self.last_state_change_time = time.time()
         self.recent_results.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """导出为序列化字典"""
         return {
             "name": self.name,
@@ -130,7 +131,7 @@ class CircuitBreakerRegistry:
 
     def __init__(self):
         self._lock = threading.RLock()
-        self._breakers: Dict[str, CircuitBreakerInstance] = {}
+        self._breakers: dict[str, CircuitBreakerInstance] = {}
 
     def get_or_create(
         self,
@@ -152,21 +153,20 @@ class CircuitBreakerRegistry:
                 )
                 cb.last_state_change_time = time.time()
                 self._breakers[name] = cb
-                logger.info(f"熔断器已创建: {name} (threshold={failure_threshold}, "
-                           f"timeout={recovery_timeout}s)")
+                logger.info(f"熔断器已创建: {name} (threshold={failure_threshold}, timeout={recovery_timeout}s)")
             return self._breakers[name]
 
-    def get(self, name: str) -> Optional[CircuitBreakerInstance]:
+    def get(self, name: str) -> CircuitBreakerInstance | None:
         """获取熔断器实例"""
         with self._lock:
             return self._breakers.get(name)
 
-    def get_all(self) -> Dict[str, CircuitBreakerInstance]:
+    def get_all(self) -> dict[str, CircuitBreakerInstance]:
         """获取所有熔断器实例"""
         with self._lock:
             return dict(self._breakers)
 
-    def get_all_states(self) -> Dict[str, Dict[str, Any]]:
+    def get_all_states(self) -> dict[str, dict[str, Any]]:
         """获取所有熔断器的状态摘要"""
         result = {}
         with self._lock:
@@ -211,10 +211,7 @@ class CircuitBreakerRegistry:
                 cb.consecutive_successes += 1
                 cb.consecutive_failures = 0
                 if cb.consecutive_successes >= cb.success_threshold:
-                    logger.info(
-                        f"熔断器恢复: {name} "
-                        f"(HALF_OPEN→CLOSED, 连续成功{cb.consecutive_successes}次)"
-                    )
+                    logger.info(f"熔断器恢复: {name} (HALF_OPEN→CLOSED, 连续成功{cb.consecutive_successes}次)")
                     cb.state = CircuitState.CLOSED
                     cb.consecutive_failures = 0
                     cb.consecutive_successes = 0
@@ -240,24 +237,18 @@ class CircuitBreakerRegistry:
                 cb.consecutive_failures += 1
                 cb.consecutive_successes = 0
                 if cb.consecutive_failures >= cb.failure_threshold:
-                    logger.warning(
-                        f"熔断器触发: {name} "
-                        f"(CLOSED→OPEN, 连续失败{cb.consecutive_failures}次)"
-                    )
+                    logger.warning(f"熔断器触发: {name} (CLOSED→OPEN, 连续失败{cb.consecutive_failures}次)")
                     cb.state = CircuitState.OPEN
                     cb.last_state_change_time = time.time()
             elif cb.state == CircuitState.HALF_OPEN:
                 cb.consecutive_failures += 1
                 cb.consecutive_successes = 0
                 # HALF_OPEN 下失败立即回到 OPEN
-                logger.warning(
-                    f"熔断器恢复失败: {name} "
-                    f"(HALF_OPEN→OPEN, 半开状态下失败)"
-                )
+                logger.warning(f"熔断器恢复失败: {name} (HALF_OPEN→OPEN, 半开状态下失败)")
                 cb.state = CircuitState.OPEN
                 cb.last_state_change_time = time.time()
 
-    def should_allow(self, name: str) -> Tuple[bool, Optional[str]]:
+    def should_allow(self, name: str) -> tuple[bool, str | None]:
         """判断请求是否应该被允许通过
 
         Returns:
@@ -275,10 +266,7 @@ class CircuitBreakerRegistry:
                 # 检查是否达到恢复超时时间
                 elapsed = time.time() - cb.last_state_change_time
                 if elapsed >= cb.recovery_timeout:
-                    logger.info(
-                        f"熔断器尝试恢复: {name} "
-                        f"(OPEN→HALF_OPEN, 等待{elapsed:.1f}s > {cb.recovery_timeout}s)"
-                    )
+                    logger.info(f"熔断器尝试恢复: {name} (OPEN→HALF_OPEN, 等待{elapsed:.1f}s > {cb.recovery_timeout}s)")
                     cb.state = CircuitState.HALF_OPEN
                     cb.consecutive_successes = 0
                     cb.consecutive_failures = 0
@@ -291,9 +279,7 @@ class CircuitBreakerRegistry:
                 if cb.total_requests - cb.last_state_change_time < cb.half_open_max:
                     # 粗略估算：检查最近 half_open_max 个请求中有多少是在 HALF_OPEN 状态下
                     # 简单实现：直接统计当前半开期间的总请求数
-                    half_open_requests = (
-                        cb.total_requests + cb.total_rejected - cb.last_state_change_time
-                    )
+                    half_open_requests = cb.total_requests + cb.total_rejected - cb.last_state_change_time
                     # 更准确：使用一个计数器追踪半开期间的请求
                     if not hasattr(cb, "_half_open_count"):
                         cb._half_open_count = 0
@@ -316,7 +302,7 @@ class CircuitBreakerRegistry:
 # 全局单例
 # ============================================================
 
-_registry: Optional[CircuitBreakerRegistry] = None
+_registry: CircuitBreakerRegistry | None = None
 
 
 def get_registry() -> CircuitBreakerRegistry:
@@ -334,6 +320,7 @@ def get_registry() -> CircuitBreakerRegistry:
 
 class CircuitBreakerError(Exception):
     """熔断器拒绝请求时抛出的异常"""
+
     def __init__(self, name: str, reason: str):
         self.name = name
         self.reason = reason
@@ -346,7 +333,7 @@ def circuit_breaker(
     recovery_timeout: int = DEFAULT_RECOVERY_TIMEOUT,
     half_open_max: int = DEFAULT_HALF_OPEN_MAX,
     success_threshold: int = DEFAULT_SUCCESS_THRESHOLD,
-    fallback: Optional[Callable] = None,
+    fallback: Callable | None = None,
 ):
     """熔断器装饰器
 
@@ -371,6 +358,7 @@ def circuit_breaker(
         success_threshold: 半开状态连续成功恢复阈值（默认 3）
         fallback: 熔断时的降级函数
     """
+
     def decorator(func):
         registry = get_registry()
         cb = registry.get_or_create(
@@ -384,6 +372,7 @@ def circuit_breaker(
         is_async = asyncio.iscoroutinefunction(func)
 
         if is_async:
+
             @functools.wraps(func)
             async def async_wrapper(*args, **kwargs):
                 allowed, reason = registry.should_allow(name)
@@ -403,9 +392,7 @@ def circuit_breaker(
                 except Exception as e:
                     registry.record_failure(name)
                     if fallback is not None:
-                        logger.warning(
-                            f"熔断器调用失败 {name}，使用降级函数: {e}"
-                        )
+                        logger.warning(f"熔断器调用失败 {name}，使用降级函数: {e}")
                         if asyncio.iscoroutinefunction(fallback):
                             return await fallback(*args, **kwargs)
                         return fallback(*args, **kwargs)
@@ -413,6 +400,7 @@ def circuit_breaker(
 
             return async_wrapper
         else:
+
             @functools.wraps(func)
             def sync_wrapper(*args, **kwargs):
                 allowed, reason = registry.should_allow(name)
@@ -430,9 +418,7 @@ def circuit_breaker(
                 except Exception as e:
                     registry.record_failure(name)
                     if fallback is not None:
-                        logger.warning(
-                            f"熔断器调用失败 {name}，使用降级函数: {e}"
-                        )
+                        logger.warning(f"熔断器调用失败 {name}，使用降级函数: {e}")
                         return fallback(*args, **kwargs)
                     raise
 

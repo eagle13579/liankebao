@@ -6,11 +6,10 @@
     RATE_LIMIT_ENABLED: 环境变量，默认 "true" 开启
 """
 
+import logging
 import os
 import time
-import logging
 from collections import deque
-from typing import Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -31,12 +30,12 @@ class MemoryRateLimiter:
         self.default_limit = default_limit
         self.window_sec = window_sec
         # key -> (limit, deque[timestamp])
-        self._records: Dict[str, Tuple[int, deque]] = {}
+        self._records: dict[str, tuple[int, deque]] = {}
         # 每 N 次检查触发一次惰性清理
         self._check_counter = 0
         self._cleanup_interval = 100
 
-    def _get_or_create(self, key: str, limit: Optional[int] = None) -> Tuple[int, deque]:
+    def _get_or_create(self, key: str, limit: int | None = None) -> tuple[int, deque]:
         """获取或创建指定 key 的记录"""
         effective_limit = limit if limit is not None else self.default_limit
         if key not in self._records:
@@ -52,14 +51,11 @@ class MemoryRateLimiter:
     def _cleanup_stale_keys(self, now: float):
         """清理已过期的 key（所有记录都已过期的条目）"""
         cutoff = now - self.window_sec
-        stale_keys = [
-            k for k, (_, dq) in self._records.items()
-            if not dq or dq[-1] < cutoff
-        ]
+        stale_keys = [k for k, (_, dq) in self._records.items() if not dq or dq[-1] < cutoff]
         for k in stale_keys:
             del self._records[k]
 
-    def check(self, key: str, limit: Optional[int] = None) -> Tuple[bool, int]:
+    def check(self, key: str, limit: int | None = None) -> tuple[bool, int]:
         """检查是否允许请求
 
         Args:
@@ -94,7 +90,7 @@ class MemoryRateLimiter:
         records.append(now)
         return True, 0
 
-    def get_remaining(self, key: str, limit: Optional[int] = None) -> int:
+    def get_remaining(self, key: str, limit: int | None = None) -> int:
         """获取指定 key 的剩余可用请求数"""
         now = time.time()
         effective_limit, records = self._get_or_create(key, limit)
@@ -113,7 +109,7 @@ class MemoryRateLimiter:
 
 
 # ===== 全局单例 =====
-_limiter: Optional[MemoryRateLimiter] = None
+_limiter: MemoryRateLimiter | None = None
 
 
 def get_rate_limiter() -> MemoryRateLimiter:
@@ -134,12 +130,12 @@ def is_rate_limiting_enabled() -> bool:
 # 按最长前缀匹配原则，越具体的规则优先级越高
 # 格式: (路径前缀, 速率上限)
 ROUTE_LIMITS = [
-    ("/api/auth/", 10),       # 认证接口: 10 req/min
-    ("/api/search/", 30),     # 搜索接口: 30 req/min
-    ("/api/payment/wxpay/unified-order", 6),   # 支付下单: 6 req/min（每10秒1次）
-    ("/api/payment/wxpay/refund", 3),          # 支付退款: 3 req/min
-    ("/api/payment/", 20),    # 支付接口: 20 req/min
-    ("/api/v1/payment/", 10), # 支付v1接口: 10 req/min
+    ("/api/auth/", 10),  # 认证接口: 10 req/min
+    ("/api/search/", 30),  # 搜索接口: 30 req/min
+    ("/api/payment/wxpay/unified-order", 6),  # 支付下单: 6 req/min（每10秒1次）
+    ("/api/payment/wxpay/refund", 3),  # 支付退款: 3 req/min
+    ("/api/payment/", 20),  # 支付接口: 20 req/min
+    ("/api/v1/payment/", 10),  # 支付v1接口: 10 req/min
     # 注意：/api/auth/ 必须在 /api/ 之前匹配
 ]
 
@@ -173,7 +169,7 @@ def extract_client_ip(request) -> str:
     return "unknown"
 
 
-def extract_user_id(request) -> Optional[str]:
+def extract_user_id(request) -> str | None:
     """尝试从请求中提取用户标识（Authorization header）
 
     返回用户标识字符串，用于 per-user 限流。如果未认证返回 None。
@@ -181,7 +177,7 @@ def extract_user_id(request) -> Optional[str]:
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
         # 返回 Bearer token 的前 16 位作为用户标识
-        #（不解析完整 token，避免依赖认证模块）
+        # （不解析完整 token，避免依赖认证模块）
         token = auth_header[7:]
         if token:
             return f"user:{token[:16]}"
