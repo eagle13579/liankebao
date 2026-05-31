@@ -12,9 +12,9 @@ import logging
 import os
 import tempfile
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -24,13 +24,12 @@ from app.business_card_ai import (
     CARD_FIELDS,
     extract_fields,
     generate_digital_card,
-    generate_share_token,
     match_supply_demand,
     scan_card,
     validate_card_fields,
 )
 from app.database import get_db
-from app.models import BusinessCard, User
+from app.models import BusinessCard, Enterprise, User
 from app.posthog_middleware import capture_card_generated
 
 logger = logging.getLogger(__name__)
@@ -45,49 +44,55 @@ router = APIRouter(prefix="/api/card", tags=["AI数字名片"])
 # Pydantic 请求/响应模型
 # ============================================================
 
+
 class CardFields(BaseModel):
     """名片字段"""
-    name: Optional[str] = None
-    position: Optional[str] = None
-    company: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    wechat: Optional[str] = None
-    address: Optional[str] = None
-    website: Optional[str] = None
-    cover_image: Optional[str] = None
+
+    name: str | None = None
+    position: str | None = None
+    company: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    wechat: str | None = None
+    address: str | None = None
+    website: str | None = None
+    cover_image: str | None = None
 
 
 class CardGenerateRequest(BaseModel):
     """生成数字名片请求"""
+
     fields: CardFields
 
 
 class CardMatchResult(BaseModel):
     """匹配结果条目"""
+
     type: str  # "need" or "product"
     id: int
     title: str
-    category: Optional[str] = None
+    category: str | None = None
     score: float
-    reasons: List[str]
+    reasons: list[str]
 
 
 class CardResponse(BaseModel):
     """名片响应"""
-    id: Optional[int] = None
+
+    id: int | None = None
     share_token: str
     share_url: str
     name: str
-    fields: Dict[str, Any]
-    cover_image: Optional[str] = None
-    album_meta: Optional[Dict[str, Any]] = None
+    fields: dict[str, Any]
+    cover_image: str | None = None
+    album_meta: dict[str, Any] | None = None
     created_at: str
     view_count: int = 0
 
 
 class ApiResponse(BaseModel):
     """统一 API 响应"""
+
     code: int = 200
     message: str = "success"
     data: Any = None
@@ -96,6 +101,7 @@ class ApiResponse(BaseModel):
 # ============================================================
 # POST /api/card/scan — 上传名片扫描
 # ============================================================
+
 
 @router.post("/scan", summary="扫描名片", description="上传名片图片/PDF → AI提取字段并返回可编辑的字段JSON")
 async def scan_business_card(
@@ -142,15 +148,17 @@ async def scan_business_card(
         fields = extract_fields(raw_text)
 
         # Step 3: 返回可编辑字段
-        return JSONResponse(content={
-            "code": 200,
-            "message": "名片扫描完成，请确认字段信息",
-            "data": {
-                "raw_text": raw_text,
-                "fields": fields,
-                "suggestions": _generate_suggestions(fields),
-            },
-        })
+        return JSONResponse(
+            content={
+                "code": 200,
+                "message": "名片扫描完成，请确认字段信息",
+                "data": {
+                    "raw_text": raw_text,
+                    "fields": fields,
+                    "suggestions": _generate_suggestions(fields),
+                },
+            }
+        )
 
     except Exception as e:
         logger.error(f"名片扫描失败: {e}", exc_info=True)
@@ -168,15 +176,20 @@ async def scan_business_card(
             pass
 
 
-def _generate_suggestions(fields: Dict[str, Any]) -> List[str]:
+def _generate_suggestions(fields: dict[str, Any]) -> list[str]:
     """根据字段完整性生成优化建议"""
     suggestions = []
     missing = [f for f in CARD_FIELDS if not fields.get(f)]
     if missing:
         missing_names = {
-            "name": "姓名", "position": "职位", "company": "公司",
-            "phone": "手机", "email": "邮箱", "wechat": "微信",
-            "address": "地址", "website": "官网",
+            "name": "姓名",
+            "position": "职位",
+            "company": "公司",
+            "phone": "手机",
+            "email": "邮箱",
+            "wechat": "微信",
+            "address": "地址",
+            "website": "官网",
         }
         missing_cn = [missing_names.get(m, m) for m in missing]
         suggestions.append(f"以下字段未识别到，请手动补充: {'、'.join(missing_cn)}")
@@ -190,6 +203,7 @@ def _generate_suggestions(fields: Dict[str, Any]) -> List[str]:
 # ============================================================
 # POST /api/card/generate — 生成数字名片
 # ============================================================
+
 
 @router.post("/generate", summary="生成数字名片", description="接受字段JSON → 生成数字名片(含图册元数据)并持久化")
 async def generate_card(
@@ -261,11 +275,13 @@ async def generate_card(
             except Exception:
                 pass
 
-            return JSONResponse(content={
-                "code": 200,
-                "message": "数字名片生成成功",
-                "data": card_data,
-            })
+            return JSONResponse(
+                content={
+                    "code": 200,
+                    "message": "数字名片生成成功",
+                    "data": card_data,
+                }
+            )
 
         except Exception as e:
             db.rollback()
@@ -282,16 +298,21 @@ async def generate_card(
 # GET /api/card/{id} — 获取名片详情（公开分享）
 # ============================================================
 
+
 @router.get("/{id}", summary="获取名片详情", description="通过ID获取名片详情（公开分享，无需认证）")
 async def get_card_detail(
     id: int,
     db: Session = Depends(get_db),
 ) -> JSONResponse:
     """获取名片详情，公开分享使用"""
-    card = db.query(BusinessCard).filter(
-        BusinessCard.id == id,
-        BusinessCard.is_deleted == False,
-    ).first()
+    card = (
+        db.query(BusinessCard)
+        .filter(
+            BusinessCard.id == id,
+            BusinessCard.is_deleted == False,
+        )
+        .first()
+    )
 
     if not card:
         return JSONResponse(
@@ -319,16 +340,19 @@ async def get_card_detail(
         "view_count": card.view_count,
     }
 
-    return JSONResponse(content={
-        "code": 200,
-        "message": "success",
-        "data": card_response,
-    })
+    return JSONResponse(
+        content={
+            "code": 200,
+            "message": "success",
+            "data": card_response,
+        }
+    )
 
 
 # ============================================================
 # GET /api/card/token/{token} — 通过 share_token 获取名片
 # ============================================================
+
 
 @router.get("/token/{token}", summary="通过分享令牌获取名片", description="通过 share_token 获取名片详情（公开分享）")
 async def get_card_by_token(
@@ -336,10 +360,14 @@ async def get_card_by_token(
     db: Session = Depends(get_db),
 ) -> JSONResponse:
     """通过 share_token 获取名片"""
-    card = db.query(BusinessCard).filter(
-        BusinessCard.share_token == token,
-        BusinessCard.is_deleted == False,
-    ).first()
+    card = (
+        db.query(BusinessCard)
+        .filter(
+            BusinessCard.share_token == token,
+            BusinessCard.is_deleted == False,
+        )
+        .first()
+    )
 
     if not card:
         return JSONResponse(
@@ -354,26 +382,29 @@ async def get_card_by_token(
     fields = json.loads(card.fields) if isinstance(card.fields, str) else card.fields
     album_meta = json.loads(card.album_meta) if isinstance(card.album_meta, str) else card.album_meta
 
-    return JSONResponse(content={
-        "code": 200,
-        "message": "success",
-        "data": {
-            "id": card.id,
-            "share_token": card.share_token,
-            "share_url": f"/card/{card.share_token}",
-            "name": fields.get("name", "未知"),
-            "fields": fields,
-            "cover_image": card.cover_image,
-            "album_meta": album_meta,
-            "created_at": card.created_at.isoformat() if card.created_at else "",
-            "view_count": card.view_count,
-        },
-    })
+    return JSONResponse(
+        content={
+            "code": 200,
+            "message": "success",
+            "data": {
+                "id": card.id,
+                "share_token": card.share_token,
+                "share_url": f"/card/{card.share_token}",
+                "name": fields.get("name", "未知"),
+                "fields": fields,
+                "cover_image": card.cover_image,
+                "album_meta": album_meta,
+                "created_at": card.created_at.isoformat() if card.created_at else "",
+                "view_count": card.view_count,
+            },
+        }
+    )
 
 
 # ============================================================
 # POST /api/card/{id}/match — 基于名片触发供需匹配
 # ============================================================
+
 
 @router.post("/{id}/match", summary="名片供需匹配", description="基于名片信息触发供需匹配（需求+产品）")
 async def match_card(
@@ -394,10 +425,14 @@ async def match_card(
         span.set_attribute("user_id", current_user.id)
         span.set_attribute("top_k", top_k)
 
-        card = db.query(BusinessCard).filter(
-            BusinessCard.id == id,
-            BusinessCard.is_deleted == False,
-        ).first()
+        card = (
+            db.query(BusinessCard)
+            .filter(
+                BusinessCard.id == id,
+                BusinessCard.is_deleted == False,
+            )
+            .first()
+        )
 
         if not card:
             span.set_attribute("error", "card_not_found")
@@ -428,16 +463,38 @@ async def match_card(
                 db_session=db,
             )
 
-            span.set_attribute("match_count", len(match_results))
+            # match_supply_demand 返回 {enterprise_profile, items}
+            if isinstance(match_results, dict):
+                enterprise_profile = match_results.get("enterprise_profile")
+                items = match_results.get("items", [])
+            else:
+                # 兼容旧格式（纯列表）
+                enterprise_profile = None
+                items = match_results
 
-            return JSONResponse(content={
-                "code": 200,
-                "message": "供需匹配完成",
-                "data": {
-                    "total": len(match_results),
-                    "items": match_results,
-                },
-            })
+            span.set_attribute("match_count", len(items))
+            span.set_attribute("has_enterprise_match", bool(enterprise_profile))
+
+            response_data = {
+                "total": len(items),
+                "items": items,
+            }
+            if enterprise_profile:
+                response_data["enterprise"] = enterprise_profile
+                # 同时查询企业关联的供需（按行业/地区精准匹配）
+                related = _get_enterprise_related_items(
+                    enterprise_profile, db, top_k
+                )
+                if related:
+                    response_data["enterprise_related"] = related
+
+            return JSONResponse(
+                content={
+                    "code": 200,
+                    "message": "供需匹配完成",
+                    "data": response_data,
+                }
+            )
 
         except Exception as e:
             logger.error(f"名片供需匹配失败: {e}", exc_info=True)
@@ -453,6 +510,7 @@ async def match_card(
 # GET /api/card — 获取当前用户的名片列表
 # ============================================================
 
+
 @router.get("", summary="我的名片列表", description="获取当前用户的所有数字名片")
 async def list_my_cards(
     page: int = Query(1, ge=1),
@@ -461,10 +519,14 @@ async def list_my_cards(
     db: Session = Depends(get_db),
 ) -> JSONResponse:
     """获取当前用户的名片列表"""
-    query = db.query(BusinessCard).filter(
-        BusinessCard.user_id == current_user.id,
-        BusinessCard.is_deleted == False,
-    ).order_by(BusinessCard.created_at.desc())
+    query = (
+        db.query(BusinessCard)
+        .filter(
+            BusinessCard.user_id == current_user.id,
+            BusinessCard.is_deleted == False,
+        )
+        .order_by(BusinessCard.created_at.desc())
+    )
 
     total = query.count()
     cards = query.offset((page - 1) * page_size).limit(page_size).all()
@@ -472,34 +534,39 @@ async def list_my_cards(
     items = []
     for card in cards:
         fields = json.loads(card.fields) if isinstance(card.fields, str) else card.fields
-        items.append({
-            "id": card.id,
-            "share_token": card.share_token,
-            "share_url": f"/card/{card.share_token}",
-            "name": fields.get("name", "未知"),
-            "company": fields.get("company", ""),
-            "position": fields.get("position", ""),
-            "fields": fields,
-            "cover_image": card.cover_image,
-            "view_count": card.view_count,
-            "created_at": card.created_at.isoformat() if card.created_at else "",
-        })
+        items.append(
+            {
+                "id": card.id,
+                "share_token": card.share_token,
+                "share_url": f"/card/{card.share_token}",
+                "name": fields.get("name", "未知"),
+                "company": fields.get("company", ""),
+                "position": fields.get("position", ""),
+                "fields": fields,
+                "cover_image": card.cover_image,
+                "view_count": card.view_count,
+                "created_at": card.created_at.isoformat() if card.created_at else "",
+            }
+        )
 
-    return JSONResponse(content={
-        "code": 200,
-        "message": "success",
-        "data": {
-            "total": total,
-            "page": page,
-            "page_size": page_size,
-            "items": items,
-        },
-    })
+    return JSONResponse(
+        content={
+            "code": 200,
+            "message": "success",
+            "data": {
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+                "items": items,
+            },
+        }
+    )
 
 
 # ============================================================
 # DELETE /api/card/{id} — 删除名片
 # ============================================================
+
 
 @router.delete("/{id}", summary="删除名片", description="软删除名片")
 async def delete_card(
@@ -508,10 +575,14 @@ async def delete_card(
     db: Session = Depends(get_db),
 ) -> JSONResponse:
     """软删除名片"""
-    card = db.query(BusinessCard).filter(
-        BusinessCard.id == id,
-        BusinessCard.is_deleted == False,
-    ).first()
+    card = (
+        db.query(BusinessCard)
+        .filter(
+            BusinessCard.id == id,
+            BusinessCard.is_deleted == False,
+        )
+        .first()
+    )
 
     if not card:
         return JSONResponse(
@@ -526,11 +597,138 @@ async def delete_card(
         )
 
     from datetime import datetime
+
     card.is_deleted = True
     card.deleted_at = datetime.utcnow()
     db.commit()
 
-    return JSONResponse(content={
-        "code": 200,
-        "message": "名片已删除",
-    })
+    return JSONResponse(
+        content={
+            "code": 200,
+            "message": "名片已删除",
+        }
+    )
+
+
+# ============================================================
+# 企业画像相关匹配工具
+# ============================================================
+
+
+def _get_enterprise_related_items(
+    enterprise_profile: dict,
+    db,
+    top_k: int = 10,
+) -> list[dict]:
+    """根据企业画像（行业/地区）查询关联供需
+
+    在名片匹配结果之外，额外推荐同行业/同地区的关联供需。
+    实现方式：基于企业行业和地区，搜索 BusinessNeed 和 Product。
+    """
+    items = []
+    industry = enterprise_profile.get("industry", "")
+    region = enterprise_profile.get("region", "")
+
+    if not industry and not region:
+        return []
+
+    try:
+        from sqlalchemy import or_
+
+        from app.models import BusinessNeed, Product
+
+        # --- 查询关联需求 ---
+        need_filters = [
+            BusinessNeed.is_deleted == False,
+            BusinessNeed.status == "open",
+        ]
+        or_clauses = []
+        if industry:
+            like_ind = f"%{industry}%"
+            or_clauses.append(BusinessNeed.category.ilike(like_ind))
+            or_clauses.append(BusinessNeed.title.ilike(like_ind))
+        if region:
+            like_reg = f"%{region}%"
+            or_clauses.append(BusinessNeed.region.ilike(like_reg))
+
+        if or_clauses:
+            need_filters.append(or_(*or_clauses))
+
+        needs = (
+            db.query(BusinessNeed)
+            .filter(*need_filters)
+            .order_by(BusinessNeed.created_at.desc())
+            .limit(top_k)
+            .all()
+        )
+
+        for n in needs:
+            reasons = []
+            if industry and n.category and industry in n.category:
+                reasons.append(f"同行业: {industry}")
+            if region and n.region and region in n.region:
+                reasons.append(f"同地区: {region}")
+            items.append(
+                {
+                    "type": "need",
+                    "id": n.id,
+                    "title": n.title,
+                    "category": n.category,
+                    "score": 0.9,
+                    "reasons": reasons or ["企业画像关联推荐"],
+                }
+            )
+
+        # --- 查询关联产品 ---
+        prod_filters = [
+            Product.is_deleted == False,
+            Product.status == "approved",
+        ]
+        or_clauses_prod = []
+        if industry:
+            like_ind = f"%{industry}%"
+            or_clauses_prod.append(Product.category.ilike(like_ind))
+            or_clauses_prod.append(Product.tags.ilike(like_ind))
+        if region:
+            like_reg = f"%{region}%"
+            or_clauses_prod.append(Product.specs.ilike(like_reg))
+
+        if or_clauses_prod:
+            prod_filters.append(or_(*or_clauses_prod))
+
+        products = (
+            db.query(Product)
+            .filter(*prod_filters)
+            .order_by(Product.created_at.desc())
+            .limit(top_k)
+            .all()
+        )
+
+        for p in products:
+            reasons = []
+            if industry and p.category and industry in p.category:
+                reasons.append(f"同行业: {industry}")
+            items.append(
+                {
+                    "type": "product",
+                    "id": p.id,
+                    "title": p.name,
+                    "category": p.category,
+                    "score": 0.85,
+                    "reasons": reasons or ["企业画像关联推荐"],
+                }
+            )
+
+    except Exception as e:
+        logger.debug(f"企业关联供需查询跳过: {e}")
+
+    # 去重（按 id + type）
+    seen = set()
+    deduped = []
+    for item in items:
+        key = (item["type"], item["id"])
+        if key not in seen:
+            seen.add(key)
+            deduped.append(item)
+
+    return deduped[:top_k]
