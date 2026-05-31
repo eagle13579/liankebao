@@ -244,19 +244,58 @@ export function UserRegistration() {
   const [phone, setPhone] = useState('');
   const [company, setCompany] = useState('');
   const [position, setPosition] = useState('');
-  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [registerSuccess, setRegisterSuccess] = useState(false);
   const [onboardingPainPoint, setOnboardingPainPoint] = useState<PainPoint | null>(null);
+  const [showMore, setShowMore] = useState(false);
+  const [cardScanLoading, setCardScanLoading] = useState(false);
+  const [cardScanMessage, setCardScanMessage] = useState('');
+
+  const handleCardScan = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e: any) => {
+      const file = e.target?.files?.[0];
+      if (!file) return;
+      setCardScanLoading(true);
+      setCardScanMessage('');
+      setError('');
+      try {
+        const formData = new FormData();
+        formData.append('image', file);
+        const res = await api.request<{
+          name?: string; phone?: string; company?: string; position?: string;
+        }>('/api/card/scan', { method: 'POST', body: formData });
+        if (res.code === 200 && res.data) {
+          const d = res.data;
+          if (d.name) setName(d.name);
+          if (d.phone) setPhone(d.phone);
+          if (d.company) setCompany(d.company);
+          if (d.position) setPosition(d.position);
+          setCardScanMessage('✅ 名片识别成功，信息已自动填入');
+          // 如果有公司/职位信息，自动展开折叠区
+          if (d.company || d.position) setShowMore(true);
+        } else {
+          setCardScanMessage('⚠️ 识别失败，请手动填写');
+        }
+      } catch {
+        setCardScanMessage('📌 名片识别即将上线，请先手动填写');
+      } finally {
+        setCardScanLoading(false);
+      }
+    };
+    input.click();
+  };
 
   const handleFinish = async () => {
     setLoading(true);
     setError('');
     try {
       const res = await api.post<{token: string; user: any}>('/api/auth/register', {
-        username, password, name, phone, company, position, role
+        username: phone, password, name, phone, company, position, role
       });
       if (res.code === 200) {
         // 注册成功后保存token，用于后续保存痛点偏好
@@ -306,82 +345,114 @@ export function UserRegistration() {
         <button onClick={handleBack} className="text-sky-600 active:scale-90 transition-transform p-1 -ml-1">
           <ArrowLeft className="w-6 h-6" />
         </button>
-        <h1 className="ml-3 font-manrope text-lg font-bold text-slate-800">完善资料</h1>
+        <h1 className="ml-3 font-manrope text-lg font-bold text-slate-800">快速注册</h1>
       </header>
 
-      <main className="pt-20 px-4 max-w-md mx-auto space-y-8">
+      <main className="pt-20 px-4 max-w-md mx-auto space-y-6">
+        {/* 拍照上传名片入口 */}
         <section className="flex flex-col items-center">
-          <div className="relative group cursor-pointer">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-sky-100 to-blue-50 border-2 border-dashed border-sky-200 flex items-center justify-center group-hover:border-sky-400 transition-colors">
-              <Camera className="w-8 h-8 text-sky-400" />
+          <button
+            onClick={handleCardScan}
+            disabled={cardScanLoading}
+            className="w-full bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-2xl p-5 flex items-center gap-4 active:scale-[0.98] transition-all shadow-lg shadow-sky-500/20 hover:shadow-xl hover:shadow-sky-500/30 disabled:opacity-60"
+          >
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+              <Camera className="w-6 h-6 text-white" />
             </div>
-            <div className="absolute bottom-0 right-0 bg-gradient-to-br from-sky-500 to-blue-600 text-white p-1.5 rounded-full shadow-lg border-2 border-white">
-              <span className="text-xs font-bold">+</span>
+            <div className="text-left flex-1">
+              <p className="font-bold text-base">📷 拍照上传名片</p>
+              <p className="text-xs text-white/80 mt-0.5">一键扫描，自动填写姓名、手机号、公司信息</p>
             </div>
-          </div>
-          <p className="mt-2 text-xs text-slate-400">点击上传头像</p>
+            {cardScanLoading && (
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />
+            )}
+          </button>
+          {cardScanMessage && (
+            <p className="mt-2 text-xs text-slate-500">{cardScanMessage}</p>
+          )}
         </section>
 
+        {/* 核心三字段：手机号 + 姓名 + 密码 */}
         <section className="space-y-4">
           <div className="space-y-1">
-            <label className="text-xs text-slate-500 font-medium px-1">用户名</label>
-            <input value={username} onChange={e => setUsername(e.target.value)} className="w-full h-12 bg-white border border-slate-200 rounded-xl px-4 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all text-sm" placeholder="登录用户名" />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-slate-500 font-medium px-1">密码</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full h-12 bg-white border border-slate-200 rounded-xl px-4 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all text-sm" placeholder="登录密码" />
+            <label className="text-xs text-slate-500 font-medium px-1">手机号码</label>
+            <input value={phone} onChange={e => setPhone(e.target.value)} className="w-full h-12 bg-white border border-slate-200 rounded-xl px-4 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all text-sm" placeholder="请输入11位手机号" />
           </div>
           <div className="space-y-1">
             <label className="text-xs text-slate-500 font-medium px-1">姓名</label>
             <input value={name} onChange={e => setName(e.target.value)} className="w-full h-12 bg-white border border-slate-200 rounded-xl px-4 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all text-sm" placeholder="请输入真实姓名" />
           </div>
           <div className="space-y-1">
-            <label className="text-xs text-slate-500 font-medium px-1">手机号码</label>
-            <input value={phone} onChange={e => setPhone(e.target.value)} className="w-full h-12 bg-white border border-slate-200 rounded-xl px-4 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all text-sm" placeholder="请输入11位手机号" />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-slate-500 font-medium px-1">公司名称</label>
-            <input value={company} onChange={e => setCompany(e.target.value)} className="w-full h-12 bg-white border border-slate-200 rounded-xl px-4 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all text-sm" placeholder="请输入所在单位全称" />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-slate-500 font-medium px-1">职位</label>
-            <input value={position} onChange={e => setPosition(e.target.value)} className="w-full h-12 bg-white border border-slate-200 rounded-xl px-4 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all text-sm" placeholder="请输入担任职位" />
+            <label className="text-xs text-slate-500 font-medium px-1">密码</label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full h-12 bg-white border border-slate-200 rounded-xl px-4 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all text-sm" placeholder="请设置登录密码（至少6位）" />
           </div>
         </section>
 
-        <section className="space-y-4">
-          <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-            <span className="w-1 h-5 bg-sky-500 rounded-full"></span>
-            选择您的身份
-          </h2>
-          <div className="grid gap-3">
-            {[
-              { id: 'buyer', title: '企业主 / 购买者', desc: '寻找优质产品与商务合作', emoji: '🤝' },
-              { id: 'promoter', title: '推广员', desc: '共享资源，赚取高额分销佣金', emoji: '📢' },
-              { id: 'supplier', title: '产品方', desc: '上架您的优质货源，触达海量推客', emoji: '📦' }
-            ].map(r => (
-              <div
-                key={r.id}
-                onClick={() => setRole(r.id)}
-                className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center gap-4 ${
-                  role === r.id
-                    ? 'border-sky-500 bg-white shadow-md shadow-sky-100'
-                    : 'border-slate-100 bg-white/50 hover:border-slate-200'
-                }`}
-              >
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl ${
-                  role === r.id ? 'bg-sky-50' : 'bg-slate-50'
-                }`}>
-                  {r.emoji}
-                </div>
-                <div className="flex-1">
-                  <h3 className={`font-bold ${role === r.id ? 'text-sky-600' : 'text-slate-800'}`}>{r.title}</h3>
-                  <p className="text-[10px] text-slate-400">{r.desc}</p>
-                </div>
-                {role === r.id && <CheckCircle2 className="w-5 h-5 text-sky-500" />}
+        {/* 折叠区域：「完善更多信息」 */}
+        <section className="bg-white/60 rounded-2xl border border-slate-100 overflow-hidden transition-all">
+          <button
+            onClick={() => setShowMore(!showMore)}
+            className="w-full flex items-center justify-between px-4 py-3.5 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full bg-sky-50 flex items-center justify-center text-xs text-sky-500">+</span>
+              完善更多信息（公司 / 职位 / 身份）
+            </span>
+            <svg
+              className={`w-4 h-4 transition-transform ${showMore ? 'rotate-180' : ''}`}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {showMore && (
+            <div className="px-4 pb-4 space-y-4 animate-[fadeIn_0.25s_ease-out]">
+              <div className="space-y-1">
+                <label className="text-xs text-slate-500 font-medium px-1">公司名称</label>
+                <input value={company} onChange={e => setCompany(e.target.value)} className="w-full h-12 bg-white border border-slate-200 rounded-xl px-4 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all text-sm" placeholder="请输入所在单位全称（选填）" />
               </div>
-            ))}
-          </div>
+              <div className="space-y-1">
+                <label className="text-xs text-slate-500 font-medium px-1">职位</label>
+                <input value={position} onChange={e => setPosition(e.target.value)} className="w-full h-12 bg-white border border-slate-200 rounded-xl px-4 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all text-sm" placeholder="请输入担任职位（选填）" />
+              </div>
+
+              {/* 角色选择移到折叠区最下方 */}
+              <div className="pt-2">
+                <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3">
+                  <span className="w-1 h-4 bg-sky-500 rounded-full"></span>
+                  选择您的身份
+                </h2>
+                <div className="grid gap-2.5">
+                  {[
+                    { id: 'buyer', title: '企业主 / 购买者', desc: '寻找优质产品与商务合作', emoji: '🤝' },
+                    { id: 'promoter', title: '推广员', desc: '共享资源，赚取高额分销佣金', emoji: '📢' },
+                    { id: 'supplier', title: '产品方', desc: '上架您的优质货源，触达海量推客', emoji: '📦' }
+                  ].map(r => (
+                    <div
+                      key={r.id}
+                      onClick={() => setRole(r.id)}
+                      className={`p-3 rounded-xl border-2 transition-all cursor-pointer flex items-center gap-3 ${
+                        role === r.id
+                          ? 'border-sky-500 bg-white shadow-md shadow-sky-100'
+                          : 'border-slate-100 bg-white/50 hover:border-slate-200'
+                      }`}
+                    >
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg ${
+                        role === r.id ? 'bg-sky-50' : 'bg-slate-50'
+                      }`}>
+                        {r.emoji}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className={`font-bold text-sm ${role === r.id ? 'text-sky-600' : 'text-slate-800'}`}>{r.title}</h3>
+                        <p className="text-[10px] text-slate-400">{r.desc}</p>
+                      </div>
+                      {role === r.id && <CheckCircle2 className="w-4 h-4 text-sky-500" />}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </section>
 
         {/* 核心痛点选择器 */}
