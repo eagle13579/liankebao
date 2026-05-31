@@ -1,6 +1,5 @@
 """AI数字名片测试：生成/分享核心流程 + 边界条件"""
-import json
-import pytest
+
 from fastapi.testclient import TestClient
 
 
@@ -9,16 +8,20 @@ class TestBusinessCard:
 
     def test_generate_card(self, client: TestClient, buyer_headers):
         """生成数字名片"""
-        resp = client.post("/api/card/generate", headers=buyer_headers, json={
-            "fields": {
-                "name": "张三",
-                "position": "CEO",
-                "company": "创新科技有限公司",
-                "phone": "13800000001",
-                "email": "zhangsan@example.com",
-                "wechat": "zhangsan_wx",
-            }
-        })
+        resp = client.post(
+            "/api/card/generate",
+            headers=buyer_headers,
+            json={
+                "fields": {
+                    "name": "张三",
+                    "position": "CEO",
+                    "company": "创新科技有限公司",
+                    "phone": "13800000001",
+                    "email": "zhangsan@example.com",
+                    "wechat": "zhangsan_wx",
+                }
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["code"] == 200
@@ -31,14 +34,18 @@ class TestBusinessCard:
     def test_get_card_by_token(self, client: TestClient, buyer_headers):
         """通过分享令牌获取名片（公开分享）"""
         # 先生成一张名片
-        gen_resp = client.post("/api/card/generate", headers=buyer_headers, json={
-            "fields": {
-                "name": "李四",
-                "position": "CTO",
-                "company": "测试科技",
-                "phone": "13800000002",
-            }
-        })
+        gen_resp = client.post(
+            "/api/card/generate",
+            headers=buyer_headers,
+            json={
+                "fields": {
+                    "name": "李四",
+                    "position": "CTO",
+                    "company": "测试科技",
+                    "phone": "13800000002",
+                }
+            },
+        )
         assert gen_resp.status_code == 200
         share_token = gen_resp.json()["data"]["share_token"]
 
@@ -68,24 +75,31 @@ class TestBusinessCard:
 
     def test_unauthorized_generate_card(self, client: TestClient):
         """未登录用户无法生成名片"""
-        resp = client.post("/api/card/generate", json={
-            "fields": {
-                "name": "匿名用户",
-                "company": "未知",
-            }
-        })
+        resp = client.post(
+            "/api/card/generate",
+            json={
+                "fields": {
+                    "name": "匿名用户",
+                    "company": "未知",
+                }
+            },
+        )
         assert resp.status_code in (401, 403)
 
     def test_list_my_cards(self, client: TestClient, buyer_headers):
         """获取当前用户的名片列表"""
         # 先生成一张名片
-        gen_resp = client.post("/api/card/generate", headers=buyer_headers, json={
-            "fields": {
-                "name": "列表测试",
-                "company": "列表公司",
-                "phone": "13800000003",
-            }
-        })
+        gen_resp = client.post(
+            "/api/card/generate",
+            headers=buyer_headers,
+            json={
+                "fields": {
+                    "name": "列表测试",
+                    "company": "列表公司",
+                    "phone": "13800000003",
+                }
+            },
+        )
         assert gen_resp.status_code == 200
 
         # 获取列表

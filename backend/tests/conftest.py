@@ -337,6 +337,7 @@ def clean_global_state():
     _has_fts5_cache = None
     # 清理全局速率限制器
     from app.rate_limiter import _limiter
+
     if _limiter is not None:
         _limiter._records.clear()
     yield

@@ -1,5 +1,5 @@
 """产品模块测试：CRUD 核心流程 + 搜索/分页/权限边界"""
-import pytest
+
 from fastapi.testclient import TestClient
 
 
@@ -8,14 +8,18 @@ class TestProductCRUD:
 
     def test_create_product(self, client: TestClient, admin_headers):
         """管理员创建新产品（admin 角色拥有 member 写权限）"""
-        resp = client.post("/api/products", headers=admin_headers, json={
-            "name": "全新测试产品",
-            "description": "由测试用例创建的产品",
-            "price": 99.99,
-            "earn_per_share": 19.99,
-            "category": "测试分类",
-            "stock": 50,
-        })
+        resp = client.post(
+            "/api/products",
+            headers=admin_headers,
+            json={
+                "name": "全新测试产品",
+                "description": "由测试用例创建的产品",
+                "price": 99.99,
+                "earn_per_share": 19.99,
+                "category": "测试分类",
+                "stock": 50,
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["code"] == 200
@@ -36,10 +40,14 @@ class TestProductCRUD:
 
     def test_update_product(self, client: TestClient, admin_headers):
         """管理员更新产品"""
-        resp = client.put("/api/products/1", headers=admin_headers, json={
-            "price": 150.00,
-            "description": "更新后的产品描述",
-        })
+        resp = client.put(
+            "/api/products/1",
+            headers=admin_headers,
+            json={
+                "price": 150.00,
+                "description": "更新后的产品描述",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["code"] == 200
@@ -68,12 +76,15 @@ class TestProductCRUD:
 
     def test_viewer_cannot_create_product(self, client: TestClient):
         """未认证用户（viewer 角色）无法创建产品"""
-        resp = client.post("/api/products", json={
-            "name": "匿名试图创建产品",
-            "description": "不应成功",
-            "price": 10.00,
-            "stock": 1,
-        })
+        resp = client.post(
+            "/api/products",
+            json={
+                "name": "匿名试图创建产品",
+                "description": "不应成功",
+                "price": 10.00,
+                "stock": 1,
+            },
+        )
         # 没有认证头，返回 401/403
         assert resp.status_code in (401, 403)
 
@@ -94,11 +105,15 @@ class TestProductCRUD:
     def test_delete_product_as_admin(self, client: TestClient, admin_headers):
         """管理员可以删除产品"""
         # 先创建一个新产品（不含订单关联）
-        create_resp = client.post("/api/products", headers=admin_headers, json={
-            "name": "待删除产品",
-            "price": 1.00,
-            "stock": 1,
-        })
+        create_resp = client.post(
+            "/api/products",
+            headers=admin_headers,
+            json={
+                "name": "待删除产品",
+                "price": 1.00,
+                "stock": 1,
+            },
+        )
         assert create_resp.status_code == 200
         product_id = create_resp.json()["data"]["id"]
 
@@ -109,11 +124,15 @@ class TestProductCRUD:
 
     def test_non_owner_cannot_delete(self, client: TestClient, buyer_headers, admin_headers):
         """非创建者不能删除产品"""
-        create_resp = client.post("/api/products", headers=admin_headers, json={
-            "name": "他人产品",
-            "price": 50.00,
-            "stock": 10,
-        })
+        create_resp = client.post(
+            "/api/products",
+            headers=admin_headers,
+            json={
+                "name": "他人产品",
+                "price": 50.00,
+                "stock": 10,
+            },
+        )
         assert create_resp.status_code == 200
         product_id = create_resp.json()["data"]["id"]
 

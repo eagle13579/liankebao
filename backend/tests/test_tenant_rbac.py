@@ -1,5 +1,5 @@
 """多租户+RBAC权限隔离测试"""
-import pytest
+
 from fastapi.testclient import TestClient
 
 
@@ -26,18 +26,26 @@ class TestRBAC:
     def test_product_owner_isolation(self, client: TestClient, admin_headers, buyer_headers):
         """产品创建者可以更新，非创建者（且无写角色）被拒绝"""
         # 管理员创建新产品
-        create_resp = client.post("/api/products", headers=admin_headers, json={
-            "name": "管理员专属产品",
-            "price": 200.00,
-            "stock": 10,
-        })
+        create_resp = client.post(
+            "/api/products",
+            headers=admin_headers,
+            json={
+                "name": "管理员专属产品",
+                "price": 200.00,
+                "stock": 10,
+            },
+        )
         assert create_resp.status_code == 200
         product_id = create_resp.json()["data"]["id"]
 
         # 买家 buyer1 尝试更新该产品（buyer 角色无写权限）应被拒绝
-        update_resp = client.put(f"/api/products/{product_id}", headers=buyer_headers, json={
-            "name": "被篡改的产品名",
-        })
+        update_resp = client.put(
+            f"/api/products/{product_id}",
+            headers=buyer_headers,
+            json={
+                "name": "被篡改的产品名",
+            },
+        )
         assert update_resp.status_code == 403
         assert "权限不足" in update_resp.text
 
@@ -49,10 +57,13 @@ class TestRBAC:
 
     def test_viewer_cannot_create_order(self, client: TestClient):
         """未登录（viewer 角色）无法下单"""
-        resp = client.post("/api/orders", json={
-            "product_id": 1,
-            "quantity": 1,
-        })
+        resp = client.post(
+            "/api/orders",
+            json={
+                "product_id": 1,
+                "quantity": 1,
+            },
+        )
         assert resp.status_code in (401, 403)
 
     def test_unauthenticated_denied(self, client: TestClient):

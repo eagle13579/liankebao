@@ -10,7 +10,7 @@
   - test_full_pipeline
   - A/B test 策略对比
 """
-import json
+
 import os
 import sys
 import time
@@ -27,9 +27,9 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key-for-pytest-only")
 os.environ.setdefault("PAYMENT_MODE", "mock")
 
 from matching_engine import (
+    STOP_WORDS,
     MatchEngine,
     MatchResult,
-    STOP_WORDS,
     _cache,
     clear_cache,
     get_cached,
@@ -41,9 +41,19 @@ from matching_engine import (
 
 class MockProduct:
     """模拟 Product ORM 对象"""
-    def __init__(self, id=1, name="测试产品", description="这是一个测试产品",
-                 price=100.0, sale_price=None, category="电子产品",
-                 tags="测试,电子", brand="测试品牌", status="approved"):
+
+    def __init__(
+        self,
+        id=1,
+        name="测试产品",
+        description="这是一个测试产品",
+        price=100.0,
+        sale_price=None,
+        category="电子产品",
+        tags="测试,电子",
+        brand="测试品牌",
+        status="approved",
+    ):
         self.id = id
         self.name = name
         self.description = description
@@ -57,8 +67,16 @@ class MockProduct:
 
 class MockNeed:
     """模拟 BusinessNeed ORM 对象"""
-    def __init__(self, id=1, title="需要电子产品", description="我们需要一批电子产品",
-                 category="电子产品", budget="10万-50万", status="open"):
+
+    def __init__(
+        self,
+        id=1,
+        title="需要电子产品",
+        description="我们需要一批电子产品",
+        category="电子产品",
+        budget="10万-50万",
+        status="open",
+    ):
         self.id = id
         self.title = title
         self.description = description
@@ -69,6 +87,7 @@ class MockNeed:
 
 class MockDb:
     """模拟数据库 Session（供 MatchEngine 实例化使用）"""
+
     def query(self, model):
         return MockQuery()
 
@@ -88,6 +107,7 @@ class MockQuery:
 
 
 # ===== Fixtures =====
+
 
 @pytest.fixture
 def engine_v1():
@@ -121,6 +141,7 @@ def reset_cache():
 # ============================================================
 # GAP 3: 单元测试 - 类目匹配
 # ============================================================
+
 
 class TestCategoryMatching:
     """类目匹配测试 — 覆盖 exact_match + synonym_match + partial_match + no_match"""
@@ -174,6 +195,7 @@ class TestCategoryMatching:
 # ============================================================
 # GAP 3: 单元测试 - 关键词匹配
 # ============================================================
+
 
 class TestKeywordMatching:
     """关键词匹配测试 — 检验 v1(set交集) 和 v2(TF-IDF)"""
@@ -261,6 +283,7 @@ class TestKeywordMatching:
 # GAP 3: 单元测试 - 价格匹配
 # ============================================================
 
+
 class TestPriceMatching:
     """价格区间匹配测试"""
 
@@ -321,7 +344,7 @@ class TestPriceMatching:
         for eng in [engine_v1, engine_v2]:
             result = eng._parse_budget("10万以上")
             assert result[0] == 100000
-            assert result[1] == float('inf')
+            assert result[1] == float("inf")
             result2 = eng._parse_budget("5万以内")
             assert result2[0] == 0
             assert result2[1] == 50000
@@ -330,6 +353,7 @@ class TestPriceMatching:
 # ============================================================
 # GAP 3: 单元测试 - 全链路端到端
 # ============================================================
+
 
 class TestFullPipeline:
     """全链路端到端匹配测试"""
@@ -406,6 +430,7 @@ class TestFullPipeline:
 # GAP 8: A/B 测试策略对比
 # ============================================================
 
+
 class TestABTesting:
     """A/B 测试策略对比"""
 
@@ -448,6 +473,7 @@ class TestABTesting:
 # ============================================================
 # GAP 2: 缓存测试
 # ============================================================
+
 
 class TestCaching:
     """LRU 缓存层测试"""
@@ -507,6 +533,7 @@ class TestCaching:
 # GAP 6: 监控测试
 # ============================================================
 
+
 class TestMetrics:
     """匹配质量监控测试"""
 
@@ -545,6 +572,7 @@ class TestMetrics:
 # GAP 4: 配置化同义词测试
 # ============================================================
 
+
 class TestSynonymConfig:
     """配置化类目同义词测试"""
 
@@ -580,6 +608,7 @@ class TestSynonymConfig:
 # ============================================================
 # GAP 5+7: TF-IDF 关键词加权测试
 # ============================================================
+
 
 class TestTFIDFMatching:
     """TF-IDF 关键词加权测试"""
@@ -623,6 +652,7 @@ class TestTFIDFMatching:
 # 通用行为测试
 # ============================================================
 
+
 class TestNormalization:
     """文本规范化测试"""
 
@@ -638,7 +668,6 @@ class TestNormalization:
         """分数归一化到0-1"""
         for eng in [engine_v1, engine_v2]:
             # 假设三个维度都满分
-            from unittest.mock import patch
             orig_cat = eng._match_category
             orig_kw = eng._match_keywords
             orig_price = eng._match_price_range
