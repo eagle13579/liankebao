@@ -564,6 +564,7 @@ class MemorySearchEngine(SearchEngine):
         if USE_VECTOR_SEARCH:
             try:
                 from app.vector_search import rerank as vector_rerank
+
                 items = vector_rerank(query, items)
             except Exception as e:
                 logger.debug(f"向量重排序跳过: {e}")

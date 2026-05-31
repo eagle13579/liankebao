@@ -16,7 +16,7 @@ import os
 import re
 import secrets
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -24,19 +24,20 @@ logger = logging.getLogger(__name__)
 # 名片字段定义
 # ============================================================
 CARD_FIELDS = [
-    "name",       # 姓名
-    "position",   # 职位
-    "company",    # 公司
-    "phone",      # 手机
-    "email",      # 邮箱
-    "wechat",     # 微信
-    "address",    # 地址
-    "website",    # 官网
+    "name",  # 姓名
+    "position",  # 职位
+    "company",  # 公司
+    "phone",  # 手机
+    "email",  # 邮箱
+    "wechat",  # 微信
+    "address",  # 地址
+    "website",  # 官网
 ]
 
 # ============================================================
 # 1. 扫描名片 — 文字提取
 # ============================================================
+
 
 def scan_card(image_path: str) -> str:
     """从名片图片/PDF中提取文字
@@ -61,6 +62,7 @@ def scan_card(image_path: str) -> str:
     if ext == ".pdf":
         try:
             import pdfplumber
+
             text_parts = []
             with pdfplumber.open(image_path) as pdf:
                 for page in pdf.pages:
@@ -143,8 +145,8 @@ def _ocr_with_tesseract(image_path: str) -> str:
         识别文本，若不可用返回空字符串
     """
     try:
-        from PIL import Image
         import pytesseract
+        from PIL import Image
 
         # 尝试设置 tesseract 路径（Windows 常见路径）
         _possible_paths = [
@@ -179,7 +181,8 @@ def _ocr_with_tesseract(image_path: str) -> str:
 # 2. NLP 字段提取
 # ============================================================
 
-def extract_fields(text: str) -> Dict[str, Optional[str]]:
+
+def extract_fields(text: str) -> dict[str, str | None]:
     """从名片文本中提取结构化字段
 
     使用规则+正则 NLP 方式提取:
@@ -204,7 +207,7 @@ def extract_fields(text: str) -> Dict[str, Optional[str]]:
     lines = [line.strip() for line in text.split("\n") if line.strip()]
     full_text = " ".join(lines)
 
-    result: Dict[str, Optional[str]] = {}
+    result: dict[str, str | None] = {}
 
     # --- 手机号 ---
     phone = _extract_phone(full_text)
@@ -242,12 +245,12 @@ def extract_fields(text: str) -> Dict[str, Optional[str]]:
     return result
 
 
-def _extract_phone(text: str) -> Optional[str]:
+def _extract_phone(text: str) -> str | None:
     """提取手机号"""
     # 标准手机号: 1开头的11位数字（支持分隔符）
     patterns = [
-        r"1[3-9]\d[\s-]?\d{4}[\s-]?\d{4}",   # 手机号
-        r"\d{3,4}[\s-]?\d{7,8}",               # 座机
+        r"1[3-9]\d[\s-]?\d{4}[\s-]?\d{4}",  # 手机号
+        r"\d{3,4}[\s-]?\d{7,8}",  # 座机
     ]
     for pat in patterns:
         m = re.search(pat, text)
@@ -260,14 +263,14 @@ def _extract_phone(text: str) -> Optional[str]:
     return None
 
 
-def _extract_email(text: str) -> Optional[str]:
+def _extract_email(text: str) -> str | None:
     """提取邮箱"""
     pat = r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
     m = re.search(pat, text)
     return m.group(0) if m else None
 
 
-def _extract_wechat(text: str, lines: List[str]) -> Optional[str]:
+def _extract_wechat(text: str, lines: list[str]) -> str | None:
     """提取微信号"""
     # 模式1: "微信: xxx" / "wechat: xxx"
     for line in lines:
@@ -286,7 +289,7 @@ def _extract_wechat(text: str, lines: List[str]) -> Optional[str]:
     return None
 
 
-def _extract_website(text: str) -> Optional[str]:
+def _extract_website(text: str) -> str | None:
     """提取网址"""
     # 完整 URL
     pat = r"https?://[^\s,，；;]+"
@@ -306,7 +309,7 @@ def _extract_website(text: str) -> Optional[str]:
     return None
 
 
-def _extract_name(lines: List[str]) -> Optional[str]:
+def _extract_name(lines: list[str]) -> str | None:
     """提取姓名"""
     if not lines:
         return None
@@ -331,14 +334,33 @@ def _extract_name(lines: List[str]) -> Optional[str]:
 
 
 COMPANY_SUFFIXES = [
-    "有限公司", "有限责任公司", "集团", "股份公司", "股份有限公司",
-    "科技", "技术", "网络", "信息", "文化", "传媒", "教育",
-    "咨询", "服务", "贸易", "商贸", "实业", "投资",
-    "（有限合伙）", "(有限合伙)", "工作室", "中心", "社",
+    "有限公司",
+    "有限责任公司",
+    "集团",
+    "股份公司",
+    "股份有限公司",
+    "科技",
+    "技术",
+    "网络",
+    "信息",
+    "文化",
+    "传媒",
+    "教育",
+    "咨询",
+    "服务",
+    "贸易",
+    "商贸",
+    "实业",
+    "投资",
+    "（有限合伙）",
+    "(有限合伙)",
+    "工作室",
+    "中心",
+    "社",
 ]
 
 
-def _extract_company(lines: List[str], existing: Dict) -> Optional[str]:
+def _extract_company(lines: list[str], existing: dict) -> str | None:
     """提取公司名"""
     if not lines:
         return None
@@ -382,16 +404,46 @@ def _extract_company(lines: List[str], existing: Dict) -> Optional[str]:
 
 
 POSITION_KEYWORDS = [
-    "CEO", "CTO", "COO", "CFO", "VP", "总监", "经理", "主管",
-    "董事长", "总经理", "总裁", "创始人", "合伙人", "主任",
-    "顾问", "工程师", "设计师", "运营", "销售", "市场",
-    "董事", "监事", "秘书", "助理", "专员", "代表",
-    "校长", "院长", "教授", "律师", "会计师",
-    "President", "Director", "Manager", "Founder", "Partner",
+    "CEO",
+    "CTO",
+    "COO",
+    "CFO",
+    "VP",
+    "总监",
+    "经理",
+    "主管",
+    "董事长",
+    "总经理",
+    "总裁",
+    "创始人",
+    "合伙人",
+    "主任",
+    "顾问",
+    "工程师",
+    "设计师",
+    "运营",
+    "销售",
+    "市场",
+    "董事",
+    "监事",
+    "秘书",
+    "助理",
+    "专员",
+    "代表",
+    "校长",
+    "院长",
+    "教授",
+    "律师",
+    "会计师",
+    "President",
+    "Director",
+    "Manager",
+    "Founder",
+    "Partner",
 ]
 
 
-def _extract_position(lines: List[str], existing: Dict) -> Optional[str]:
+def _extract_position(lines: list[str], existing: dict) -> str | None:
     """提取职位"""
     name = existing.get("name", "")
 
@@ -407,7 +459,7 @@ def _extract_position(lines: List[str], existing: Dict) -> Optional[str]:
                     return line_stripped
                 # 如果太长，只取包含关键词的部分
                 idx = line_stripped.index(kw)
-                return line_stripped[max(0, idx - 5):idx + len(kw) + 10]
+                return line_stripped[max(0, idx - 5) : idx + len(kw) + 10]
 
     # 降级: 如果公司名已匹配到，公司名后面那行可能是职位
     company = existing.get("company", "")
@@ -421,7 +473,7 @@ def _extract_position(lines: List[str], existing: Dict) -> Optional[str]:
     return None
 
 
-def _extract_address(lines: List[str]) -> Optional[str]:
+def _extract_address(lines: list[str]) -> str | None:
     """提取地址"""
     address_keywords = ["省", "市", "区", "县", "镇", "路", "号", "街", "层", "楼", "室"]
 
@@ -445,7 +497,8 @@ def _extract_address(lines: List[str]) -> Optional[str]:
 # 3. 生成数字名片 JSON
 # ============================================================
 
-def generate_digital_card(fields: Dict[str, Any]) -> Dict[str, Any]:
+
+def generate_digital_card(fields: dict[str, Any]) -> dict[str, Any]:
     """生成数字名片 JSON 数据结构（含翻页图册元数据）
 
     Args:
@@ -543,7 +596,7 @@ def generate_digital_card(fields: Dict[str, Any]) -> Dict[str, Any]:
     return card_data
 
 
-def _build_contact_fields(fields: Dict[str, Any]) -> List[Dict[str, str]]:
+def _build_contact_fields(fields: dict[str, Any]) -> list[dict[str, str]]:
     """构建联系方式字段列表（过滤空值）"""
     contact_items = [
         ("📞 电话", fields.get("phone")),
@@ -552,30 +605,28 @@ def _build_contact_fields(fields: Dict[str, Any]) -> List[Dict[str, str]]:
         ("🌐 网站", fields.get("website")),
         ("📍 地址", fields.get("address")),
     ]
-    return [
-        {"label": label, "value": value}
-        for label, value in contact_items
-        if value
-    ]
+    return [{"label": label, "value": value} for label, value in contact_items if value]
 
 
 # ============================================================
 # 4. 供需匹配
 # ============================================================
 
+
 def match_supply_demand(
-    card_data: Dict[str, Any],
+    card_data: dict[str, Any],
     top_k: int = 10,
     db_session=None,
-) -> List[Dict[str, Any]]:
-    """基于名片信息触发供需匹配
+) -> dict[str, Any] | list[dict[str, Any]]:
+    """基于名片信息触发供需匹配（升级版：注入企业知识图谱）
 
     使用 matching_engine.MatchEngine 匹配名片对应的供需。
 
     匹配逻辑:
       1. 名片中的公司/职位 → 提取业务关键词
-      2. 用这些关键词搜索 BusinessNeed 和 Product
-      3. 返回匹配结果列表
+      2. 若公司名匹配到 enterprise 库，注入企业画像+关系图谱
+      3. 用企业画像增强搜索 BusinessNeed 和 Product
+      4. 返回匹配结果列表（含企业画像信息）
 
     Args:
         card_data: 数字名片数据
@@ -604,19 +655,155 @@ def match_supply_demand(
         return []
 
 
+def _lookup_enterprise(company_name: str, db_session) -> dict | None:
+    """在企业库中模糊匹配公司名，返回企业画像+关系图谱
+
+    Args:
+        company_name: 名片中的公司名
+        db_session: 数据库会话
+
+    Returns:
+        匹配到的企业信息字典，含 relation_graph；未匹配则返回 None
+    """
+    if not company_name or not company_name.strip():
+        return None
+
+    from app.models import Enterprise
+
+    try:
+        # Step 1: 精确匹配
+        ent = (
+            db_session.query(Enterprise)
+            .filter(Enterprise.name == company_name.strip())
+            .first()
+        )
+        if ent:
+            return _build_enterprise_profile(ent, db_session)
+
+        # Step 2: 模糊匹配（名称包含）
+        keyword = f"%{company_name.strip()}%"
+        ent = (
+            db_session.query(Enterprise)
+            .filter(Enterprise.name.ilike(keyword))
+            .first()
+        )
+        if ent:
+            return _build_enterprise_profile(ent, db_session)
+
+        # Step 3: ILIKE 反向匹配（企业名包含搜索词）
+        ents = (
+            db_session.query(Enterprise)
+            .filter(Enterprise.short_name.ilike(keyword))
+            .limit(1)
+            .all()
+        )
+        if ents:
+            return _build_enterprise_profile(ents[0], db_session)
+
+    except Exception as e:
+        logger.debug(f"企业查询跳过: {e}")
+
+    return None
+
+
+def _build_enterprise_profile(ent, db_session) -> dict:
+    """构建企业画像字典（含关系图谱）"""
+    profile = {
+        "id": ent.id,
+        "name": ent.name,
+        "short_name": ent.short_name,
+        "credit_code": ent.credit_code,
+        "legal_person": ent.legal_person,
+        "industry": ent.industry,
+        "region": ent.region,
+        "business_scope": ent.business_scope,
+        "tags": ent.tags,
+        "website": ent.website,
+        "confidence": ent.confidence,
+        "data_source": ent.data_source,
+    }
+
+    # 构建关系图谱
+    from app.models import EnterpriseRelation
+
+    relations_out = []
+    try:
+        for rel in (
+            db_session.query(EnterpriseRelation)
+            .filter(EnterpriseRelation.source_id == ent.id)
+            .all()
+        ):
+            target = (
+                db_session.query(Enterprise)
+                .filter(Enterprise.id == rel.target_id)
+                .first()
+            )
+            if target:
+                relations_out.append(
+                    {
+                        "direction": "out",
+                        "relation_type": rel.relation_type,
+                        "relation_label": rel.relation_label,
+                        "confidence": rel.confidence,
+                        "target": {
+                            "id": target.id,
+                            "name": target.name,
+                            "short_name": target.short_name,
+                            "industry": target.industry,
+                            "region": target.region,
+                        },
+                    }
+                )
+    except Exception:
+        pass
+
+    relations_in = []
+    try:
+        for rel in (
+            db_session.query(EnterpriseRelation)
+            .filter(EnterpriseRelation.target_id == ent.id)
+            .all()
+        ):
+            source = (
+                db_session.query(Enterprise)
+                .filter(Enterprise.id == rel.source_id)
+                .first()
+            )
+            if source:
+                relations_in.append(
+                    {
+                        "direction": "in",
+                        "relation_type": rel.relation_type,
+                        "relation_label": rel.relation_label,
+                        "confidence": rel.confidence,
+                        "source": {
+                            "id": source.id,
+                            "name": source.name,
+                            "short_name": source.short_name,
+                            "industry": source.industry,
+                            "region": source.region,
+                        },
+                    }
+                )
+    except Exception:
+        pass
+
+    profile["relation_graph"] = {"outgoing": relations_out, "incoming": relations_in}
+    return profile
+
+
 def _run_matching(
     search_text: str,
-    fields: Dict[str, Any],
+    fields: dict[str, Any],
     top_k: int,
     db_session=None,
-) -> List[Dict[str, Any]]:
-    """执行匹配逻辑"""
-    from sqlalchemy.orm import Session
-
+) -> list[dict[str, Any]]:
+    """执行匹配逻辑（注入企业知识图谱增强匹配）"""
     # 获取数据库会话
     close_session = False
     if db_session is None:
         from app.database import SessionLocal
+
         db_session = SessionLocal()
         close_session = True
 
@@ -624,7 +811,32 @@ def _run_matching(
         from matching_engine import MatchEngine
 
         engine = MatchEngine(db_session)
-        results: List[Dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
+
+        # ===== 企业知识图谱增强 =====
+        company = fields.get("company", "")
+        enterprise_profile = _lookup_enterprise(company, db_session)
+        enterprise_search_text = search_text
+
+        if enterprise_profile:
+            # 注入企业行业/经营范围到搜索文本
+            biz_extras = []
+            if enterprise_profile.get("industry"):
+                biz_extras.append(enterprise_profile["industry"])
+            if enterprise_profile.get("tags"):
+                biz_extras.append(enterprise_profile["tags"])
+            if enterprise_profile.get("business_scope"):
+                biz_extras.append(enterprise_profile["business_scope"][:200])
+            if enterprise_profile.get("region"):
+                biz_extras.append(enterprise_profile["region"])
+
+            if biz_extras:
+                enterprise_search_text = (
+                    f"{search_text} {' '.join(biz_extras)}"
+                ).strip()
+                logger.info(
+                    f"企业知识图谱增强匹配: {company} → 注入 {len(biz_extras)} 个维度"
+                )
 
         # --- 匹配需求（名片 → BusinessNeed）---
         try:
@@ -642,18 +854,40 @@ def _run_matching(
 
             need_scores = []
             for need in needs:
-                # 构建候选搜索文本
                 need_text = f"{need.title} {need.description or ''} {need.category or ''}"
-                score = _calc_text_similarity(search_text, need_text)
+                score = _calc_text_similarity(enterprise_search_text, need_text)
+
+                # 如果企业画像匹配，使用企业行业/地区作为增强匹配因子
+                bonus = 0.0
+                if enterprise_profile:
+                    # 同行业加分
+                    if enterprise_profile.get("industry") and need.category:
+                        industry_kw = enterprise_profile["industry"]
+                        if any(kw in (need.category or "") for kw in industry_kw.split()):
+                            bonus += 0.15
+                        if any(kw in (need.title or "") for kw in industry_kw.split()):
+                            bonus += 0.10
+                    # 同地区加分
+                    if enterprise_profile.get("region"):
+                        region = enterprise_profile["region"]
+                        if region and need.region and (region in need.region or need.region in region):
+                            bonus += 0.10
+
+                score = min(score + bonus, 1.0)
                 if score > 0.1:
-                    need_scores.append({
-                        "type": "need",
-                        "id": need.id,
-                        "title": need.title,
-                        "category": need.category,
-                        "score": round(score, 2),
-                        "reasons": [f"业务领域匹配度 {int(score * 100)}%"],
-                    })
+                    reasons = [f"业务领域匹配度 {int(score * 100)}%"]
+                    if bonus > 0:
+                        reasons.append(f"企业画像增强 (+{int(bonus * 100)}%)")
+                    need_scores.append(
+                        {
+                            "type": "need",
+                            "id": need.id,
+                            "title": need.title,
+                            "category": need.category,
+                            "score": round(score, 2),
+                            "reasons": reasons,
+                        }
+                    )
 
             need_scores.sort(key=lambda x: x["score"], reverse=True)
             results.extend(need_scores[:top_k])
@@ -677,16 +911,43 @@ def _run_matching(
             prod_scores = []
             for prod in products:
                 prod_text = f"{prod.name or ''} {prod.description or ''} {prod.category or ''} {prod.tags or ''}"
-                score = _calc_text_similarity(search_text, prod_text)
+                score = _calc_text_similarity(enterprise_search_text, prod_text)
+
+                # 企业画像增强
+                bonus = 0.0
+                if enterprise_profile:
+                    if enterprise_profile.get("industry") and prod.category:
+                        industry_kw = enterprise_profile["industry"]
+                        if any(kw in (prod.category or "") for kw in industry_kw.split()):
+                            bonus += 0.15
+                        if any(kw in (prod.name or "") for kw in industry_kw.split()):
+                            bonus += 0.10
+                    if enterprise_profile.get("region"):
+                        region = enterprise_profile["region"]
+                        if region:
+                            try:
+                                specs = json.loads(prod.specs) if prod.specs else {}
+                                prod_region = specs.get("产地", specs.get("产地/发货地", ""))
+                                if prod_region and (region in prod_region or prod_region in region):
+                                    bonus += 0.10
+                            except (json.JSONDecodeError, TypeError):
+                                pass
+
+                score = min(score + bonus, 1.0)
                 if score > 0.1:
-                    prod_scores.append({
-                        "type": "product",
-                        "id": prod.id,
-                        "title": prod.name,
-                        "category": prod.category,
-                        "score": round(score, 2),
-                        "reasons": [f"业务关键词匹配度 {int(score * 100)}%"],
-                    })
+                    reasons = [f"业务关键词匹配度 {int(score * 100)}%"]
+                    if bonus > 0:
+                        reasons.append(f"企业画像增强 (+{int(bonus * 100)}%)")
+                    prod_scores.append(
+                        {
+                            "type": "product",
+                            "id": prod.id,
+                            "title": prod.name,
+                            "category": prod.category,
+                            "score": round(score, 2),
+                            "reasons": reasons,
+                        }
+                    )
 
             prod_scores.sort(key=lambda x: x["score"], reverse=True)
             results.extend(prod_scores[:top_k])
@@ -697,8 +958,17 @@ def _run_matching(
         results.sort(key=lambda x: x["score"], reverse=True)
         results = results[:top_k]
 
-        logger.info(f"供需匹配完成: {len(results)} 个匹配项")
-        return results
+        logger.info(
+            f"供需匹配完成: {len(results)} 个匹配项"
+            + (f" (企业画像: {company})" if enterprise_profile else "")
+        )
+
+        # 将企业画像注入到返回结果中（非破坏性扩展）
+        enhanced_result = {
+            "enterprise_profile": enterprise_profile,
+            "items": results,
+        }
+        return enhanced_result
 
     finally:
         if close_session:
@@ -717,6 +987,7 @@ def _calc_text_similarity(text_a: str, text_b: str) -> float:
     # 分词 + 去停用词
     try:
         import jieba
+
         tokens_a = set(jieba.lcut(text_a.lower()))
         tokens_b = set(jieba.lcut(text_b.lower()))
     except ImportError:
@@ -725,11 +996,56 @@ def _calc_text_similarity(text_a: str, text_b: str) -> float:
         tokens_b = set(re.findall(r"[\u4e00-\u9fff\w]+", text_b.lower()))
 
     # 过滤单字和停用词
-    stop_words = {"的", "了", "在", "是", "我", "有", "和", "就", "不", "人",
-                  "都", "一", "一个", "上", "也", "很", "到", "说", "要", "去",
-                  "你", "会", "着", "没有", "看", "好", "自己", "这", "他", "她",
-                  "它", "们", "为", "与", "及", "等", "或", "之", "以", "被",
-                  "让", "给", "对", "从", "把", "向", "能", "做"}
+    stop_words = {
+        "的",
+        "了",
+        "在",
+        "是",
+        "我",
+        "有",
+        "和",
+        "就",
+        "不",
+        "人",
+        "都",
+        "一",
+        "一个",
+        "上",
+        "也",
+        "很",
+        "到",
+        "说",
+        "要",
+        "去",
+        "你",
+        "会",
+        "着",
+        "没有",
+        "看",
+        "好",
+        "自己",
+        "这",
+        "他",
+        "她",
+        "它",
+        "们",
+        "为",
+        "与",
+        "及",
+        "等",
+        "或",
+        "之",
+        "以",
+        "被",
+        "让",
+        "给",
+        "对",
+        "从",
+        "把",
+        "向",
+        "能",
+        "做",
+    }
     tokens_a = {t for t in tokens_a if len(t) >= 2 and t not in stop_words}
     tokens_b = {t for t in tokens_b if len(t) >= 2 and t not in stop_words}
 
@@ -750,12 +1066,13 @@ def _calc_text_similarity(text_a: str, text_b: str) -> float:
 # 工具函数
 # ============================================================
 
+
 def generate_share_token(length: int = 32) -> str:
     """生成唯一的分享令牌"""
     return secrets.token_urlsafe(length)
 
 
-def validate_card_fields(fields: Dict[str, Any]) -> Tuple[bool, List[str]]:
+def validate_card_fields(fields: dict[str, Any]) -> tuple[bool, list[str]]:
     """验证名片字段的完整性和合法性
 
     Returns:

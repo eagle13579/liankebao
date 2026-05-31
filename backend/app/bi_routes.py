@@ -19,12 +19,11 @@
 """
 
 import logging
-from collections import OrderedDict, defaultdict
-from datetime import date, datetime, timedelta
-from typing import Optional
+from collections import OrderedDict
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, distinct
+from sqlalchemy import distinct, func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -48,19 +47,11 @@ router = APIRouter(prefix="/api/bi", tags=["BI看板"])
 def get_overview(db: Session = Depends(get_db)):
     """获取仪表盘总览指标"""
     total_users = db.query(User).filter(User.is_deleted == False).count()
-    total_products = (
-        db.query(Product)
-        .filter(Product.is_deleted == False, Product.status == "approved")
-        .count()
-    )
+    total_products = db.query(Product).filter(Product.is_deleted == False, Product.status == "approved").count()
     total_orders = db.query(Order).filter(Order.is_deleted == False).count()
 
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    today_registrations = (
-        db.query(User)
-        .filter(User.is_deleted == False, User.created_at >= today_start)
-        .count()
-    )
+    today_registrations = db.query(User).filter(User.is_deleted == False, User.created_at >= today_start).count()
 
     return {
         "code": 200,
@@ -241,15 +232,11 @@ def get_card_stats(
     total_cards = db.query(BusinessCard).filter(BusinessCard.is_deleted == False).count()
 
     recent_cards = (
-        db.query(BusinessCard)
-        .filter(BusinessCard.is_deleted == False, BusinessCard.created_at >= since)
-        .count()
+        db.query(BusinessCard).filter(BusinessCard.is_deleted == False, BusinessCard.created_at >= since).count()
     )
 
     total_views = (
-        db.query(func.coalesce(func.sum(BusinessCard.view_count), 0))
-        .filter(BusinessCard.is_deleted == False)
-        .scalar()
+        db.query(func.coalesce(func.sum(BusinessCard.view_count), 0)).filter(BusinessCard.is_deleted == False).scalar()
         or 0
     )
 
@@ -265,10 +252,7 @@ def get_card_stats(
         .all()
     )
 
-    daily_trend = [
-        {"date": str(r.day), "generated": r.generated, "views": int(r.views)}
-        for r in daily_rows
-    ]
+    daily_trend = [{"date": str(r.day), "generated": r.generated, "views": int(r.views)} for r in daily_rows]
 
     avg_views = round(total_views / total_cards, 1) if total_cards > 0 else 0
 
@@ -304,11 +288,7 @@ def get_funnel(
     since = datetime.utcnow() - timedelta(days=days)
 
     # 步骤1: 注册用户数
-    total_users = (
-        db.query(User.id)
-        .filter(User.is_deleted == False, User.created_at >= since)
-        .count()
-    )
+    total_users = db.query(User.id).filter(User.is_deleted == False, User.created_at >= since).count()
 
     # 步骤2: 有AI名片的用户数
     users_with_card = (
@@ -370,11 +350,7 @@ def get_funnel(
     for i in range(len(steps) - 1):
         from_step = steps[i]
         to_step = steps[i + 1]
-        transition_rate = (
-            round(to_step["users"] / from_step["users"] * 100, 2)
-            if from_step["users"] > 0
-            else 0
-        )
+        transition_rate = round(to_step["users"] / from_step["users"] * 100, 2) if from_step["users"] > 0 else 0
         transitions.append(
             {
                 "from": from_step["step"],
@@ -499,7 +475,7 @@ def get_retention(
             retention_periods.append(
                 {
                     "offset": offset,
-                    "label": f"第{offset+1}{period_label}",
+                    "label": f"第{offset + 1}{period_label}",
                     "active_users": active_users,
                     "retention_rate": retention_rate,
                 }
@@ -542,16 +518,8 @@ def get_churn_risk(
     since = datetime.utcnow() - timedelta(days=days_since_activity)
 
     # 没有名片且没有订单且注册超过沉寂天数的用户
-    users_with_card = (
-        db.query(distinct(BusinessCard.user_id))
-        .filter(BusinessCard.is_deleted == False)
-        .subquery()
-    )
-    users_with_order = (
-        db.query(distinct(Order.user_id))
-        .filter(Order.is_deleted == False)
-        .subquery()
-    )
+    users_with_card = db.query(distinct(BusinessCard.user_id)).filter(BusinessCard.is_deleted == False).subquery()
+    users_with_order = db.query(distinct(Order.user_id)).filter(Order.is_deleted == False).subquery()
 
     churn_users = (
         db.query(
@@ -593,7 +561,7 @@ def get_churn_risk(
             "churn_users": data,
             "total_risk_count": len(data),
             "days_threshold": days_since_activity,
-            "note": "流失判定条件: 注册超过{0}天 + 0名片 + 0订单".format(days_since_activity),
+            "note": f"流失判定条件: 注册超过{days_since_activity}天 + 0名片 + 0订单",
         },
     }
 
@@ -629,17 +597,12 @@ def get_geo_distribution(
         .all()
     )
 
-    need_geo = [
-        {"region": r.region, "user_count": r.user_count}
-        for r in geo_from_needs
-    ]
+    need_geo = [{"region": r.region, "user_count": r.user_count} for r in geo_from_needs]
 
     # 方式2: 从 User 表中尝试提取地域信息（company字段中可能包含城市信息）
     # 采用简单方案：统计所有用户的company字段头一个字作为地域标签
     all_companies = (
-        db.query(User.company)
-        .filter(User.is_deleted == False, User.company.isnot(None), User.company != "")
-        .all()
+        db.query(User.company).filter(User.is_deleted == False, User.company.isnot(None), User.company != "").all()
     )
 
     # 如果需求地域数据足够，优先使用需求地域

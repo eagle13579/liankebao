@@ -22,9 +22,7 @@
 """
 
 import hashlib
-import json
 import logging
-import math
 import os
 import re
 import sqlite3
@@ -179,6 +177,7 @@ class M3EEmbedding(EmbeddingBackend):
             return
         try:
             from sentence_transformers import SentenceTransformer
+
             logger.info(f"正在加载 M3E 模型: {self._model_name}")
             self._model = SentenceTransformer(self._model_name)
             logger.info(f"M3E 模型加载完成: {self._model_name}")
@@ -218,7 +217,7 @@ class M3EEmbedding(EmbeddingBackend):
                 show_progress_bar=False,
             )
             # 确保是 float32
-            if hasattr(embeddings, 'numpy'):
+            if hasattr(embeddings, "numpy"):
                 embeddings = embeddings.numpy()
             embeddings = np.asarray(embeddings, dtype=np.float32)
 
@@ -250,6 +249,7 @@ class OpenAIEmbedding(EmbeddingBackend):
             return
         try:
             from openai import OpenAI
+
             self._client = OpenAI(api_key=self._api_key)
             logger.info(f"OpenAI embedding 客户端已初始化 (model={self._model})")
         except ImportError:
@@ -290,10 +290,9 @@ class OpenAIEmbedding(EmbeddingBackend):
                 all_embeddings[idx] = data.embedding
 
             # 空文本用零向量
-            result = np.array([
-                emb if emb is not None else [0.0] * self._dim
-                for emb in all_embeddings
-            ], dtype=np.float32)
+            result = np.array(
+                [emb if emb is not None else [0.0] * self._dim for emb in all_embeddings], dtype=np.float32
+            )
 
             # L2 归一化
             norms = np.linalg.norm(result, axis=1, keepdims=True)
@@ -321,6 +320,7 @@ class DeepSeekEmbedding(EmbeddingBackend):
             return
         try:
             from openai import OpenAI
+
             self._client = OpenAI(
                 api_key=self._api_key,
                 base_url=self._base_url,
@@ -361,10 +361,9 @@ class DeepSeekEmbedding(EmbeddingBackend):
             for idx, data in zip(valid_indices, response.data):
                 all_embeddings[idx] = data.embedding
 
-            result = np.array([
-                emb if emb is not None else [0.0] * self._dim
-                for emb in all_embeddings
-            ], dtype=np.float32)
+            result = np.array(
+                [emb if emb is not None else [0.0] * self._dim for emb in all_embeddings], dtype=np.float32
+            )
 
             norms = np.linalg.norm(result, axis=1, keepdims=True)
             norms = np.where(norms > 1e-8, norms, 1.0)
@@ -576,11 +575,14 @@ class VectorSearchIndex:
                     "DELETE FROM vector_index WHERE content_type=? AND content_id=?",
                     (content_type, content_id),
                 )
-                conn.execute("""
+                conn.execute(
+                    """
                     INSERT INTO vector_index
                         (content_hash, content_type, content_id, content, embedding, updated_at)
                     VALUES (?, ?, ?, ?, ?, ?)
-                """, (content_hash, content_type, content_id, content, embedding_blob, now))
+                """,
+                    (content_hash, content_type, content_id, content, embedding_blob, now),
+                )
                 count += 1
 
             conn.commit()
@@ -781,12 +783,14 @@ class VectorSearchIndex:
         for doc_id, doc_vec in self._embeddings.items():
             # 余弦相似度（向量已 L2 归一化）
             similarity = float(np.dot(query_vec, doc_vec))
-            results.append({
-                "id": doc_id,
-                "text": self._documents[doc_id]["text"],
-                "metadata": self._documents[doc_id]["metadata"],
-                "score": round(max(0.0, min(1.0, (similarity + 1.0) / 2.0)), 4),
-            })
+            results.append(
+                {
+                    "id": doc_id,
+                    "text": self._documents[doc_id]["text"],
+                    "metadata": self._documents[doc_id]["metadata"],
+                    "score": round(max(0.0, min(1.0, (similarity + 1.0) / 2.0)), 4),
+                }
+            )
 
         # 按分数降序排列
         results.sort(key=lambda r: -r["score"])
@@ -902,11 +906,13 @@ def rerank(
     # --- 6. 重新排序 ---
     enriched = []
     for i, item in enumerate(bm25_results):
-        enriched.append({
-            **item,
-            "_vector_score": round(float(vector_scores[i]), 4),
-            "_final_score": round(float(final_scores[i]), 4),
-        })
+        enriched.append(
+            {
+                **item,
+                "_vector_score": round(float(vector_scores[i]), 4),
+                "_final_score": round(float(final_scores[i]), 4),
+            }
+        )
 
     enriched.sort(key=lambda r: -r["_final_score"])
     return enriched
@@ -915,6 +921,7 @@ def rerank(
 # ======================================================================
 # 兼容接口: 单条文本 embedding
 # ======================================================================
+
 
 def embed_single(text: str) -> list[float]:
     """单条文本 embedding（返回 Python list 便于序列化）"""
@@ -962,17 +969,13 @@ def sync_vector_index(db_session=None) -> dict[str, int]:
         close_session = True
 
     try:
-        from app.models import Product, BusinessNeed
+        from app.models import BusinessNeed, Product
 
         index = get_vector_index()
         result = {"products_added": 0, "needs_added": 0, "products_skipped": 0, "needs_skipped": 0}
 
         # --- 同步 Products ---
-        products = (
-            db_session.query(Product)
-            .filter(Product.status == "approved", Product.is_deleted == False)
-            .all()
-        )
+        products = db_session.query(Product).filter(Product.status == "approved", Product.is_deleted == False).all()
         for p in products:
             content = build_document_text(
                 title=p.name or "",
@@ -989,6 +992,7 @@ def sync_vector_index(db_session=None) -> dict[str, int]:
                 # 检查是否需要更新
                 try:
                     import sqlite3
+
                     conn = sqlite3.connect(index._db_path)
                     existing = conn.execute(
                         "SELECT content_hash FROM vector_index WHERE content_type='product' AND content_id=?",
