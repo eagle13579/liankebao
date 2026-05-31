@@ -1,6 +1,6 @@
 /**
  * 链客宝 SSR 服务端入口
- * 
+ *
  * 用于 Express SSR 服务器渲染名片分享页面。
  * 仅对 /card/:token 路由生效，其他路由保持 CSR。
  */
@@ -326,7 +326,7 @@ export function buildHTML(
     <meta name="description" content="${escapeHtml(result.description)}" />
     <meta name="keywords" content="链客宝, 数字名片, AI名片, ${escapeHtml(result.title)}" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤝</text></svg>" />
-    
+
     <!-- Open Graph / 社交分享 -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="${escapeHtml(result.title)}" />
@@ -335,7 +335,7 @@ export function buildHTML(
     <meta property="og:url" content="https://liankebao.top" />
     <meta property="og:site_name" content="链客宝" />
     <meta property="og:locale" content="zh_CN" />
-    
+
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${escapeHtml(result.title)}" />
@@ -347,20 +347,20 @@ export function buildHTML(
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="链客宝" />
-    
+
     <title>${escapeHtml(result.title)}</title>
-    
+
     ${cssLinks.map(href => `    <link rel="stylesheet" href="${href}" />`).join('\n')}
   </head>
   <body>
     <div id="root">${appHtml}</div>
     ${jsScripts.map(src => `    <script type="module" src="${src}"></script>`).join('\n')}
-    
+
     <!-- SSR 状态注入：客户端 hydration 用 -->
     <script>
       window.__SSR_CARD_DATA__ = ${cardDataJson};
     </script>
-    
+
     <!-- Service Worker -->
     <script>
       if ('serviceWorker' in navigator) {

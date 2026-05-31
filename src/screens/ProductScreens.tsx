@@ -5,6 +5,13 @@ import { api } from '../api/client';
 import { ProductItem } from '../types';
 import { Loading, ErrorBlock, Empty, useApi } from '../components/StatusComponents';
 
+function safeImageUrl(url) {
+  if (!url || typeof url !== 'string') return 'https://via.placeholder.com/200';
+  if (url.startsWith('http://47.116.116.87')) return url.replace('http://47.116.116.87', '/lkapi');
+  if (url.startsWith('http://') && !url.startsWith('http://localhost')) return url.replace('http://', 'https://');
+  return url;
+}
+
 export const ProductDetailPage = memo(function ProductDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -46,7 +53,7 @@ export const ProductDetailPage = memo(function ProductDetailPage() {
         ) : (
         <>
         <section className="relative w-full h-[300px] bg-white">
-          <img src={typeof product?.images === 'string' ? (JSON.parse(product.images)[0] || 'https://via.placeholder.com/200') : (Array.isArray(product?.images) ? product.images[0] : (product?.images || 'https://via.placeholder.com/200'))} className="w-full h-full object-cover" />
+          <img src={typeof product?.images === 'string' ? (JSON.parse(product.images || '[]')[0] || 'https://via.placeholder.com/200') : (Array.isArray(product?.images) ? product.images[0] : (product?.images || 'https://via.placeholder.com/200'))} className="w-full h-full object-cover" />
           <div className="absolute bottom-4 right-4 bg-black/20 backdrop-blur-md text-white px-3 py-1 rounded-full text-[10px] font-bold">1 / 1</div>
         </section>
 
@@ -167,7 +174,7 @@ export const MyProducts = memo(function MyProducts() {
           products.map((item, i) => (
             <div key={item.id || i} className="bg-white rounded-2xl overflow-hidden border border-border-light shadow-sm">
               <div className="p-4 flex gap-4">
-                <div className="w-20 h-20 rounded-xl overflow-hidden bg-slate-50"><img src={typeof item.images === 'string' ? (JSON.parse(item.images)[0] || 'https://via.placeholder.com/200') : (Array.isArray(item.images) ? item.images[0] : (item.images || 'https://via.placeholder.com/200'))} className="w-full h-full object-cover" /></div>
+                <div className="w-20 h-20 rounded-xl overflow-hidden bg-slate-50"><img src={safeImageUrl(typeof item.images === "string" ? (JSON.parse(item.images || '[]')[0]) : (Array.isArray(item.images) ? item.images[0] : item.images))} className="w-full h-full object-cover" /></div>
                 <div className="flex-1 space-y-2">
                   <div className="flex justify-between items-start"><h3 className="font-bold text-sm line-clamp-1">{item.name}</h3><span className="text-[10px] font-bold text-success bg-emerald-50 px-2 py-0.5 rounded">{item.status === 'approved' ? '已上架' : item.status}</span></div>
                   <p className="text-primary-container font-manrope font-bold text-lg">¥{item.price.toFixed(2)}</p>

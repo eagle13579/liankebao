@@ -1,17 +1,14 @@
 import { useNavigate } from 'react-router-dom';
 import {
-  Search, Home, Grid, Zap, User, Star, ArrowRight, UserPlus, FileText, Share2, Users,
-  GraduationCap, ChevronRight, LayoutDashboard, ShoppingBag, Receipt, CheckCircle2,
-  Bell, Package, TrendingUp, MessageCircle, Store, Building2, Wallet, Settings,
-  Sparkles, Database, BarChart3, Target, Globe, HelpCircle, LogOut, Clock, X, Copy, Link, Image, Crown
+  Search, Home, Grid, User, ChevronRight, Bell, ShoppingBag, Receipt, TrendingUp,
+  Users, Database, BarChart3, Target, Globe, FileText, HelpCircle, Package,
+  Settings, Crown, GraduationCap, Share2, CheckCircle2, X, Image, Copy, Link,
+  TableProperties, FolderKanban, HandCoins, Shapes
 } from 'lucide-react';
 import { useState, useEffect, memo } from 'react';
 import { api } from '../api/client';
 import { ProductItem } from '../types';
-import { Loading, ErrorBlock, Empty, useApi } from '../components/StatusComponents';
-import { getFeaturePriorityByPainPoint, type PainPoint } from '../components/OnboardingPainSelector';
-import BorderGlow from '../components/BorderGlow';
-import SpotlightCard from '../components/SpotlightCard';
+import { useApi, ErrorBlock, Empty } from '../components/StatusComponents';
 
 // ==============================
 //  Shared Bottom Nav
@@ -55,81 +52,39 @@ function BottomNav({ active }: { active: string }) {
 }
 
 // ==============================
-//  LiankebaoHomepage
+//  LiankebaoHomepage — 3主按钮模式（深色主题）
 // ==============================
-function safeImageUrl(url) {
-  if (!url || typeof url !== 'string') return 'https://via.placeholder.com/200';
-  if (url.startsWith('http://47.116.116.87')) return url.replace('http://47.116.116.87', '/lkapi');
-  if (url.startsWith('http://') && !url.startsWith('http://localhost')) return url.replace('http://', 'https://');
-  return url;
-}
 
 export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
   const navigate = useNavigate();
-  const [search, setSearch] = useState('');
-  const [currentBanner, setCurrentBanner] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [searchTracked, setSearchTracked] = useState(false);
-  const [featureOrder, setFeatureOrder] = useState<string[] | null>(null);
-  const [painPointLoaded, setPainPointLoaded] = useState(false);
+  const [showMore, setShowMore] = useState(false);
+  const [animatingBtn, setAnimatingBtn] = useState<string | null>(null);
 
-  // 从 /api/recommend/features 获取基于痛点的功能推荐排序
+  // 从 /api/home/mission-control 获取3个核心功能的状态
+  const [missionStatus, setMissionStatus] = useState<{
+    publish_task?: any; invite_partner?: any; track_split?: any;
+  }>({});
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await api.get<{features: {id: string}[]; pain_point: string | null}>('/api/recommend/features');
-        if (!cancelled && res.data?.features) {
-          const ordered = res.data.features.map((f: any) => f.id);
-          setFeatureOrder(ordered);
+        const res = await api.get<any>('/api/home/mission-control');
+        if (!cancelled && res.data?.data) {
+          setMissionStatus(res.data.data);
         }
       } catch {
-        // API不可用则不启用排序
-      } finally {
-        if (!cancelled) setPainPointLoaded(true);
+        // fallback: show static labels if API unavailable
+        setMissionStatus({
+          publish_task: { label: '发布任务', icon: 'flame', description: '创建分销/合作任务', status: 'active', badge: null, action_hint: '发布新产品', sort_order: 1 },
+          invite_partner: { label: '邀请伙伴', icon: 'handshake', description: '发送邀请链接/二维码', status: 'active', badge: null, action_hint: '立即邀请', sort_order: 2 },
+          track_split: { label: '追踪分账', icon: 'chart', description: '查看收益/佣金/结算', status: 'active', badge: null, action_hint: '查看详情', sort_order: 3 },
+        });
       }
     })();
     return () => { cancelled = true; };
   }, []);
-
-  // 获取当前用户ID
-  const getUserId = () => {
-    try {
-      const token = api.loadToken();
-      if (!token) return null;
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.user_id || payload.sub || null;
-    } catch { return null; }
-  };
-  const userId = getUserId();
-
-  // 个性化推荐（替代原来的简单 GET /api/products）
-  const { data: products, status, error, refetch } = useApi(
-    () => {
-      const queryParams = search
-        ? `/api/products?search=${encodeURIComponent(search)}&limit=4`
-        : `/api/recommend/products${userId ? `?user_id=${userId}` : ''}&limit=4`;
-      return api.get<{total: number; items: any[]}>(queryParams).then(r => {
-        // 兼容两种响应格式: {items: [...]} 和 {data: {items: [...]}}
-        if (r.data?.items) return r.data.items;
-        if ((r.data as any)?.items) return (r.data as any).items;
-        return r.data || [];
-      });
-    },
-    [search, userId]
-  );
-
-  // 搜索事件追踪（延迟触发，只在用户输入后标记）
-  useEffect(() => {
-    if (search && !searchTracked) {
-      const timer = setTimeout(() => {
-        api.track('search', { search_keyword: search });
-        setSearchTracked(true);
-      }, 2000); // 用户停止输入2秒后追踪
-      return () => clearTimeout(timer);
-    }
-    if (!search) setSearchTracked(false);
-  }, [search, searchTracked]);
 
   // Fetch unread notification count
   const fetchUnread = async () => {
@@ -144,328 +99,221 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Carousel with product-relevant background images
-  const banners = [
+  const missionButtons = [
     {
-      tag: '精选推荐', title: '精选大健康 · 企业家必备', desc: '优质品牌直供，专业团队严选',
-      btnText: '立即查看', link: '/product-pool',
-      bgImage: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800&h=400&fit=crop',
+      id: 'publish_task', icon: '🔥',
+      label: missionStatus.publish_task?.label || '发布任务',
+      desc: missionStatus.publish_task?.description || '创建分销/合作任务',
+      hint: missionStatus.publish_task?.action_hint || '发布新产品',
+      badge: missionStatus.publish_task?.badge,
+      gradient: 'from-orange-500 via-red-500 to-pink-600',
+      shadow: 'shadow-orange-500/30',
+      path: '/add-product',
     },
     {
-      tag: 'VIP会员', title: '开通会员享超值权益', desc: '推广佣金翻倍 · 优先审核 · 专属客服',
-      btnText: '了解详情', link: '/membership',
-      bgImage: 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=800&h=400&fit=crop',
+      id: 'invite_partner', icon: '🤝',
+      label: missionStatus.invite_partner?.label || '邀请伙伴',
+      desc: missionStatus.invite_partner?.description || '发送邀请链接/二维码',
+      hint: missionStatus.invite_partner?.action_hint || '立即邀请',
+      badge: missionStatus.invite_partner?.badge,
+      gradient: 'from-emerald-500 via-teal-500 to-green-600',
+      shadow: 'shadow-emerald-500/30',
+      path: '/contacts',
     },
     {
-      tag: 'AI赋能', title: 'AI数字名片 · 智能获客', desc: '一键生成电子画册，精准触达潜在客户',
-      btnText: '立即体验', link: 'https://liankebao.top/digital-brochure/', external: true,
-      bgImage: 'https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=800&h=400&fit=crop',
-    },
-    {
-      tag: 'GEO诊断', title: 'AI诊断你的线上曝光', desc: '分析品牌在AI搜索引擎中的可见度，精准优化',
-      btnText: '开始诊断', link: 'https://liankebao.top/geo/', external: true,
-      bgImage: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=800&h=400&fit=crop',
+      id: 'track_split', icon: '📊',
+      label: missionStatus.track_split?.label || '追踪分账',
+      desc: missionStatus.track_split?.description || '查看收益/佣金/结算',
+      hint: missionStatus.track_split?.action_hint || '累计收益 ¥0.00',
+      badge: missionStatus.track_split?.badge,
+      gradient: 'from-violet-500 via-purple-500 to-indigo-600',
+      shadow: 'shadow-violet-500/30',
+      path: '/my-orders',
     },
   ];
 
-  // Auto-play
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentBanner(prev => (prev + 1) % banners.length);
-    }, 4000);
-    return () => clearInterval(timer);
-  }, []);
+  const handleMissionClick = (btn: typeof missionButtons[0]) => {
+    setAnimatingBtn(btn.id);
+    setTimeout(() => setAnimatingBtn(null), 500);
+    navigate(btn.path, { state: { transition: 'push' } });
+  };
 
-  const featureCards = [
-    { id: 'product-pool', icon: Database, label: '产品池', desc: '精选优质货源', color: 'from-sky-500 to-blue-600', bg: 'bg-sky-50', path: '/product-pool' },
-    { id: 'promotion-center', icon: TrendingUp, label: '推广中心', desc: '赚取高额分润', color: 'from-emerald-500 to-teal-600', bg: 'bg-emerald-50', path: '/promotion-center' },
-    { id: 'contacts', icon: Users, label: '人脉管理', desc: '高效触达客户', color: 'from-violet-500 to-purple-600', bg: 'bg-violet-50', path: '/contacts' },
-    { id: 'my-orders', icon: Receipt, label: '我的订单', desc: '订单物流追踪', color: 'from-amber-500 to-orange-600', bg: 'bg-amber-50', path: '/my-orders' },
-    { id: 'supply-demand', icon: Target, label: '信任对接', desc: '精准匹配可信商机', color: 'from-rose-500 to-pink-600', bg: 'bg-rose-50', path: '/supply-demand' },
-    { id: 'data', icon: BarChart3, label: '数据洞察', desc: '生意增长分析', color: 'from-cyan-500 to-teal-600', bg: 'bg-cyan-50', path: '#data' },
+  // 二级菜单功能列表（深色主题配色）
+  const secondaryFeatures = [
+    { icon: Database, label: '产品池', desc: '精选优质货源', path: '/product-pool', color: 'text-sky-400', bg: 'bg-sky-500/15' },
+    { icon: ShoppingBag, label: '推广中心', desc: '赚取高额分润', path: '/promotion-center', color: 'text-emerald-400', bg: 'bg-emerald-500/15' },
+    { icon: Users, label: '人脉管理', desc: '高效触达客户', path: '/contacts', color: 'text-violet-400', bg: 'bg-violet-500/15' },
+    { icon: Receipt, label: '我的订单', desc: '订单物流追踪', path: '/my-orders', color: 'text-amber-400', bg: 'bg-amber-500/15' },
+    { icon: Target, label: '供需匹配', desc: '精准匹配可信商机', path: '/supply-demand', color: 'text-rose-400', bg: 'bg-rose-500/15' },
+    { icon: Package, label: '我的产品', desc: '管理已发布产品', path: '/my-products', color: 'text-indigo-400', bg: 'bg-indigo-500/15' },
+    { icon: GraduationCap, label: '推广教程', desc: '学习推广技巧', path: '/promotion-tutorial', color: 'text-teal-400', bg: 'bg-teal-500/15' },
+    { icon: Crown, label: '会员中心', desc: '尊享会员权益', path: '/membership', color: 'text-amber-400', bg: 'bg-amber-500/15' },
+    { icon: FileText, label: '合伙人政策', desc: '查看分账规则', path: '/partner-policy', color: 'text-blue-400', bg: 'bg-blue-500/15' },
+    { icon: BarChart3, label: '数据洞察', desc: '生意增长分析', path: '#data', color: 'text-cyan-400', bg: 'bg-cyan-500/15' },
+    { icon: HelpCircle, label: '操作指南', desc: '新手上路必看', path: '/promotion-tutorial', color: 'text-slate-400', bg: 'bg-slate-500/15' },
+    { icon: Settings, label: '个人设置', desc: '账号安全/偏好', path: '/profile', color: 'text-slate-400', bg: 'bg-slate-500/15' },
   ];
-
-  // 根据痛点排序功能卡片，API未返回时保持默认顺序
-  const orderedFeatureCards = featureOrder
-    ? featureOrder.map(id => featureCards.find(c => c.id === id)).filter(Boolean)
-    : featureCards;
 
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-b from-sky-50/50 via-white to-white font-sans pb-20">
-      {/* Top Navigation Bar */}
-      <header className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-xl border-b border-sky-100/50 px-4 h-16">
+    <div className="flex flex-col min-h-screen bg-dark-bg font-sans pb-20">
+      {/* Decorative mesh background */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-gradient-to-br from-sky-500/8 to-blue-600/5 rounded-full blur-[120px]" />
+        <div className="absolute top-1/3 right-0 w-[400px] h-[400px] bg-gradient-to-bl from-violet-500/6 to-purple-600/4 rounded-full blur-[100px]" />
+        <div className="absolute bottom-0 left-1/3 w-[500px] h-[500px] bg-gradient-to-tr from-emerald-500/5 to-teal-600/3 rounded-full blur-[100px]" />
+      </div>
+
+      {/* Top Navigation Bar - dark theme */}
+      <header className="fixed top-0 w-full z-50 bg-dark-surface/80 backdrop-blur-xl border-b border-dark-border/60 px-4 h-16">
         <div className="flex items-center justify-between h-full max-w-3xl mx-auto">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl brand-gradient flex items-center justify-center shadow-md shadow-sky-500/20">
+            <div className="w-10 h-10 rounded-xl brand-gradient flex items-center justify-center shadow-lg shadow-sky-500/20 glow-pulse">
               <HandshakeIcon className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="font-manrope text-xl font-extrabold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent leading-tight">
+              <h1 className="font-manrope text-xl font-extrabold bg-gradient-to-r from-sky-400 to-blue-400 bg-clip-text text-transparent leading-tight">
                 链客宝
               </h1>
-              <p className="text-[10px] text-slate-400 font-medium tracking-wider -mt-0.5">企业信任关系网，对接更快更准</p>
+              <p className="text-[10px] text-dark-muted font-medium tracking-wider -mt-0.5">企业信任关系网</p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/notifications')} className="relative w-9 h-9 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 hover:bg-sky-50 hover:text-sky-600 active:scale-90 transition-all border border-slate-100">
+            <button onClick={() => navigate('/notifications')} className="relative w-9 h-9 rounded-full bg-dark-surface flex items-center justify-center text-dark-muted hover:bg-sky-500/15 hover:text-sky-400 active:scale-90 transition-all border border-dark-border">
               <Bell className="w-4.5 h-4.5" />
               {unreadCount > 0 && (
               <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-gradient-to-br from-rose-500 to-rose-600 rounded-full text-white text-[8px] font-bold flex items-center justify-center shadow-sm">{unreadCount > 99 ? '99+' : unreadCount}</span>
               )}
             </button>
-            <button onClick={() => navigate('/promotion-center')} className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-white shadow-md shadow-sky-500/20 active:scale-90 transition-all border-2 border-white">
+            <button onClick={() => navigate('/profile')} className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center text-white shadow-md shadow-sky-500/20 active:scale-90 transition-all border-2 border-dark-surface">
               <User className="w-4.5 h-4.5" />
             </button>
           </div>
         </div>
       </header>
 
-      <main className="pt-16 max-w-3xl mx-auto w-full">
-        {/* Search Bar */}
-        <div className="px-4 pt-4 pb-2">
-          <div className="relative group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-300 group-focus-within:text-sky-500 transition-colors" />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full bg-white/80 border border-slate-200 rounded-2xl py-3.5 pl-11 pr-4 text-sm text-slate-600 placeholder:text-slate-400 focus:ring-2 focus:ring-sky-500/15 focus:border-sky-500 outline-none transition-all shadow-sm"
-              placeholder="搜产品、搜企业、搜品类..."
-            />
+      <main className="pt-16 max-w-3xl mx-auto w-full relative z-10">
+        {/* ====== 3 MAIN BUTTONS — enhanced ====== */}
+        <div className="px-4 pt-8 pb-2">
+          {/* Section label — dark theme */}
+          <div className="flex items-center gap-2 mb-5">
+            <div className="w-1 h-5 bg-gradient-to-b from-sky-400 to-blue-500 rounded-full shadow-sm shadow-sky-500/30" />
+            <h2 className="font-manrope text-sm font-extrabold text-dark-muted uppercase tracking-widest">核心功能</h2>
           </div>
-        </div>
 
-        {/* Feature Cards Grid */}
-        <div className="px-4 py-3">
-          <div className="grid grid-cols-4 gap-3">
-            {orderedFeatureCards.map((card: any, i: number) => {
-              const Icon = card.icon;
-              return (
-                <button
-                  key={i}
-                  onClick={() => {
-                    if (card.path === '#data') {
-                      alert('数据洞察功能开发中');
-                    } else {
-                      navigate(card.path, { state: { transition: 'push' } });
-                    }
-                  }}
-                  className="group flex flex-col items-center gap-2 active:scale-95 transition-transform"
-                >
-                  <div className={`w-14 h-14 rounded-2xl ${card.bg} flex items-center justify-center border border-white/60 shadow-sm group-hover:shadow-md transition-all`}>
-                    <Icon className="w-6 h-6 text-slate-700" />
-                  </div>
-                  <div className="text-center">
-                    <span className="text-xs font-bold text-slate-700 block leading-tight">{card.label}</span>
-                    <span className="text-[8px] text-slate-400">{card.desc}</span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Banner Carousel - Horizontal Sliding */}
-        <div className="px-4 py-3">
-          <BorderGlow
-            glowColor="190 80 80"
-            backgroundColor="#ffffff"
-            glowIntensity={0.6}
-            borderRadius={16}
-            glowRadius={12}
-          >
-          <div className="relative w-full aspect-[21/9] rounded-2xl overflow-hidden shadow-lg">
-            {/* Sliding Track */}
-            <div
-              className="flex transition-transform duration-500 ease-in-out h-full"
-              style={{ transform: `translateX(-${currentBanner * 100}%)` }}
-            >
-              {banners.map((b, i) => (
-                <div key={i} className="relative w-full h-full shrink-0">
-                  {/* Background Image */}
-                  <img
-                    src={b.bgImage}
-                    alt=""
-                    className="absolute inset-0 w-full h-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                  {/* Dark overlay for text readability */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent" />
-                  <div className="absolute inset-0 flex flex-col justify-center px-6">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="bg-white/20 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 rounded-full font-bold border border-white/20">{b.tag}</span>
-                    </div>
-                    <h2 className="text-white font-manrope font-bold text-xl leading-tight">{b.title}</h2>
-                    <p className="text-white/70 text-xs mt-1">{b.desc}</p>
-                    <button
-                      onClick={() => {
-                        if (!b.link || b.link === '#') return;
-                        if (b.external) window.open(b.link, '_blank');
-                        else navigate(b.link, { state: { transition: 'push' } });
-                      }}
-                      className="mt-3 w-fit bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-4 py-2 rounded-full border border-white/20 hover:bg-white/30 active:scale-95 transition-all flex items-center gap-1.5"
-                    >
-                      {b.btnText} <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-            {/* Dots */}
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-10">
-              {banners.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setCurrentBanner(i)}
-                  className={`transition-all duration-300 rounded-full ${
-                    i === currentBanner
-                      ? 'w-5 h-1.5 bg-white shadow-sm'
-                      : 'w-1.5 h-1.5 bg-white/40 hover:bg-white/60'
-                  }`}
+          <div className="flex flex-col gap-5">
+            {missionButtons.map((btn) => (
+              <button
+                key={btn.id}
+                onClick={() => handleMissionClick(btn)}
+                className={`
+                  relative w-full overflow-hidden rounded-2xl p-0 border-0 cursor-pointer
+                  transition-all duration-300 ease-out
+                  active:scale-[0.96]
+                  ${animatingBtn === btn.id ? 'scale-[0.96]' : 'hover:scale-[1.02] hover:shadow-xl'}
+                  shadow-lg ${btn.shadow}
+                `}
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                <div className={`absolute inset-0 bg-gradient-to-r ${btn.gradient}`} />
+                {/* Animated shine overlay */}
+                <div className="absolute inset-0 opacity-20"
+                  style={{ backgroundImage: `radial-gradient(circle at 30% 40%, rgba(255,255,255,0.9) 0%, transparent 60%)` }}
                 />
-              ))}
-            </div>
-            {/* Auto-play indicator */}
-            <div className="absolute top-3 right-3 z-10 bg-black/20 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded-full">
-              {currentBanner + 1}/{banners.length}
-            </div>
-            </div>
-          </BorderGlow>
-        </div>
-
-        {/* Quick Tools */}
-        <div className="px-4 py-2">
-          <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-1">
-            {[
-              { icon: Star, label: 'AI名片', color: 'text-amber-500', bg: 'bg-amber-50', link: 'https://liankebao.top/digital-brochure/', external: true },
-              { icon: Zap, label: 'GEO', color: 'text-violet-500', bg: 'bg-violet-50', link: 'https://liankebao.top/geo/', external: true },
-              { icon: Target, label: 'AI员工', color: 'text-sky-500', bg: 'bg-sky-50', link: 'https://liankebao.top/app/business-card', external: true },
-              { icon: Globe, label: '信任对接', color: 'text-emerald-500', bg: 'bg-emerald-50', link: '/supply-demand', external: false },
-              { icon: BarChart3, label: '数据洞察', color: 'text-blue-500', bg: 'bg-blue-50', link: '#', external: false },
-              { icon: Grid, label: '全部产品', color: 'text-slate-500', bg: 'bg-slate-50', link: '/product-pool', external: false },
-            ].map((item, i) => {
-              const Icon = item.icon;
-              return (
-                <div key={i} onClick={() => {
-                  if (item.external) {
-                    window.open(item.link, '_blank');
-                  } else if (item.link !== '#') {
-                    navigate(item.link, { state: { transition: 'push' } });
-                  }
-                }} className="flex items-center gap-2 px-4 py-2.5 bg-white rounded-xl border border-slate-100 shadow-sm cursor-pointer active:scale-95 transition-all shrink-0">
-                  <div className={`w-8 h-8 ${item.bg} rounded-lg flex items-center justify-center`}>
-                    <Icon className={`w-4 h-4 ${item.color}`} />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                <div className="relative flex items-center gap-5 px-6 py-6 min-h-[5.5rem]">
+                  <div className="flex-shrink-0 w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-3xl shadow-inner border border-white/25">
+                    {btn.icon}
                   </div>
-                  <span className="text-xs font-bold text-slate-700 whitespace-nowrap">{item.label}</span>
+                  <div className="flex-1 text-left">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-white font-manrope font-extrabold text-xl tracking-wide drop-shadow-sm">{btn.label}</span>
+                      {btn.badge && (
+                        <span className="bg-white/25 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-white/20 shadow-sm">{btn.badge}</span>
+                      )}
+                    </div>
+                    <p className="text-white/80 text-sm mt-0.5 font-medium drop-shadow-sm">{btn.desc}</p>
+                  </div>
+                  <div className="flex-shrink-0 flex flex-col items-end gap-1.5">
+                    <span className="text-white/70 text-[11px] font-semibold whitespace-nowrap drop-shadow-sm">{btn.hint}</span>
+                    <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/25 shadow-inner">
+                      <ChevronRight className="w-4.5 h-4.5 text-white" />
+                    </div>
+                  </div>
                 </div>
-              );
-            })}
+                {/* Bottom accent line */}
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-white/30 via-white/10 to-transparent" />
+                {animatingBtn === btn.id && (
+                  <span className="absolute inset-0 rounded-2xl animate-pulse bg-white/10" />
+                )}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Recommended Products Header */}
-        <div className="px-4 pt-4 pb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-1 h-5 bg-gradient-to-b from-sky-500 to-blue-600 rounded-full" />
-            <h2 className="font-manrope text-base font-extrabold text-slate-800">为您推荐</h2>
-            <Sparkles className="w-4 h-4 text-amber-400" />
-          </div>
+        {/* ====== MORE FEATURES ENTRY — dark theme ====== */}
+        <div className="px-4 py-5">
           <button
-            onClick={() => navigate('/product-pool', { state: { transition: 'push' } })}
-            className="text-xs text-sky-600 font-bold flex items-center gap-0.5 hover:underline"
+            onClick={() => setShowMore(!showMore)}
+            className="w-full flex items-center justify-between px-5 py-4 rounded-2xl bg-dark-surface/70 border border-dark-border hover:bg-dark-surface hover:border-sky-500/40 hover:shadow-lg hover:shadow-sky-500/5 active:scale-[0.98] transition-all shadow-sm backdrop-blur-sm"
           >
-            更多产品 <ChevronRight className="w-3.5 h-3.5" />
+            <div className="flex items-center gap-3">
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${showMore ? 'bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-md shadow-sky-500/20' : 'bg-dark-surface text-dark-muted border border-dark-border'}`}>
+                <Grid className={`w-4.5 h-4.5 transition-transform duration-300 ${showMore ? 'rotate-90' : ''}`} />
+              </div>
+              <div className="text-left">
+                <span className="text-sm font-bold text-dark-text">{showMore ? '收起二级菜单' : '更多功能'}</span>
+                <p className="text-[10px] text-dark-muted font-medium">产品池 · 推广 · 人脉 · 订单 · 数据</p>
+              </div>
+            </div>
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${showMore ? 'bg-sky-500/20 text-sky-400 rotate-90' : 'bg-dark-surface text-dark-muted border border-dark-border'}`}>
+              <ChevronRight className="w-4 h-4" />
+            </div>
           </button>
-        </div>
 
-        {/* Products Grid */}
-        <div className="px-4 pb-6">
-          {status === 'loading' ? (
-            <div className="grid grid-cols-2 gap-4">
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className="bg-white rounded-2xl overflow-hidden border border-slate-100">
-                  <div className="aspect-square skeleton" />
-                  <div className="p-3 space-y-2">
-                    <div className="h-4 skeleton rounded w-3/4" />
-                    <div className="h-5 skeleton rounded w-1/2" />
-                    <div className="h-8 skeleton rounded" />
-                  </div>
+          {/* Expanded secondary menu — dark theme */}
+          <div className={`overflow-hidden transition-all duration-400 ease-in-out ${showMore ? 'max-h-[1000px] opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
+            <div className="bg-dark-surface/80 backdrop-blur-sm rounded-2xl border border-dark-border shadow-lg overflow-hidden">
+              <div className="p-4">
+                <div className="flex items-center gap-2 mb-3 px-1">
+                  <Shapes className="w-3.5 h-3.5 text-sky-400" />
+                  <span className="text-[10px] font-bold text-dark-muted uppercase tracking-widest">全部功能</span>
                 </div>
-              ))}
-            </div>
-          ) : status === 'error' ? (
-            <ErrorBlock message={error} onRetry={refetch} />
-          ) : !products || products.length === 0 ? (
-            <Empty text="暂无推荐产品" />
-          ) : (
-            <div className="grid grid-cols-2 gap-4">
-              {products.map((item, i) => (
-                <SpotlightCard
-                  key={i}
-                  className="cursor-pointer"
-                  spotlightColor="rgba(56, 189, 248, 0.12)"
-                >
-                <div
-                  onClick={() => {
-                    // 点击产品卡片追踪
-                    api.track('product_click', { target_id: item.id, target_type: 'product' });
-                    navigate('/product-detail', { state: { transition: 'push', productId: item.id } });
-                  }}
-                  className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-md hover:border-sky-200 active:shadow-sm transition-all card-hover group"
-                >
-                  <div className="aspect-square p-2 relative">
-                    <div className="absolute top-3 left-3 z-10 bg-gradient-to-r from-sky-500 to-blue-600 text-white text-[8px] font-bold px-2 py-0.5 rounded-full shadow-sm">
-                      推荐
-                    </div>
-                    <img
-                      src={safeImageUrl(typeof item.images === "string" ? (JSON.parse(item.images)[0]) : (Array.isArray(item.images) ? item.images[0] : item.images))}
-                      className="w-full h-full object-cover rounded-xl bg-slate-50"
-                      alt={item.name}
-                    />
-                  </div>
-                  <div className="px-3 pb-3 space-y-2">
-                    <h3 className="text-sm font-bold text-slate-800 line-clamp-2 leading-tight">{item.name}</h3>
-                    {item.tags && (
-                      <div className="flex flex-wrap gap-1">
-                        {item.tags.split(',').slice(0, 3).map((tag, ti) => (
-                          <span key={ti} className="text-[8px] bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded-full font-medium border border-sky-100">{tag}</span>
-                        ))}
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between">
-                      <span className="font-manrope text-lg font-extrabold text-sky-600">¥{item.price.toFixed(2)}</span>
-                    </div>
-                    <div className="bg-gradient-to-r from-emerald-50 to-emerald-50/50 border border-emerald-100/50 rounded-lg px-2.5 py-1 flex items-center gap-1">
-                      <TrendingUp className="w-3 h-3 text-emerald-600" />
-                      <span className="text-[10px] font-bold text-emerald-700">推广赚 {item.earn_per_share}%</span>
-                    </div>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); api.track('product_click', { target_id: item.id, target_type: 'product' }); navigate('/product-detail', { state: { transition: 'push', productId: item.id } }); }}
-                      className="w-full py-2.5 border-2 border-sky-200 text-sky-600 rounded-xl font-bold text-xs hover:bg-sky-500 hover:text-white hover:border-sky-500 active:scale-[0.97] transition-all mb-0.5"
-                    >
-                      查看详情
-                    </button>
-                  </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {secondaryFeatures.map((feat, i) => {
+                    const Icon = feat.icon;
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => {
+                          if (feat.path === '#data') {
+                            alert('数据洞察功能开发中，敬请期待');
+                          } else {
+                            navigate(feat.path, { state: { transition: 'push' } });
+                          }
+                        }}
+                        className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-dark-bg hover:border-sky-500/20 active:scale-95 transition-all border border-transparent"
+                      >
+                        <div className={`w-11 h-11 ${feat.bg} rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/5`}>
+                          <Icon className={`w-5 h-5 ${feat.color}`} />
+                        </div>
+                        <span className="text-[10px] font-bold text-dark-text text-center leading-tight">{feat.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-                </SpotlightCard>
-              ))}
+              </div>
             </div>
-          )}
+          </div>
         </div>
       </main>
 
       <BottomNav active="home" />
-
-      <style>{`
-        .handshake-icon { display: inline-block; }
-      `}</style>
     </div>
   );
 });
 
-// Reuse the same Handshake icon as login page
+// Handshake icon component
 function HandshakeIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -481,6 +329,13 @@ function HandshakeIcon({ className }: { className?: string }) {
 // ==============================
 //  ProductPool
 // ==============================
+function safeImageUrl(url: string) {
+  if (!url || typeof url !== 'string') return 'https://via.placeholder.com/200';
+  if (url.startsWith('http://47.116.116.87')) return url.replace('http://47.116.116.87', '/lkapi');
+  if (url.startsWith('http://') && !url.startsWith('http://localhost')) return url.replace('http://', 'https://');
+  return url;
+}
+
 export const ProductPool = memo(function ProductPool() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
@@ -566,7 +421,7 @@ export const ProductPool = memo(function ProductPool() {
                   onClick={() => navigate('/product-detail', { state: { transition: 'push', productId: item.id } })}
                   className="bg-white rounded-xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-md transition-all card-hover cursor-pointer"
                 >
-                  <img src={safeImageUrl(typeof item.images === "string" ? (JSON.parse(item.images)[0]) : (Array.isArray(item.images) ? item.images[0] : item.images))} className="w-full aspect-square object-cover bg-slate-50" alt={item.name} />
+                  <img src={safeImageUrl(typeof item.images === "string" ? (JSON.parse(item.images || '[]')[0]) : (Array.isArray(item.images) ? item.images[0] : item.images))} className="w-full aspect-square object-cover bg-slate-50" alt={item.name} />
                   <div className="p-3 space-y-2">
                     <h3 className="text-xs font-bold line-clamp-2 h-8 text-slate-800">{item.name}</h3>
                     {item.tags && (

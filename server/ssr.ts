@@ -1,9 +1,9 @@
 /**
  * 链客宝 SSR 服务器
- * 
+ *
  * Express + Vite SSR 服务器，仅对 /app/card/:token 路由进行服务端渲染，
  * 其他路由保持 CSR（返回 SPA index.html）。
- * 
+ *
  * 两种运行模式:
  *   DEV:  npm run dev:ssr   — 使用 Vite dev server (HMR)
  *   PROD: npm run build:ssr && npm run start:ssr  — 生产模式
