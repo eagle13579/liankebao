@@ -104,19 +104,10 @@ def list_users(
 
     if search:
         like = f"%{search}%"
-        query = query.filter(
-            User.name.ilike(like)
-            | User.username.ilike(like)
-            | User.phone.ilike(like)
-        )
+        query = query.filter(User.name.ilike(like) | User.username.ilike(like) | User.phone.ilike(like))
 
     total = query.count()
-    users = (
-        query.order_by(desc(User.created_at))
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-        .all()
-    )
+    users = query.order_by(desc(User.created_at)).offset((page - 1) * page_size).limit(page_size).all()
 
     return ApiResponse(
         code=200,
