@@ -5,9 +5,8 @@
 """
 
 import os
-import pytest
 
-from payment_sdk.config import WxPayConfig, AliPayConfig, is_real_mode
+from payment_sdk.config import AliPayConfig, WxPayConfig, is_real_mode
 
 
 class TestWxPayConfig:

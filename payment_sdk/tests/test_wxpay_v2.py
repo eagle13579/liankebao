@@ -12,20 +12,18 @@
     - query_refund() 退款查询
 """
 
-import json
+from unittest.mock import AsyncMock
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from payment_sdk.config import WxPayConfig
 from payment_sdk.http_delegate import HttpResponse
-from payment_sdk.payment_provider import PaymentResult, CallbackResult
 from payment_sdk.providers.wxpay_v2 import WxPayV2Provider
-
 
 # ============================================================
 # 测试用配置
 # ============================================================
+
 
 @pytest.fixture
 def mock_config():
@@ -60,6 +58,7 @@ def v2_provider(mock_config, mock_http):
 # ============================================================
 # V2 XML 模拟响应（不依赖外部网络）
 # ============================================================
+
 
 def _success_xml(prepay_id="wx25001234567890"):
     return f"""<xml>
@@ -118,13 +117,12 @@ def _callback_xml():
 # 测试用例
 # ============================================================
 
+
 class TestWxPayV2ProviderPay:
     """统一下单测试"""
 
     async def test_pay_success(self, v2_provider, mock_http):
-        mock_http.post.return_value = HttpResponse(
-            status=200, body=_success_xml("wx_prepay_001")
-        )
+        mock_http.post.return_value = HttpResponse(status=200, body=_success_xml("wx_prepay_001"))
         result = await v2_provider.pay(
             openid="o_test_openid",
             out_trade_no="ORDER001",
@@ -136,9 +134,7 @@ class TestWxPayV2ProviderPay:
         assert result.out_trade_no == "ORDER001"
 
     async def test_pay_fail(self, v2_provider, mock_http):
-        mock_http.post.return_value = HttpResponse(
-            status=200, body=_fail_xml("签名错误")
-        )
+        mock_http.post.return_value = HttpResponse(status=200, body=_fail_xml("签名错误"))
         result = await v2_provider.pay(
             openid="o_test_openid",
             out_trade_no="ORDER001",
@@ -149,9 +145,7 @@ class TestWxPayV2ProviderPay:
         assert "签名错误" in result.message
 
     async def test_pay_http_error(self, v2_provider, mock_http):
-        mock_http.post.return_value = HttpResponse(
-            status=0, body="Connection refused"
-        )
+        mock_http.post.return_value = HttpResponse(status=0, body="Connection refused")
         result = await v2_provider.pay(
             openid="o_test_openid",
             out_trade_no="ORDER001",
@@ -162,9 +156,7 @@ class TestWxPayV2ProviderPay:
 
     async def test_pay_includes_sign(self, v2_provider, mock_http):
         """验证 POST 的 XML 中包含 sign 字段"""
-        mock_http.post.return_value = HttpResponse(
-            status=200, body=_success_xml()
-        )
+        mock_http.post.return_value = HttpResponse(status=200, body=_success_xml())
 
         await v2_provider.pay(
             openid="o_test_openid",
@@ -184,18 +176,14 @@ class TestWxPayV2ProviderQuery:
     """订单查询测试"""
 
     async def test_query_success(self, v2_provider, mock_http):
-        mock_http.post.return_value = HttpResponse(
-            status=200, body=_query_success_xml()
-        )
+        mock_http.post.return_value = HttpResponse(status=200, body=_query_success_xml())
         result = await v2_provider.query(out_trade_no="ORDER001")
         assert result.success is True
         assert result.provider_order_id == "wx420250101234567890"
         assert result.data["trade_state"] == "SUCCESS"
 
     async def test_query_order_not_found(self, v2_provider, mock_http):
-        mock_http.post.return_value = HttpResponse(
-            status=200, body=_fail_xml("订单不存在")
-        )
+        mock_http.post.return_value = HttpResponse(status=200, body=_fail_xml("订单不存在"))
         result = await v2_provider.query(out_trade_no="NONEXIST")
         assert result.success is False
 
@@ -204,9 +192,7 @@ class TestWxPayV2ProviderRefund:
     """退款测试"""
 
     async def test_refund_success(self, v2_provider, mock_http):
-        mock_http.post.return_value = HttpResponse(
-            status=200, body=_refund_success_xml()
-        )
+        mock_http.post.return_value = HttpResponse(status=200, body=_refund_success_xml())
         result = await v2_provider.refund(
             out_trade_no="ORDER001",
             out_refund_no="REFUND001",
@@ -217,9 +203,7 @@ class TestWxPayV2ProviderRefund:
         assert result.provider_order_id == "refund_12345"
 
     async def test_refund_fail(self, v2_provider, mock_http):
-        mock_http.post.return_value = HttpResponse(
-            status=200, body=_fail_xml("余额不足")
-        )
+        mock_http.post.return_value = HttpResponse(status=200, body=_fail_xml("余额不足"))
         result = await v2_provider.refund(
             out_trade_no="ORDER001",
             out_refund_no="REFUND001",
@@ -233,23 +217,17 @@ class TestWxPayV2ProviderCallback:
     """回调验签测试"""
 
     async def test_callback_verify_invalid_xml(self, v2_provider):
-        result = await v2_provider.callback_verify(
-            body=b"not xml data"
-        )
+        result = await v2_provider.callback_verify(body=b"not xml data")
         assert result.verified is False
 
     async def test_callback_verify_missing_sign(self, v2_provider):
         xml_body = """<xml><return_code><![CDATA[SUCCESS]]></return_code></xml>"""
-        result = await v2_provider.callback_verify(
-            body=xml_body.encode("utf-8")
-        )
+        result = await v2_provider.callback_verify(body=xml_body.encode("utf-8"))
         assert result.verified is False
 
     async def test_callback_verify_with_data(self, v2_provider):
         """验证回调数据被正确解析"""
-        result = await v2_provider.callback_verify(
-            body=_callback_xml().encode("utf-8")
-        )
+        result = await v2_provider.callback_verify(body=_callback_xml().encode("utf-8"))
         # V2 验签需要 sign，这里 TEST_SIGN 不匹配所以返回 false
         # 但我们能确认数据被正确解析
         assert result.raw is not None
@@ -269,7 +247,8 @@ class TestWxPayV2ProviderCloseOrder:
 
     async def test_close_order_fail(self, v2_provider, mock_http):
         mock_http.post.return_value = HttpResponse(
-            status=200, body="""<xml><return_code><![CDATA[FAIL]]></return_code><return_msg><![CDATA[订单不存在]]></return_msg></xml>"""
+            status=200,
+            body="""<xml><return_code><![CDATA[FAIL]]></return_code><return_msg><![CDATA[订单不存在]]></return_msg></xml>""",
         )
         result = await v2_provider.close_order("NONEXIST")
         assert result is False
@@ -286,6 +265,7 @@ class TestWxPayV2ProviderConfig:
     def test_auto_env_config(self):
         """测试从环境变量加载配置"""
         import os
+
         os.environ["WXPAY_APPID"] = "env_appid"
         os.environ["WXPAY_MCH_ID"] = "env_mchid"
         os.environ["WXPAY_API_KEY"] = "env_apikey_32chars_test_abcdefghijk"

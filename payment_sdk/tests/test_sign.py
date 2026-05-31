@@ -4,19 +4,18 @@
 不依赖外部网络，仅测试本地算法正确性。
 """
 
-import pytest
 from payment_sdk.sign import (
+    aes_gcm_decrypt,
+    build_v2_sign,
+    build_v3_response_sign_str,
+    build_v3_sign_str,
     generate_nonce,
-    md5,
-    md5_upper,
     hmac_sha256,
     hmac_sha256_upper,
+    md5,
+    md5_upper,
     sha256,
-    build_v2_sign,
     verify_v2_sign,
-    build_v3_sign_str,
-    build_v3_response_sign_str,
-    aes_gcm_decrypt,
 )
 
 
@@ -106,7 +105,7 @@ class TestBuildV2Sign:
             "mch_id": "1600000001",
             "nonce_str": "test_nonce",
             "sign": "old_sign",  # should be excluded
-            "empty_field": "",   # should be excluded
+            "empty_field": "",  # should be excluded
             "none_field": None,  # should be excluded
         }
         sign = build_v2_sign(params, api_key="test_key")
@@ -164,7 +163,7 @@ class TestBuildV3SignStr:
             nonce="abc123",
             body='{"test": true}',
         )
-        assert result == "POST\n/v3/pay/transactions/jsapi\n1700000000\nabc123\n{\"test\": true}\n"
+        assert result == 'POST\n/v3/pay/transactions/jsapi\n1700000000\nabc123\n{"test": true}\n'
 
     def test_v3_sign_str_get_empty_body(self):
         result = build_v3_sign_str(
@@ -186,7 +185,7 @@ class TestBuildV3ResponseSignStr:
             nonce="abc123",
             body='{"test": true}',
         )
-        assert result == "1700000000\nabc123\n{\"test\": true}\n"
+        assert result == '1700000000\nabc123\n{"test": true}\n'
 
 
 class TestAesGcmDecrypt:
@@ -204,6 +203,7 @@ class TestAesGcmDecrypt:
 
     def test_decrypt_wrong_key_returns_none(self):
         import base64
+
         # 无法验证解密结果因为需要正确的加密数据
         # 但可以验证错误密钥不会崩溃
         result = aes_gcm_decrypt(

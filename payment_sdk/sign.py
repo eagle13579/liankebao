@@ -11,11 +11,10 @@
 import hashlib
 import hmac
 import logging
-from typing import Optional
 
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import padding, rsa, utils
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +23,11 @@ logger = logging.getLogger(__name__)
 # 通用工具
 # ============================================================
 
+
 def generate_nonce(length: int = 32) -> str:
     """生成随机字符串"""
     import secrets
+
     return secrets.token_hex(length // 2)[:length]
 
 
@@ -60,6 +61,7 @@ def sha256(data: str) -> str:
 # RSA 操作 (微信 V3)
 # ============================================================
 
+
 def _load_private_key(key_path: str) -> rsa.RSAPrivateKey:
     """从文件加载 RSA 私钥"""
     try:
@@ -90,6 +92,7 @@ def _load_public_key(key_path: str) -> rsa.RSAPublicKey:
 def rsa_sign(content: str, private_key_path: str) -> str:
     """RSA-SHA256 签名 (微信 V3)"""
     import base64
+
     private_key = _load_private_key(private_key_path)
     signature = private_key.sign(
         content.encode("utf-8"),
@@ -102,6 +105,7 @@ def rsa_sign(content: str, private_key_path: str) -> str:
 def rsa_sign_bytes(content_bytes: bytes, private_key_path: str) -> str:
     """RSA-SHA256 签名 (字节输入)"""
     import base64
+
     private_key = _load_private_key(private_key_path)
     signature = private_key.sign(
         content_bytes,
@@ -114,6 +118,7 @@ def rsa_sign_bytes(content_bytes: bytes, private_key_path: str) -> str:
 def rsa_verify(content: str, signature_b64: str, public_key_path: str) -> bool:
     """RSA-SHA256 验签 (微信 V3)"""
     import base64
+
     try:
         public_key = _load_public_key(public_key_path)
         signature = base64.b64decode(signature_b64)
@@ -132,10 +137,9 @@ def rsa_verify(content: str, signature_b64: str, public_key_path: str) -> bool:
 def rsa_verify_with_key(content: str, signature_b64: str, public_key_pem: bytes) -> bool:
     """RSA-SHA256 验签 (使用 PEM 字节)"""
     import base64
+
     try:
-        public_key = serialization.load_pem_public_key(
-            public_key_pem, backend=default_backend()
-        )
+        public_key = serialization.load_pem_public_key(public_key_pem, backend=default_backend())
         signature = base64.b64decode(signature_b64)
         public_key.verify(
             signature,
@@ -152,6 +156,7 @@ def rsa_verify_with_key(content: str, signature_b64: str, public_key_pem: bytes)
 # ============================================================
 # 微信 V3 签名串构建
 # ============================================================
+
 
 def build_v3_sign_str(method: str, url: str, timestamp: str, nonce: str, body: str) -> str:
     """构造微信 V3 签名串
@@ -181,12 +186,10 @@ def build_v3_response_sign_str(timestamp: str, nonce: str, body: str) -> str:
 # 微信 V2 签名构建
 # ============================================================
 
+
 def build_v2_sign(params: dict, api_key: str, sign_type: str = "MD5") -> str:
     """构建微信 V2 签名"""
-    filtered = {
-        k: v for k, v in params.items()
-        if v != "" and v is not None and k != "sign"
-    }
+    filtered = {k: v for k, v in params.items() if v != "" and v is not None and k != "sign"}
     sorted_keys = sorted(filtered.keys())
     parts = [f"{k}={filtered[k]}" for k in sorted_keys]
     sign_str = "&".join(parts) + f"&key={api_key}"
@@ -221,7 +224,8 @@ def verify_v2_sign(params: dict, api_key: str, sign_type: str = "MD5") -> bool:
 # AES-GCM 解密 (微信 V3 回调 resource 解密)
 # ============================================================
 
-def aes_gcm_decrypt(ciphertext_b64: str, key: str, nonce: str, associated_data: str) -> Optional[str]:
+
+def aes_gcm_decrypt(ciphertext_b64: str, key: str, nonce: str, associated_data: str) -> str | None:
     """AES-256-GCM 解密 (微信 V3 回调 resource 解密)
 
     Args:
@@ -234,6 +238,7 @@ def aes_gcm_decrypt(ciphertext_b64: str, key: str, nonce: str, associated_data: 
         解密后的明文 JSON 字符串，失败返回 None
     """
     import base64
+
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
     try:

@@ -13,19 +13,18 @@
 """
 
 import json
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from payment_sdk.config import WxPayConfig
 from payment_sdk.http_delegate import HttpDelegate, HttpResponse
-from payment_sdk.payment_provider import PaymentResult, CallbackResult
 from payment_sdk.providers.wxpay_v3 import WxPayV3Provider
-
 
 # ============================================================
 # 测试用配置
 # ============================================================
+
 
 @pytest.fixture
 def mock_config():
@@ -58,20 +57,24 @@ def v3_provider(mock_config, mock_http):
     """创建 V3 提供者 (mock 掉 RSA 签名和 SSL 证书以避免真实私钥依赖)"""
     with patch.multiple(
         WxPayV3Provider,
-        _get_auth_headers=MagicMock(return_value={
-            "Authorization": "WECHATPAY2-SHA256-RSA2048 mchid=\"test\",nonce_str=\"x\",timestamp=\"0\",serial_no=\"x\",signature=\"x\"",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "User-Agent": "liankebao-payment/1.0",
-        }),
-        _build_jsapi_payment_params=MagicMock(return_value={
-            "appId": "wx_test_appid",
-            "timeStamp": "1700000000",
-            "nonceStr": "test_nonce",
-            "package": "prepay_id=mock_prepay",
-            "signType": "RSA",
-            "paySign": "mock_signature",
-        }),
+        _get_auth_headers=MagicMock(
+            return_value={
+                "Authorization": 'WECHATPAY2-SHA256-RSA2048 mchid="test",nonce_str="x",timestamp="0",serial_no="x",signature="x"',
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "User-Agent": "liankebao-payment/1.0",
+            }
+        ),
+        _build_jsapi_payment_params=MagicMock(
+            return_value={
+                "appId": "wx_test_appid",
+                "timeStamp": "1700000000",
+                "nonceStr": "test_nonce",
+                "package": "prepay_id=mock_prepay",
+                "signType": "RSA",
+                "paySign": "mock_signature",
+            }
+        ),
     ):
         provider = WxPayV3Provider(config=mock_config, http_delegate=mock_http)
         yield provider
@@ -88,56 +91,62 @@ def v3_provider_no_patches(mock_config, mock_http):
 # V3 模拟响应
 # ============================================================
 
+
 def _v3_success_response(prepay_id="wx25001234567890"):
     return json.dumps({"prepay_id": prepay_id})
 
 
 def _v3_refund_response():
-    return json.dumps({
-        "refund_id": "refund_12345",
-        "out_refund_no": "REFUND001",
-        "status": "SUCCESS",
-    })
+    return json.dumps(
+        {
+            "refund_id": "refund_12345",
+            "out_refund_no": "REFUND001",
+            "status": "SUCCESS",
+        }
+    )
 
 
 def _v3_query_response():
-    return json.dumps({
-        "transaction_id": "wx420250101234567890",
-        "out_trade_no": "ORDER001",
-        "trade_state": "SUCCESS",
-        "amount": {"total": 1, "payer_total": 1},
-    })
+    return json.dumps(
+        {
+            "transaction_id": "wx420250101234567890",
+            "out_trade_no": "ORDER001",
+            "trade_state": "SUCCESS",
+            "amount": {"total": 1, "payer_total": 1},
+        }
+    )
 
 
 def _v3_callback_body():
     """模拟微信 V3 回调（包含 resource 加密字段，但测试中不实际解密）"""
-    return json.dumps({
-        "id": "EV-123",
-        "create_time": "2025-01-01T00:00:00+08:00",
-        "resource_type": "encrypt-resource",
-        "event_type": "TRANSACTION.SUCCESS",
-        "summary": "支付成功",
-        "resource": {
-            "original_type": "transaction",
-            "algorithm": "AEAD_AES_256_GCM",
-            "ciphertext": "encrypted_data",
-            "associated_data": "transaction",
-            "nonce": "nonce_str",
-        },
-    })
+    return json.dumps(
+        {
+            "id": "EV-123",
+            "create_time": "2025-01-01T00:00:00+08:00",
+            "resource_type": "encrypt-resource",
+            "event_type": "TRANSACTION.SUCCESS",
+            "summary": "支付成功",
+            "resource": {
+                "original_type": "transaction",
+                "algorithm": "AEAD_AES_256_GCM",
+                "ciphertext": "encrypted_data",
+                "associated_data": "transaction",
+                "nonce": "nonce_str",
+            },
+        }
+    )
 
 
 # ============================================================
 # 测试用例
 # ============================================================
 
+
 class TestWxPayV3ProviderPay:
     """统一下单测试"""
 
     async def test_pay_success(self, v3_provider, mock_http):
-        mock_http.post.return_value = HttpResponse(
-            status=200, body=_v3_success_response("wx_prepay_001")
-        )
+        mock_http.post.return_value = HttpResponse(status=200, body=_v3_success_response("wx_prepay_001"))
         result = await v3_provider.pay(
             openid="o_test_openid",
             out_trade_no="ORDER001",
@@ -162,9 +171,7 @@ class TestWxPayV3ProviderPay:
         assert result.success is False
 
     async def test_pay_http_error(self, v3_provider, mock_http):
-        mock_http.post.return_value = HttpResponse(
-            status=0, body="Connection timeout"
-        )
+        mock_http.post.return_value = HttpResponse(status=0, body="Connection timeout")
         result = await v3_provider.pay(
             openid="o_test_openid",
             out_trade_no="ORDER001",
@@ -178,18 +185,14 @@ class TestWxPayV3ProviderQuery:
     """订单查询测试"""
 
     async def test_query_by_out_trade_no(self, v3_provider, mock_http):
-        mock_http.get.return_value = HttpResponse(
-            status=200, body=_v3_query_response()
-        )
+        mock_http.get.return_value = HttpResponse(status=200, body=_v3_query_response())
         result = await v3_provider.query(out_trade_no="ORDER001")
         assert result.success is True
         assert result.provider_order_id == "wx420250101234567890"
         assert result.data["trade_state"] == "SUCCESS"
 
     async def test_query_by_transaction_id(self, v3_provider, mock_http):
-        mock_http.get.return_value = HttpResponse(
-            status=200, body=_v3_query_response()
-        )
+        mock_http.get.return_value = HttpResponse(status=200, body=_v3_query_response())
         result = await v3_provider.query(
             out_trade_no="ORDER001",
             transaction_id="wx420250101234567890",
@@ -197,9 +200,7 @@ class TestWxPayV3ProviderQuery:
         assert result.success is True
 
     async def test_query_not_found(self, v3_provider, mock_http):
-        mock_http.get.return_value = HttpResponse(
-            status=404, body=json.dumps({"code": "ORDER_NOT_EXIST"})
-        )
+        mock_http.get.return_value = HttpResponse(status=404, body=json.dumps({"code": "ORDER_NOT_EXIST"}))
         result = await v3_provider.query(out_trade_no="NONEXIST")
         assert result.success is False
 
@@ -209,13 +210,16 @@ class TestWxPayV3ProviderRefund:
 
     async def test_refund_success(self, mock_config, mock_http):
         with patch.object(HttpDelegate, "with_ssl_cert", return_value=mock_http):
-            with patch.object(WxPayV3Provider, "_get_auth_headers", return_value={
-                "Authorization": "mock", "Content-Type": "application/json",
-            }):
+            with patch.object(
+                WxPayV3Provider,
+                "_get_auth_headers",
+                return_value={
+                    "Authorization": "mock",
+                    "Content-Type": "application/json",
+                },
+            ):
                 provider = WxPayV3Provider(config=mock_config, http_delegate=mock_http)
-                mock_http.post.return_value = HttpResponse(
-                    status=200, body=_v3_refund_response()
-                )
+                mock_http.post.return_value = HttpResponse(status=200, body=_v3_refund_response())
                 result = await provider.refund(
                     out_trade_no="ORDER001",
                     out_refund_no="REFUND001",
@@ -227,13 +231,16 @@ class TestWxPayV3ProviderRefund:
 
     async def test_refund_fail(self, mock_config, mock_http):
         with patch.object(HttpDelegate, "with_ssl_cert", return_value=mock_http):
-            with patch.object(WxPayV3Provider, "_get_auth_headers", return_value={
-                "Authorization": "mock", "Content-Type": "application/json",
-            }):
+            with patch.object(
+                WxPayV3Provider,
+                "_get_auth_headers",
+                return_value={
+                    "Authorization": "mock",
+                    "Content-Type": "application/json",
+                },
+            ):
                 provider = WxPayV3Provider(config=mock_config, http_delegate=mock_http)
-                mock_http.post.return_value = HttpResponse(
-                    status=400, body=json.dumps({"code": "NOT_ENOUGH"})
-                )
+                mock_http.post.return_value = HttpResponse(status=400, body=json.dumps({"code": "NOT_ENOUGH"}))
                 result = await provider.refund(
                     out_trade_no="ORDER001",
                     out_refund_no="REFUND001",
@@ -308,6 +315,7 @@ class TestWxPayV3ProviderConfig:
 
     def test_auto_env_config(self):
         import os
+
         os.environ["WXPAY_APPID"] = "env_v3_appid"
         os.environ["WXPAY_MCH_ID"] = "env_v3_mchid"
         os.environ["WXPAY_API_KEY"] = "env_apikey_32chars_test_abcdefghijk"

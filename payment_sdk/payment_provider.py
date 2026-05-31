@@ -10,9 +10,8 @@
 """
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
-
+from dataclasses import dataclass
+from typing import Any
 
 # ============================================================
 # 结构化结果类型
@@ -31,10 +30,11 @@ class PaymentResult:
         provider_order_id: 支付平台订单号 (如微信 transaction_id)
         out_trade_no: 商户订单号
     """
+
     success: bool = False
     code: str = ""
     message: str = ""
-    data: Optional[Dict[str, Any]] = None
+    data: dict[str, Any] | None = None
     provider_order_id: str = ""
     out_trade_no: str = ""
 
@@ -59,8 +59,9 @@ class CallbackResult:
         raw: 原始回调数据
         message: 验证描述
     """
+
     verified: bool = False
-    data: Optional[Dict[str, Any]] = None
+    data: dict[str, Any] | None = None
     raw: Any = None
     message: str = ""
 
@@ -115,7 +116,7 @@ class IPaymentProvider(ABC):
         out_refund_no: str,
         refund_amount: int,
         total_amount: int,
-        reason: Optional[str] = None,
+        reason: str | None = None,
         **kwargs: Any,
     ) -> PaymentResult:
         """退款
@@ -154,7 +155,7 @@ class IPaymentProvider(ABC):
     async def callback_verify(
         self,
         body: bytes,
-        headers: Optional[Dict[str, str]] = None,
+        headers: dict[str, str] | None = None,
         **kwargs: Any,
     ) -> CallbackResult:
         """支付回调验签

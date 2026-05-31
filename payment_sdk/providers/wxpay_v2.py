@@ -11,18 +11,16 @@
     - verify_v2_sign()                      → WxPayV2Provider.callback_verify()
 """
 
-import json
 import logging
-import time
 import xml.etree.ElementTree as ET
-from typing import Any, Dict, Optional
+from typing import Any
 
 from payment_sdk.config import WxPayConfig
-from payment_sdk.http_delegate import HttpDelegate, HttpResponse
-from payment_sdk.payment_provider import IPaymentProvider, PaymentResult, CallbackResult
+from payment_sdk.http_delegate import HttpDelegate
+from payment_sdk.payment_provider import CallbackResult, IPaymentProvider, PaymentResult
 from payment_sdk.sign import (
-    generate_nonce,
     build_v2_sign,
+    generate_nonce,
     verify_v2_sign,
 )
 
@@ -46,7 +44,8 @@ V2_CLOSE_ORDER = f"{WECHAT_API_BASE}/pay/closeorder"
 # 工具函数
 # ============================================================
 
-def _dict_to_xml(params: Dict[str, str]) -> str:
+
+def _dict_to_xml(params: dict[str, str]) -> str:
     """将字典转换为微信 V2 XML 格式"""
     root = ET.Element("xml")
     for k, v in params.items():
@@ -55,7 +54,7 @@ def _dict_to_xml(params: Dict[str, str]) -> str:
     return ET.tostring(root, encoding="utf-8").decode("utf-8")
 
 
-def _xml_to_dict(xml_str: str) -> Optional[Dict[str, str]]:
+def _xml_to_dict(xml_str: str) -> dict[str, str] | None:
     """将微信 V2 XML 响应解析为字典"""
     try:
         root = ET.fromstring(xml_str)
@@ -86,8 +85,8 @@ class WxPayV2Provider(IPaymentProvider):
 
     def __init__(
         self,
-        config: Optional[WxPayConfig] = None,
-        http_delegate: Optional[HttpDelegate] = None,
+        config: WxPayConfig | None = None,
+        http_delegate: HttpDelegate | None = None,
     ):
         """初始化 V2 提供者
 
@@ -129,7 +128,7 @@ class WxPayV2Provider(IPaymentProvider):
         spbill_create_ip = kwargs.get("spbill_create_ip", "127.0.0.1")
         trade_type = kwargs.get("trade_type", "JSAPI")
 
-        params: Dict[str, str] = {
+        params: dict[str, str] = {
             "appid": cfg.app_id,
             "mch_id": cfg.mch_id,
             "nonce_str": generate_nonce(32),
@@ -172,7 +171,7 @@ class WxPayV2Provider(IPaymentProvider):
         out_refund_no: str,
         refund_amount: int,
         total_amount: int,
-        reason: Optional[str] = None,
+        reason: str | None = None,
         **kwargs: Any,
     ) -> PaymentResult:
         """微信 V2 退款
@@ -193,7 +192,7 @@ class WxPayV2Provider(IPaymentProvider):
         """
         cfg = self._config
 
-        params: Dict[str, str] = {
+        params: dict[str, str] = {
             "appid": cfg.app_id,
             "mch_id": cfg.mch_id,
             "nonce_str": generate_nonce(32),
@@ -246,7 +245,7 @@ class WxPayV2Provider(IPaymentProvider):
         """
         cfg = self._config
 
-        params: Dict[str, str] = {
+        params: dict[str, str] = {
             "appid": cfg.app_id,
             "mch_id": cfg.mch_id,
             "nonce_str": generate_nonce(32),
@@ -277,7 +276,7 @@ class WxPayV2Provider(IPaymentProvider):
     async def callback_verify(
         self,
         body: bytes,
-        headers: Optional[Dict[str, str]] = None,
+        headers: dict[str, str] | None = None,
         **kwargs: Any,
     ) -> CallbackResult:
         """微信 V2 回调验签

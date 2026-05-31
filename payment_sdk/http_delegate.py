@@ -7,7 +7,7 @@
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any
+from typing import Any
 
 import httpx
 
@@ -18,15 +18,17 @@ logger = logging.getLogger(__name__)
 # HTTP 响应封装
 # ============================================================
 
+
 @dataclass
 class HttpResponse:
     """统一 HTTP 响应"""
+
     status: int = 200
     body: str = ""
     body_bytes: bytes = b""
-    headers: Dict[str, str] = field(default_factory=dict)
+    headers: dict[str, str] = field(default_factory=dict)
 
-    def json(self) -> Optional[dict]:
+    def json(self) -> dict | None:
         """尝试解析 JSON 响应"""
         if not self.body:
             return None
@@ -43,6 +45,7 @@ class HttpResponse:
 # ============================================================
 # HttpDelegate — HTTP 委托抽象层
 # ============================================================
+
 
 class HttpDelegate:
     """HTTP 委托抽象层
@@ -61,10 +64,10 @@ class HttpDelegate:
 
     def __init__(
         self,
-        cert_path: Optional[str] = None,
-        key_path: Optional[str] = None,
+        cert_path: str | None = None,
+        key_path: str | None = None,
         timeout: int = 30,
-        headers: Optional[Dict[str, str]] = None,
+        headers: dict[str, str] | None = None,
         verify: bool = True,
     ):
         self._cert_path = cert_path
@@ -72,11 +75,11 @@ class HttpDelegate:
         self._timeout = timeout
         self._default_headers = headers or {}
         self._verify = verify
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: httpx.AsyncClient | None = None
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
-            client_kwargs: Dict[str, Any] = {
+            client_kwargs: dict[str, Any] = {
                 "timeout": httpx.Timeout(self._timeout),
                 "verify": self._verify,
             }
@@ -95,7 +98,7 @@ class HttpDelegate:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.close()
 
-    def _merge_headers(self, headers: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+    def _merge_headers(self, headers: dict[str, str] | None = None) -> dict[str, str]:
         merged = dict(self._default_headers)
         if headers:
             merged.update(headers)
@@ -104,8 +107,8 @@ class HttpDelegate:
     async def get(
         self,
         url: str,
-        params: Optional[Dict[str, Any]] = None,
-        headers: Optional[Dict[str, str]] = None,
+        params: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> HttpResponse:
         client = await self._get_client()
         merged_headers = self._merge_headers(headers)
@@ -124,16 +127,14 @@ class HttpDelegate:
     async def post(
         self,
         url: str,
-        data: Optional[str] = None,
-        json_body: Optional[dict] = None,
-        headers: Optional[Dict[str, str]] = None,
+        data: str | None = None,
+        json_body: dict | None = None,
+        headers: dict[str, str] | None = None,
     ) -> HttpResponse:
         client = await self._get_client()
         merged_headers = self._merge_headers(headers)
         try:
-            resp = await client.post(
-                url, content=data, json=json_body, headers=merged_headers
-            )
+            resp = await client.post(url, content=data, json=json_body, headers=merged_headers)
             return HttpResponse(
                 status=resp.status_code,
                 body=resp.text,
@@ -147,16 +148,14 @@ class HttpDelegate:
     async def put(
         self,
         url: str,
-        data: Optional[str] = None,
-        json_body: Optional[dict] = None,
-        headers: Optional[Dict[str, str]] = None,
+        data: str | None = None,
+        json_body: dict | None = None,
+        headers: dict[str, str] | None = None,
     ) -> HttpResponse:
         client = await self._get_client()
         merged_headers = self._merge_headers(headers)
         try:
-            resp = await client.put(
-                url, content=data, json=json_body, headers=merged_headers
-            )
+            resp = await client.put(url, content=data, json=json_body, headers=merged_headers)
             return HttpResponse(
                 status=resp.status_code,
                 body=resp.text,
@@ -170,7 +169,7 @@ class HttpDelegate:
     async def delete(
         self,
         url: str,
-        headers: Optional[Dict[str, str]] = None,
+        headers: dict[str, str] | None = None,
     ) -> HttpResponse:
         client = await self._get_client()
         merged_headers = self._merge_headers(headers)
@@ -205,5 +204,5 @@ class HttpDelegate:
             headers={
                 "User-Agent": "liankebao-payment/1.0",
                 "Accept": "application/json",
-            }
+            },
         )

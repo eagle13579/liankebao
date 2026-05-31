@@ -11,8 +11,6 @@
 
 import os
 from dataclasses import dataclass
-from typing import Optional
-
 
 # ============================================================
 # 支付模式开关
@@ -34,16 +32,16 @@ def is_real_mode() -> bool:
 
 # 环境变量前缀及字段名映射表（WXPAY_* 优先，WECHAT_* 后备）
 _WXPAY_ENV_SUFFIXES = {
-    "app_id":            ["APPID", "APP_ID"],
-    "mch_id":            ["MCH_ID", "MCHID"],
-    "api_key":           ["API_KEY", "KEY"],
-    "api_v3_key":        ["API_V3_KEY", "APIV3_KEY"],
-    "private_key_path":  ["PRIVATE_KEY_PATH"],
-    "cert_serial_no":    ["CERT_SERIAL_NO"],
-    "notify_url":        ["NOTIFY_URL"],
+    "app_id": ["APPID", "APP_ID"],
+    "mch_id": ["MCH_ID", "MCHID"],
+    "api_key": ["API_KEY", "KEY"],
+    "api_v3_key": ["API_V3_KEY", "APIV3_KEY"],
+    "private_key_path": ["PRIVATE_KEY_PATH"],
+    "cert_serial_no": ["CERT_SERIAL_NO"],
+    "notify_url": ["NOTIFY_URL"],
     "refund_notify_url": ["REFUND_NOTIFY_URL"],
-    "cert_path":         ["CERT_PATH"],
-    "root_ca_path":      ["ROOT_CA_PATH"],
+    "cert_path": ["CERT_PATH"],
+    "root_ca_path": ["ROOT_CA_PATH"],
 }
 
 
@@ -74,6 +72,7 @@ class WxPayConfig:
         cert_path: apiclient_cert.pem (双向证书)
         root_ca_path: rootca.pem
     """
+
     app_id: str = ""
     mch_id: str = ""
     api_key: str = ""
@@ -129,6 +128,7 @@ class AliPayConfig:
         alipay_cert_path: 支付宝公钥证书路径
         alipay_root_cert_path: 支付宝根证书路径
     """
+
     app_id: str = ""
     private_key: str = ""
     alipay_public_key: str = ""

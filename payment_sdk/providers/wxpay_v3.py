@@ -13,18 +13,18 @@
 import json
 import logging
 import time
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 from payment_sdk.config import WxPayConfig
-from payment_sdk.http_delegate import HttpDelegate, HttpResponse
-from payment_sdk.payment_provider import IPaymentProvider, PaymentResult, CallbackResult
+from payment_sdk.http_delegate import HttpDelegate
+from payment_sdk.payment_provider import CallbackResult, IPaymentProvider, PaymentResult
 from payment_sdk.sign import (
-    generate_nonce,
-    build_v3_sign_str,
+    aes_gcm_decrypt,
     build_v3_response_sign_str,
+    build_v3_sign_str,
+    generate_nonce,
     rsa_sign,
     rsa_verify_with_key,
-    aes_gcm_decrypt,
 )
 
 logger = logging.getLogger(__name__)
@@ -65,8 +65,8 @@ class WxPayV3Provider(IPaymentProvider):
 
     def __init__(
         self,
-        config: Optional[WxPayConfig] = None,
-        http_delegate: Optional[HttpDelegate] = None,
+        config: WxPayConfig | None = None,
+        http_delegate: HttpDelegate | None = None,
     ):
         """初始化 V3 提供者
 
@@ -79,7 +79,7 @@ class WxPayV3Provider(IPaymentProvider):
 
     # ==================== 鉴权头生成 ====================
 
-    def _get_auth_headers(self, method: str, url_path: str, body: str = "") -> Dict[str, str]:
+    def _get_auth_headers(self, method: str, url_path: str, body: str = "") -> dict[str, str]:
         """生成微信 V3 API 鉴权头
 
         Authorization: WECHATPAY2-SHA256-RSA2048 mchid="...",nonce_str="...",...
@@ -91,7 +91,7 @@ class WxPayV3Provider(IPaymentProvider):
         signature = rsa_sign(sign_str, cfg.private_key_path)
 
         auth = (
-            f'WECHATPAY2-SHA256-RSA2048 '
+            f"WECHATPAY2-SHA256-RSA2048 "
             f'mchid="{cfg.mch_id}",'
             f'nonce_str="{nonce}",'
             f'timestamp="{timestamp}",'
@@ -179,7 +179,7 @@ class WxPayV3Provider(IPaymentProvider):
         out_refund_no: str,
         refund_amount: int,
         total_amount: int,
-        reason: Optional[str] = None,
+        reason: str | None = None,
         **kwargs: Any,
     ) -> PaymentResult:
         """微信 V3 退款
@@ -269,7 +269,7 @@ class WxPayV3Provider(IPaymentProvider):
     async def callback_verify(
         self,
         body: bytes,
-        headers: Optional[Dict[str, str]] = None,
+        headers: dict[str, str] | None = None,
         **kwargs: Any,
     ) -> CallbackResult:
         """微信 V3 回调验签
@@ -315,9 +315,7 @@ class WxPayV3Provider(IPaymentProvider):
             )
 
         body_str = body.decode("utf-8") if isinstance(body, bytes) else body
-        sign_str = build_v3_response_sign_str(
-            wechatpay_timestamp, wechatpay_nonce, body_str
-        )
+        sign_str = build_v3_response_sign_str(wechatpay_timestamp, wechatpay_nonce, body_str)
 
         if not rsa_verify_with_key(sign_str, wechatpay_signature, pub_key_pem):
             return CallbackResult(verified=False, raw=body_str, message="签名验证失败")
@@ -337,9 +335,7 @@ class WxPayV3Provider(IPaymentProvider):
             associated_data = resource.get("associated_data", "")
 
             if ciphertext and cfg.api_v3_key:
-                plaintext = aes_gcm_decrypt(
-                    ciphertext, cfg.api_v3_key, nonce, associated_data
-                )
+                plaintext = aes_gcm_decrypt(ciphertext, cfg.api_v3_key, nonce, associated_data)
                 if plaintext is None:
                     return CallbackResult(
                         verified=True,
@@ -368,7 +364,7 @@ class WxPayV3Provider(IPaymentProvider):
 
     # ==================== 内部方法 ====================
 
-    def _build_jsapi_payment_params(self, prepay_id: str) -> Dict[str, str]:
+    def _build_jsapi_payment_params(self, prepay_id: str) -> dict[str, str]:
         """构建 JSAPI 调起支付参数"""
         cfg = self._config
         timestamp = str(int(time.time()))
@@ -385,7 +381,7 @@ class WxPayV3Provider(IPaymentProvider):
             "paySign": pay_sign,
         }
 
-    def _load_platform_cert(self, serial_no: str) -> Optional[bytes]:
+    def _load_platform_cert(self, serial_no: str) -> bytes | None:
         """尝试从本地缓存加载微信平台证书"""
         cert_path = f"/certs/wechat_platform_{serial_no}.pem"
         try:

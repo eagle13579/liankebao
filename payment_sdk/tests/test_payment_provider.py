@@ -5,7 +5,8 @@
 """
 
 import pytest
-from payment_sdk.payment_provider import IPaymentProvider, PaymentResult, CallbackResult
+
+from payment_sdk.payment_provider import CallbackResult, IPaymentProvider, PaymentResult
 
 
 class TestPaymentResult:
