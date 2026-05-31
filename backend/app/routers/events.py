@@ -1,6 +1,5 @@
 """用户行为事件埋点路由"""
 
-import json
 import logging
 from datetime import datetime, timedelta
 
@@ -9,7 +8,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import User, UserEvent
+from app.models import UserEvent
 
 logger = logging.getLogger(__name__)
 
@@ -170,8 +169,5 @@ def get_hot_products(
     return {
         "code": 200,
         "message": "success",
-        "data": [
-            {"target_id": row.target_id, "view_count": row.view_count}
-            for row in stats
-        ],
+        "data": [{"target_id": row.target_id, "view_count": row.view_count} for row in stats],
     }

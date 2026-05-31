@@ -11,23 +11,22 @@
 - 搜索建议/补全
 - 分类列表
 """
+
 import json
 import logging
-from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import desc, or_
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
 # ===== OpenTelemetry 自定义追踪 =====
-from app.telemetry import tracer
-
 from app.database import get_db
-from app.models import Product
+from app.models import Enterprise, Product
 from app.schemas import ApiResponse, ProductResponse
-from app.search_index import get_search_engine, highlight_title, highlight_text
+from app.search_index import get_search_engine, highlight_text, highlight_title
+from app.telemetry import tracer
 
 router = APIRouter(prefix="/api/search", tags=["搜索"])
 
@@ -134,10 +133,12 @@ def search_products(
         product_ids = [item["id"] for item in result_items]
         products_map = {
             p.id: p
-            for p in db.query(Product).filter(
+            for p in db.query(Product)
+            .filter(
                 Product.id.in_(product_ids),
                 Product.is_deleted == False,
-            ).all()
+            )
+            .all()
         }
 
         items = []
@@ -208,10 +209,10 @@ def search_products(
 def _search_with_sql(
     db: Session,
     q: str = "",
-    category: Optional[str] = None,
-    region: Optional[str] = None,
-    min_price: Optional[float] = None,
-    max_price: Optional[float] = None,
+    category: str | None = None,
+    region: str | None = None,
+    min_price: float | None = None,
+    max_price: float | None = None,
     sort_by: str = "relevance",
     page: int = 1,
     page_size: int = 20,
@@ -267,12 +268,7 @@ def _search_with_sql(
         order_clause = [desc(Product.sort_order), desc(Product.created_at)]
 
     # === 分页 ===
-    products = (
-        query.order_by(*order_clause)
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-        .all()
-    )
+    products = query.order_by(*order_clause).offset((page - 1) * page_size).limit(page_size).all()
 
     items = []
     for p in products:
@@ -377,6 +373,7 @@ def rebuild_search_index_endpoint(db: Session = Depends(get_db)):
     """手动触发搜索引擎重建（管理接口）"""
     try:
         from app.search_index import rebuild_search_index
+
         count = rebuild_search_index(db_session=db)
         return ApiResponse(
             code=200,
@@ -433,7 +430,6 @@ def vector_search(
     try:
         from app.vector_search import (
             USE_VECTOR_SEARCH,
-            VectorSearchIndex,
             build_document_text,
             get_vector_index,
         )
@@ -492,10 +488,12 @@ def vector_search(
         product_ids = [r["id"] for r in results]
         products_map = {
             p.id: p
-            for p in db.query(Product).filter(
+            for p in db.query(Product)
+            .filter(
                 Product.id.in_(product_ids),
                 Product.is_deleted == False,
-            ).all()
+            )
+            .all()
         }
 
         items = []
@@ -541,7 +539,8 @@ def rerank_search(
 
     try:
         from app.search_index import get_search_engine, highlight_text, highlight_title
-        from app.vector_search import USE_VECTOR_SEARCH, rerank as vector_rerank
+        from app.vector_search import USE_VECTOR_SEARCH
+        from app.vector_search import rerank as vector_rerank
 
         if not USE_VECTOR_SEARCH:
             return ApiResponse(
@@ -579,10 +578,12 @@ def rerank_search(
         product_ids = [item["id"] for item in page_items]
         products_map = {
             p.id: p
-            for p in db.query(Product).filter(
+            for p in db.query(Product)
+            .filter(
                 Product.id.in_(product_ids),
                 Product.is_deleted == False,
-            ).all()
+            )
+            .all()
         }
 
         items = []
@@ -639,3 +640,87 @@ def vector_search_stats():
             code=500,
             message=f"获取向量搜索状态失败: {e}",
         )
+
+
+# ======================================================================
+# 企业搜索（知识图谱注入）
+# ======================================================================
+
+
+@router.get("/enterprises", response_model=ApiResponse)
+def search_enterprises(
+    q: str = Query("", description="搜索关键词（企业名称/法人/信用代码）"),
+    industry: str | None = Query(None, description="行业筛选"),
+    region: str | None = Query(None, description="地区筛选"),
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页条数"),
+    db: Session = Depends(get_db),
+):
+    """企业搜索（知识图谱）
+
+    在搜索产品的同时，搜索企业库返回匹配的企业列表。
+    支持按关键词、行业、地区多维度筛选，分页返回。
+    关键词模糊匹配：企业名称、法定代表人、统一社会信用代码、简称。
+    """
+    query = db.query(Enterprise)
+
+    if q and q.strip():
+        keyword = f"%{q.strip()}%"
+        query = query.filter(
+            or_(
+                Enterprise.name.ilike(keyword),
+                Enterprise.legal_person.ilike(keyword),
+                Enterprise.credit_code.ilike(keyword),
+                Enterprise.short_name.ilike(keyword),
+            )
+        )
+
+    if industry:
+        query = query.filter(Enterprise.industry.ilike(f"%{industry}%"))
+
+    if region:
+        query = query.filter(Enterprise.region.ilike(f"%{region}%"))
+
+    # 统计总数
+    total = query.count()
+
+    # 分页
+    query = query.order_by(Enterprise.updated_at.desc())
+    query = query.offset((page - 1) * page_size).limit(page_size)
+    enterprises = query.all()
+
+    # 序列化
+    items = []
+    for ent in enterprises:
+        items.append(
+            {
+                "id": ent.id,
+                "name": ent.name,
+                "short_name": ent.short_name,
+                "credit_code": ent.credit_code,
+                "legal_person": ent.legal_person,
+                "registered_capital": ent.registered_capital,
+                "established_date": ent.established_date,
+                "industry": ent.industry,
+                "region": ent.region,
+                "business_scope": ent.business_scope,
+                "tags": ent.tags,
+                "website": ent.website,
+                "data_source": ent.data_source,
+                "confidence": ent.confidence,
+                "created_at": ent.created_at.isoformat() if ent.created_at else None,
+                "updated_at": ent.updated_at.isoformat() if ent.updated_at else None,
+            }
+        )
+
+    return ApiResponse(
+        code=200,
+        message="success",
+        data={
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "query": q,
+            "items": items,
+        },
+    )

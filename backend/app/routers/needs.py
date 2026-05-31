@@ -8,7 +8,7 @@ from sqlalchemy import desc
 logger = logging.getLogger(__name__)
 
 from app.database import get_db
-from app.models import User, BusinessNeed
+from app.models import Enterprise, User, BusinessNeed
 from app.schemas import (
     ApiResponse, BusinessNeedCreate, BusinessNeedUpdate, BusinessNeedResponse,
     UserBrief,
@@ -59,6 +59,10 @@ def list_needs(
         item = BusinessNeedResponse.model_validate(n).model_dump()
         if n.user:
             item["user"] = UserBrief.model_validate(n.user).model_dump()
+            # 企业知识图谱注入：如果用户有公司名，匹配企业库
+            enterprise = _lookup_need_enterprise(n.user.company, db)
+            if enterprise:
+                item["enterprise"] = enterprise
         items.append(item)
 
     return ApiResponse(
@@ -71,6 +75,39 @@ def list_needs(
             "items": items,
         },
     )
+
+
+def _lookup_need_enterprise(company_name: str | None, db) -> dict | None:
+    """查询企业库，返回简要企业信息（用于需求列表的企业画像注入）
+    
+    仅在用户有关联公司名时尝试匹配，不阻塞正常流程。
+    """
+    if not company_name or not company_name.strip():
+        return None
+    try:
+        ent = (
+            db.query(Enterprise)
+            .filter(Enterprise.name.ilike(f"%{company_name.strip()}%"))
+            .first()
+        )
+        if not ent:
+            ent = (
+                db.query(Enterprise)
+                .filter(Enterprise.short_name.ilike(f"%{company_name.strip()}%"))
+                .first()
+            )
+        if ent:
+            return {
+                "id": ent.id,
+                "name": ent.name,
+                "short_name": ent.short_name,
+                "industry": ent.industry,
+                "region": ent.region,
+                "tags": ent.tags,
+            }
+    except Exception as e:
+        logger.debug(f"企业查询跳过: {e}")
+    return None
 
 
 @router.get("/my", response_model=ApiResponse)
@@ -119,6 +156,10 @@ def get_need(
     item = BusinessNeedResponse.model_validate(need).model_dump()
     if need.user:
         item["user"] = UserBrief.model_validate(need.user).model_dump()
+        # 企业知识图谱注入
+        enterprise = _lookup_need_enterprise(need.user.company, db)
+        if enterprise:
+            item["enterprise"] = enterprise
 
     return ApiResponse(
         code=200,

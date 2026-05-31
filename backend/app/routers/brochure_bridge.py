@@ -5,12 +5,12 @@
 
 import json
 import logging
-from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, Request
+
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import User, CardProfile, SupplyItem, DemandItem
+from app.models import CardProfile, DemandItem, SupplyItem, User
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/brochure", tags=["觅迹·翻页图册"])
@@ -51,7 +51,8 @@ def get_brochure(user_id: int, db: Session = Depends(get_db)):
             "name": user.name if user else "",
             "company": user.company if user else "",
             "position": user.position if user else "",
-            "avatar": profile.avatar_url or (f"https://api.dicebear.com/7.x/avataaars/svg?seed={user.name}" if user else ""),
+            "avatar": profile.avatar_url
+            or (f"https://api.dicebear.com/7.x/avataaars/svg?seed={user.name}" if user else ""),
             "headline": profile.headline or profile.display_name or "",
             "tags": safe_json(profile.tags),
             "phone": profile.contact_phone or (user.phone if user else ""),
