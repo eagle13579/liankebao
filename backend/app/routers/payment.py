@@ -17,7 +17,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user
 from app.database import get_db
 from app.models import Order, Product, User
 from app.rbac import require_roles
@@ -360,19 +359,24 @@ def _enqueue_retry_for_unmatched(notify_data: dict, body: bytes, request: Reques
     try:
         out_trade_no = notify_data.get("out_trade_no", "") if isinstance(notify_data, dict) else ""
         import json
-        payload = json.dumps({
-            "body": body.decode("utf-8", errors="replace"),
-            "headers": {
-                "Wechatpay-Signature": request.headers.get("Wechatpay-Signature", ""),
-                "Wechatpay-Serial": request.headers.get("Wechatpay-Serial", ""),
-                "Wechatpay-Timestamp": request.headers.get("Wechatpay-Timestamp", ""),
-                "Wechatpay-Nonce": request.headers.get("Wechatpay-Nonce", ""),
-            },
-            "mode": _detect_callback_mode(request),
-            "out_trade_no": out_trade_no,
-        }, ensure_ascii=False)
 
-        from payment import get_config, PLATFORM_WXPAY, has_config
+        payload = json.dumps(
+            {
+                "body": body.decode("utf-8", errors="replace"),
+                "headers": {
+                    "Wechatpay-Signature": request.headers.get("Wechatpay-Signature", ""),
+                    "Wechatpay-Serial": request.headers.get("Wechatpay-Serial", ""),
+                    "Wechatpay-Timestamp": request.headers.get("Wechatpay-Timestamp", ""),
+                    "Wechatpay-Nonce": request.headers.get("Wechatpay-Nonce", ""),
+                },
+                "mode": _detect_callback_mode(request),
+                "out_trade_no": out_trade_no,
+            },
+            ensure_ascii=False,
+        )
+
+        from payment import PLATFORM_WXPAY, get_config, has_config
+
         if has_config(PLATFORM_WXPAY):
             cfg = get_config(PLATFORM_WXPAY)
             target_url = cfg.notify_url
@@ -396,9 +400,9 @@ def _enqueue_retry(body: bytes, request: Request) -> None:
     将支付回调数据加入重试队列，以便后续补偿处理
     """
     try:
-        import os
         # 获取本机回调地址（优先使用配置的 notify_url，其次从请求构造）
-        from payment import get_config, PLATFORM_WXPAY, has_config
+        from payment import PLATFORM_WXPAY, get_config, has_config
+
         if has_config(PLATFORM_WXPAY):
             cfg = get_config(PLATFORM_WXPAY)
             target_url = cfg.notify_url
@@ -412,16 +416,20 @@ def _enqueue_retry(body: bytes, request: Request) -> None:
 
         # 构造重试任务：payload 包含原始请求体 + 回调头信息
         import json
-        payload = json.dumps({
-            "body": body.decode("utf-8", errors="replace"),
-            "headers": {
-                "Wechatpay-Signature": request.headers.get("Wechatpay-Signature", ""),
-                "Wechatpay-Serial": request.headers.get("Wechatpay-Serial", ""),
-                "Wechatpay-Timestamp": request.headers.get("Wechatpay-Timestamp", ""),
-                "Wechatpay-Nonce": request.headers.get("Wechatpay-Nonce", ""),
+
+        payload = json.dumps(
+            {
+                "body": body.decode("utf-8", errors="replace"),
+                "headers": {
+                    "Wechatpay-Signature": request.headers.get("Wechatpay-Signature", ""),
+                    "Wechatpay-Serial": request.headers.get("Wechatpay-Serial", ""),
+                    "Wechatpay-Timestamp": request.headers.get("Wechatpay-Timestamp", ""),
+                    "Wechatpay-Nonce": request.headers.get("Wechatpay-Nonce", ""),
+                },
+                "mode": _detect_callback_mode(request),
             },
-            "mode": _detect_callback_mode(request),
-        }, ensure_ascii=False)
+            ensure_ascii=False,
+        )
 
         retry_engine = get_retry_engine()
         task = RetryTask(
@@ -437,7 +445,8 @@ def _enqueue_retry(body: bytes, request: Request) -> None:
 
 def _detect_callback_mode(request: Request) -> str:
     """检测回调模式: v3 / v2 / mock"""
-    from payment import has_config, PLATFORM_WXPAY
+    from payment import PLATFORM_WXPAY, has_config
+
     sig = request.headers.get("Wechatpay-Signature", "")
     serial = request.headers.get("Wechatpay-Serial", "")
     if sig and serial and has_config(PLATFORM_WXPAY):

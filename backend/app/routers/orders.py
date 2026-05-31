@@ -1,26 +1,32 @@
 """订单路由：创建订单/查看订单/更新订单状态/支付回调"""
+
 import hashlib
-import time
-import os
 import json
 import logging
+import os
+import time
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import User, Product, Order
-from app.schemas import (
-    ApiResponse, OrderCreate, OrderStatusRequest, OrderResponse,
-)
-from app.auth import get_current_user
+from app.models import Order, Product, User
 from app.rbac import require_roles
-from payment import (
-    WxPayApi, WxPayConfig, WxPayCallback,
-    get_config, has_config, PLATFORM_WXPAY,
-    is_real_mode,
+from app.schemas import (
+    ApiResponse,
+    OrderCreate,
+    OrderResponse,
+    OrderStatusRequest,
 )
 from invoice import get_order_invoice_info
+from payment import (
+    PLATFORM_WXPAY,
+    WxPayApi,
+    WxPayCallback,
+    has_config,
+    is_real_mode,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -34,14 +40,17 @@ WECHAT_APPID = os.environ.get("WECHAT_APPID", "wxb4f6d89904200fd2")
 
 
 @router.post("", response_model=ApiResponse)
-def create_order(req: OrderCreate, db: Session = Depends(get_db),
-                 current_user: User = Depends(_order_access)):
+def create_order(req: OrderCreate, db: Session = Depends(get_db), current_user: User = Depends(_order_access)):
     """创建订单并返回支付参数"""
     # 验证产品
-    product = db.query(Product).filter(
-        Product.id == req.product_id,
-        Product.is_deleted == False,
-    ).first()
+    product = (
+        db.query(Product)
+        .filter(
+            Product.id == req.product_id,
+            Product.is_deleted == False,
+        )
+        .first()
+    )
     if not product:
         raise HTTPException(status_code=404, detail="产品不存在")
     if product.status != "approved":
@@ -56,14 +65,18 @@ def create_order(req: OrderCreate, db: Session = Depends(get_db),
     # 如果有推广员，计算分润
     promoter = None
     if req.promoter_id:
-        promoter = db.query(User).filter(
-            User.id == req.promoter_id,
-            User.role == "promoter",
-            User.is_deleted == False,
-        ).first()
+        promoter = (
+            db.query(User)
+            .filter(
+                User.id == req.promoter_id,
+                User.role == "promoter",
+                User.is_deleted == False,
+            )
+            .first()
+        )
         if not promoter:
             raise HTTPException(status_code=400, detail="推广员不存在")
-        # 推广员分润 = 总价 * (earn_per_share%) 
+        # 推广员分润 = 总价 * (earn_per_share%)
         commission = total_price * (product.earn_per_share / 100)
 
     # 扣减库存
@@ -85,6 +98,7 @@ def create_order(req: OrderCreate, db: Session = Depends(get_db),
 
     # 生成支付参数（微信支付统一下单）
     import asyncio
+
     out_trade_no = f"LK{order.id:08d}{int(time.time())}"
     total_fee = int(total_price * 100)  # 元转分
 
@@ -100,13 +114,15 @@ def create_order(req: OrderCreate, db: Session = Depends(get_db),
         else:
             try:
                 wxpay = WxPayApi()
-                result = asyncio.run(wxpay.create_jsapi_order(
-                    openid=openid,
-                    out_trade_no=out_trade_no,
-                    total_fee=total_fee,
-                    description=f"{product.name[:60]} x{req.quantity}",
-                    attach=json.dumps({"order_id": order.id}),
-                ))
+                result = asyncio.run(
+                    wxpay.create_jsapi_order(
+                        openid=openid,
+                        out_trade_no=out_trade_no,
+                        total_fee=total_fee,
+                        description=f"{product.name[:60]} x{req.quantity}",
+                        attach=json.dumps({"order_id": order.id}),
+                    )
+                )
             except Exception as e:
                 logger.error(f"微信统一下单失败: {e}")
                 result = None
@@ -141,12 +157,17 @@ def _mock_payment(order: Order) -> dict:
 
     # 保存 prepay_id
     from app.database import SessionLocal
+
     db = SessionLocal()
     try:
-        db_order = db.query(Order).filter(
-            Order.id == order.id,
-            Order.is_deleted == False,
-        ).first()
+        db_order = (
+            db.query(Order)
+            .filter(
+                Order.id == order.id,
+                Order.is_deleted == False,
+            )
+            .first()
+        )
         if db_order:
             db_order.prepay_id = prepay_id
             db.commit()
@@ -201,6 +222,7 @@ async def pay_notify(request: Request, db: Session = Depends(get_db)):
             if "resource" in notify_data:
                 # 模拟解密
                 import base64
+
                 try:
                     resource = notify_data["resource"]
                     ciphertext = resource.get("ciphertext", "")
@@ -233,10 +255,14 @@ async def pay_notify(request: Request, db: Session = Depends(get_db)):
             order_id = None
 
         if order_id:
-            order = db.query(Order).filter(
-                Order.id == order_id,
-                Order.is_deleted == False,
-            ).first()
+            order = (
+                db.query(Order)
+                .filter(
+                    Order.id == order_id,
+                    Order.is_deleted == False,
+                )
+                .first()
+            )
             if order and order.status == "pending":
                 order.status = "paid"
                 order.wx_transaction_id = transaction_id or f"mock_tx_{order.id}"
@@ -254,11 +280,16 @@ async def pay_notify(request: Request, db: Session = Depends(get_db)):
 
     # 尝试通过 prepay_id 匹配
     if transaction_id:
-        order = db.query(Order).filter(
-            Order.status == "pending",
-            Order.prepay_id.isnot(None),
-            Order.is_deleted == False,
-        ).order_by(Order.id.desc()).first()
+        order = (
+            db.query(Order)
+            .filter(
+                Order.status == "pending",
+                Order.prepay_id.isnot(None),
+                Order.is_deleted == False,
+            )
+            .order_by(Order.id.desc())
+            .first()
+        )
         if order:
             order.status = "paid"
             order.wx_transaction_id = transaction_id
@@ -271,32 +302,52 @@ async def pay_notify(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("", response_model=ApiResponse)
-def get_orders(db: Session = Depends(get_db),
-               current_user: User = Depends(_order_access)):
+def get_orders(db: Session = Depends(get_db), current_user: User = Depends(_order_access)):
     """获取订单列表（按角色过滤）"""
     if current_user.role == "admin":
         # 管理员看所有订单
-        orders = db.query(Order).filter(
-            Order.is_deleted == False,
-        ).order_by(Order.id.desc()).all()
+        orders = (
+            db.query(Order)
+            .filter(
+                Order.is_deleted == False,
+            )
+            .order_by(Order.id.desc())
+            .all()
+        )
     elif current_user.role == "supplier":
         # 产品方看自己产品的订单
-        orders = db.query(Order).join(Product).filter(
-            Product.owner_id == current_user.id,
-            Order.is_deleted == False,
-        ).order_by(Order.id.desc()).all()
+        orders = (
+            db.query(Order)
+            .join(Product)
+            .filter(
+                Product.owner_id == current_user.id,
+                Order.is_deleted == False,
+            )
+            .order_by(Order.id.desc())
+            .all()
+        )
     elif current_user.role == "promoter":
         # 推广员看自己推广的订单
-        orders = db.query(Order).filter(
-            Order.promoter_id == current_user.id,
-            Order.is_deleted == False,
-        ).order_by(Order.id.desc()).all()
+        orders = (
+            db.query(Order)
+            .filter(
+                Order.promoter_id == current_user.id,
+                Order.is_deleted == False,
+            )
+            .order_by(Order.id.desc())
+            .all()
+        )
     else:
         # 普通用户看自己的订单
-        orders = db.query(Order).filter(
-            Order.user_id == current_user.id,
-            Order.is_deleted == False,
-        ).order_by(Order.id.desc()).all()
+        orders = (
+            db.query(Order)
+            .filter(
+                Order.user_id == current_user.id,
+                Order.is_deleted == False,
+            )
+            .order_by(Order.id.desc())
+            .all()
+        )
 
     return ApiResponse(
         code=200,
@@ -325,10 +376,14 @@ def update_order_status(
     current_user: User = Depends(_order_access),
 ):
     """更新订单状态（按角色限制）"""
-    order = db.query(Order).filter(
-        Order.id == order_id,
-        Order.is_deleted == False,
-    ).first()
+    order = (
+        db.query(Order)
+        .filter(
+            Order.id == order_id,
+            Order.is_deleted == False,
+        )
+        .first()
+    )
     if not order:
         raise HTTPException(status_code=404, detail="订单不存在")
 
@@ -362,15 +417,18 @@ def update_order_status(
     # 如果申请退款，调用微信退款
     if req.status == "refunded" and order.wx_transaction_id:
         import asyncio
+
         try:
             wxpay = WxPayApi()
-            refund_result = asyncio.run(wxpay.create_refund(
-                out_trade_no=f"LK{order.id:08d}",
-                out_refund_no=f"RF{order.id:08d}{int(time.time())}",
-                refund_amount=int(order.total_price * 100),
-                total_amount=int(order.total_price * 100),
-                reason="用户申请退款",
-            ))
+            refund_result = asyncio.run(
+                wxpay.create_refund(
+                    out_trade_no=f"LK{order.id:08d}",
+                    out_refund_no=f"RF{order.id:08d}{int(time.time())}",
+                    refund_amount=int(order.total_price * 100),
+                    total_amount=int(order.total_price * 100),
+                    reason="用户申请退款",
+                )
+            )
             if refund_result:
                 logger.info(f"订单 {order.id} 退款成功: {refund_result.get('refund_id')}")
         except Exception as e:
@@ -393,13 +451,16 @@ def update_order_status(
 
 
 @router.get("/{order_id}", response_model=ApiResponse)
-def get_order(order_id: int, db: Session = Depends(get_db),
-              current_user: User = Depends(_order_access)):
+def get_order(order_id: int, db: Session = Depends(get_db), current_user: User = Depends(_order_access)):
     """获取订单详情"""
-    order = db.query(Order).filter(
-        Order.id == order_id,
-        Order.is_deleted == False,
-    ).first()
+    order = (
+        db.query(Order)
+        .filter(
+            Order.id == order_id,
+            Order.is_deleted == False,
+        )
+        .first()
+    )
     if not order:
         raise HTTPException(status_code=404, detail="订单不存在")
 
@@ -411,7 +472,7 @@ def get_order(order_id: int, db: Session = Depends(get_db),
 
     if not (is_admin or is_supplier or is_owner or is_promoter):
         raise HTTPException(status_code=403, detail="无权查看此订单")
-    
+
     order_data = OrderResponse.model_validate(order).model_dump()
 
     # 嵌入发票信息（仅订单所属用户可见）

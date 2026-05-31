@@ -1,21 +1,24 @@
 """产品路由：CRUD/审核/搜索"""
-import json
+
 import logging
 from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.orm import Session
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import desc
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
 from app.database import get_db
-from app.models import User, Product, Order
-from app.schemas import (
-    ApiResponse, ProductCreate, ProductUpdate, ProductResponse,
-)
-from app.auth import get_current_user
+from app.models import Order, Product, User
 from app.rbac import require_roles
+from app.schemas import (
+    ApiResponse,
+    ProductCreate,
+    ProductResponse,
+    ProductUpdate,
+)
 
 router = APIRouter(prefix="/api/products", tags=["产品"])
 
@@ -45,6 +48,7 @@ def list_products(
     if credentials:
         try:
             from app.auth import verify_token
+
             payload = verify_token(credentials.credentials)
             if payload:
                 username = payload.get("sub")
@@ -70,17 +74,13 @@ def list_products(
     # 搜索（名称和描述）
     if search:
         like_pattern = f"%{search}%"
-        query = query.filter(
-            (Product.name.like(like_pattern)) | (Product.description.like(like_pattern))
-        )
+        query = query.filter((Product.name.like(like_pattern)) | (Product.description.like(like_pattern)))
 
     # 总数
     total = query.count()
 
     # 分页
-    products = query.order_by(desc(Product.created_at)).offset(
-        (page - 1) * page_size
-    ).limit(page_size).all()
+    products = query.order_by(desc(Product.created_at)).offset((page - 1) * page_size).limit(page_size).all()
 
     return ApiResponse(
         code=200,
@@ -97,10 +97,14 @@ def list_products(
 @router.get("/{product_id}", response_model=ApiResponse)
 def get_product(product_id: int, db: Session = Depends(get_db)):
     """获取产品详情"""
-    product = db.query(Product).filter(
-        Product.id == product_id,
-        Product.is_deleted == False,
-    ).first()
+    product = (
+        db.query(Product)
+        .filter(
+            Product.id == product_id,
+            Product.is_deleted == False,
+        )
+        .first()
+    )
     if not product:
         raise HTTPException(status_code=404, detail="产品不存在")
 
@@ -157,10 +161,14 @@ def update_product(
     current_user: User = Depends(_product_write),
 ):
     """更新产品（仅自己创建的产品）"""
-    product = db.query(Product).filter(
-        Product.id == product_id,
-        Product.is_deleted == False,
-    ).first()
+    product = (
+        db.query(Product)
+        .filter(
+            Product.id == product_id,
+            Product.is_deleted == False,
+        )
+        .first()
+    )
     if not product:
         raise HTTPException(status_code=404, detail="产品不存在")
 
@@ -194,10 +202,14 @@ def delete_product(
     current_user: User = Depends(_product_write),
 ):
     """删除产品（仅自己创建的产品或管理员可操作）"""
-    product = db.query(Product).filter(
-        Product.id == product_id,
-        Product.is_deleted == False,
-    ).first()
+    product = (
+        db.query(Product)
+        .filter(
+            Product.id == product_id,
+            Product.is_deleted == False,
+        )
+        .first()
+    )
     if not product:
         raise HTTPException(status_code=404, detail="产品不存在")
 
