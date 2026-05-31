@@ -13,6 +13,7 @@ vi.mock('../api/client', () => ({
     saveToken: vi.fn(),
     loadToken: vi.fn(() => ({ user: { id: 1 } })),
     removeToken: vi.fn(),
+    track: vi.fn(),
   },
 }));
 
