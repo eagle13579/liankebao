@@ -40,11 +40,11 @@ PERMISSION_REGISTRY: dict[str, list[str]] = {
     "product.read": ["admin", "member", "viewer"],
     "product.write": ["admin", "member"],
     # ── 订单 ──
-    "order.read": ["admin", "member", "viewer"],
-    "order.write": ["admin", "member"],
+    "order.read": ["admin", "member", "buyer", "viewer"],
+    "order.write": ["admin", "member", "buyer"],
     # ── 支付 ──
-    "payment.read": ["admin", "member"],
-    "payment.write": ["admin", "member"],
+    "payment.read": ["admin", "member", "buyer"],
+    "payment.write": ["admin", "member", "buyer"],
     # ── 管理后台 ──
     "admin.access": ["admin"],
 }

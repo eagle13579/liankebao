@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/orders", tags=["订单"])
 
 # 订单接口：admin/member/viewer 均可访问
-_order_access = require_roles(["admin", "member", "viewer"])
+_order_access = require_roles(["admin", "member", "buyer", "viewer"])
 
 # 微信支付配置（从环境变量读取）
 WECHAT_APPID = os.environ.get("WECHAT_APPID", "wxb4f6d89904200fd2")

@@ -198,16 +198,6 @@ def create_mysql_tables(mysql_engine):
 
     # 使用 models 的 Base（它与 database.py 共享同一个 Base）
     # 这里我们直接使用 SQLAlchemy 的 metadata
-    from app.models import (
-        User,
-        Product,
-        Order,
-        Withdrawal,
-        Contact,
-        ImportHistory,
-        Activity,
-        BusinessNeed,
-    )  # noqa
 
     # 获取 app.database 中定义的 Base（所有模型共享的 Base）
     from app.database import Base as AppBase

@@ -43,7 +43,7 @@ from app.telemetry import tracer
 router = APIRouter(prefix="/api/payment", tags=["支付"])
 
 # 支付接口需要 admin 或 member 角色
-_payment_access = require_roles(["admin", "member"])
+_payment_access = require_roles(["admin", "member", "buyer"])
 
 
 # ============================================================
