@@ -19,8 +19,9 @@ import logging
 import os
 import re
 import time
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
+from typing import Any
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -35,7 +36,7 @@ _KEY_ROTATION_DAYS = int(os.environ.get("KEY_ROTATION_DAYS", "90"))
 
 # 加密密钥（Base64 编码的 32 字节 AES-256 密钥）
 # 首次运行时自动生成并存入环境变量或内存
-_ENCRYPTION_KEY: Optional[bytes] = None
+_ENCRYPTION_KEY: bytes | None = None
 
 
 def _get_or_create_key() -> bytes:
@@ -168,11 +169,11 @@ def decrypt_sensitive(value: str) -> str:
     """解密敏感字段值 (幂等: 未加密的保持不变)。"""
     if not value or not _is_already_encrypted(value):
         return value
-    payload = value[len(_ENCRYPTED_PREFIX):]
+    payload = value[len(_ENCRYPTED_PREFIX) :]
     return decrypt_field(payload)
 
 
-def encrypted(model_class: Optional[Type] = None, *, fields: Optional[List[str]] = None) -> Callable:
+def encrypted(model_class: type | None = None, *, fields: list[str] | None = None) -> Callable:
     """类装饰器: 自动加解密 Pydantic/SQLAlchemy 模型中的敏感字段。
 
     用法:
@@ -188,7 +189,7 @@ def encrypted(model_class: Optional[Type] = None, *, fields: Optional[List[str]]
     """
     target_fields = fields or list(SENSITIVE_FIELDS)
 
-    def _decorator(cls: Type) -> Type:
+    def _decorator(cls: type) -> type:
         orig_init = cls.__init__ if hasattr(cls, "__init__") else None
 
         @wraps(cls.__init__ if hasattr(cls, "__init__") else lambda self: None)
@@ -205,7 +206,7 @@ def encrypted(model_class: Optional[Type] = None, *, fields: Optional[List[str]]
         cls.__init__ = _new_init
 
         # 添加解密方法
-        def _decrypt(self, field_name: str) -> Optional[str]:
+        def _decrypt(self, field_name: str) -> str | None:
             """解密指定字段。"""
             if not hasattr(self, field_name):
                 return None
@@ -217,7 +218,7 @@ def encrypted(model_class: Optional[Type] = None, *, fields: Optional[List[str]]
         cls.decrypt_field = _decrypt
 
         # 批量解密方法
-        def _decrypt_all(self) -> Dict[str, str]:
+        def _decrypt_all(self) -> dict[str, str]:
             """解密所有敏感字段, 返回字段名->明文字典。"""
             result = {}
             for field_name in target_fields:
@@ -263,7 +264,7 @@ _SQL_KEYWORDS = re.compile(
 )
 
 
-def scan_sql_injection(source_dir: str = ".") -> List[Dict[str, Any]]:
+def scan_sql_injection(source_dir: str = ".") -> list[dict[str, Any]]:
     """扫描指定目录下 Python 文件中的潜在 SQL 注入风险。
 
     返回风险列表, 每项包含:
@@ -272,11 +273,10 @@ def scan_sql_injection(source_dir: str = ".") -> List[Dict[str, Any]]:
         - code: 代码片段 (截取前 120 字符)
         - risk: 风险描述
     """
-    import ast
     import os as _os
 
-    findings: List[Dict[str, Any]] = []
-    py_files: List[str] = []
+    findings: list[dict[str, Any]] = []
+    py_files: list[str] = []
 
     for root, dirs, files in _os.walk(source_dir):
         # 跳过虚拟环境和缓存
@@ -287,7 +287,7 @@ def scan_sql_injection(source_dir: str = ".") -> List[Dict[str, Any]]:
 
     for filepath in py_files:
         try:
-            with open(filepath, "r", encoding="utf-8", errors="ignore") as fh:
+            with open(filepath, encoding="utf-8", errors="ignore") as fh:
                 lines = fh.readlines()
         except Exception:
             continue
@@ -303,18 +303,18 @@ def scan_sql_injection(source_dir: str = ".") -> List[Dict[str, Any]]:
             if _FSTRING_SQL_PATTERN.search(stripped) or _PARAM_FORMAT_SQL_PATTERN.search(stripped):
                 # 确认包含 SQL 关键字
                 if _SQL_KEYWORDS.search(stripped):
-                    findings.append({
-                        "file": filepath,
-                        "line": lineno,
-                        "code": stripped[:120],
-                        "risk": "检测到 f-string/% 格式化的 SQL 查询 — 存在 SQL 注入风险, 建议使用参数化查询",
-                        "severity": "HIGH",
-                    })
+                    findings.append(
+                        {
+                            "file": filepath,
+                            "line": lineno,
+                            "code": stripped[:120],
+                            "risk": "检测到 f-string/% 格式化的 SQL 查询 — 存在 SQL 注入风险, 建议使用参数化查询",
+                            "severity": "HIGH",
+                        }
+                    )
 
             # 检测字符串拼接 SQL
-            if "+" in stripped and any(
-                kw in stripped.upper() for kw in ("SELECT", "INSERT", "UPDATE", "DELETE")
-            ):
+            if "+" in stripped and any(kw in stripped.upper() for kw in ("SELECT", "INSERT", "UPDATE", "DELETE")):
                 # 检查是否为简单的字符串拼接
                 if '"' in stripped or "'" in stripped:
                     # 避免误报: sqlalchemy 的 filter() 等
@@ -332,13 +332,15 @@ def scan_sql_injection(source_dir: str = ".") -> List[Dict[str, Any]]:
                         )
                     )
                     if not is_sqlalchemy:
-                        findings.append({
-                            "file": filepath,
-                            "line": lineno,
-                            "code": stripped[:120],
-                            "risk": "检测到字符串拼接 SQL — 存在 SQL 注入风险, 建议使用 SQLAlchemy ORM 查询或参数化 text()",
-                            "severity": "MEDIUM",
-                        })
+                        findings.append(
+                            {
+                                "file": filepath,
+                                "line": lineno,
+                                "code": stripped[:120],
+                                "risk": "检测到字符串拼接 SQL — 存在 SQL 注入风险, 建议使用 SQLAlchemy ORM 查询或参数化 text()",
+                                "severity": "MEDIUM",
+                            }
+                        )
 
     return findings
 
@@ -347,7 +349,8 @@ def scan_sql_injection(source_dir: str = ".") -> List[Dict[str, Any]]:
 # 5. CSP 安全头工厂
 # ======================================================================
 
-def get_security_headers() -> Dict[str, str]:
+
+def get_security_headers() -> dict[str, str]:
     """返回增强版安全响应头字典。
 
     适用于 FastAPI @app.middleware 或 ASGI 中间件注入。
@@ -370,10 +373,7 @@ def get_security_headers() -> Dict[str, str]:
             "form-action 'self'"
         ),
         "Referrer-Policy": "strict-origin-when-cross-origin",
-        "Permissions-Policy": (
-            "camera=(), microphone=(), geolocation=(), "
-            "payment=(), usb=(), fullscreen=(self)"
-        ),
+        "Permissions-Policy": ("camera=(), microphone=(), geolocation=(), payment=(), usb=(), fullscreen=(self)"),
         "Cross-Origin-Embedder-Policy": "require-corp",
         "Cross-Origin-Opener-Policy": "same-origin",
         "Cross-Origin-Resource-Policy": "same-origin",
@@ -384,6 +384,7 @@ def get_security_headers() -> Dict[str, str]:
 # 6. CSP 中间件工厂 (ASGI)
 # ======================================================================
 
+
 class SecurityHeadersMiddleware:
     """ASGI 安全头中间件 — 增强版。
 
@@ -392,28 +393,27 @@ class SecurityHeadersMiddleware:
         app.add_middleware(SecurityHeadersMiddleware)
     """
 
-    def __init__(self, app: Any, extra_headers: Optional[Dict[str, str]] = None):
+    def __init__(self, app: Any, extra_headers: dict[str, str] | None = None):
         self.app = app
         self._headers = get_security_headers()
         if extra_headers:
             self._headers.update(extra_headers)
         # 编码为 bytes 元组列表
-        self._header_list: List[Tuple[bytes, bytes]] = [
-            (k.encode("latin-1"), v.encode("latin-1"))
-            for k, v in self._headers.items()
+        self._header_list: list[tuple[bytes, bytes]] = [
+            (k.encode("latin-1"), v.encode("latin-1")) for k, v in self._headers.items()
         ]
 
     async def __call__(
         self,
-        scope: Dict[str, Any],
+        scope: dict[str, Any],
         receive: Callable[[], Any],
-        send: Callable[[Dict[str, Any]], Any],
+        send: Callable[[dict[str, Any]], Any],
     ) -> None:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
 
-        async def send_with_headers(message: Dict[str, Any]) -> None:
+        async def send_with_headers(message: dict[str, Any]) -> None:
             if message["type"] == "http.response.start":
                 headers = list(message.get("headers", []))
                 headers.extend(self._header_list)
@@ -427,6 +427,7 @@ class SecurityHeadersMiddleware:
 # 7. 便捷工具
 # ======================================================================
 
+
 def mask_sensitive(value: str, visible_chars: int = 3) -> str:
     """脱敏显示: 显示前 visible_chars 位, 其余用 * 替代。
 
@@ -435,13 +436,18 @@ def mask_sensitive(value: str, visible_chars: int = 3) -> str:
     if not value:
         return ""
     if len(value) <= visible_chars + 4:
-        return value[:visible_chars] + "****" + value[-4:] if len(value) > visible_chars + 4 else value[:visible_chars] + "***"
+        return (
+            value[:visible_chars] + "****" + value[-4:]
+            if len(value) > visible_chars + 4
+            else value[:visible_chars] + "***"
+        )
     return value[:visible_chars] + "*" * (len(value) - visible_chars - 4) + value[-4:]
 
 
 # ======================================================================
 # 初始化检查
 # ======================================================================
+
 
 def init_security_hardening() -> None:
     """初始化安全加固模块 — 在应用启动时调用。
@@ -464,7 +470,7 @@ if __name__ == "__main__":
     import ast
 
     # 1. 语法验证
-    with open(__file__, "r", encoding="utf-8") as fh:
+    with open(__file__, encoding="utf-8") as fh:
         source = fh.read()
     tree = ast.parse(source, filename=__file__)
     print(f"[OK] ast.parse 通过 — AST 包含 {len(tree.body)} 个顶级节点")

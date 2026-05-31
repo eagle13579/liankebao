@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 安全中间件注入文件 (Security Middleware Injection)
 ===================================================
@@ -31,7 +30,6 @@ import logging
 import os
 import sys
 import time
-from typing import Optional
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -61,6 +59,7 @@ def _load_security_module(data_dir: str):
 
     try:
         from data_security_loader import DataSecurity
+
         return DataSecurity
     except ImportError as e:
         logger.warning(f"无法加载 data_security 模块 (from {data_dir}): {e}")
@@ -85,7 +84,7 @@ def _is_write_request(method: str, path: str) -> bool:
     return True
 
 
-def _extract_core_table(path: str, method: str) -> Optional[str]:
+def _extract_core_table(path: str, method: str) -> str | None:
     """从请求路径中提取 core schema 表名"""
     # 尝试从路径中提取有意义的表名
     parts = [p for p in path.split("/") if p]
@@ -318,9 +317,7 @@ def init_security_middleware(app: FastAPI):
     # 加载 DataSecurity 模块
     DataSecurity = _load_security_module(data_dir)
     if DataSecurity is None:
-        logger.error(
-            f"安全中间件初始化失败: data_security 模块未找到 (搜索路径: {data_dir})"
-        )
+        logger.error(f"安全中间件初始化失败: data_security 模块未找到 (搜索路径: {data_dir})")
         _register_security_routes(app)
         return
 
