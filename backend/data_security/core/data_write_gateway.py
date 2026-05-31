@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 数据写入验证网关 (Data Write Gateway Core)
 ============================================
@@ -26,33 +25,30 @@ DWGC —— 5步验证流水线 + 异步降级 + 熔断 + 迁移白名单。
 """
 
 import copy
-import io
 import json
 import os
-import time
 import threading
+import time
 import traceback
 import uuid
-from collections import defaultdict
-from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from datetime import UTC, datetime
+from typing import Any
 
 # -----------------------------------------------------------------------
 # 导入依赖模块
 # -----------------------------------------------------------------------
 from data_contract import (
-    ContractValidator,
-    ContractYAML,
-    DataContractError,
-    ContractValidationError,
     ContractNotFoundError,
     ContractSchemaError,
+    ContractValidationError,
+    ContractValidator,
+    ContractYAML,
 )
 from sanitizer import (
-    Sanitizer,
-    SanitizerError,
     InjectionDetectedError,
     MaxDepthExceededError,
+    Sanitizer,
+    SanitizerError,
 )
 
 __version__ = "1.0.0"
@@ -62,19 +58,19 @@ __version__ = "1.0.0"
 # =======================================================================
 
 # ---- 熔断配置 ----
-CIRCUIT_BREAKER_THRESHOLD: int = 10       # 连续失败次数触发熔断
-CIRCUIT_BREAKER_RECOVERY: int = 300        # 熔断后尝试恢复的秒数 (5分钟)
-CIRCUIT_HALF_OPEN_MAX: int = 3             # 半开状态下最多尝试次数
+CIRCUIT_BREAKER_THRESHOLD: int = 10  # 连续失败次数触发熔断
+CIRCUIT_BREAKER_RECOVERY: int = 300  # 熔断后尝试恢复的秒数 (5分钟)
+CIRCUIT_HALF_OPEN_MAX: int = 3  # 半开状态下最多尝试次数
 
 # ---- 降级模式 ----
-DEGRADE_MODE_NORMAL: str = "normal"        # 正常模式 (走5步流水线)
+DEGRADE_MODE_NORMAL: str = "normal"  # 正常模式 (走5步流水线)
 DEGRADE_MODE_AUDIT_ONLY: str = "audit_only"  # 仅审计 (旁路DWG但记录)
-DEGRADE_MODE_DIRECT: str = "direct"        # 直接写入 (紧急降级)
+DEGRADE_MODE_DIRECT: str = "direct"  # 直接写入 (紧急降级)
 
 # ---- 异常评分阈值 ----
-ANOMALY_SCORE_LOW: float = 30.0            # 0-30: 正常
-ANOMALY_SCORE_MEDIUM: float = 60.0         # 30-60: 可疑
-ANOMALY_SCORE_HIGH: float = 90.0           # 60-90: 高危
+ANOMALY_SCORE_LOW: float = 30.0  # 0-30: 正常
+ANOMALY_SCORE_MEDIUM: float = 60.0  # 30-60: 可疑
+ANOMALY_SCORE_HIGH: float = 90.0  # 60-90: 高危
 # 90-100: 拒绝
 
 # ---- 迁移白名单前缀 ----
@@ -94,11 +90,13 @@ DEFAULT_CONTRACTS_DIR: str = os.path.join(
 
 class DataWriteGatewayError(Exception):
     """DWG 基础异常"""
+
     pass
 
 
 class ValidationPipelineError(DataWriteGatewayError):
     """验证流水线失败"""
+
     def __init__(self, message: str, step: int, detail: Any = None):
         self.step = step
         self.detail = detail
@@ -107,11 +105,13 @@ class ValidationPipelineError(DataWriteGatewayError):
 
 class CircuitBreakerOpenError(DataWriteGatewayError):
     """熔断器打开，写入被阻止"""
+
     pass
 
 
 class DegradeModeError(DataWriteGatewayError):
     """降级模式错误"""
+
     pass
 
 
@@ -134,10 +134,10 @@ class _DataWriter:
             fail_rate: 模拟写入失败率 (0.0-1.0)
         """
         self.fail_rate = fail_rate
-        self._written: List[Dict] = []
+        self._written: list[dict] = []
         self._lock = threading.Lock()
 
-    def write(self, module: str, table: str, data: dict) -> Dict:
+    def write(self, module: str, table: str, data: dict) -> dict:
         """
         写入数据到目标存储。
 
@@ -146,6 +146,7 @@ class _DataWriter:
             或 {"success": False, "error": "..."}
         """
         import random
+
         if self.fail_rate > 0 and random.random() < self.fail_rate:
             return {
                 "success": False,
@@ -156,7 +157,7 @@ class _DataWriter:
             "module": module,
             "table": table,
             "data": copy.deepcopy(data),
-            "written_at": datetime.now(timezone.utc).isoformat(),
+            "written_at": datetime.now(UTC).isoformat(),
             "write_id": str(uuid.uuid4()),
         }
         with self._lock:
@@ -189,7 +190,7 @@ class AnomalyScorer:
       - 时序异常检测 (Prophet / LSTM)
     """
 
-    def __init__(self, config: Optional[Dict] = None):
+    def __init__(self, config: dict | None = None):
         self._config = config or {}
         self._enabled = self._config.get("enabled", False)
 
@@ -198,8 +199,8 @@ class AnomalyScorer:
         module: str,
         table: str,
         data: dict,
-        context: Optional[Dict] = None,
-    ) -> Dict:
+        context: dict | None = None,
+    ) -> dict:
         """
         计算数据的异常评分。
 
@@ -217,7 +218,7 @@ class AnomalyScorer:
             }
         """
         # ---- Stub 实现 ----
-        reasons: List[str] = []
+        reasons: list[str] = []
         score = 0.0
 
         if not self._enabled:
@@ -257,17 +258,11 @@ class AnomalyScorer:
         if isinstance(data, dict):
             if not data:
                 return current + 1
-            return max(
-                AnomalyScorer._compute_depth(v, current + 1)
-                for v in data.values()
-            )
+            return max(AnomalyScorer._compute_depth(v, current + 1) for v in data.values())
         if isinstance(data, list):
             if not data:
                 return current + 1
-            return max(
-                AnomalyScorer._compute_depth(i, current + 1)
-                for i in data
-            )
+            return max(AnomalyScorer._compute_depth(i, current + 1) for i in data)
         return current
 
 
@@ -303,8 +298,8 @@ class _StepEngine:
         self,
         table: str,
         data: dict,
-        context: Optional[Dict] = None,
-    ) -> Dict:
+        context: dict | None = None,
+    ) -> dict:
         """
         调用 ContractValidator 进行契约校验。
 
@@ -331,8 +326,8 @@ class _StepEngine:
         self,
         table: str,
         data: dict,
-        context: Optional[Dict] = None,
-    ) -> Dict:
+        context: dict | None = None,
+    ) -> dict:
         """
         类型强转 + 约束二次验证。
 
@@ -345,7 +340,7 @@ class _StepEngine:
         Returns:
             {"passed": True, "coerced": dict} or {"passed": False, "errors": [...]}
         """
-        errors: List[Dict] = []
+        errors: list[dict] = []
         coerced = {}
 
         # 获取契约中该表的约束定义
@@ -374,12 +369,14 @@ class _StepEngine:
                 coerced_value = self._coerce_value(field, value, field_rules, errors)
                 coerced[field] = coerced_value
             except Exception as e:
-                errors.append({
-                    "field": field,
-                    "value": value,
-                    "rule": "coerce",
-                    "message": f"类型强转失败: {e}",
-                })
+                errors.append(
+                    {
+                        "field": field,
+                        "value": value,
+                        "rule": "coerce",
+                        "message": f"类型强转失败: {e}",
+                    }
+                )
 
         if errors:
             return {"passed": False, "errors": errors, "coerced": coerced}
@@ -390,8 +387,8 @@ class _StepEngine:
     def _coerce_value(
         field: str,
         value: Any,
-        rules: Dict,
-        errors: List[Dict],
+        rules: dict,
+        errors: list[dict],
     ) -> Any:
         """对单个值进行类型强转"""
         expected_type = rules.get("type", None)
@@ -418,12 +415,14 @@ class _StepEngine:
                     else:  # number
                         value = float(value) if "." in value else int(value)
                 except (ValueError, TypeError):
-                    errors.append({
-                        "field": field,
-                        "value": value,
-                        "rule": "type_coerce",
-                        "message": f"无法将 '{value}' 强转为 {expected_type}",
-                    })
+                    errors.append(
+                        {
+                            "field": field,
+                            "value": value,
+                            "rule": "type_coerce",
+                            "message": f"无法将 '{value}' 强转为 {expected_type}",
+                        }
+                    )
                     return value
 
         # 字符串 → bool 强转
@@ -450,16 +449,20 @@ class _StepEngine:
     # ------------------------------------------------------------------
 
     _INJECTION_KEYWORDS = (
-        "sql_injection", "xss", "json_injection",
-        "ssrf_metadata", "ssrf_dangerous", "ssrf_private_ip",
+        "sql_injection",
+        "xss",
+        "json_injection",
+        "ssrf_metadata",
+        "ssrf_dangerous",
+        "ssrf_private_ip",
     )
 
     def step3_sanitize(
         self,
         table: str,
         data: dict,
-        context: Optional[Dict] = None,
-    ) -> Dict:
+        context: dict | None = None,
+    ) -> dict:
         """
         调用 Sanitizer 进行安全消毒。
 
@@ -472,30 +475,31 @@ class _StepEngine:
             if result.get("injection_detected"):
                 return {
                     "passed": False,
-                    "errors": [{
-                        "field": result.get("field", "<unknown>"),
-                        "rule": "injection",
-                        "pattern": result.get("pattern", "unknown"),
-                        "message": f"安全消毒检测到注入: {result.get('pattern', '')}",
-                    }],
+                    "errors": [
+                        {
+                            "field": result.get("field", "<unknown>"),
+                            "rule": "injection",
+                            "pattern": result.get("pattern", "unknown"),
+                            "message": f"安全消毒检测到注入: {result.get('pattern', '')}",
+                        }
+                    ],
                 }
             warnings = result.get("warnings", [])
             # 检查 warnings 中是否包含注入相关关键词
             # (sanitize_with_warnings 在 raise_on_injection=False 时
             #  不会抛异常，但 warnings 中会记录注入检测)
-            critical_warnings = [
-                w for w in warnings
-                if any(kw in w.lower() for kw in self._INJECTION_KEYWORDS)
-            ]
+            critical_warnings = [w for w in warnings if any(kw in w.lower() for kw in self._INJECTION_KEYWORDS)]
             if critical_warnings:
                 return {
                     "passed": False,
-                    "errors": [{
-                        "field": "<sanitizer>",
-                        "rule": "injection_detected_in_warning",
-                        "message": f"消毒检测到注入: {'; '.join(critical_warnings[:3])}",
-                        "warnings": critical_warnings,
-                    }],
+                    "errors": [
+                        {
+                            "field": "<sanitizer>",
+                            "rule": "injection_detected_in_warning",
+                            "message": f"消毒检测到注入: {'; '.join(critical_warnings[:3])}",
+                            "warnings": critical_warnings,
+                        }
+                    ],
                 }
             return {
                 "passed": True,
@@ -505,20 +509,24 @@ class _StepEngine:
         except (InjectionDetectedError, MaxDepthExceededError) as e:
             return {
                 "passed": False,
-                "errors": [{
-                    "field": getattr(e, "field", "<unknown>"),
-                    "rule": "injection",
-                    "message": str(e),
-                }],
+                "errors": [
+                    {
+                        "field": getattr(e, "field", "<unknown>"),
+                        "rule": "injection",
+                        "message": str(e),
+                    }
+                ],
             }
         except SanitizerError as e:
             return {
                 "passed": False,
-                "errors": [{
-                    "field": "<sanitizer>",
-                    "rule": "sanitizer_error",
-                    "message": str(e),
-                }],
+                "errors": [
+                    {
+                        "field": "<sanitizer>",
+                        "rule": "sanitizer_error",
+                        "message": str(e),
+                    }
+                ],
             }
 
     # ------------------------------------------------------------------
@@ -530,8 +538,8 @@ class _StepEngine:
         module: str,
         table: str,
         data: dict,
-        context: Optional[Dict] = None,
-    ) -> Dict:
+        context: dict | None = None,
+    ) -> dict:
         """
         调用 AnomalyScorer 进行异常评分。
 
@@ -552,12 +560,12 @@ class _StepEngine:
 
     @staticmethod
     def step5_route(
-        step1_result: Dict,
-        step2_result: Dict,
-        step3_result: Dict,
-        step4_result: Dict,
+        step1_result: dict,
+        step2_result: dict,
+        step3_result: dict,
+        step4_result: dict,
         migration_mode: bool = False,
-    ) -> Dict:
+    ) -> dict:
         """
         根据前4步的结果做路由决策。
 
@@ -581,14 +589,12 @@ class _StepEngine:
         # Step 1-3 检查
         for step_name, step_res in [
             ("step1_contract", step1_result),
-            ("step2_coerce",   step2_result),
+            ("step2_coerce", step2_result),
             ("step3_sanitize", step3_result),
         ]:
             if not step_res.get("passed", False):
                 errors = step_res.get("errors", [])
-                error_msgs = "; ".join(
-                    e.get("message", str(e)) for e in errors
-                )
+                error_msgs = "; ".join(e.get("message", str(e)) for e in errors)
                 return {
                     "decision": "rejected",
                     "reason": f"{step_name} 验证失败: {error_msgs}",
@@ -619,10 +625,7 @@ class _StepEngine:
         if score >= ANOMALY_SCORE_LOW and warnings:
             return {
                 "decision": "quarantined",
-                "reason": (
-                    f"异常评分偏低但含消毒警告: {score:.1f}/100. "
-                    f"warnings: {len(warnings)}"
-                ),
+                "reason": (f"异常评分偏低但含消毒警告: {score:.1f}/100. warnings: {len(warnings)}"),
                 "data": data,
                 "score": score,
             }
@@ -642,9 +645,10 @@ class _StepEngine:
 
 class _CircuitBreakerState:
     """熔断器的状态枚举"""
-    CLOSED = "closed"         # 正常状态，请求通过
-    OPEN = "open"             # 熔断打开，请求被拒绝
-    HALF_OPEN = "half_open"   # 半开状态，尝试恢复
+
+    CLOSED = "closed"  # 正常状态，请求通过
+    OPEN = "open"  # 熔断打开，请求被拒绝
+    HALF_OPEN = "half_open"  # 半开状态，尝试恢复
 
 
 class CircuitBreaker:
@@ -713,7 +717,7 @@ class CircuitBreaker:
             return self._half_open_attempts < self._half_open_max
 
     @property
-    def stats(self) -> Dict:
+    def stats(self) -> dict:
         with self._lock:
             return {
                 "state": self._state,
@@ -778,10 +782,7 @@ class CircuitBreaker:
             if self._state == _CircuitBreakerState.HALF_OPEN:
                 # 半开状态失败 → 回到 OPEN
                 self._state = _CircuitBreakerState.OPEN
-            elif (
-                self._state == _CircuitBreakerState.CLOSED
-                and self._failure_count >= self._threshold
-            ):
+            elif self._state == _CircuitBreakerState.CLOSED and self._failure_count >= self._threshold:
                 # 达到阈值 → 打开熔断器
                 self._state = _CircuitBreakerState.OPEN
 
@@ -807,25 +808,25 @@ class _AuditLogger:
 
     def __init__(
         self,
-        log_dir: Optional[str] = None,
+        log_dir: str | None = None,
         buffer_size: int = 100,
     ):
         self._log_dir = log_dir
         self._buffer_size = buffer_size
-        self._buffer: List[Dict] = []
+        self._buffer: list[dict] = []
         self._lock = threading.Lock()
         self._total_logged = 0
 
         if log_dir and not os.path.isdir(log_dir):
             try:
                 os.makedirs(log_dir, exist_ok=True)
-            except (IOError, OSError):
+            except OSError:
                 self._log_dir = None
 
-    def log(self, entry: Dict):
+    def log(self, entry: dict):
         """记录一条审计日志"""
         record = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "_seq": self._total_logged,
         }
         record.update(entry)
@@ -843,15 +844,13 @@ class _AuditLogger:
             return
 
         try:
-            date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
-            log_file = os.path.join(
-                self._log_dir, f"dwg_audit_{date_str}.jsonl"
-            )
+            date_str = datetime.now(UTC).strftime("%Y%m%d")
+            log_file = os.path.join(self._log_dir, f"dwg_audit_{date_str}.jsonl")
             with open(log_file, "a", encoding="utf-8") as f:
                 for entry in self._buffer:
                     f.write(json.dumps(entry, ensure_ascii=False) + "\n")
             self._buffer.clear()
-        except (IOError, OSError):
+        except OSError:
             pass  # 静默处理写入失败
 
     def flush(self):
@@ -859,7 +858,7 @@ class _AuditLogger:
         with self._lock:
             self._flush()
 
-    def get_recent(self, limit: int = 50) -> List[Dict]:
+    def get_recent(self, limit: int = 50) -> list[dict]:
         """获取最近的审计记录"""
         with self._lock:
             return list(self._buffer[-limit:])
@@ -898,14 +897,14 @@ class DataWriteGateway:
 
     def __init__(
         self,
-        contracts_dir: Optional[str] = None,
+        contracts_dir: str | None = None,
         strict_mode: bool = True,
-        sanitizer_config: Optional[Dict] = None,
-        scorer_config: Optional[Dict] = None,
-        circuit_breaker_config: Optional[Dict] = None,
-        audit_log_dir: Optional[str] = None,
+        sanitizer_config: dict | None = None,
+        scorer_config: dict | None = None,
+        circuit_breaker_config: dict | None = None,
+        audit_log_dir: str | None = None,
         writer_fail_rate: float = 0.0,
-        migration_modes: Optional[List[str]] = None,
+        migration_modes: list[str] | None = None,
     ):
         """
         初始化 DWG。
@@ -923,7 +922,7 @@ class DataWriteGateway:
         # ---- 契约系统 ----
         self._contracts_dir = contracts_dir or DEFAULT_CONTRACTS_DIR
         self._strict_mode = strict_mode
-        self._contracts_cache: Dict[str, ContractYAML] = {}
+        self._contracts_cache: dict[str, ContractYAML] = {}
 
         # ---- 核心组件 ----
         self._sanitizer = Sanitizer(
@@ -956,7 +955,7 @@ class DataWriteGateway:
         }
 
         # ---- 内部流水线引擎 ----
-        self._step_engine: Optional[_StepEngine] = None
+        self._step_engine: _StepEngine | None = None
 
     # ------------------------------------------------------------------
     # 契约加载
@@ -981,10 +980,7 @@ class DataWriteGateway:
                 self._contracts_cache[module] = contract
                 return contract
 
-        raise ContractNotFoundError(
-            f"模块 '{module}' 的契约文件未找到"
-            f" (搜索路径: {self._contracts_dir})"
-        )
+        raise ContractNotFoundError(f"模块 '{module}' 的契约文件未找到 (搜索路径: {self._contracts_dir})")
 
     def _get_validator(self, module: str) -> ContractValidator:
         """获取模块的契约校验器"""
@@ -1033,7 +1029,7 @@ class DataWriteGateway:
     # 迁移白名单检查
     # ------------------------------------------------------------------
 
-    def _is_migration(self, context: Optional[Dict]) -> bool:
+    def _is_migration(self, context: dict | None) -> bool:
         """检查请求是否来自迁移脚本"""
         if not context:
             return False
@@ -1049,8 +1045,8 @@ class DataWriteGateway:
         module: str,
         table: str,
         data: dict,
-        context: Optional[Dict] = None,
-    ) -> Dict:
+        context: dict | None = None,
+    ) -> dict:
         """
         5步验证流水线主入口。
 
@@ -1122,15 +1118,17 @@ class DataWriteGateway:
         except Exception as e:
             # 流水线内部异常 → 记录失败
             self._circuit_breaker.on_failure()
-            self._audit_logger.log({
-                "event": "pipeline_error",
-                "module": module,
-                "table": table,
-                "request_id": request_id,
-                "error": str(e),
-                "traceback": traceback.format_exc(),
-                "migration": is_migration,
-            })
+            self._audit_logger.log(
+                {
+                    "event": "pipeline_error",
+                    "module": module,
+                    "table": table,
+                    "request_id": request_id,
+                    "error": str(e),
+                    "traceback": traceback.format_exc(),
+                    "migration": is_migration,
+                }
+            )
             return {
                 "status": "rejected",
                 "reason": f"流水线内部错误: {e}",
@@ -1154,16 +1152,18 @@ class DataWriteGateway:
                     self._stats["passed"] += 1
                     if is_migration:
                         self._stats["migration_passed"] += 1
-                self._audit_logger.log({
-                    "event": "write_success",
-                    "module": module,
-                    "table": table,
-                    "request_id": request_id,
-                    "score": score,
-                    "write_id": write_result.get("write_id"),
-                    "migration": is_migration,
-                    "degraded": False,
-                })
+                self._audit_logger.log(
+                    {
+                        "event": "write_success",
+                        "module": module,
+                        "table": table,
+                        "request_id": request_id,
+                        "score": score,
+                        "write_id": write_result.get("write_id"),
+                        "migration": is_migration,
+                        "degraded": False,
+                    }
+                )
                 return {
                     "status": "passed",
                     "data": pipeline_data,
@@ -1178,14 +1178,16 @@ class DataWriteGateway:
                 self._circuit_breaker.on_failure()
                 with self._stats_lock:
                     self._stats["rejected"] += 1
-                self._audit_logger.log({
-                    "event": "write_failed",
-                    "module": module,
-                    "table": table,
-                    "request_id": request_id,
-                    "error": write_result.get("error", "unknown"),
-                    "migration": is_migration,
-                })
+                self._audit_logger.log(
+                    {
+                        "event": "write_failed",
+                        "module": module,
+                        "table": table,
+                        "request_id": request_id,
+                        "error": write_result.get("error", "unknown"),
+                        "migration": is_migration,
+                    }
+                )
                 return {
                     "status": "rejected",
                     "reason": f"写入失败: {write_result.get('error', 'unknown')}",
@@ -1199,16 +1201,18 @@ class DataWriteGateway:
             self._circuit_breaker.on_success()  # 隔离不算写入失败
             with self._stats_lock:
                 self._stats["quarantined"] += 1
-            self._audit_logger.log({
-                "event": "quarantined",
-                "module": module,
-                "table": table,
-                "request_id": request_id,
-                "quarantine_id": quarantine_id,
-                "score": score,
-                "reason": reason,
-                "migration": is_migration,
-            })
+            self._audit_logger.log(
+                {
+                    "event": "quarantined",
+                    "module": module,
+                    "table": table,
+                    "request_id": request_id,
+                    "quarantine_id": quarantine_id,
+                    "score": score,
+                    "reason": reason,
+                    "migration": is_migration,
+                }
+            )
             return {
                 "status": "quarantined",
                 "data": pipeline_data,
@@ -1222,15 +1226,17 @@ class DataWriteGateway:
             self._circuit_breaker.on_success()  # 验证拒绝不算写入失败
             with self._stats_lock:
                 self._stats["rejected"] += 1
-            self._audit_logger.log({
-                "event": "rejected",
-                "module": module,
-                "table": table,
-                "request_id": request_id,
-                "score": score,
-                "reason": reason,
-                "migration": is_migration,
-            })
+            self._audit_logger.log(
+                {
+                    "event": "rejected",
+                    "module": module,
+                    "table": table,
+                    "request_id": request_id,
+                    "score": score,
+                    "reason": reason,
+                    "migration": is_migration,
+                }
+            )
             return {
                 "status": "rejected",
                 "data": pipeline_data,
@@ -1249,12 +1255,12 @@ class DataWriteGateway:
         module: str,
         table: str,
         data: dict,
-        context: Dict,
+        context: dict,
         degrade_mode: str,
         is_migration: bool,
         request_id: str,
         circuit_broken: bool = False,
-    ) -> Dict:
+    ) -> dict:
         """
         降级写入通路。
 
@@ -1348,10 +1354,10 @@ class DataWriteGateway:
         module: str,
         table: str,
         data: dict,
-        context: Dict,
+        context: dict,
         is_migration: bool,
         request_id: str,
-    ) -> Dict:
+    ) -> dict:
         """
         执行5步验证流水线。
 
@@ -1365,18 +1371,28 @@ class DataWriteGateway:
         step1_result = engine.step1_validate_contract(table, data_copy, context)
         if not step1_result.get("passed", False):
             return _StepEngine.step5_route(
-                step1_result, {}, {}, {}, migration_mode=is_migration,
+                step1_result,
+                {},
+                {},
+                {},
+                migration_mode=is_migration,
             )
 
         step1_data = step1_result.get("cleaned", data_copy)
 
         # ---- Step 2: 类型清洗 + 约束检查 ----
         step2_result = engine.step2_type_coerce_and_constraints(
-            table, step1_data, context,
+            table,
+            step1_data,
+            context,
         )
         if not step2_result.get("passed", False):
             return _StepEngine.step5_route(
-                step1_result, step2_result, {}, {}, migration_mode=is_migration,
+                step1_result,
+                step2_result,
+                {},
+                {},
+                migration_mode=is_migration,
             )
 
         step2_data = step2_result.get("coerced", step1_data)
@@ -1385,7 +1401,10 @@ class DataWriteGateway:
         step3_result = engine.step3_sanitize(table, step2_data, context)
         if not step3_result.get("passed", False):
             return _StepEngine.step5_route(
-                step1_result, step2_result, step3_result, {},
+                step1_result,
+                step2_result,
+                step3_result,
+                {},
                 migration_mode=is_migration,
             )
 
@@ -1393,12 +1412,18 @@ class DataWriteGateway:
 
         # ---- Step 4: 异常评分 ----
         step4_result = engine.step4_anomaly_score(
-            module, table, step3_data, context,
+            module,
+            table,
+            step3_data,
+            context,
         )
 
         # ---- Step 5: 路由决策 ----
         return _StepEngine.step5_route(
-            step1_result, step2_result, step3_result, step4_result,
+            step1_result,
+            step2_result,
+            step3_result,
+            step4_result,
             migration_mode=is_migration,
         )
 
@@ -1406,7 +1431,7 @@ class DataWriteGateway:
     # 统计接口
     # ------------------------------------------------------------------
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """
         获取DWG运行统计。
 
@@ -1459,9 +1484,7 @@ class DataWriteGateway:
             是否成功重新加载
         """
         try:
-            contract = ContractYAML(
-                os.path.join(self._contracts_dir, f"{module}.yaml")
-            )
+            contract = ContractYAML(os.path.join(self._contracts_dir, f"{module}.yaml"))
             self._contracts_cache[module] = contract
             # 重置步骤引擎 (下次请求时重新创建)
             self._step_engine = None
@@ -1479,7 +1502,7 @@ class DataWriteGateway:
 # 便利函数
 # =======================================================================
 
-_DEFAULT_GATEWAY: Optional[DataWriteGateway] = None
+_DEFAULT_GATEWAY: DataWriteGateway | None = None
 _DEFAULT_GATEWAY_LOCK = threading.Lock()
 
 
@@ -1499,8 +1522,8 @@ def validate_and_write(
     module: str,
     table: str,
     data: dict,
-    context: Optional[Dict] = None,
-) -> Dict:
+    context: dict | None = None,
+) -> dict:
     """
     便利函数：使用默认 DWG 实例执行写入验证。
 
@@ -1573,52 +1596,85 @@ tables:
 
     # ---- 测试用例 ----
     test_cases = [
-        ("PASS - 正常数据", "users", {
-            "name": "Alice",
-            "email": "alice@example.com",
-            "age": 30,
-            "role": "user",
-            "status": "active",
-        }),
-        ("PASS - 迁移模式", "users", {
-            "name": "Bob",
-            "email": "bob@example.com",
-            "age": 25,
-            "role": "admin",
-            "status": "active",
-        }, {"_dwg_mode": "migration"}),
-        ("QUARANTINE - SQL注入", "users", {
-            "name": "admin' OR 1=1 --",
-            "email": "evil@example.com",
-            "role": "user",
-            "status": "active",
-        }),
-        ("REJECT - 缺少必需字段", "users", {
-            "email": "no-name@example.com",
-            "role": "user",
-        }),
-        ("REJECT - 错误的email格式", "users", {
-            "name": "Bad Email",
-            "email": "not-an-email",
-            "role": "user",
-        }),
-        ("REJECT - 枚举值无效", "users", {
-            "name": "Hacker",
-            "email": "hacker@example.com",
-            "role": "superadmin",
-            "status": "active",
-        }),
-        ("REJECT - 年龄超出范围", "users", {
-            "name": "Old Man",
-            "email": "old@example.com",
-            "age": 200,
-            "role": "user",
-        }),
-        ("QUARANTINE - SSRF尝试", "users", {
-            "name": "SSRF Attack",
-            "email": "http://169.254.169.254/latest/meta-data/",
-            "role": "user",
-        }),
+        (
+            "PASS - 正常数据",
+            "users",
+            {
+                "name": "Alice",
+                "email": "alice@example.com",
+                "age": 30,
+                "role": "user",
+                "status": "active",
+            },
+        ),
+        (
+            "PASS - 迁移模式",
+            "users",
+            {
+                "name": "Bob",
+                "email": "bob@example.com",
+                "age": 25,
+                "role": "admin",
+                "status": "active",
+            },
+            {"_dwg_mode": "migration"},
+        ),
+        (
+            "QUARANTINE - SQL注入",
+            "users",
+            {
+                "name": "admin' OR 1=1 --",
+                "email": "evil@example.com",
+                "role": "user",
+                "status": "active",
+            },
+        ),
+        (
+            "REJECT - 缺少必需字段",
+            "users",
+            {
+                "email": "no-name@example.com",
+                "role": "user",
+            },
+        ),
+        (
+            "REJECT - 错误的email格式",
+            "users",
+            {
+                "name": "Bad Email",
+                "email": "not-an-email",
+                "role": "user",
+            },
+        ),
+        (
+            "REJECT - 枚举值无效",
+            "users",
+            {
+                "name": "Hacker",
+                "email": "hacker@example.com",
+                "role": "superadmin",
+                "status": "active",
+            },
+        ),
+        (
+            "REJECT - 年龄超出范围",
+            "users",
+            {
+                "name": "Old Man",
+                "email": "old@example.com",
+                "age": 200,
+                "role": "user",
+            },
+        ),
+        (
+            "QUARANTINE - SSRF尝试",
+            "users",
+            {
+                "name": "SSRF Attack",
+                "email": "http://169.254.169.254/latest/meta-data/",
+                "role": "user",
+            },
+        ),
     ]
 
     for case in test_cases:
@@ -1644,7 +1700,7 @@ tables:
             print(f"  ⚠ QUARANTINED | id={result.get('quarantine_id', '')[:8]}...")
             print(f"    原因: {reason[:100]}")
         else:
-            print(f"  ✗ REJECTED")
+            print("  ✗ REJECTED")
             print(f"    原因: {reason[:120]}")
 
     # ---- 测试统计 ----
@@ -1667,23 +1723,32 @@ tables:
     )
     for i in range(5):
         res = fail_dwg.validate_and_write(
-            "demo_module", "users", test_cases[0][2], {},
+            "demo_module",
+            "users",
+            test_cases[0][2],
+            {},
         )
         cb = fail_dwg.get_stats()["circuit_breaker"]
-        print(f"    第{i+1}次: state={cb['state']}, failures={cb['failure_count']}")
+        print(f"    第{i + 1}次: state={cb['state']}, failures={cb['failure_count']}")
 
     # ---- 测试降级 ----
     print(f"\n{'=' * 70}")
     print("  降级模式测试:")
     dwg.set_degrade_mode("audit_only")
     res = dwg.validate_and_write(
-        "demo_module", "users", test_cases[0][2], {},
+        "demo_module",
+        "users",
+        test_cases[0][2],
+        {},
     )
     print(f"    audit_only 模式: status={res['status']}, degraded={res['degraded']}")
 
     dwg.set_degrade_mode("direct")
     res = dwg.validate_and_write(
-        "demo_module", "users", test_cases[0][2], {},
+        "demo_module",
+        "users",
+        test_cases[0][2],
+        {},
     )
     print(f"    direct 模式: status={res['status']}, degraded={res['degraded']}")
 
@@ -1692,7 +1757,7 @@ tables:
     # 清理测试文件
     try:
         os.remove(contract_path)
-    except (IOError, OSError):
+    except OSError:
         pass
 
     print(f"\n{'=' * 70}")

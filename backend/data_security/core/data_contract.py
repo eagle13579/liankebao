@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 数据契约系统 (Data Contract System)
 ====================================
@@ -21,20 +20,20 @@
 import copy
 import fnmatch
 import hashlib
-import json
 import os
 import re
 import time
-import traceback
 from collections import OrderedDict
-from datetime import datetime, date
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from collections.abc import Callable
+from datetime import date, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # 尝试导入 PyYAML，如果不可用则使用内置的简易 YAML 解析器
 # ---------------------------------------------------------------------------
 try:
     import yaml as _yaml_lib
+
     HAS_PYYAML = True
 except ImportError:
     HAS_PYYAML = False
@@ -60,32 +59,32 @@ class _SimpleYAML:
             stream.write(_SimpleYAML._serialize(data))
 
     @staticmethod
-    def _tokenize(text: str) -> List[tuple]:
-        lines = text.split('\n')
+    def _tokenize(text: str) -> list[tuple]:
+        lines = text.split("\n")
         tokens = []
         for lineno, raw in enumerate(lines, 1):
             stripped = raw.rstrip()
-            if not stripped.strip() or stripped.strip().startswith('#'):
+            if not stripped.strip() or stripped.strip().startswith("#"):
                 continue
             indent = len(raw) - len(raw.lstrip())
             tokens.append((lineno, indent, stripped.strip()))
         return tokens
 
     @staticmethod
-    def _parse(tokens: List[tuple]) -> dict:
+    def _parse(tokens: list[tuple]) -> dict:
         result = {}
-        stack = [('root', 0, result)]
+        stack = [("root", 0, result)]
         i = 0
         while i < len(tokens):
             lineno, indent, content = tokens[i]
             while stack and stack[-1][1] >= indent:
                 stack.pop()
             parent = stack[-1][2] if stack else result
-            if ':' in content:
-                key_end = content.index(':')
+            if ":" in content:
+                key_end = content.index(":")
                 key = content[:key_end].strip()
-                value = content[key_end + 1:].strip()
-                if value == '':
+                value = content[key_end + 1 :].strip()
+                if value == "":
                     # 下一行是子项
                     nested = {}
                     parent[key] = nested
@@ -93,7 +92,7 @@ class _SimpleYAML:
                 else:
                     # 尝试类型转换
                     parent[key] = _SimpleYAML._convert(value)
-            elif content.startswith('- '):
+            elif content.startswith("- "):
                 # 列表项
                 val = _SimpleYAML._convert(content[2:])
                 if isinstance(parent, list):
@@ -107,18 +106,18 @@ class _SimpleYAML:
                             break
                     else:
                         # 自动创建列表
-                        parent.setdefault('__list__', []).append(val)
+                        parent.setdefault("__list__", []).append(val)
             i += 1
         return result
 
     @staticmethod
     def _convert(value: str) -> Any:
         v = value.strip()
-        if v == '~' or v == 'null':
+        if v == "~" or v == "null":
             return None
-        if v == 'true' or v == 'True':
+        if v == "true" or v == "True":
             return True
-        if v == 'false' or v == 'False':
+        if v == "false" or v == "False":
             return False
         try:
             return int(v)
@@ -135,7 +134,7 @@ class _SimpleYAML:
     @staticmethod
     def _serialize(data, indent=0) -> str:
         lines = []
-        prefix = '  ' * indent
+        prefix = "  " * indent
         if isinstance(data, dict):
             for k, v in data.items():
                 if isinstance(v, (dict, OrderedDict)):
@@ -157,12 +156,12 @@ class _SimpleYAML:
                 lines.append(f"{prefix}- {_SimpleYAML._serialize_scalar(item)}")
         else:
             lines.append(f"{prefix}{_SimpleYAML._serialize_scalar(data)}")
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     @staticmethod
     def _serialize_scalar(value) -> str:
         if value is None:
-            return 'null'
+            return "null"
         if isinstance(value, bool):
             return str(value).lower()
         if isinstance(value, (int, float)):
@@ -192,28 +191,33 @@ def _yaml_dump(data, stream, **kwargs):
 
 class DataContractError(Exception):
     """数据契约系统基础异常"""
+
     pass
 
 
 class ContractNotFoundError(DataContractError):
     """契约文件未找到"""
+
     pass
 
 
 class ContractValidationError(DataContractError):
     """数据校验失败"""
-    def __init__(self, message: str, errors: Optional[List[Dict]] = None):
+
+    def __init__(self, message: str, errors: list[dict] | None = None):
         super().__init__(message)
         self.errors = errors or []
 
 
 class ContractSchemaError(DataContractError):
     """契约 Schema 本身格式错误"""
+
     pass
 
 
 class ContractVersionError(DataContractError):
     """版本不兼容错误"""
+
     pass
 
 
@@ -237,19 +241,29 @@ class ContractYAML:
     CONTRACT_SCHEMA_VERSION = "2.0"
 
     # 契约顶层必需的字段
-    REQUIRED_TOP_KEYS = {'module', 'version', 'tables'}
+    REQUIRED_TOP_KEYS = {"module", "version", "tables"}
 
     # 每个表必需的字段
-    REQUIRED_TABLE_KEYS = {'allowed_fields'}
+    REQUIRED_TABLE_KEYS = {"allowed_fields"}
 
     # 约束支持的子键
     SUPPORTED_CONSTRAINT_KEYS = {
-        'regex', 'max_length', 'min_length', 'enum',
-        'min', 'max', 'format', 'pattern', 'exclusive_min',
-        'exclusive_max', 'multiple_of', 'default', 'type',
+        "regex",
+        "max_length",
+        "min_length",
+        "enum",
+        "min",
+        "max",
+        "format",
+        "pattern",
+        "exclusive_min",
+        "exclusive_max",
+        "multiple_of",
+        "default",
+        "type",
     }
 
-    def __init__(self, path: Optional[str] = None, content: Optional[str] = None):
+    def __init__(self, path: str | None = None, content: str | None = None):
         """
         初始化 ContractYAML。
 
@@ -259,9 +273,9 @@ class ContractYAML:
         """
         self._path = path
         self._raw_content = content
-        self._data: Optional[Dict] = None
-        self._loaded_at: Optional[float] = None
-        self._checksum: Optional[str] = None
+        self._data: dict | None = None
+        self._loaded_at: float | None = None
+        self._checksum: str | None = None
 
         if path:
             self.load(path)
@@ -272,7 +286,7 @@ class ContractYAML:
     # 加载
     # ------------------------------------------------------------------
 
-    def load(self, path: str) -> 'ContractYAML':
+    def load(self, path: str) -> "ContractYAML":
         """
         从文件加载契约。
 
@@ -291,16 +305,16 @@ class ContractYAML:
 
         self._path = os.path.abspath(path)
         try:
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, encoding="utf-8") as f:
                 raw = f.read()
-        except (IOError, OSError) as e:
+        except OSError as e:
             raise ContractNotFoundError(f"无法读取契约文件 {path}: {e}")
 
         self._raw_content = raw
-        self._checksum = hashlib.md5(raw.encode('utf-8')).hexdigest()
+        self._checksum = hashlib.md5(raw.encode("utf-8")).hexdigest()
         return self._parse_and_validate(raw)
 
-    def loads(self, content: str) -> 'ContractYAML':
+    def loads(self, content: str) -> "ContractYAML":
         """
         从字符串加载契约。
 
@@ -311,10 +325,10 @@ class ContractYAML:
             self
         """
         self._raw_content = content
-        self._checksum = hashlib.md5(content.encode('utf-8')).hexdigest()
+        self._checksum = hashlib.md5(content.encode("utf-8")).hexdigest()
         return self._parse_and_validate(content)
 
-    def reload(self) -> 'ContractYAML':
+    def reload(self) -> "ContractYAML":
         """
         重新加载（热加载用）。
 
@@ -327,10 +341,11 @@ class ContractYAML:
             return self.loads(self._raw_content)
         raise DataContractError("无可重新加载的源")
 
-    def _parse_and_validate(self, raw: str) -> 'ContractYAML':
+    def _parse_and_validate(self, raw: str) -> "ContractYAML":
         """解析并校验 YAML 结构"""
         try:
             import io
+
             stream = io.StringIO(raw)
             data = _yaml_load(stream)
         except Exception as e:
@@ -355,17 +370,15 @@ class ContractYAML:
         """校验顶层必需字段"""
         missing = self.REQUIRED_TOP_KEYS - set(self._data.keys())
         if missing:
-            raise ContractSchemaError(
-                f"契约缺失顶层字段: {', '.join(sorted(missing))}"
-            )
+            raise ContractSchemaError(f"契约缺失顶层字段: {', '.join(sorted(missing))}")
 
-        if not isinstance(self._data['module'], str) or not self._data['module'].strip():
+        if not isinstance(self._data["module"], str) or not self._data["module"].strip():
             raise ContractSchemaError("契约 module 字段必须为非空字符串")
 
-        if not isinstance(self._data['version'], str):
+        if not isinstance(self._data["version"], str):
             raise ContractSchemaError("契约 version 字段必须为字符串 (如 '1.0')")
 
-        if not isinstance(self._data['tables'], (list, dict)):
+        if not isinstance(self._data["tables"], (list, dict)):
             raise ContractSchemaError("契约 tables 字段必须为列表或字典")
 
     def _validate_tables(self):
@@ -378,9 +391,9 @@ class ContractYAML:
                 raise ContractSchemaError(f"tables[{idx}] 必须是字典")
 
             # 表名必需
-            if 'name' not in table:
+            if "name" not in table:
                 raise ContractSchemaError(f"tables[{idx}] 缺少 'name' 字段")
-            tname = table['name']
+            tname = table["name"]
             if not isinstance(tname, str) or not tname.strip():
                 raise ContractSchemaError(f"tables[{idx}] 'name' 必须为非空字符串")
 
@@ -390,7 +403,7 @@ class ContractYAML:
             table_names.add(tname)
 
             # allowed_fields 必需
-            af = table.get('allowed_fields', [])
+            af = table.get("allowed_fields", [])
             if not isinstance(af, list):
                 raise ContractSchemaError(f"表 {tname} 的 allowed_fields 必须是列表")
             if not af:
@@ -399,24 +412,20 @@ class ContractYAML:
             # 校验 allowed_fields 内的字段
             for fd in af:
                 if not isinstance(fd, str) or not fd.strip():
-                    raise ContractSchemaError(
-                        f"表 {tname} 的 allowed_fields 包含非法字段名: {fd}"
-                    )
+                    raise ContractSchemaError(f"表 {tname} 的 allowed_fields 包含非法字段名: {fd}")
 
             # required 可选，但必须是列表
-            req = table.get('required', [])
+            req = table.get("required", [])
             if not isinstance(req, list):
                 raise ContractSchemaError(f"表 {tname} 的 required 必须是列表")
 
             # required 必须是 allowed_fields 的子集
             for r in req:
                 if r not in set(af):
-                    raise ContractSchemaError(
-                        f"表 {tname} 的 required 字段 '{r}' 不在 allowed_fields 中"
-                    )
+                    raise ContractSchemaError(f"表 {tname} 的 required 字段 '{r}' 不在 allowed_fields 中")
 
             # constraints 可选
-            cons = table.get('constraints', {})
+            cons = table.get("constraints", {})
             if not isinstance(cons, dict):
                 raise ContractSchemaError(f"表 {tname} 的 constraints 必须是字典")
 
@@ -427,9 +436,7 @@ class ContractYAML:
                         f"表 {tname} 的 constraints 引用了未在 allowed_fields 中的字段: {field_name}"
                     )
                 if not isinstance(rules, dict):
-                    raise ContractSchemaError(
-                        f"表 {tname} 的 constraints.{field_name} 必须是字典"
-                    )
+                    raise ContractSchemaError(f"表 {tname} 的 constraints.{field_name} 必须是字典")
                 for rule_key in rules:
                     if rule_key not in self.SUPPORTED_CONSTRAINT_KEYS:
                         raise ContractSchemaError(
@@ -437,20 +444,20 @@ class ContractYAML:
                         )
 
             # not_allowed 可选，但必须是列表
-            na = table.get('not_allowed', [])
+            na = table.get("not_allowed", [])
             if not isinstance(na, list):
                 raise ContractSchemaError(f"表 {tname} 的 not_allowed 必须是列表")
 
     def _apply_defaults(self):
         """补充默认值"""
-        tables = self._data.get('tables', [])
+        tables = self._data.get("tables", [])
         if isinstance(tables, dict):
             tables = list(tables.values())
         for table in tables:
-            table.setdefault('required', [])
-            table.setdefault('constraints', {})
-            table.setdefault('not_allowed', [])
-            table.setdefault('description', '')
+            table.setdefault("required", [])
+            table.setdefault("constraints", {})
+            table.setdefault("not_allowed", [])
+            table.setdefault("description", "")
 
     # ------------------------------------------------------------------
     # 查询方法
@@ -458,60 +465,60 @@ class ContractYAML:
 
     def get_module_name(self) -> str:
         """获取模块名称"""
-        return self._data.get('module', '')
+        return self._data.get("module", "")
 
     def get_version(self) -> str:
         """获取契约版本号"""
-        return self._data.get('version', '')
+        return self._data.get("version", "")
 
     def get_description(self) -> str:
         """获取模块描述"""
-        return self._data.get('description', '')
+        return self._data.get("description", "")
 
-    def get_all_table_names(self) -> List[str]:
+    def get_all_table_names(self) -> list[str]:
         """获取所有表名列表"""
-        return [t['name'] for t in self._get_tables_list()]
+        return [t["name"] for t in self._get_tables_list()]
 
-    def get_table(self, table_name: str) -> Optional[Dict]:
+    def get_table(self, table_name: str) -> dict | None:
         """获取指定表的契约配置"""
         for t in self._get_tables_list():
-            if t['name'] == table_name:
+            if t["name"] == table_name:
                 return t
         return None
 
-    def get_allowed_fields(self, table_name: str) -> List[str]:
+    def get_allowed_fields(self, table_name: str) -> list[str]:
         """获取指定表的允许字段列表"""
         table = self.get_table(table_name)
-        return table.get('allowed_fields', []) if table else []
+        return table.get("allowed_fields", []) if table else []
 
-    def get_required_fields(self, table_name: str) -> List[str]:
+    def get_required_fields(self, table_name: str) -> list[str]:
         """获取指定表的必需字段列表"""
         table = self.get_table(table_name)
-        return table.get('required', []) if table else []
+        return table.get("required", []) if table else []
 
-    def get_constraints(self, table_name: str) -> Dict:
+    def get_constraints(self, table_name: str) -> dict:
         """获取指定表的约束字典"""
         table = self.get_table(table_name)
-        return table.get('constraints', {}) if table else {}
+        return table.get("constraints", {}) if table else {}
 
-    def get_not_allowed_fields(self, table_name: str) -> List[str]:
+    def get_not_allowed_fields(self, table_name: str) -> list[str]:
         """获取指定表的禁用字段列表"""
         table = self.get_table(table_name)
-        return table.get('not_allowed', []) if table else []
+        return table.get("not_allowed", []) if table else []
 
-    def get_raw_data(self) -> Dict:
+    def get_raw_data(self) -> dict:
         """获取原始契约数据 (深拷贝)"""
         return copy.deepcopy(self._data)
 
-    def get_path(self) -> Optional[str]:
+    def get_path(self) -> str | None:
         """获取契约文件路径"""
         return self._path
 
-    def get_checksum(self) -> Optional[str]:
+    def get_checksum(self) -> str | None:
         """获取当前契约内容的 MD5 校验和"""
         return self._checksum
 
-    def get_loaded_at(self) -> Optional[float]:
+    def get_loaded_at(self) -> float | None:
         """获取加载时间戳"""
         return self._loaded_at
 
@@ -525,15 +532,15 @@ class ContractYAML:
         if not self._path:
             return False
         try:
-            with open(self._path, 'r', encoding='utf-8') as f:
-                current = hashlib.md5(f.read().encode('utf-8')).hexdigest()
+            with open(self._path, encoding="utf-8") as f:
+                current = hashlib.md5(f.read().encode("utf-8")).hexdigest()
             return current != self._checksum
-        except (IOError, OSError):
+        except OSError:
             return False
 
-    def _get_tables_list(self) -> List[Dict]:
+    def _get_tables_list(self) -> list[dict]:
         """获取 tables 的列表形式（兼容 dict/list 两种格式）"""
-        tables = self._data.get('tables', [])
+        tables = self._data.get("tables", [])
         if isinstance(tables, dict):
             return list(tables.values())
         return tables
@@ -542,18 +549,19 @@ class ContractYAML:
     # 导出
     # ------------------------------------------------------------------
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """导出为字典"""
         return self.get_raw_data()
 
     def to_yaml(self) -> str:
         """导出为 YAML 字符串"""
         import io
+
         buf = io.StringIO()
         _yaml_dump(self._data, buf)
         return buf.getvalue()
 
-    def save(self, path: Optional[str] = None) -> str:
+    def save(self, path: str | None = None) -> str:
         """
         保存契约到文件。
 
@@ -566,11 +574,11 @@ class ContractYAML:
         target = path or self._path
         if not target:
             raise DataContractError("未指定保存路径")
-        with open(target, 'w', encoding='utf-8') as f:
+        with open(target, "w", encoding="utf-8") as f:
             _yaml_dump(self._data, f)
         self._path = os.path.abspath(target)
-        with open(target, 'r', encoding='utf-8') as f:
-            self._checksum = hashlib.md5(f.read().encode('utf-8')).hexdigest()
+        with open(target, encoding="utf-8") as f:
+            self._checksum = hashlib.md5(f.read().encode("utf-8")).hexdigest()
         return self._path
 
     # ------------------------------------------------------------------
@@ -578,7 +586,7 @@ class ContractYAML:
     # ------------------------------------------------------------------
 
     @classmethod
-    def check_schema_compatibility(cls, version: str) -> Tuple[bool, str]:
+    def check_schema_compatibility(cls, version: str) -> tuple[bool, str]:
         """
         检查契约 Schema 版本兼容性。
 
@@ -589,17 +597,14 @@ class ContractYAML:
             (是否兼容, 消息)
         """
         try:
-            v1_parts = [int(x) for x in version.split('.')]
-            v2_parts = [int(x) for x in cls.CONTRACT_SCHEMA_VERSION.split('.')]
+            v1_parts = [int(x) for x in version.split(".")]
+            v2_parts = [int(x) for x in cls.CONTRACT_SCHEMA_VERSION.split(".")]
         except (ValueError, AttributeError):
             return False, f"无法解析版本号: {version}"
 
         # 主版本不同则不兼容
         if v1_parts[0] != v2_parts[0]:
-            return False, (
-                f"主版本不兼容: 契约版本 {version}, "
-                f"引擎支持 {cls.CONTRACT_SCHEMA_VERSION}"
-            )
+            return False, (f"主版本不兼容: 契约版本 {version}, 引擎支持 {cls.CONTRACT_SCHEMA_VERSION}")
         return True, "兼容"
 
 
@@ -620,27 +625,23 @@ class ContractValidator:
     """
 
     # 约束类型与校验函数的映射
-    CONSTRAINT_CHECKERS: Dict[str, Callable] = {}
+    CONSTRAINT_CHECKERS: dict[str, Callable] = {}
 
     # 日期/时间格式的正则缓存
     _format_patterns = {
-        'date': re.compile(r'^\d{4}-\d{2}-\d{2}$'),
-        'time': re.compile(r'^\d{2}:\d{2}:\d{2}$'),
-        'datetime': re.compile(
-            r'^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}'
-            r'(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$'
+        "date": re.compile(r"^\d{4}-\d{2}-\d{2}$"),
+        "time": re.compile(r"^\d{2}:\d{2}:\d{2}$"),
+        "datetime": re.compile(
+            r"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}"
+            r"(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$"
         ),
-        'email': re.compile(
-            r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        "email": re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"),
+        "phone": re.compile(r"^\+?1?\d{7,15}$"),
+        "uuid": re.compile(
+            r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
+            r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
         ),
-        'phone': re.compile(r'^\+?1?\d{7,15}$'),
-        'uuid': re.compile(
-            r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-'
-            r'[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
-        ),
-        'uri': re.compile(
-            r'^https?://[^\s/$.?#].[^\s]*$'
-        ),
+        "uri": re.compile(r"^https?://[^\s/$.?#].[^\s]*$"),
     }
 
     def __init__(self, contract: ContractYAML, strict_mode: bool = True):
@@ -662,9 +663,9 @@ class ContractValidator:
     def validate(
         self,
         table_name: str,
-        data: Dict,
-        context: Optional[Dict] = None,
-    ) -> Dict:
+        data: dict,
+        context: dict | None = None,
+    ) -> dict:
         """
         校验单条数据。
 
@@ -679,18 +680,17 @@ class ContractValidator:
         Raises:
             ContractValidationError: 校验失败
         """
-        errors: List[Dict] = []
+        errors: list[dict] = []
         table = self._contract.get_table(table_name)
         if not table:
             raise ContractValidationError(
-                f"表 '{table_name}' 未在契约中定义",
-                [{'field': '_table', 'message': f"未定义的表: {table_name}"}]
+                f"表 '{table_name}' 未在契约中定义", [{"field": "_table", "message": f"未定义的表: {table_name}"}]
             )
 
-        allowed = set(table.get('allowed_fields', []))
-        required = set(table.get('required', []))
-        not_allowed = set(table.get('not_allowed', []))
-        constraints = table.get('constraints', {})
+        allowed = set(table.get("allowed_fields", []))
+        required = set(table.get("required", []))
+        not_allowed = set(table.get("not_allowed", []))
+        constraints = table.get("constraints", {})
 
         # 计算输入字段集合
         input_fields = set(data.keys())
@@ -699,12 +699,14 @@ class ContractValidator:
         # ---- 步骤1: 禁用字段检查 ----
         for field in input_fields:
             if field in not_allowed:
-                errors.append({
-                    'field': field,
-                    'value': data[field],
-                    'rule': 'not_allowed',
-                    'message': f"字段 '{field}' 被禁止写入",
-                })
+                errors.append(
+                    {
+                        "field": field,
+                        "value": data[field],
+                        "rule": "not_allowed",
+                        "message": f"字段 '{field}' 被禁止写入",
+                    }
+                )
 
         # ---- 步骤2: 白名单检查 ----
         if self._strict_mode:
@@ -712,34 +714,38 @@ class ContractValidator:
             for field in extra_fields:
                 if field in not_allowed:
                     continue  # 已记录
-                errors.append({
-                    'field': field,
-                    'value': data[field],
-                    'rule': 'not_allowed',
-                    'message': (
-                        f"字段 '{field}' 不在 allowed_fields 中"
-                    ),
-                })
+                errors.append(
+                    {
+                        "field": field,
+                        "value": data[field],
+                        "rule": "not_allowed",
+                        "message": (f"字段 '{field}' 不在 allowed_fields 中"),
+                    }
+                )
 
         # ---- 步骤3: 必需字段检查 ----
         missing_required = required - input_fields
         for field in sorted(missing_required):
-            errors.append({
-                'field': field,
-                'value': None,
-                'rule': 'required',
-                'message': f"必需字段 '{field}' 缺失",
-            })
+            errors.append(
+                {
+                    "field": field,
+                    "value": None,
+                    "rule": "required",
+                    "message": f"必需字段 '{field}' 缺失",
+                }
+            )
 
         # 空值检查（字段存在但值为 None/空字符串）
         for field in required:
             if field in data and data[field] is None:
-                errors.append({
-                    'field': field,
-                    'value': None,
-                    'rule': 'required',
-                    'message': f"必需字段 '{field}' 值为空 (None)",
-                })
+                errors.append(
+                    {
+                        "field": field,
+                        "value": None,
+                        "rule": "required",
+                        "message": f"必需字段 '{field}' 值为空 (None)",
+                    }
+                )
 
         # ---- 步骤4: 约束校验 ----
         for field in input_fields:
@@ -762,23 +768,14 @@ class ContractValidator:
             # 在宽松模式下，只报错确实违反约束的字段，忽略白名单外字段
             if not self._strict_mode:
                 filtered_errors = [
-                    e for e in errors
-                    if e['rule'] != 'not_allowed'
-                       or '不在 allowed_fields' not in e['message']
+                    e for e in errors if e["rule"] != "not_allowed" or "不在 allowed_fields" not in e["message"]
                 ]
                 # 但仍然保留 not_allowed 的硬禁止
-                hard_blocked = [
-                    e for e in errors
-                    if e['rule'] == 'not_allowed'
-                       and '被禁止写入' in e['message']
-                ]
+                hard_blocked = [e for e in errors if e["rule"] == "not_allowed" and "被禁止写入" in e["message"]]
                 errors = hard_blocked + filtered_errors
 
             if errors:
-                raise ContractValidationError(
-                    f"表 '{table_name}' 数据校验失败 ({len(errors)} 个错误)",
-                    errors
-                )
+                raise ContractValidationError(f"表 '{table_name}' 数据校验失败 ({len(errors)} 个错误)", errors)
 
         # ---- 步骤5: 清洗（仅保留 allowed_fields 内的字段，去除 not_allowed）----
         if self._strict_mode:
@@ -796,10 +793,10 @@ class ContractValidator:
     def validate_batch(
         self,
         table_name: str,
-        records: List[Dict],
+        records: list[dict],
         raise_first: bool = False,
-        context: Optional[Dict] = None,
-    ) -> Tuple[List[Dict], List[Dict]]:
+        context: dict | None = None,
+    ) -> tuple[list[dict], list[dict]]:
         """
         批量校验多条数据。
 
@@ -816,8 +813,8 @@ class ContractValidator:
         Raises:
             ContractValidationError: 当 raise_first=True 时
         """
-        passed: List[Dict] = []
-        failed: List[Dict] = []
+        passed: list[dict] = []
+        failed: list[dict] = []
 
         for idx, record in enumerate(records):
             try:
@@ -825,22 +822,19 @@ class ContractValidator:
                 passed.append(cleaned)
             except ContractValidationError as e:
                 failed_record = copy.deepcopy(record)
-                failed_record['_errors'] = e.errors
-                failed_record['_row_index'] = idx
+                failed_record["_errors"] = e.errors
+                failed_record["_row_index"] = idx
                 failed.append(failed_record)
                 if raise_first:
-                    raise ContractValidationError(
-                        f"批量校验失败 (第 {idx} 行): {e}",
-                        e.errors
-                    ) from e
+                    raise ContractValidationError(f"批量校验失败 (第 {idx} 行): {e}", e.errors) from e
 
         return passed, failed
 
     def validate_schema(
         self,
         table_name: str,
-        fields: Dict[str, type],
-    ) -> List[Dict]:
+        fields: dict[str, type],
+    ) -> list[dict]:
         """
         校验传入字段的 schema 类型是否与契约一致。
 
@@ -854,25 +848,27 @@ class ContractValidator:
         errors = []
         table = self._contract.get_table(table_name)
         if not table:
-            return [{'field': '_table', 'message': f"未定义的表: {table_name}"}]
+            return [{"field": "_table", "message": f"未定义的表: {table_name}"}]
 
-        allowed = set(table.get('allowed_fields', []))
+        allowed = set(table.get("allowed_fields", []))
         for field, py_type in fields.items():
             if field not in allowed:
                 continue
             # 这里仅做基础类型检查提示，不抛异常
             if py_type not in (str, int, float, bool, list, dict, type(None)):
-                errors.append({
-                    'field': field,
-                    'message': f"不支持的 Python 类型: {py_type.__name__}",
-                })
+                errors.append(
+                    {
+                        "field": field,
+                        "message": f"不支持的 Python 类型: {py_type.__name__}",
+                    }
+                )
         return errors
 
     # ------------------------------------------------------------------
     # 约束检查
     # ------------------------------------------------------------------
 
-    def _check_constraints(self, field: str, value: Any, rules: Dict) -> List[Dict]:
+    def _check_constraints(self, field: str, value: Any, rules: dict) -> list[dict]:
         """对单个字段执行所有约束规则"""
         errors = []
 
@@ -882,212 +878,244 @@ class ContractValidator:
                 try:
                     checker(self, field, value, rule_value, errors)
                 except Exception as e:
-                    errors.append({
-                        'field': field,
-                        'value': value,
-                        'rule': rule_name,
-                        'message': f"约束检查异常: {e}",
-                    })
+                    errors.append(
+                        {
+                            "field": field,
+                            "value": value,
+                            "rule": rule_name,
+                            "message": f"约束检查异常: {e}",
+                        }
+                    )
             else:
                 # 内置检查
                 try:
                     self._check_builtin(field, value, rule_name, rule_value, errors)
                 except Exception as e:
-                    errors.append({
-                        'field': field,
-                        'value': value,
-                        'rule': rule_name,
-                        'message': f"约束检查内部错误: {e}",
-                    })
+                    errors.append(
+                        {
+                            "field": field,
+                            "value": value,
+                            "rule": rule_name,
+                            "message": f"约束检查内部错误: {e}",
+                        }
+                    )
 
         return errors
 
-    def _check_builtin(
-        self, field: str, value: Any, rule: str, param: Any, errors: List[Dict]
-    ):
+    def _check_builtin(self, field: str, value: Any, rule: str, param: Any, errors: list[dict]):
         """内置约束检查"""
         # ---- regex ----
-        if rule == 'regex':
+        if rule == "regex":
             if not isinstance(value, str):
-                errors.append({
-                    'field': field, 'value': value, 'rule': rule,
-                    'message': f"字段 '{field}' 必须为字符串才能执行正则匹配",
-                })
+                errors.append(
+                    {
+                        "field": field,
+                        "value": value,
+                        "rule": rule,
+                        "message": f"字段 '{field}' 必须为字符串才能执行正则匹配",
+                    }
+                )
                 return
             try:
                 if not re.match(param, value):
-                    errors.append({
-                        'field': field, 'value': value, 'rule': rule,
-                        'message': f"字段 '{field}' 不匹配正则: {param}",
-                    })
+                    errors.append(
+                        {
+                            "field": field,
+                            "value": value,
+                            "rule": rule,
+                            "message": f"字段 '{field}' 不匹配正则: {param}",
+                        }
+                    )
             except re.error as e:
-                errors.append({
-                    'field': field, 'value': value, 'rule': rule,
-                    'message': f"正则表达式错误 '{param}': {e}",
-                })
+                errors.append(
+                    {
+                        "field": field,
+                        "value": value,
+                        "rule": rule,
+                        "message": f"正则表达式错误 '{param}': {e}",
+                    }
+                )
 
         # ---- max_length ----
-        elif rule == 'max_length':
+        elif rule == "max_length":
             if isinstance(value, (str, list, dict, tuple)):
                 if len(value) > int(param):
-                    errors.append({
-                        'field': field, 'value': value, 'rule': rule,
-                        'message': (
-                            f"字段 '{field}' 长度 {len(value)} "
-                            f"超过最大限制 {param}"
-                        ),
-                    })
+                    errors.append(
+                        {
+                            "field": field,
+                            "value": value,
+                            "rule": rule,
+                            "message": (f"字段 '{field}' 长度 {len(value)} 超过最大限制 {param}"),
+                        }
+                    )
 
         # ---- min_length ----
-        elif rule == 'min_length':
+        elif rule == "min_length":
             if isinstance(value, (str, list, dict, tuple)):
                 if len(value) < int(param):
-                    errors.append({
-                        'field': field, 'value': value, 'rule': rule,
-                        'message': (
-                            f"字段 '{field}' 长度 {len(value)} "
-                            f"低于最小限制 {param}"
-                        ),
-                    })
+                    errors.append(
+                        {
+                            "field": field,
+                            "value": value,
+                            "rule": rule,
+                            "message": (f"字段 '{field}' 长度 {len(value)} 低于最小限制 {param}"),
+                        }
+                    )
 
         # ---- enum ----
-        elif rule == 'enum':
+        elif rule == "enum":
             if isinstance(param, (list, tuple)) and value not in param:
-                errors.append({
-                    'field': field, 'value': value, 'rule': rule,
-                    'message': (
-                        f"字段 '{field}' 的值 '{value}' "
-                        f"不在允许枚举值 {param} 中"
-                    ),
-                })
+                errors.append(
+                    {
+                        "field": field,
+                        "value": value,
+                        "rule": rule,
+                        "message": (f"字段 '{field}' 的值 '{value}' 不在允许枚举值 {param} 中"),
+                    }
+                )
 
         # ---- min ----
-        elif rule == 'min':
+        elif rule == "min":
             try:
                 if float(value) < float(param):
-                    errors.append({
-                        'field': field, 'value': value, 'rule': rule,
-                        'message': (
-                            f"字段 '{field}' 的值 {value} "
-                            f"小于最小值 {param}"
-                        ),
-                    })
+                    errors.append(
+                        {
+                            "field": field,
+                            "value": value,
+                            "rule": rule,
+                            "message": (f"字段 '{field}' 的值 {value} 小于最小值 {param}"),
+                        }
+                    )
             except (ValueError, TypeError):
                 pass
 
         # ---- max ----
-        elif rule == 'max':
+        elif rule == "max":
             try:
                 if float(value) > float(param):
-                    errors.append({
-                        'field': field, 'value': value, 'rule': rule,
-                        'message': (
-                            f"字段 '{field}' 的值 {value} "
-                            f"大于最大值 {param}"
-                        ),
-                    })
+                    errors.append(
+                        {
+                            "field": field,
+                            "value": value,
+                            "rule": rule,
+                            "message": (f"字段 '{field}' 的值 {value} 大于最大值 {param}"),
+                        }
+                    )
             except (ValueError, TypeError):
                 pass
 
         # ---- exclusive_min ----
-        elif rule == 'exclusive_min':
+        elif rule == "exclusive_min":
             try:
                 if float(value) <= float(param):
-                    errors.append({
-                        'field': field, 'value': value, 'rule': rule,
-                        'message': (
-                            f"字段 '{field}' 的值 {value} "
-                            f"必须严格大于 {param}"
-                        ),
-                    })
+                    errors.append(
+                        {
+                            "field": field,
+                            "value": value,
+                            "rule": rule,
+                            "message": (f"字段 '{field}' 的值 {value} 必须严格大于 {param}"),
+                        }
+                    )
             except (ValueError, TypeError):
                 pass
 
         # ---- exclusive_max ----
-        elif rule == 'exclusive_max':
+        elif rule == "exclusive_max":
             try:
                 if float(value) >= float(param):
-                    errors.append({
-                        'field': field, 'value': value, 'rule': rule,
-                        'message': (
-                            f"字段 '{field}' 的值 {value} "
-                            f"必须严格小于 {param}"
-                        ),
-                    })
+                    errors.append(
+                        {
+                            "field": field,
+                            "value": value,
+                            "rule": rule,
+                            "message": (f"字段 '{field}' 的值 {value} 必须严格小于 {param}"),
+                        }
+                    )
             except (ValueError, TypeError):
                 pass
 
         # ---- multiple_of ----
-        elif rule == 'multiple_of':
+        elif rule == "multiple_of":
             try:
                 v = float(value)
                 m = float(param)
                 if m != 0 and v % m != 0:
-                    errors.append({
-                        'field': field, 'value': value, 'rule': rule,
-                        'message': (
-                            f"字段 '{field}' 的值 {value} "
-                            f"不是 {param} 的倍数"
-                        ),
-                    })
+                    errors.append(
+                        {
+                            "field": field,
+                            "value": value,
+                            "rule": rule,
+                            "message": (f"字段 '{field}' 的值 {value} 不是 {param} 的倍数"),
+                        }
+                    )
             except (ValueError, TypeError):
                 pass
 
         # ---- format ----
-        elif rule == 'format':
+        elif rule == "format":
             pattern = self._format_patterns.get(param)
             if pattern:
                 if not isinstance(value, str):
-                    errors.append({
-                        'field': field, 'value': value, 'rule': rule,
-                        'message': f"字段 '{field}' 必须为字符串才能校验格式 '{param}'",
-                    })
+                    errors.append(
+                        {
+                            "field": field,
+                            "value": value,
+                            "rule": rule,
+                            "message": f"字段 '{field}' 必须为字符串才能校验格式 '{param}'",
+                        }
+                    )
                 elif not pattern.match(value):
-                    errors.append({
-                        'field': field, 'value': value, 'rule': rule,
-                        'message': (
-                            f"字段 '{field}' 的值 '{value}' "
-                            f"不符合格式 '{param}'"
-                        ),
-                    })
+                    errors.append(
+                        {
+                            "field": field,
+                            "value": value,
+                            "rule": rule,
+                            "message": (f"字段 '{field}' 的值 '{value}' 不符合格式 '{param}'"),
+                        }
+                    )
             else:
-                errors.append({
-                    'field': field, 'value': value, 'rule': rule,
-                    'message': f"不支持的格式类型: '{param}'",
-                })
+                errors.append(
+                    {
+                        "field": field,
+                        "value": value,
+                        "rule": rule,
+                        "message": f"不支持的格式类型: '{param}'",
+                    }
+                )
 
         # ---- default ----
-        elif rule == 'default':
+        elif rule == "default":
             # default 在清洗时使用，不在校验时报错
             pass
 
         # ---- type ----
-        elif rule == 'type':
+        elif rule == "type":
             type_map = {
-                'string': str,
-                'str': str,
-                'integer': int,
-                'int': int,
-                'float': float,
-                'number': (int, float),
-                'boolean': bool,
-                'bool': bool,
-                'list': list,
-                'array': list,
-                'dict': dict,
-                'object': dict,
+                "string": str,
+                "str": str,
+                "integer": int,
+                "int": int,
+                "float": float,
+                "number": (int, float),
+                "boolean": bool,
+                "bool": bool,
+                "list": list,
+                "array": list,
+                "dict": dict,
+                "object": dict,
             }
             expected_type = type_map.get(str(param).lower())
             if expected_type and not isinstance(value, expected_type):
                 type_name = str(param)
                 actual_type = type(value).__name__
-                errors.append({
-                    'field': field, 'value': value, 'rule': rule,
-                    'message': (
-                        f"字段 '{field}' 期望类型为 {type_name}, "
-                        f"实际为 {actual_type}"
-                    ),
-                })
+                errors.append(
+                    {
+                        "field": field,
+                        "value": value,
+                        "rule": rule,
+                        "message": (f"字段 '{field}' 期望类型为 {type_name}, 实际为 {actual_type}"),
+                    }
+                )
 
     # ------------------------------------------------------------------
     # 属性
@@ -1130,20 +1158,20 @@ class ContractManager:
             auto_reload: 是否启用热加载（轮询文件变更）
             poll_interval: 轮询间隔（秒）
         """
-        self._contracts: Dict[str, ContractYAML] = OrderedDict()
-        self._validators: Dict[str, ContractValidator] = {}
+        self._contracts: dict[str, ContractYAML] = OrderedDict()
+        self._validators: dict[str, ContractValidator] = {}
         self._auto_reload = auto_reload
         self._poll_interval = poll_interval
         self._last_poll_time: float = 0.0
-        self._migration_scripts: Dict[str, Dict[str, Callable]] = {}
+        self._migration_scripts: dict[str, dict[str, Callable]] = {}
         # 模块 -> [(from_ver, to_ver, script)]
-        self._migration_paths: Dict[str, List[Tuple[str, str, Callable]]] = {}
+        self._migration_paths: dict[str, list[tuple[str, str, Callable]]] = {}
 
     # ------------------------------------------------------------------
     # 注册与加载
     # ------------------------------------------------------------------
 
-    def register(self, module_name: str, contract: ContractYAML) -> 'ContractManager':
+    def register(self, module_name: str, contract: ContractYAML) -> "ContractManager":
         """
         注册一个契约。
 
@@ -1157,7 +1185,7 @@ class ContractManager:
         self._validators[module_name] = ContractValidator(contract)
         return self
 
-    def register_from_file(self, module_name: str, path: str) -> 'ContractManager':
+    def register_from_file(self, module_name: str, path: str) -> "ContractManager":
         """
         从文件注册契约。
 
@@ -1174,14 +1202,12 @@ class ContractManager:
         self._validators.pop(module_name, None)
         return True
 
-    def get_contract(self, module_name: str) -> Optional[ContractYAML]:
+    def get_contract(self, module_name: str) -> ContractYAML | None:
         """获取指定模块的契约"""
         self._check_reload()
         return self._contracts.get(module_name)
 
-    def get_validator(
-        self, module_name: str, strict_mode: Optional[bool] = None
-    ) -> Optional[ContractValidator]:
+    def get_validator(self, module_name: str, strict_mode: bool | None = None) -> ContractValidator | None:
         """
         获取指定模块的校验器。
 
@@ -1199,9 +1225,9 @@ class ContractManager:
         self,
         module_name: str,
         table_name: str,
-        data: Dict,
-        strict_mode: Optional[bool] = None,
-    ) -> Dict:
+        data: dict,
+        strict_mode: bool | None = None,
+    ) -> dict:
         """
         便捷方法：校验数据。
 
@@ -1216,28 +1242,24 @@ class ContractManager:
         """
         validator = self.get_validator(module_name, strict_mode)
         if not validator:
-            raise ContractNotFoundError(
-                f"模块 '{module_name}' 未注册契约"
-            )
+            raise ContractNotFoundError(f"模块 '{module_name}' 未注册契约")
         return validator.validate(table_name, data)
 
     def validate_batch(
         self,
         module_name: str,
         table_name: str,
-        records: List[Dict],
+        records: list[dict],
         raise_first: bool = False,
-        strict_mode: Optional[bool] = None,
-    ) -> Tuple[List[Dict], List[Dict]]:
+        strict_mode: bool | None = None,
+    ) -> tuple[list[dict], list[dict]]:
         """便捷方法：批量校验"""
         validator = self.get_validator(module_name, strict_mode)
         if not validator:
-            raise ContractNotFoundError(
-                f"模块 '{module_name}' 未注册契约"
-            )
+            raise ContractNotFoundError(f"模块 '{module_name}' 未注册契约")
         return validator.validate_batch(table_name, records, raise_first)
 
-    def list_modules(self) -> List[str]:
+    def list_modules(self) -> list[str]:
         """列出所有已注册的模块名"""
         self._check_reload()
         return list(self._contracts.keys())
@@ -1269,11 +1291,11 @@ class ContractManager:
                         self._run_migration(module_name, old_version, new_version)
                     # 刷新校验器
                     self._validators[module_name] = ContractValidator(contract)
-                except Exception as e:
+                except Exception:
                     # 热加载失败不应阻断，记录即可
                     pass
 
-    def force_reload(self, module_name: Optional[str] = None) -> int:
+    def force_reload(self, module_name: str | None = None) -> int:
         """
         强制重新加载契约。
 
@@ -1284,10 +1306,7 @@ class ContractManager:
             重载成功的数量
         """
         count = 0
-        targets = (
-            [module_name] if module_name
-            else list(self._contracts.keys())
-        )
+        targets = [module_name] if module_name else list(self._contracts.keys())
         for name in targets:
             contract = self._contracts.get(name)
             if contract:
@@ -1311,8 +1330,8 @@ class ContractManager:
         module_name: str,
         from_version: str,
         to_version: str,
-        script: Callable[[Dict], Dict],
-    ) -> 'ContractManager':
+        script: Callable[[dict], dict],
+    ) -> "ContractManager":
         """
         注册版本迁移脚本。
 
@@ -1324,9 +1343,7 @@ class ContractManager:
         """
         key = f"{from_version}->{to_version}"
         self._migration_scripts.setdefault(module_name, {})[key] = script
-        self._migration_paths.setdefault(module_name, []).append(
-            (from_version, to_version, script)
-        )
+        self._migration_paths.setdefault(module_name, []).append((from_version, to_version, script))
         return self
 
     def _run_migration(self, module_name: str, from_ver: str, to_ver: str):
@@ -1343,13 +1360,9 @@ class ContractManager:
                     new_contract = ContractYAML(content=_yaml_dump_to_str(migrated))
                     self._contracts[module_name] = new_contract
             except Exception as e:
-                raise ContractVersionError(
-                    f"模块 '{module_name}' 从 {from_ver} 迁移到 {to_ver} 失败: {e}"
-                ) from e
+                raise ContractVersionError(f"模块 '{module_name}' 从 {from_ver} 迁移到 {to_ver} 失败: {e}") from e
 
-    def get_migration_chain(
-        self, module_name: str, from_version: str, to_version: str
-    ) -> List[Tuple[str, str]]:
+    def get_migration_chain(self, module_name: str, from_version: str, to_version: str) -> list[tuple[str, str]]:
         """
         获取迁移路径链。
 
@@ -1384,7 +1397,7 @@ class ContractManager:
     # 批量管理
     # ------------------------------------------------------------------
 
-    def load_directory(self, directory: str, pattern: str = '*.yaml') -> int:
+    def load_directory(self, directory: str, pattern: str = "*.yaml") -> int:
         """
         从目录批量加载契约文件。
 
@@ -1410,7 +1423,7 @@ class ContractManager:
                     pass
         return count
 
-    def summary(self) -> Dict:
+    def summary(self) -> dict:
         """
         获取管理器摘要。
 
@@ -1424,17 +1437,17 @@ class ContractManager:
         modules_info = {}
         for name, contract in self._contracts.items():
             modules_info[name] = {
-                'version': contract.get_version(),
-                'path': contract.get_path(),
-                'tables': contract.get_all_table_names(),
-                'checksum': contract.get_checksum(),
-                'loaded_at': contract.get_loaded_at(),
+                "version": contract.get_version(),
+                "path": contract.get_path(),
+                "tables": contract.get_all_table_names(),
+                "checksum": contract.get_checksum(),
+                "loaded_at": contract.get_loaded_at(),
             }
         return {
-            'modules': modules_info,
-            'auto_reload': self._auto_reload,
-            'poll_interval': self._poll_interval,
-            'module_count': len(self._contracts),
+            "modules": modules_info,
+            "auto_reload": self._auto_reload,
+            "poll_interval": self._poll_interval,
+            "module_count": len(self._contracts),
         }
 
 
@@ -1456,30 +1469,30 @@ class ContractAutoGenerator:
 
     # Python 类型到约束的映射提示
     TYPE_CONSTRAINT_HINTS = {
-        str: {'max_length': 255},
+        str: {"max_length": 255},
         int: {},
         float: {},
         bool: {},
-        datetime: {'format': 'datetime'},
-        date: {'format': 'date'},
+        datetime: {"format": "datetime"},
+        date: {"format": "date"},
     }
 
     def __init__(self):
-        self._models: Dict[str, Any] = OrderedDict()
-        self._table_names: Dict[str, str] = {}
-        self._custom_constraints: Dict[str, Dict[str, Dict]] = {}
-        self._custom_required: Dict[str, List[str]] = {}
-        self._custom_not_allowed: Dict[str, List[str]] = {}
-        self._field_mapping: Dict[str, Dict[str, str]] = {}
-        self._excluded_fields: Dict[str, Set[str]] = {}
+        self._models: dict[str, Any] = OrderedDict()
+        self._table_names: dict[str, str] = {}
+        self._custom_constraints: dict[str, dict[str, dict]] = {}
+        self._custom_required: dict[str, list[str]] = {}
+        self._custom_not_allowed: dict[str, list[str]] = {}
+        self._field_mapping: dict[str, dict[str, str]] = {}
+        self._excluded_fields: dict[str, set[str]] = {}
 
     def register_model(
         self,
         model_class: Any,
-        table_name: Optional[str] = None,
-        field_mapping: Optional[Dict[str, str]] = None,
-        excluded_fields: Optional[List[str]] = None,
-    ) -> 'ContractAutoGenerator':
+        table_name: str | None = None,
+        field_mapping: dict[str, str] | None = None,
+        excluded_fields: list[str] | None = None,
+    ) -> "ContractAutoGenerator":
         """
         注册一个 SQLAlchemy 模型类。
 
@@ -1492,7 +1505,7 @@ class ContractAutoGenerator:
         Returns:
             self
         """
-        name = table_name or getattr(model_class, '__tablename__', model_class.__name__)
+        name = table_name or getattr(model_class, "__tablename__", model_class.__name__)
         self._models[name] = model_class
         self._table_names[name] = name
 
@@ -1507,8 +1520,8 @@ class ContractAutoGenerator:
     def add_constraints(
         self,
         table_name: str,
-        constraints: Dict[str, Dict],
-    ) -> 'ContractAutoGenerator':
+        constraints: dict[str, dict],
+    ) -> "ContractAutoGenerator":
         """
         为指定表添加自定义约束。
 
@@ -1522,8 +1535,8 @@ class ContractAutoGenerator:
     def add_required(
         self,
         table_name: str,
-        fields: List[str],
-    ) -> 'ContractAutoGenerator':
+        fields: list[str],
+    ) -> "ContractAutoGenerator":
         """添加必需字段"""
         self._custom_required.setdefault(table_name, []).extend(fields)
         return self
@@ -1531,8 +1544,8 @@ class ContractAutoGenerator:
     def add_not_allowed(
         self,
         table_name: str,
-        fields: List[str],
-    ) -> 'ContractAutoGenerator':
+        fields: list[str],
+    ) -> "ContractAutoGenerator":
         """添加禁用字段"""
         self._custom_not_allowed.setdefault(table_name, []).extend(fields)
         return self
@@ -1540,8 +1553,8 @@ class ContractAutoGenerator:
     def generate(
         self,
         module_name: str,
-        version: str = '1.0',
-        description: str = '',
+        version: str = "1.0",
+        description: str = "",
         optional_defaults: bool = True,
     ) -> ContractYAML:
         """
@@ -1558,17 +1571,15 @@ class ContractAutoGenerator:
         """
         tables = []
         for table_name, model_class in self._models.items():
-            table_def = self._generate_table(
-                table_name, model_class, optional_defaults
-            )
+            table_def = self._generate_table(table_name, model_class, optional_defaults)
             tables.append(table_def)
 
         data = {
-            'contract_schema': ContractYAML.CONTRACT_SCHEMA_VERSION,
-            'module': module_name,
-            'version': version,
-            'description': description,
-            'tables': tables,
+            "contract_schema": ContractYAML.CONTRACT_SCHEMA_VERSION,
+            "module": module_name,
+            "version": version,
+            "description": description,
+            "tables": tables,
         }
 
         yaml_str = _yaml_dump_to_str(data)
@@ -1578,8 +1589,8 @@ class ContractAutoGenerator:
         self,
         output_dir: str,
         module_name: str,
-        version: str = '1.0',
-        description: str = '',
+        version: str = "1.0",
+        description: str = "",
     ) -> str:
         """
         生成并保存契约文件。
@@ -1604,7 +1615,7 @@ class ContractAutoGenerator:
         table_name: str,
         model_class: Any,
         optional_defaults: bool,
-    ) -> Dict:
+    ) -> dict:
         """从模型类生成单表定义"""
         allowed_fields = []
         constraints = {}
@@ -1650,95 +1661,95 @@ class ContractAutoGenerator:
         not_allowed = self._custom_not_allowed.get(table_name, [])
 
         return {
-            'name': table_name,
-            'allowed_fields': allowed_fields,
-            'required': required_fields,
-            'constraints': constraints,
-            'not_allowed': not_allowed,
+            "name": table_name,
+            "allowed_fields": allowed_fields,
+            "required": required_fields,
+            "constraints": constraints,
+            "not_allowed": not_allowed,
         }
 
-    def _extract_columns(self, model_class) -> Dict:
+    def _extract_columns(self, model_class) -> dict:
         """提取模型类的列信息"""
         columns = OrderedDict()
 
         # SQLAlchemy 声明式模型
-        if hasattr(model_class, '__table__') and model_class.__table__ is not None:
+        if hasattr(model_class, "__table__") and model_class.__table__ is not None:
             for col in model_class.__table__.columns:
                 columns[col.name] = col
             return columns
 
         # SQLAlchemy 2.0+ mapped_column
-        if hasattr(model_class, '__mapper__'):
+        if hasattr(model_class, "__mapper__"):
             for col in model_class.__mapper__.columns:
                 columns[col.name] = col
             return columns
 
         # 备用：遍历类属性推断
         for attr_name in dir(model_class):
-            if attr_name.startswith('_'):
+            if attr_name.startswith("_"):
                 continue
             attr = getattr(model_class, attr_name, None)
-            if attr is not None and hasattr(attr, 'type'):
+            if attr is not None and hasattr(attr, "type"):
                 columns[attr_name] = attr
 
         return columns
 
-    def _extract_column_constraints(self, column, optional_defaults: bool) -> Dict:
+    def _extract_column_constraints(self, column, optional_defaults: bool) -> dict:
         """从列信息中提取约束规则"""
         constraints = {}
 
-        col_type = getattr(column, 'type', None)
+        col_type = getattr(column, "type", None)
         if col_type is None:
             return constraints
 
         type_name = str(col_type).lower()
 
         # 字符串类型
-        if 'varchar' in type_name or 'string' in type_name or 'text' in type_name:
-            length = getattr(col_type, 'length', None)
+        if "varchar" in type_name or "string" in type_name or "text" in type_name:
+            length = getattr(col_type, "length", None)
             if length:
-                constraints['max_length'] = length
+                constraints["max_length"] = length
             # 如果列有 Python 类型提示
-            if hasattr(column, 'type') and hasattr(column.type, 'python_type'):
+            if hasattr(column, "type") and hasattr(column.type, "python_type"):
                 pass
 
         # 整数 / 浮点数
-        elif 'integer' in type_name or 'int' in type_name:
-            constraints.setdefault('min', 0)
+        elif "integer" in type_name or "int" in type_name:
+            constraints.setdefault("min", 0)
 
-        elif 'float' in type_name or 'numeric' in type_name or 'decimal' in type_name:
-            constraints.setdefault('min', 0.0)
+        elif "float" in type_name or "numeric" in type_name or "decimal" in type_name:
+            constraints.setdefault("min", 0.0)
 
         # 布尔
-        elif 'boolean' in type_name or 'bool' in type_name:
-            constraints['enum'] = [True, False]
+        elif "boolean" in type_name or "bool" in type_name:
+            constraints["enum"] = [True, False]
 
         # 日期时间
-        elif 'datetime' in type_name:
-            constraints['format'] = 'datetime'
+        elif "datetime" in type_name:
+            constraints["format"] = "datetime"
 
-        elif 'date' in type_name:
-            constraints['format'] = 'date'
+        elif "date" in type_name:
+            constraints["format"] = "date"
 
         # enum 类型
-        if hasattr(col_type, 'enums'):
-            constraints['enum'] = list(col_type.enums)
+        if hasattr(col_type, "enums"):
+            constraints["enum"] = list(col_type.enums)
 
         # 默认值
         if optional_defaults:
-            default = getattr(column, 'default', None)
+            default = getattr(column, "default", None)
             if default is not None and not callable(default):
-                constraints.setdefault('default', default)
+                constraints.setdefault("default", default)
 
         return constraints
 
     def _is_required_column(self, column) -> bool:
         """判断列是否为必需"""
-        nullable = getattr(column, 'nullable', True)
+        nullable = getattr(column, "nullable", True)
         if nullable:
             return False
-        default = getattr(column, 'default', None)
-        server_default = getattr(column, 'server_default', None)
+        default = getattr(column, "default", None)
+        server_default = getattr(column, "server_default", None)
         return default is None and server_default is None
 
     # ------------------------------------------------------------------
@@ -1749,8 +1760,8 @@ class ContractAutoGenerator:
     def from_dict_schema(
         module_name: str,
         version: str,
-        schema_dict: Dict[str, Dict],
-        description: str = '',
+        schema_dict: dict[str, dict],
+        description: str = "",
     ) -> ContractYAML:
         """
         从手动定义的字典 Schema 生成契约。
@@ -1774,21 +1785,21 @@ class ContractAutoGenerator:
         tables = []
         for table_name, table_def in schema_dict.items():
             entry = {
-                'name': table_name,
-                'allowed_fields': table_def.get('fields', []),
-                'required': table_def.get('required', []),
-                'constraints': table_def.get('constraints', {}),
-                'not_allowed': table_def.get('not_allowed', []),
-                'description': table_def.get('description', ''),
+                "name": table_name,
+                "allowed_fields": table_def.get("fields", []),
+                "required": table_def.get("required", []),
+                "constraints": table_def.get("constraints", {}),
+                "not_allowed": table_def.get("not_allowed", []),
+                "description": table_def.get("description", ""),
             }
             tables.append(entry)
 
         data = {
-            'contract_schema': ContractYAML.CONTRACT_SCHEMA_VERSION,
-            'module': module_name,
-            'version': version,
-            'description': description,
-            'tables': tables,
+            "contract_schema": ContractYAML.CONTRACT_SCHEMA_VERSION,
+            "module": module_name,
+            "version": version,
+            "description": description,
+            "tables": tables,
         }
 
         yaml_str = _yaml_dump_to_str(data)
@@ -1800,9 +1811,10 @@ class ContractAutoGenerator:
 # ===================================================================
 
 
-def _yaml_dump_to_str(data: Dict) -> str:
+def _yaml_dump_to_str(data: dict) -> str:
     """将字典序列化为 YAML 字符串"""
     import io
+
     buf = io.StringIO()
     _yaml_dump(data, buf)
     return buf.getvalue()
@@ -1811,7 +1823,7 @@ def _yaml_dump_to_str(data: Dict) -> str:
 def diff_contracts(
     old_contract: ContractYAML,
     new_contract: ContractYAML,
-) -> Dict:
+) -> dict:
     """
     对比两个契约的差异。
 
@@ -1832,69 +1844,69 @@ def diff_contracts(
         }
     """
     diff = {
-        'module': {
-            'old': old_contract.get_module_name(),
-            'new': new_contract.get_module_name(),
+        "module": {
+            "old": old_contract.get_module_name(),
+            "new": new_contract.get_module_name(),
         },
-        'version': {
-            'old': old_contract.get_version(),
-            'new': new_contract.get_version(),
+        "version": {
+            "old": old_contract.get_version(),
+            "new": new_contract.get_version(),
         },
-        'tables_added': [],
-        'tables_removed': [],
-        'tables_modified': {},
+        "tables_added": [],
+        "tables_removed": [],
+        "tables_modified": {},
     }
 
-    old_tables = {t['name']: t for t in old_contract._get_tables_list()}
-    new_tables = {t['name']: t for t in new_contract._get_tables_list()}
+    old_tables = {t["name"]: t for t in old_contract._get_tables_list()}
+    new_tables = {t["name"]: t for t in new_contract._get_tables_list()}
 
     old_names = set(old_tables.keys())
     new_names = set(new_tables.keys())
 
-    diff['tables_added'] = sorted(new_names - old_names)
-    diff['tables_removed'] = sorted(old_names - new_names)
+    diff["tables_added"] = sorted(new_names - old_names)
+    diff["tables_removed"] = sorted(old_names - new_names)
 
     for name in sorted(old_names & new_names):
         ot = old_tables[name]
         nt = new_tables[name]
         modification = {}
 
-        old_fields = set(ot.get('allowed_fields', []))
-        new_fields = set(nt.get('allowed_fields', []))
+        old_fields = set(ot.get("allowed_fields", []))
+        new_fields = set(nt.get("allowed_fields", []))
 
         added = new_fields - old_fields
         removed = old_fields - new_fields
 
         if added:
-            modification['fields_added'] = sorted(added)
+            modification["fields_added"] = sorted(added)
         if removed:
-            modification['fields_removed'] = sorted(removed)
+            modification["fields_removed"] = sorted(removed)
 
         # 检查 required 变化
-        old_req = set(ot.get('required', []))
-        new_req = set(nt.get('required', []))
+        old_req = set(ot.get("required", []))
+        new_req = set(nt.get("required", []))
         if old_req != new_req:
-            modification['required_changed'] = {
-                'old': sorted(old_req),
-                'new': sorted(new_req),
+            modification["required_changed"] = {
+                "old": sorted(old_req),
+                "new": sorted(new_req),
             }
 
         # 检查约束变化
-        old_cons = ot.get('constraints', {})
-        new_cons = nt.get('constraints', {})
+        old_cons = ot.get("constraints", {})
+        new_cons = nt.get("constraints", {})
         if old_cons != new_cons:
-            modification['constraints_changed'] = {
-                'old': old_cons,
-                'new': new_cons,
+            modification["constraints_changed"] = {
+                "old": old_cons,
+                "new": new_cons,
             }
 
         if modification:
-            diff['tables_modified'][name] = modification
+            diff["tables_modified"][name] = modification
 
     return diff
 
 
-def validate_yaml_file(path: str) -> Tuple[bool, List[str]]:
+def validate_yaml_file(path: str) -> tuple[bool, list[str]]:
     """
     验证一个 YAML 文件是否是合法的契约文件。
 
@@ -1925,7 +1937,7 @@ def validate_yaml_file(path: str) -> Tuple[bool, List[str]]:
 # 快速入口
 # ===================================================================
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import sys
 
     print("=" * 60)
@@ -1935,7 +1947,7 @@ if __name__ == '__main__':
 
     if len(sys.argv) > 1:
         cmd = sys.argv[1]
-        if cmd == 'validate' and len(sys.argv) > 2:
+        if cmd == "validate" and len(sys.argv) > 2:
             for fpath in sys.argv[2:]:
                 ok, msgs = validate_yaml_file(fpath)
                 print(f"\n--- {fpath} ---")

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 数据安全端到端全链路测试
 ========================
@@ -14,9 +13,8 @@
 
 import os
 import sys
-import json
-import time
 import tempfile
+import time
 import traceback
 import uuid as uuid_mod
 
@@ -87,11 +85,13 @@ def test_normal_data(security: DataSecurity) -> bool:
         data=data,
         context={"_dwg_mode": "normal", "user_id": 1},
     )
-    ok = check("正常数据状态为 passed", result.get("status") == "passed",
-               f"实际 {result.get('status')}: {result.get('reason')}")
+    ok = check(
+        "正常数据状态为 passed",
+        result.get("status") == "passed",
+        f"实际 {result.get('status')}: {result.get('reason')}",
+    )
     check("返回清洗后的数据", "data" in result)
-    check("异常评分存在且合理",
-          isinstance(result.get("score"), (int, float)) and result.get("score", 1) < 90)
+    check("异常评分存在且合理", isinstance(result.get("score"), (int, float)) and result.get("score", 1) < 90)
     return ok
 
 
@@ -108,11 +108,16 @@ def test_sql_injection(security: DataSecurity) -> bool:
         "status": "active",
     }
     result = security.validate_and_write(
-        module="ai_card", table="users", data=data,
+        module="ai_card",
+        table="users",
+        data=data,
         context={"_dwg_mode": "normal", "user_id": 1},
     )
-    ok = check("SQL注入数据状态为 rejected", result.get("status") == "rejected",
-               f"实际 {result.get('status')}: {result.get('reason')}")
+    ok = check(
+        "SQL注入数据状态为 rejected",
+        result.get("status") == "rejected",
+        f"实际 {result.get('status')}: {result.get('reason')}",
+    )
     return ok
 
 
@@ -129,11 +134,16 @@ def test_xss_attack(security: DataSecurity) -> bool:
         "status": "active",
     }
     result = security.validate_and_write(
-        module="ai_card", table="users", data=data,
+        module="ai_card",
+        table="users",
+        data=data,
         context={"_dwg_mode": "normal", "user_id": 1},
     )
-    ok = check("XSS攻击数据状态为 rejected", result.get("status") == "rejected",
-               f"实际 {result.get('status')}: {result.get('reason')}")
+    ok = check(
+        "XSS攻击数据状态为 rejected",
+        result.get("status") == "rejected",
+        f"实际 {result.get('status')}: {result.get('reason')}",
+    )
     return ok
 
 
@@ -143,7 +153,7 @@ def test_xss_attack(security: DataSecurity) -> bool:
 def test_unicode_zerowidth(security: DataSecurity) -> bool:
     section("场景4: Unicode零宽字符 → 消毒警告 + passed")
 
-    zerowidth_name = "张\u200B三\u200D"
+    zerowidth_name = "张\u200b三\u200d"
     data = {
         "uuid": uid(),
         "username": "zerowidth_user",
@@ -151,21 +161,23 @@ def test_unicode_zerowidth(security: DataSecurity) -> bool:
         "status": "active",
     }
     result = security.validate_and_write(
-        module="ai_card", table="users", data=data,
+        module="ai_card",
+        table="users",
+        data=data,
         context={"_dwg_mode": "normal", "user_id": 1},
     )
 
-    ok = check("零宽字符数据状态为 passed", result.get("status") == "passed",
-               f"实际 {result.get('status')}: {result.get('reason')}")
+    ok = check(
+        "零宽字符数据状态为 passed",
+        result.get("status") == "passed",
+        f"实际 {result.get('status')}: {result.get('reason')}",
+    )
 
     # Sanitizer 直接检测
     cleaned, warns = security.sanitizer.sanitize_string(zerowidth_name)
     has_zero_warn = any("零宽" in w for w in warns)
-    check("Sanitizer 检测到零宽字符并发出警告", has_zero_warn,
-           f"warnings={warns}")
-    check("Sanitizer 已清除零宽字符",
-          "\u200B" not in cleaned and "\u200D" not in cleaned,
-          f"cleaned={repr(cleaned)}")
+    check("Sanitizer 检测到零宽字符并发出警告", has_zero_warn, f"warnings={warns}")
+    check("Sanitizer 已清除零宽字符", "\u200b" not in cleaned and "\u200d" not in cleaned, f"cleaned={repr(cleaned)}")
     return ok
 
 
@@ -182,11 +194,16 @@ def test_ssrf_injection(security: DataSecurity) -> bool:
         "status": "active",
     }
     result = security.validate_and_write(
-        module="ai_card", table="users", data=data,
+        module="ai_card",
+        table="users",
+        data=data,
         context={"_dwg_mode": "normal", "user_id": 1},
     )
-    ok = check("SSRF注入数据状态为 rejected", result.get("status") == "rejected",
-               f"实际 {result.get('status')}: {result.get('reason')}")
+    ok = check(
+        "SSRF注入数据状态为 rejected",
+        result.get("status") == "rejected",
+        f"实际 {result.get('status')}: {result.get('reason')}",
+    )
     return ok
 
 
@@ -203,11 +220,16 @@ def test_type_confusion(security: DataSecurity) -> bool:
         "status": "active",
     }
     result = security.validate_and_write(
-        module="ai_card", table="users", data=data,
+        module="ai_card",
+        table="users",
+        data=data,
         context={"_dwg_mode": "normal", "user_id": 1},
     )
-    ok = check("类型混淆数据状态为 rejected", result.get("status") == "rejected",
-               f"实际 {result.get('status')}: {result.get('reason')}")
+    ok = check(
+        "类型混淆数据状态为 rejected",
+        result.get("status") == "rejected",
+        f"实际 {result.get('status')}: {result.get('reason')}",
+    )
     return ok
 
 
@@ -222,11 +244,16 @@ def test_missing_required(security: DataSecurity) -> bool:
         "status": "active",
     }
     result = security.validate_and_write(
-        module="ai_card", table="users", data=data,
+        module="ai_card",
+        table="users",
+        data=data,
         context={"_dwg_mode": "normal", "user_id": 1},
     )
-    ok = check("缺少必填字段数据状态为 rejected", result.get("status") == "rejected",
-               f"实际 {result.get('status')}: {result.get('reason')}")
+    ok = check(
+        "缺少必填字段数据状态为 rejected",
+        result.get("status") == "rejected",
+        f"实际 {result.get('status')}: {result.get('reason')}",
+    )
     return ok
 
 
@@ -243,14 +270,16 @@ def test_quarantine(security: DataSecurity) -> bool:
         "status": "active",
     }
     result = security.validate_and_write(
-        module="ai_card", table="organizations", data=data,
+        module="ai_card",
+        table="organizations",
+        data=data,
         context={"_dwg_mode": "normal", "user_id": 1},
     )
 
     status = result.get("status")
-    ok = check("组织数据通过验证(至少不拒绝)",
-               status in ("quarantined", "passed"),
-               f"实际 {status}: {result.get('reason')}")
+    ok = check(
+        "组织数据通过验证(至少不拒绝)", status in ("quarantined", "passed"), f"实际 {status}: {result.get('reason')}"
+    )
 
     if status == "quarantined":
         check("检疫区返回 quarantine_id", result.get("quarantine_id") is not None)
@@ -258,8 +287,7 @@ def test_quarantine(security: DataSecurity) -> bool:
             "SELECT * FROM quarantine_items WHERE module=?",
             ("ai_card",),
         )
-        check("检疫区数据库中已有记录", len(items) > 0,
-               f"查询到 {len(items)} 条记录")
+        check("检疫区数据库中已有记录", len(items) > 0, f"查询到 {len(items)} 条记录")
     return ok
 
 
@@ -287,7 +315,9 @@ def test_circuit_breaker(security: DataSecurity) -> bool:
     degraded_detected = False
     for i in range(15):
         result = cb_security.validate_and_write(
-            module="ai_card", table="users", data=data,
+            module="ai_card",
+            table="users",
+            data=data,
             context={"_dwg_mode": "normal", "user_id": 1},
         )
         if result.get("degraded"):
@@ -300,12 +330,14 @@ def test_circuit_breaker(security: DataSecurity) -> bool:
     degraded = dwg_stats.get("degraded", 0)
     cb_info = dwg_stats.get("circuit_breaker", {})
 
-    ok = check("熔断测试中触发了自动降级",
-               degraded_detected or circuit_broken > 0 or degraded > 0,
-               f"degraded_flag={degraded_detected}, "
-               f"circuit_broken={circuit_broken}, "
-               f"degraded={degraded}, "
-               f"cb_state={cb_info.get('state')}")
+    ok = check(
+        "熔断测试中触发了自动降级",
+        degraded_detected or circuit_broken > 0 or degraded > 0,
+        f"degraded_flag={degraded_detected}, "
+        f"circuit_broken={circuit_broken}, "
+        f"degraded={degraded}, "
+        f"cb_state={cb_info.get('state')}",
+    )
 
     cb_security.close()
     try:
@@ -330,20 +362,24 @@ def test_degrade_path(security: DataSecurity) -> bool:
         "status": "active",
     }
     result = security.validate_and_write(
-        module="ai_card", table="users", data=data,
+        module="ai_card",
+        table="users",
+        data=data,
         context={"_dwg_mode": "normal", "user_id": 1},
     )
     security.dwg.set_degrade_mode("normal")
 
-    ok = check("DIRECT降级: 状态为 passed（旁路写入）",
-               result.get("status") == "passed",
-               f"实际 {result.get('status')}: {result.get('reason')}")
-    check("DIRECT降级: 标记 degraded=True",
-          result.get("degraded") is True,
-          f"实际 degraded={result.get('degraded')}")
-    check("DIRECT降级: 原因包含 '旁路' 或 'DIRECT'",
-          "旁路" in result.get("reason", "") or "DIRECT" in result.get("reason", ""),
-          f"实际 reason={result.get('reason')}")
+    ok = check(
+        "DIRECT降级: 状态为 passed（旁路写入）",
+        result.get("status") == "passed",
+        f"实际 {result.get('status')}: {result.get('reason')}",
+    )
+    check("DIRECT降级: 标记 degraded=True", result.get("degraded") is True, f"实际 degraded={result.get('degraded')}")
+    check(
+        "DIRECT降级: 原因包含 '旁路' 或 'DIRECT'",
+        "旁路" in result.get("reason", "") or "DIRECT" in result.get("reason", ""),
+        f"实际 reason={result.get('reason')}",
+    )
 
     # ---- audit_only 模式 ----
     security.dwg.set_degrade_mode("audit_only")
@@ -353,16 +389,19 @@ def test_degrade_path(security: DataSecurity) -> bool:
         "status": "active",
     }
     result2 = security.validate_and_write(
-        module="ai_card", table="users", data=data2,
+        module="ai_card",
+        table="users",
+        data=data2,
         context={"_dwg_mode": "normal", "user_id": 1},
     )
     security.dwg.set_degrade_mode("normal")
 
-    check("AUDIT_ONLY降级: 状态为 passed",
-          result2.get("status") == "passed",
-          f"实际 {result2.get('status')}: {result2.get('reason')}")
-    check("AUDIT_ONLY降级: 标记 degraded=True",
-          result2.get("degraded") is True)
+    check(
+        "AUDIT_ONLY降级: 状态为 passed",
+        result2.get("status") == "passed",
+        f"实际 {result2.get('status')}: {result2.get('reason')}",
+    )
+    check("AUDIT_ONLY降级: 标记 degraded=True", result2.get("degraded") is True)
 
     return ok
 
@@ -423,12 +462,11 @@ def main():
         print(f"  [{mark}] {name}")
 
     print()
-    print(f"  总计: {_stats['total']}  |  通过: {_stats['pass']}  |  "
-          f"失败: {_stats['fail']}")
-    success_rate = (_stats['pass'] / _stats['total'] * 100) if _stats['total'] else 0
+    print(f"  总计: {_stats['total']}  |  通过: {_stats['pass']}  |  失败: {_stats['fail']}")
+    success_rate = (_stats["pass"] / _stats["total"] * 100) if _stats["total"] else 0
     print(f"  通过率: {success_rate:.1f}%")
 
-    if _stats['fail'] == 0:
+    if _stats["fail"] == 0:
         print("\n  ★★★ 全部10个场景通过 ★★★")
     else:
         print(f"\n  ⚠ {_stats['fail']} 个场景未通过，请检查详细日志")
@@ -440,7 +478,7 @@ def main():
     except OSError:
         pass
 
-    return _stats['fail'] == 0
+    return _stats["fail"] == 0
 
 
 if __name__ == "__main__":

@@ -1,0 +1,106 @@
+# ============================================================================
+# 企业知识图谱模块 (Enterprise) 数据契约
+# 模块名: enterprise
+# 版本: 1.0
+# 契约 Schema: 2.0
+# ============================================================================
+# 链客宝 — 企业知识图谱（企业画像 + 企业关系图谱）
+# 数据来源：AI名片提取 + 用户填写 + 公域采集
+# ============================================================================
+
+module: enterprise
+version: "1.0"
+contract_schema: "2.0"
+description: "企业知识图谱模块数据契约 —— 企业信息库与商业关系图谱"
+
+tables:
+  # --------------------------------------------------------------------------
+  # enterprises — 企业信息表
+  # --------------------------------------------------------------------------
+  - name: enterprises
+    description: "企业信息表 — 企业画像，含基本工商信息和商业标签"
+    allowed_fields:
+      - id
+      - name
+      - short_name
+      - credit_code
+      - legal_person
+      - registered_capital
+      - established_date
+      - industry
+      - region
+      - business_scope
+      - tags
+      - website
+      - data_source
+      - confidence
+      - extra
+      - created_at
+      - updated_at
+    required:
+      - name
+    constraints:
+      name:
+        max_length: 200
+        min_length: 1
+      short_name:
+        max_length: 100
+      credit_code:
+        regex: "^[0-9A-Z]{15,18}$"
+        max_length: 18
+      legal_person:
+        max_length: 100
+      industry:
+        max_length: 100
+      region:
+        max_length: 100
+      business_scope:
+        max_length: 2000
+      tags:
+        max_length: 500
+      website:
+        format: uri
+        max_length: 500
+      data_source:
+        enum: ["manual", "crawl", "api", "card_scan", "user_input"]
+      confidence:
+        min: 0
+        max: 100
+    not_allowed:
+      - internal_risk_score
+      - credit_report_detail
+      - legal_disputes_detail
+
+  # --------------------------------------------------------------------------
+  # enterprise_relations — 企业关系图谱表
+  # --------------------------------------------------------------------------
+  - name: enterprise_relations
+    description: "企业关系图谱 — 企业之间的商业关系网络"
+    allowed_fields:
+      - id
+      - source_id
+      - target_id
+      - relation_type
+      - relation_label
+      - confidence
+      - source
+      - created_at
+    required:
+      - source_id
+      - target_id
+      - relation_type
+    constraints:
+      source_id:
+        min: 1
+      target_id:
+        min: 1
+      relation_type:
+        enum: ["invest", "compete", "supply", "subsidiary", "partner", "customer"]
+      relation_label:
+        max_length: 100
+      confidence:
+        min: 0
+        max: 100
+      source:
+        enum: ["manual", "crawl", "ai_infer", "card_scan"]
+    not_allowed: []

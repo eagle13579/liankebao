@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 数据安全统一集成入口 (Data Security Unified Loader)
 =====================================================
@@ -25,13 +24,10 @@
 模块：向海容知識庫 · 記憶宮殿 · 数据安全层
 """
 
-import json
 import os
 import sys
 import tempfile
 import time
-import traceback
-from typing import Any, Dict, List, Optional, Tuple, Union
 
 # ---------------------------------------------------------------------------
 # 确保 core/ 和 quarantine/ 能正确导入
@@ -46,36 +42,34 @@ for _sub in ("core", "quarantine"):
 # 导入5个安全模块
 # ---------------------------------------------------------------------------
 try:
+    from anomaly_scorer import AnomalyScorer
     from data_contract import (
         ContractManager,
-        ContractYAML,
-        ContractValidator,
-        DataContractError,
-        ContractValidationError,
         ContractNotFoundError,
-    )
-    from sanitizer import (
-        Sanitizer,
-        SanitizerError,
-        InjectionDetectedError,
+        ContractValidationError,
+        ContractValidator,
+        ContractYAML,
+        DataContractError,
     )
     from data_write_gateway import (
-        DataWriteGateway,
-        DataWriteGatewayError,
-        DEGRADE_MODE_NORMAL,
-        DEGRADE_MODE_AUDIT_ONLY,
-        DEGRADE_MODE_DIRECT,
+        ANOMALY_SCORE_HIGH,
         ANOMALY_SCORE_LOW,
         ANOMALY_SCORE_MEDIUM,
-        ANOMALY_SCORE_HIGH,
+        DEGRADE_MODE_AUDIT_ONLY,
+        DEGRADE_MODE_DIRECT,
+        DEGRADE_MODE_NORMAL,
+        DataWriteGateway,
+        DataWriteGatewayError,
     )
-    from anomaly_scorer import AnomalyScorer
     from quarantine_manager import QuarantineManager
+    from sanitizer import (
+        InjectionDetectedError,
+        Sanitizer,
+        SanitizerError,
+    )
 except ImportError as e:
     raise ImportError(
-        f"无法加载安全模块: {e}\n"
-        f"请确保在 {_BASE_DIR} 目录下运行，且 core/ 和 quarantine/ "
-        f"目录包含所有模块文件。"
+        f"无法加载安全模块: {e}\n请确保在 {_BASE_DIR} 目录下运行，且 core/ 和 quarantine/ 目录包含所有模块文件。"
     )
 
 __version__ = "1.0.0"
@@ -92,11 +86,11 @@ class DataSecurity:
 
     def __init__(
         self,
-        contracts_dir: Optional[str] = None,
-        sanitizer_config: Optional[Dict] = None,
-        scorer_config: Optional[Dict] = None,
-        dwg_config: Optional[Dict] = None,
-        quarantine_db: Optional[str] = None,
+        contracts_dir: str | None = None,
+        sanitizer_config: dict | None = None,
+        scorer_config: dict | None = None,
+        dwg_config: dict | None = None,
+        quarantine_db: str | None = None,
         auto_register_contracts: bool = True,
         verbose: bool = False,
     ):
@@ -149,7 +143,8 @@ class DataSecurity:
         # ---- 5. QuarantineManager ----
         if quarantine_db is None:
             quarantine_db = os.path.join(
-                tempfile.gettempdir(), "data_security_quarantine.db",
+                tempfile.gettempdir(),
+                "data_security_quarantine.db",
             )
         self._quarantine_db = quarantine_db
         self._quarantine = QuarantineManager(
@@ -157,7 +152,7 @@ class DataSecurity:
             start_escalator=False,
         )
 
-        self._log(f"DataSecurity 初始化完成")
+        self._log("DataSecurity 初始化完成")
         self._log(f"  契约目录: {self._contracts_dir}")
         self._log(f"  检疫区数据库: {self._quarantine_db}")
 
@@ -199,9 +194,9 @@ class DataSecurity:
         module: str,
         table: str,
         data: dict,
-        context: Optional[Dict] = None,
+        context: dict | None = None,
         **kwargs,
-    ) -> Dict:
+    ) -> dict:
         """
         全链路验证 + 写入（一键调用，包含全部5步）。
 
@@ -278,8 +273,8 @@ class DataSecurity:
         module: str,
         table: str,
         data: dict,
-        context: Optional[Dict] = None,
-    ) -> Dict:
+        context: dict | None = None,
+    ) -> dict:
         """
         仅验证（不写入）。调用 DWG 的流水线但拦截写入步骤。
         返回验证结果，不变更实际数据。
@@ -303,7 +298,7 @@ class DataSecurity:
             # 恢复原始模式
             pass
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """获取所有模块的运行统计"""
         stats = {
             "dwg": self._dwg.get_stats(),
@@ -362,8 +357,8 @@ class DataSecurity:
 
 
 def create_test_security(
-    contracts_dir: Optional[str] = None,
-    quarantine_db: Optional[str] = None,
+    contracts_dir: str | None = None,
+    quarantine_db: str | None = None,
     verbose: bool = False,
 ) -> DataSecurity:
     """

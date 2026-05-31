@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """快速验证脚本：测试数据契约系统的加载与校验"""
+
 import sys
+
 sys.path.insert(0, "D:/向海容的知识库/wiki/wiki/记忆宫殿/scripts/data-security/core")
 
-from data_contract import (
-    ContractYAML, ContractValidator, ContractManager,
-    validate_yaml_file, diff_contracts
-)
+from data_contract import ContractManager, ContractValidator, validate_yaml_file
 
 contracts_dir = "D:/向海容的知识库/wiki/wiki/记忆宫殿/scripts/data-security/contracts"
 
@@ -47,8 +46,8 @@ print("-" * 70)
 contract = manager.get_contract("ai_card")
 if contract:
     validator = ContractValidator(contract, strict_mode=True)
-    print(f"\n  ai_card 模块 — 严格模式")
-    
+    print("\n  ai_card 模块 — 严格模式")
+
     # 合法数据
     valid_data = {
         "uuid": "550e8400-e29b-41d4-a716-446655440000",
@@ -62,7 +61,7 @@ if contract:
     except Exception as e:
         print(f"  ✗ 合法数据被拒: {e}")
         all_ok = False
-    
+
     # 非法数据（含不在白名单的字段）
     invalid_data = {
         "uuid": "550e8400-e29b-41d4-a716-446655440000",
@@ -71,11 +70,11 @@ if contract:
     }
     try:
         cleaned = validator.validate("users", invalid_data)
-        print(f"  ✗ 非法数据通过了校验!")
+        print("  ✗ 非法数据通过了校验!")
         all_ok = False
-    except Exception as e:
-        print(f"  ✓ 非法数据被拦截 (含 password_hash)")
-    
+    except Exception:
+        print("  ✓ 非法数据被拦截 (含 password_hash)")
+
     # 测试 card_profiles
     valid_card = {
         "uuid": "550e8400-e29b-41d4-a716-446655440001",
@@ -86,7 +85,7 @@ if contract:
     }
     try:
         cleaned = validator.validate("card_profiles", valid_card)
-        print(f"  ✓ 合法名片数据通过校验")
+        print("  ✓ 合法名片数据通过校验")
     except Exception as e:
         print(f"  ✗ 合法名片被拒: {e}")
         all_ok = False
@@ -95,8 +94,8 @@ if contract:
 contract2 = manager.get_contract("chainke")
 if contract2:
     validator2 = ContractValidator(contract2, strict_mode=True)
-    print(f"\n  chainke 模块 — 严格模式")
-    
+    print("\n  chainke 模块 — 严格模式")
+
     valid_order = {
         "uuid": "550e8400-e29b-41d4-a716-446655440002",
         "order_no": "ORD202605290001A",
@@ -109,7 +108,7 @@ if contract2:
     }
     try:
         cleaned = validator2.validate("chainke_orders", valid_order)
-        print(f"  ✓ 合法订单数据通过校验")
+        print("  ✓ 合法订单数据通过校验")
     except Exception as e:
         print(f"  ✗ 合法订单被拒: {e}")
         all_ok = False
@@ -118,8 +117,8 @@ if contract2:
 contract3 = manager.get_contract("digital_port")
 if contract3:
     validator3 = ContractValidator(contract3, strict_mode=True)
-    print(f"\n  digital_port 模块 — 严格模式")
-    
+    print("\n  digital_port 模块 — 严格模式")
+
     valid_ent = {
         "uuid": "550e8400-e29b-41d4-a716-446655440003",
         "organization_id": 1,
@@ -132,7 +131,7 @@ if contract3:
     }
     try:
         cleaned = validator3.validate("dp_enterprises", valid_ent)
-        print(f"  ✓ 合法企业数据通过校验")
+        print("  ✓ 合法企业数据通过校验")
     except Exception as e:
         print(f"  ✗ 合法企业被拒: {e}")
         all_ok = False
@@ -150,7 +149,7 @@ if contract:
     }
     try:
         cleaned = loose_validator.validate("users", loose_data)
-        print(f"  ✓ 宽松模式: 额外字段被允许 (strict_mode=False)")
+        print("  ✓ 宽松模式: 额外字段被允许 (strict_mode=False)")
     except Exception as e:
         print(f"  ✗ 宽松模式异常: {e}")
         all_ok = False

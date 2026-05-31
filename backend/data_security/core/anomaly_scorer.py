@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 异常评分引擎 (Anomaly Scoring Engine)
 =======================================
@@ -17,13 +16,13 @@
 """
 
 import json
+import math
 import os
 import re
 import statistics
 import time
-import math
-from collections import Counter, defaultdict
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from collections import Counter
+from typing import Any
 
 __version__ = "1.0.0"
 
@@ -41,7 +40,7 @@ BASELINES_ROOT = os.path.join(
 )
 
 # 默认灵敏度配置
-DEFAULT_SENSITIVITY: Dict[str, float] = {
+DEFAULT_SENSITIVITY: dict[str, float] = {
     "d1_frequency": 1.0,
     "d2_distribution": 1.0,
     "d3_type_shift": 1.0,
@@ -60,7 +59,7 @@ HISTORY_WINDOW_SEC = 3600  # 1 小时
 # ===================================================================
 
 
-def _robust_mad(data: List[float]) -> float:
+def _robust_mad(data: list[float]) -> float:
     """稳健中位数绝对偏差 (MAD)，对异常值不敏感"""
     if not data:
         return 0.0
@@ -69,9 +68,7 @@ def _robust_mad(data: List[float]) -> float:
     return statistics.median(abs_devs) * 1.4826  # 缩放因子以对齐正态分布标准差
 
 
-def _dynamic_threshold(
-    data: List[float], factor: float = Z_SCORE_FACTOR
-) -> Tuple[float, float]:
+def _dynamic_threshold(data: list[float], factor: float = Z_SCORE_FACTOR) -> tuple[float, float]:
     """计算动态阈值 (mean + factor * stddev)，数据不足时返回默认值"""
     if len(data) < 3:
         return float("inf"), 0.0
@@ -109,7 +106,7 @@ class BaselineManager:
     def __init__(self, root_dir: str = BASELINES_ROOT):
         self.root_dir = root_dir
         os.makedirs(self.root_dir, exist_ok=True)
-        self._cache: Dict[str, dict] = {}
+        self._cache: dict[str, dict] = {}
 
     def _path(self, module: str, table: str) -> str:
         """基线文件路径"""
@@ -124,7 +121,7 @@ class BaselineManager:
         p = self._path(module, table)
         if os.path.exists(p):
             try:
-                with open(p, "r", encoding="utf-8") as f:
+                with open(p, encoding="utf-8") as f:
                     data = json.load(f)
                 self._cache[cache_key] = data
                 return data
@@ -149,18 +146,23 @@ class BaselineManager:
             "created_at": time.time(),
             "updated_at": time.time(),
             "write_count": 0,
-            "frequencies": [],          # 时间戳列表 (秒级时间戳)
-            "field_stats": {},           # field -> {"types": {...}, "lengths": [...], "special_char_ratios": [...], "values": {...}}
-            "semantic_types": {},       # field -> {"phone": count, "email": count, "url": count, "plain": count}
-            "violation_history": [],     # 每批次的违反比例
+            "frequencies": [],  # 时间戳列表 (秒级时间戳)
+            "field_stats": {},  # field -> {"types": {...}, "lengths": [...], "special_char_ratios": [...], "values": {...}}
+            "semantic_types": {},  # field -> {"phone": count, "email": count, "url": count, "plain": count}
+            "violation_history": [],  # 每批次的违反比例
             "violation_field_dist": {},  # field -> violation_count
-            "foreign_keys": {},          # field -> [(ref_module, ref_table), ...]
+            "foreign_keys": {},  # field -> [(ref_module, ref_table), ...]
             "total_writes": 0,
         }
 
-    def update(self, module: str, table: str, data: dict,
-               write_rate: Optional[int] = None,
-               violations: Optional[Dict[str, int]] = None) -> None:
+    def update(
+        self,
+        module: str,
+        table: str,
+        data: dict,
+        write_rate: int | None = None,
+        violations: dict[str, int] | None = None,
+    ) -> None:
         """用新数据更新基线"""
         baseline = self.load(module, table)
         now = time.time()
@@ -208,8 +210,7 @@ class BaselineManager:
                 fs["values"][val_key] = fs["values"].get(val_key, 0) + 1
             if len(fs["values"]) > 200:
                 # 保留前200高频
-                fs["values"] = dict(
-                    Counter(fs["values"]).most_common(200))
+                fs["values"] = dict(Counter(fs["values"]).most_common(200))
 
         baseline["field_stats"] = field_stats
 
@@ -248,18 +249,10 @@ class BaselineManager:
 # ===================================================================
 
 _SEMANTIC_PATTERNS = {
-    "phone": re.compile(
-        r"^\+?[1-9]\d{6,14}$"
-    ),
-    "email": re.compile(
-        r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
-    ),
-    "url": re.compile(
-        r"^https?://[^\s/$.?#].[^\s]*$", re.IGNORECASE
-    ),
-    "ip": re.compile(
-        r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$"
-    ),
+    "phone": re.compile(r"^\+?[1-9]\d{6,14}$"),
+    "email": re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"),
+    "url": re.compile(r"^https?://[^\s/$.?#].[^\s]*$", re.IGNORECASE),
+    "ip": re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$"),
 }
 
 
@@ -283,8 +276,7 @@ class D1FrequencyScorer:
         self.bm = baseline_mgr
         self.sensitivity = sensitivity
 
-    def score(self, module: str, table: str, data: dict,
-              write_rate: Optional[int] = None) -> Dict[str, Any]:
+    def score(self, module: str, table: str, data: dict, write_rate: int | None = None) -> dict[str, Any]:
         """
         检测写入频率异常：
         - 频率异常：当前频次 vs 基线中位数+3*MAD
@@ -332,9 +324,7 @@ class D1FrequencyScorer:
         if threshold > 0 and current_freq > threshold:
             excess_ratio = (current_freq - threshold) / max(threshold, 1)
             freq_score = min(1.0, excess_ratio * self.sensitivity)
-            freq_reason_parts.append(
-                f"频率 {current_freq:.1f}次/h 超过阈值 {threshold:.1f}次/h"
-            )
+            freq_reason_parts.append(f"频率 {current_freq:.1f}次/h 超过阈值 {threshold:.1f}次/h")
 
         # 增量突变检测: 比较最近N条与之前N条的数据量趋势
         if total_writes >= 30:
@@ -343,15 +333,8 @@ class D1FrequencyScorer:
                 sorted_ts = sorted(timestamps)
                 # 分成最近一半和历史一半
                 mid = len(sorted_ts) // 2
-                recent_intervals = [
-                    sorted_ts[i] - sorted_ts[i - 1]
-                    for i in range(mid, len(sorted_ts))
-                    if i > 0
-                ]
-                old_intervals = [
-                    sorted_ts[i] - sorted_ts[i - 1]
-                    for i in range(1, mid)
-                ]
+                recent_intervals = [sorted_ts[i] - sorted_ts[i - 1] for i in range(mid, len(sorted_ts)) if i > 0]
+                old_intervals = [sorted_ts[i] - sorted_ts[i - 1] for i in range(1, mid)]
                 if recent_intervals and old_intervals:
                     recent_median = statistics.median(recent_intervals)
                     old_median = statistics.median(old_intervals)
@@ -387,7 +370,7 @@ class D2DistributionScorer:
         self.bm = baseline_mgr
         self.sensitivity = sensitivity
 
-    def score(self, module: str, table: str, data: dict) -> Dict[str, Any]:
+    def score(self, module: str, table: str, data: dict) -> dict[str, Any]:
         """检测字段值分布、长度分布、特殊字符比例的异常"""
         baseline = self.bm.load(module, table)
         field_stats: dict = baseline.get("field_stats", {})
@@ -416,9 +399,7 @@ class D2DistributionScorer:
                 if type_ratio < 0.01 and total_types > 10:
                     # 类型从未出现或极少出现
                     field_score += 0.4 * self.sensitivity
-                    field_reasons.append(
-                        f"字段[{field}]类型'{cur_type}'罕见 (占比{type_ratio:.1%})"
-                    )
+                    field_reasons.append(f"字段[{field}]类型'{cur_type}'罕见 (占比{type_ratio:.1%})")
 
             # --- 长度分布偏移 ---
             lengths: list = fs.get("lengths", [])
@@ -460,9 +441,7 @@ class D2DistributionScorer:
                 if kl > 0.5:
                     kl_contrib = min(0.6, kl * 0.2 * self.sensitivity)
                     field_score = max(field_score, kl_contrib)
-                    field_reasons.append(
-                        f"字段[{field}]值'{val_key[:30]}'分布偏移 (KL={kl:.2f})"
-                    )
+                    field_reasons.append(f"字段[{field}]值'{val_key[:30]}'分布偏移 (KL={kl:.2f})")
 
             max_field_score = max(max_field_score, field_score)
 
@@ -483,7 +462,7 @@ class D3TypeShiftScorer:
         self.bm = baseline_mgr
         self.sensitivity = sensitivity
 
-    def score(self, module: str, table: str, data: dict) -> Dict[str, Any]:
+    def score(self, module: str, table: str, data: dict) -> dict[str, Any]:
         """检测字段类型和语义类型是否发生偏移"""
         baseline = self.bm.load(module, table)
         sem_types: dict = baseline.get("semantic_types", {})
@@ -528,9 +507,7 @@ class D3TypeShiftScorer:
                 # 新字段出现
                 shift_score = 0.3 * self.sensitivity
                 max_shift_score = max(max_shift_score, shift_score)
-                shift_reasons.append(
-                    f"字段[{field}]为全新字段 (语义类型:{inferred})"
-                )
+                shift_reasons.append(f"字段[{field}]为全新字段 (语义类型:{inferred})")
 
             # 正则格式检测：如果历史主类型是phone/email/url/ip，新值格式不匹配
             if field in sem_types:
@@ -540,9 +517,7 @@ class D3TypeShiftScorer:
                     # 字段原本有特定语义格式，现在格式不匹配
                     format_bonus = 0.2 * self.sensitivity
                     max_shift_score = min(1.0, max_shift_score + format_bonus)
-                    shift_reasons.append(
-                        f"字段[{field}]历史格式'{dominant}'，当前值'{inferred}'不匹配"
-                    )
+                    shift_reasons.append(f"字段[{field}]历史格式'{dominant}'，当前值'{inferred}'不匹配")
 
         max_shift_score = min(1.0, max_shift_score)
         reason = "; ".join(shift_reasons) if shift_reasons else "类型一致"
@@ -561,8 +536,7 @@ class D4ViolationScorer:
         self.bm = baseline_mgr
         self.sensitivity = sensitivity
 
-    def score(self, module: str, table: str, data: dict,
-              violations: Optional[Dict[str, int]] = None) -> Dict[str, Any]:
+    def score(self, module: str, table: str, data: dict, violations: dict[str, int] | None = None) -> dict[str, Any]:
         """检测约束违反比例及分布异常"""
         baseline = self.bm.load(module, table)
         total_writes = baseline.get("write_count", 0)
@@ -589,13 +563,9 @@ class D4ViolationScorer:
             baseline_stdev = statistics.stdev(v_hist) if len(v_hist) > 1 else 0.0
             threshold = baseline_mean + Z_SCORE_FACTOR * baseline_stdev
             if threshold > 0 and current_ratio > threshold:
-                ratio_score = min(
-                    1.0, ((current_ratio - threshold) / max(threshold, 0.01)) * self.sensitivity
-                )
+                ratio_score = min(1.0, ((current_ratio - threshold) / max(threshold, 0.01)) * self.sensitivity)
                 field_violation_score = max(field_violation_score, ratio_score)
-                v_reasons.append(
-                    f"违反比例 {current_ratio:.1%} 超过基线阈值 {threshold:.1%}"
-                )
+                v_reasons.append(f"违反比例 {current_ratio:.1%} 超过基线阈值 {threshold:.1%}")
 
         # --- 新字段上的违反 vs 老字段 ---
         known_fields = set(vfd.keys())
@@ -609,9 +579,7 @@ class D4ViolationScorer:
             if new_v_ratio > 0.3:
                 new_field_score = min(1.0, new_v_ratio * self.sensitivity)
                 field_violation_score = max(field_violation_score, new_field_score)
-                v_reasons.append(
-                    f"违反集中在新增字段: {', '.join(sorted(new_violations)[:5])}"
-                )
+                v_reasons.append(f"违反集中在新增字段: {', '.join(sorted(new_violations)[:5])}")
 
         # --- 历史高违反字段的持续违反 ---
         if old_violations and vfd:
@@ -621,9 +589,7 @@ class D4ViolationScorer:
                 if hist_count > 0 and cur_count > hist_count * 2:
                     repeat_score = min(0.5, cur_count / max(hist_count, 1) * 0.1 * self.sensitivity)
                     field_violation_score = max(field_violation_score, repeat_score)
-                    v_reasons.append(
-                        f"字段[{fld}]违反次数 {cur_count} 为历史 {hist_count} 的2倍以上"
-                    )
+                    v_reasons.append(f"字段[{fld}]违反次数 {cur_count} 为历史 {hist_count} 的2倍以上")
 
         field_violation_score = min(1.0, field_violation_score)
         reason = "; ".join(v_reasons) if v_reasons else "约束违反率正常"
@@ -647,15 +613,14 @@ class D5ConsistencyScorer:
         self.bm = baseline_mgr
         self.sensitivity = sensitivity
         # 用于循环引用检测的访问跟踪集
-        self._visited: Set[Tuple[str, str]] = set()
+        self._visited: set[tuple[str, str]] = set()
 
     def _resolve_foreign_keys(self, module: str, table: str) -> dict:
         """解析某个模块/表的已知外键引用关系"""
         baseline = self.bm.load(module, table)
         return baseline.get("foreign_keys", {})
 
-    def score(self, module: str, table: str, data: dict,
-              context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def score(self, module: str, table: str, data: dict, context: dict[str, Any] | None = None) -> dict[str, Any]:
         """
         检测外键引用一致性 + 循环引用。
         context 可传入 {"known_modules": {"module_a": {...}, ...}} 供交叉引用。
@@ -672,7 +637,7 @@ class D5ConsistencyScorer:
 
         # 从 context 获取已知模块
         known_modules: dict = context.get("known_modules", {}) if context else {}
-        known_tables: Set[str] = set()
+        known_tables: set[str] = set()
         for mod, tables in known_modules.items():
             if isinstance(tables, dict):
                 known_tables.update(tables.keys())
@@ -698,25 +663,19 @@ class D5ConsistencyScorer:
                         # 引用值不存在于目标模块
                         ref_score = 0.3 * self.sensitivity
                         consistency_score = max(consistency_score, ref_score)
-                        consistency_reasons.append(
-                            f"字段[{field}]值'{ref_val[:20]}'在引用目标中不存在"
-                        )
+                        consistency_reasons.append(f"字段[{field}]值'{ref_val[:20]}'在引用目标中不存在")
 
         # --- 循环引用检测 ---
         if context and "call_chain" in context:
-            call_chain: List[Tuple[str, str]] = context["call_chain"]
+            call_chain: list[tuple[str, str]] = context["call_chain"]
             current = (module, table)
             if current in call_chain:
                 # 发现循环引用
                 cycle_length = len(call_chain) - call_chain.index(current)
                 cycle_score = min(0.8, (cycle_length / 10) * self.sensitivity)
                 consistency_score = max(consistency_score, cycle_score)
-                chain_str = " -> ".join(
-                    [f"{m}.{t}" for m, t in call_chain] + [f"{module}.{table}"]
-                )
-                consistency_reasons.append(
-                    f"循环引用检测: {chain_str} (长度{cycle_length})"
-                )
+                chain_str = " -> ".join([f"{m}.{t}" for m, t in call_chain] + [f"{module}.{table}"])
+                consistency_reasons.append(f"循环引用检测: {chain_str} (长度{cycle_length})")
 
         # --- 跨模块交叉引用统计 ---
         if known_modules:
@@ -738,9 +697,7 @@ class D5ConsistencyScorer:
                 if missing_ratio > 0.2:
                     miss_score = min(0.5, missing_ratio * self.sensitivity)
                     consistency_score = max(consistency_score, miss_score)
-                    consistency_reasons.append(
-                        f"外键引用中 {missing_tables}/{total_refs} 目标表缺失"
-                    )
+                    consistency_reasons.append(f"外键引用中 {missing_tables}/{total_refs} 目标表缺失")
 
         consistency_score = min(1.0, consistency_score)
         reason = "; ".join(consistency_reasons) if consistency_reasons else "跨模块一致性正常"
@@ -760,13 +717,13 @@ class D5ConsistencyScorer:
 class AnomalyScorer:
     """
     多维异常评分引擎
-    
+
     对写入数据进行五维联合异常评分，返回综合异常分数和每个维度的详情。
     支持动态阈值（基于统计学的均值+2*标准差，替代固定阈值）。
     支持冷启动降级（写入小于 COLD_START_THRESHOLD 条时仅做部分检测）。
     """
 
-    def __init__(self, db_url: Optional[str] = None):
+    def __init__(self, db_url: str | None = None):
         """
         Args:
             db_url: 可选的数据库连接字符串。如果提供，可以查询 DB 中的历史数据。
@@ -774,7 +731,7 @@ class AnomalyScorer:
         """
         self.db_url = db_url
         self.baseline_mgr = BaselineManager()
-        self.sensitivities: Dict[str, Dict[str, float]] = {}
+        self.sensitivities: dict[str, dict[str, float]] = {}
 
         # 初始化各维度评分器，使用默认灵敏度
         self.d1 = D1FrequencyScorer(self.baseline_mgr)
@@ -783,11 +740,10 @@ class AnomalyScorer:
         self.d4 = D4ViolationScorer(self.baseline_mgr)
         self.d5 = D5ConsistencyScorer(self.baseline_mgr)
 
-    def set_sensitivity(self, module: str, table: str,
-                        config: Optional[Dict[str, float]] = None) -> None:
+    def set_sensitivity(self, module: str, table: str, config: dict[str, float] | None = None) -> None:
         """
         设置特定模块/表的灵敏度配置
-        
+
         Args:
             module: 模块名
             table: 表名
@@ -802,7 +758,7 @@ class AnomalyScorer:
             merged.update(config)
             self.sensitivities[key] = merged
 
-    def _get_sensitivity(self, module: str, table: str) -> Dict[str, float]:
+    def _get_sensitivity(self, module: str, table: str) -> dict[str, float]:
         """获取模块/表的灵敏度配置"""
         key = f"{module}.{table}"
         config = self.sensitivities.get(key)
@@ -810,10 +766,15 @@ class AnomalyScorer:
             return dict(DEFAULT_SENSITIVITY)
         return config
 
-    def score(self, module: str, table: str, data: dict,
-              write_rate: Optional[int] = None,
-              context: Optional[dict] = None,
-              violations: Optional[Dict[str, int]] = None) -> dict:
+    def score(
+        self,
+        module: str,
+        table: str,
+        data: dict,
+        write_rate: int | None = None,
+        context: dict | None = None,
+        violations: dict[str, int] | None = None,
+    ) -> dict:
         """
         多维异常评分
 
@@ -922,11 +883,10 @@ class AnomalyScorer:
             "violation_history_length": len(baseline.get("violation_history", [])),
         }
 
-    def clear_baselines(self, module: Optional[str] = None,
-                        table: Optional[str] = None) -> int:
+    def clear_baselines(self, module: str | None = None, table: str | None = None) -> int:
         """
         清除基线数据
-        
+
         Args:
             module: 如果指定，只清除该模块的基线
             table: 如果指定（需同时指定module），清除特定表
@@ -958,9 +918,9 @@ class AnomalyScorer:
 # ===================================================================
 
 
-def quick_score(module: str, table: str, data: dict,
-                violations: Optional[Dict[str, int]] = None,
-                context: Optional[dict] = None) -> dict:
+def quick_score(
+    module: str, table: str, data: dict, violations: dict[str, int] | None = None, context: dict | None = None
+) -> dict:
     """快速单次评分，使用默认配置"""
     scorer = AnomalyScorer()
     return scorer.score(module, table, data, context=context, violations=violations)

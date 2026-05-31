@@ -12,15 +12,13 @@
 依赖：仅使用Python标准库 (sqlite3替代PostgreSQL, 生产环境应切换至psycopg2)
 """
 
+import datetime
 import json
+import os
 import sqlite3
 import sys
-import time
 import threading
-import os
-import datetime
-import uuid
-from typing import Optional, List, Dict, Any
+import time
 
 # ============================================================================
 # 通知接口 — 可扩展为Webhook/Slack/邮件
@@ -45,16 +43,15 @@ def _notify(level: str, title: str, message: str):
         try:
             handler(level, title, message)
         except Exception as exc:
-            print(
-                f"[notify_handler_error] {exc}", file=sys.stderr, flush=True
-            )
+            print(f"[notify_handler_error] {exc}", file=sys.stderr, flush=True)
 
 
 # ============================================================================
 # 数据消毒与契约验证（模拟5步完整校验）
 # ============================================================================
 
-def _step1_schema_validation(payload: dict, target_schema: str, target_table: str) -> List[str]:
+
+def _step1_schema_validation(payload: dict, target_schema: str, target_table: str) -> list[str]:
     """
     步骤1：模式/契约验证 — 检查payload字段是否匹配目标表预期结构。
     生产环境应查询契约注册表获取schema定义。
@@ -68,7 +65,7 @@ def _step1_schema_validation(payload: dict, target_schema: str, target_table: st
     # 检查保留字段（生产环境应从目标表schema定义中读取）
     required_fields = {"id", "data"}
     if not required_fields.intersection(payload.keys()):
-        errors.append(f"payload缺少必要字段（至少需要id和data之一）")
+        errors.append("payload缺少必要字段（至少需要id和data之一）")
     # 字段名不能包含危险字符
     for key in payload.keys():
         if not isinstance(key, str) or any(c in key for c in ";\n\r"):
@@ -76,7 +73,7 @@ def _step1_schema_validation(payload: dict, target_schema: str, target_table: st
     return errors
 
 
-def _step2_data_type_validation(payload: dict) -> List[str]:
+def _step2_data_type_validation(payload: dict) -> list[str]:
     """步骤2：数据类型校验 — 检查可序列化与类型安全。"""
     errors = []
     for key, val in payload.items():
@@ -87,7 +84,7 @@ def _step2_data_type_validation(payload: dict) -> List[str]:
     return errors
 
 
-def _step3_range_constraint_validation(payload: dict) -> List[str]:
+def _step3_range_constraint_validation(payload: dict) -> list[str]:
     """步骤3：范围/约束校验 — 检查数值范围与长度限制。"""
     errors = []
     for key, val in payload.items():
@@ -128,9 +125,7 @@ def _step4_disinfection(payload: dict) -> tuple:
                 if pattern.lower() in cleaned_val.lower():
                     # 替换危险模式
                     cleaned_val = cleaned_val.replace(pattern, "")
-                    issues.append(
-                        f"字段{key!r}已清除{desc}, 原始包含{pattern!r}"
-                    )
+                    issues.append(f"字段{key!r}已清除{desc}, 原始包含{pattern!r}")
             cleaned[key] = cleaned_val
         elif isinstance(val, dict):
             sub_val, sub_issues = _step4_disinfection(val)
@@ -142,9 +137,7 @@ def _step4_disinfection(payload: dict) -> tuple:
                 if isinstance(item, dict):
                     sub_val, sub_issues = _step4_disinfection(item)
                     cleaned_list.append(sub_val)
-                    issues.extend(
-                        [f"[{idx}] {si}" for si in sub_issues]
-                    )
+                    issues.extend([f"[{idx}] {si}" for si in sub_issues])
                 else:
                     cleaned_list.append(item)
             cleaned[key] = cleaned_list
@@ -153,7 +146,7 @@ def _step4_disinfection(payload: dict) -> tuple:
     return cleaned, issues
 
 
-def _step5_security_policy_check(payload: dict) -> List[str]:
+def _step5_security_policy_check(payload: dict) -> list[str]:
     """步骤5：安全策略检查 — 敏感数据泄露、不合规内容等。"""
     errors = []
     payload_str = json.dumps(payload, default=str).lower()
@@ -172,9 +165,7 @@ def _step5_security_policy_check(payload: dict) -> List[str]:
     return errors
 
 
-def full_validation_5step(
-    payload: dict, target_schema: str, target_table: str
-) -> dict:
+def full_validation_5step(payload: dict, target_schema: str, target_table: str) -> dict:
     """
     完整5步重新校验（不是只做消毒 — 修复缺陷#2的关键）：
       1. Schema/契约验证
@@ -229,9 +220,8 @@ def full_validation_5step(
 # 宽松校验（超24小时自动放行时使用）
 # ============================================================================
 
-def relaxed_validation_5step(
-    payload: dict, target_schema: str, target_table: str
-) -> dict:
+
+def relaxed_validation_5step(payload: dict, target_schema: str, target_table: str) -> dict:
     """
     宽松校验：仅做步骤1(schema)+步骤4(消毒)。
     用于超24小时自动放行场景，平衡安全与数据不阻塞。
@@ -261,6 +251,7 @@ def relaxed_validation_5step(
 # ============================================================================
 # 检疫区管理器主类
 # ============================================================================
+
 
 class QuarantineManager:
     """
@@ -389,14 +380,14 @@ class QuarantineManager:
                 pass
         return d
 
-    def _fetchone(self, sql: str, params: tuple = ()) -> Optional[dict]:
+    def _fetchone(self, sql: str, params: tuple = ()) -> dict | None:
         """查询单行并转为dict"""
         with self._lock:
             cur = self._conn.execute(sql, params)
             row = cur.fetchone()
             return self._row_to_dict(row) if row else None
 
-    def _fetchall(self, sql: str, params: tuple = ()) -> List[dict]:
+    def _fetchall(self, sql: str, params: tuple = ()) -> list[dict]:
         """查询多行并转为dict列表"""
         with self._lock:
             cur = self._conn.execute(sql, params)
@@ -419,7 +410,7 @@ class QuarantineManager:
         operation: str,
         payload: dict,
         score: float,
-        reasons: List[str],
+        reasons: list[str],
     ) -> int:
         """
         写入检疫区，返回quarantine_id。
@@ -446,8 +437,14 @@ class QuarantineManager:
         VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
         """
         params = (
-            module, target_schema, target_table, operation,
-            payload_json, score, reasons_json, now,
+            module,
+            target_schema,
+            target_table,
+            operation,
+            payload_json,
+            score,
+            reasons_json,
+            now,
         )
         with self._lock:
             cur = self._conn.execute(sql, params)
@@ -456,8 +453,7 @@ class QuarantineManager:
         _notify(
             "info",
             f"检疫区新条目 [#{qid}]",
-            f"module={module} table={target_schema}.{target_table} "
-            f"op={operation} score={score}",
+            f"module={module} table={target_schema}.{target_table} op={operation} score={score}",
         )
         return qid
 
@@ -478,9 +474,7 @@ class QuarantineManager:
                 'qitem': dict or None
             }
         """
-        qitem = self._fetchone(
-            "SELECT * FROM quarantine_items WHERE id = ?", (qid,)
-        )
+        qitem = self._fetchone("SELECT * FROM quarantine_items WHERE id = ?", (qid,))
         if not qitem:
             return {
                 "success": False,
@@ -509,12 +503,9 @@ class QuarantineManager:
             if not validation["passed"]:
                 reason = "; ".join(validation["errors"])
                 old_reasons = list(qitem.get("reasons", []))
-                old_reasons.append(
-                    f"审批驳回: 5步校验未通过 - {reason}"
-                )
+                old_reasons.append(f"审批驳回: 5步校验未通过 - {reason}")
                 self._execute(
-                    "UPDATE quarantine_items SET status='rejected', "
-                    "reviewer=?, resolved_at=?, reasons=? WHERE id=?",
+                    "UPDATE quarantine_items SET status='rejected', reviewer=?, resolved_at=?, reasons=? WHERE id=?",
                     (reviewer, now, json.dumps(old_reasons), qid),
                 )
                 _notify(
@@ -536,8 +527,7 @@ class QuarantineManager:
             # 修复缺陷#2：使用消毒后的数据写入
             cleaned = validation["cleaned_payload"]
             self._execute(
-                "UPDATE quarantine_items SET status='approved', "
-                "reviewer=?, resolved_at=?, payload=? WHERE id=?",
+                "UPDATE quarantine_items SET status='approved', reviewer=?, resolved_at=?, payload=? WHERE id=?",
                 (reviewer, now, json.dumps(cleaned), qid),
             )
             _notify(
@@ -549,9 +539,7 @@ class QuarantineManager:
                 "success": True,
                 "status": "approved",
                 "message": "审批通过，数据已放行（使用消毒后payload写入真实表）",
-                "qitem": self._fetchone(
-                    "SELECT * FROM quarantine_items WHERE id = ?", (qid,)
-                ),
+                "qitem": self._fetchone("SELECT * FROM quarantine_items WHERE id = ?", (qid,)),
             }
 
         elif action == "reject":
@@ -562,8 +550,7 @@ class QuarantineManager:
             else:
                 old_reasons = [f"人工拒绝 (by {reviewer})"]
             self._execute(
-                "UPDATE quarantine_items SET status='rejected', "
-                "reviewer=?, resolved_at=?, reasons=? WHERE id=?",
+                "UPDATE quarantine_items SET status='rejected', reviewer=?, resolved_at=?, reasons=? WHERE id=?",
                 (reviewer, now, json.dumps(old_reasons), qid),
             )
             _notify(
@@ -575,17 +562,14 @@ class QuarantineManager:
                 "success": True,
                 "status": "rejected",
                 "message": "已拒绝",
-                "qitem": self._fetchone(
-                    "SELECT * FROM quarantine_items WHERE id = ?", (qid,)
-                ),
+                "qitem": self._fetchone("SELECT * FROM quarantine_items WHERE id = ?", (qid,)),
             }
 
         elif action == "rescan":
             # ---- 重新扫描：重置状态并增加重扫计数 ----
             rescan_count = (qitem.get("rescan_count") or 0) + 1
             self._execute(
-                "UPDATE quarantine_items SET rescan_count=?, "
-                "created_at=? WHERE id=?",
+                "UPDATE quarantine_items SET rescan_count=?, created_at=? WHERE id=?",
                 (rescan_count, now, qid),
             )
             _notify(
@@ -597,9 +581,7 @@ class QuarantineManager:
                 "success": True,
                 "status": "pending",
                 "message": f"已重置为待处理（第{rescan_count}次重扫）",
-                "qitem": self._fetchone(
-                    "SELECT * FROM quarantine_items WHERE id = ?", (qid,)
-                ),
+                "qitem": self._fetchone("SELECT * FROM quarantine_items WHERE id = ?", (qid,)),
             }
 
         else:
@@ -640,15 +622,14 @@ class QuarantineManager:
         if score > 0.8:
             # 检查该模块是否有历史审批记录
             history = self._fetchall(
-                "SELECT id FROM quarantine_items WHERE module=? "
-                "AND status IN ('approved','rejected') LIMIT 5",
+                "SELECT id FROM quarantine_items WHERE module=? AND status IN ('approved','rejected') LIMIT 5",
                 (module,),
             )
             if not history:
                 # 首次出现且高评分 — 必须人工
                 _notify(
                     "warning",
-                    f"auto_resolve [规则1] 需人工审批",
+                    "auto_resolve [规则1] 需人工审批",
                     f"module={module} score={score} 首次出现高评分",
                 )
                 return "pending"
@@ -659,8 +640,7 @@ class QuarantineManager:
         if score > 0.5:
             # 检查模块首次出现时间
             first_seen = self._fetchone(
-                "SELECT MIN(created_at) as first_seen "
-                "FROM quarantine_items WHERE module=?",
+                "SELECT MIN(created_at) as first_seen FROM quarantine_items WHERE module=?",
                 (module,),
             )
             if first_seen and first_seen["first_seen"]:
@@ -669,9 +649,8 @@ class QuarantineManager:
                 if days < 7.0:
                     _notify(
                         "warning",
-                        f"auto_resolve [规则2] 需人工审批",
-                        f"module={module} score={score} "
-                        f"模块上线{days:.1f}天(<7天)",
+                        "auto_resolve [规则2] 需人工审批",
+                        f"module={module} score={score} 模块上线{days:.1f}天(<7天)",
                     )
                     return "pending"
 
@@ -682,9 +661,7 @@ class QuarantineManager:
         # ================================================================
         # 规则4：数据必须通过二次契约验证+完全消毒才能放行
         # ================================================================
-        validation = full_validation_5step(
-            payload, target_schema, target_table
-        )
+        validation = full_validation_5step(payload, target_schema, target_table)
 
         if not validation["passed"]:
             reason = "; ".join(validation["errors"])
@@ -695,7 +672,7 @@ class QuarantineManager:
             )
             _notify(
                 "warning",
-                f"auto_resolve [规则4] 拒绝",
+                "auto_resolve [规则4] 拒绝",
                 f"id={qitem['id']} 二次契约验证未通过: {reason}",
             )
             return "reject"
@@ -704,9 +681,7 @@ class QuarantineManager:
         cleaned = validation["cleaned_payload"]
         disinfection_warnings = validation["disinfection_warnings"]
         if disinfection_warnings:
-            reasons.append(
-                f"auto_resolve规则4: 消毒警告({len(disinfection_warnings)}条)"
-            )
+            reasons.append(f"auto_resolve规则4: 消毒警告({len(disinfection_warnings)}条)")
             for w in disinfection_warnings[:5]:  # 只记录前5条
                 reasons.append(f"  消毒: {w}")
 
@@ -719,9 +694,9 @@ class QuarantineManager:
 
     def get_pending(
         self,
-        module: Optional[str] = None,
-        older_than_hours: Optional[int] = None,
-    ) -> List[dict]:
+        module: str | None = None,
+        older_than_hours: int | None = None,
+    ) -> list[dict]:
         """
         查询待处理队列。
 
@@ -742,10 +717,7 @@ class QuarantineManager:
         if older_than_hours is not None:
             # 筛选 created_at 超过 older_than_hours 的记录
             # 计算截止时间
-            cutoff = (
-                datetime.datetime.now()
-                - datetime.timedelta(hours=older_than_hours)
-            ).isoformat()
+            cutoff = (datetime.datetime.now() - datetime.timedelta(hours=older_than_hours)).isoformat()
             sql += " AND created_at <= ?"
             params.append(cutoff)
 
@@ -755,13 +727,8 @@ class QuarantineManager:
     def get_stats(self) -> dict:
         """检疫区统计"""
         with self._lock:
-            total = self._fetchone(
-                "SELECT COUNT(*) as cnt FROM quarantine_items"
-            )["cnt"]
-            by_status = self._fetchall(
-                "SELECT status, COUNT(*) as cnt "
-                "FROM quarantine_items GROUP BY status"
-            )
+            total = self._fetchone("SELECT COUNT(*) as cnt FROM quarantine_items")["cnt"]
+            by_status = self._fetchall("SELECT status, COUNT(*) as cnt FROM quarantine_items GROUP BY status")
             pending_count = 0
             approved_count = 0
             rejected_count = 0
@@ -778,8 +745,7 @@ class QuarantineManager:
 
             # 按模块统计
             by_module = self._fetchall(
-                "SELECT module, COUNT(*) as cnt "
-                "FROM quarantine_items GROUP BY module ORDER BY cnt DESC"
+                "SELECT module, COUNT(*) as cnt FROM quarantine_items GROUP BY module ORDER BY cnt DESC"
             )
 
             # 平均等待时间（pending）
@@ -789,11 +755,7 @@ class QuarantineManager:
                 "  CAST(julianday(created_at) AS REAL)"
                 ") as avg_days FROM quarantine_items WHERE status='pending'"
             )
-            avg_wait_hours = (
-                (avg_wait["avg_days"] * 24.0)
-                if avg_wait and avg_wait["avg_days"]
-                else 0.0
-            )
+            avg_wait_hours = (avg_wait["avg_days"] * 24.0) if avg_wait and avg_wait["avg_days"] else 0.0
 
             # 升级中的条目
             escalated = self._fetchall(
@@ -809,9 +771,7 @@ class QuarantineManager:
                 "approved": approved_count,
                 "rejected": rejected_count,
                 "auto_approved": auto_approved_count,
-                "by_module": {
-                    row["module"]: row["cnt"] for row in by_module
-                },
+                "by_module": {row["module"]: row["cnt"] for row in by_module},
                 "avg_wait_hours": round(avg_wait_hours, 2),
                 "escalated_items": len(escalated),
                 "escalation_details": [
@@ -835,9 +795,7 @@ class QuarantineManager:
           - 超过24小时未处理 → 自动放行（宽松校验）(level 3)
         """
         now = self._now()
-        pending = self._fetchall(
-            "SELECT * FROM quarantine_items WHERE status='pending'"
-        )
+        pending = self._fetchall("SELECT * FROM quarantine_items WHERE status='pending'")
 
         for item in pending:
             item_id = item["id"]
@@ -864,8 +822,7 @@ class QuarantineManager:
                     _notify(
                         "critical",
                         f"检疫区自动放行 [#{item_id}]",
-                        f"超过24小时未处理, module={module}, "
-                        f"消毒警告={len(validation['disinfection_warnings'])}",
+                        f"超过24小时未处理, module={module}, 消毒警告={len(validation['disinfection_warnings'])}",
                     )
                 else:
                     # 宽松校验也未通过 — 不能放行，标记为拒绝
@@ -875,10 +832,7 @@ class QuarantineManager:
                         "status='rejected', escalation_level=3, "
                         "resolved_at=?, reviewer='[system:auto_escalate:fail]', "
                         "reasons=? WHERE id=?",
-                        (now, json.dumps(
-                            item.get("reasons", [])
-                            + [f"超24h自动放行失败: {reason}"]
-                        ), item_id),
+                        (now, json.dumps(item.get("reasons", []) + [f"超24h自动放行失败: {reason}"]), item_id),
                     )
                     _notify(
                         "critical",
@@ -889,29 +843,25 @@ class QuarantineManager:
             elif hours >= 8.0 and current_level < 2:
                 # ---- 超过8小时：升级到模块Owner ----
                 self._execute(
-                    "UPDATE quarantine_items SET "
-                    "escalation_level=2, owner_escalated_at=? WHERE id=?",
+                    "UPDATE quarantine_items SET escalation_level=2, owner_escalated_at=? WHERE id=?",
                     (now, item_id),
                 )
                 _notify(
                     "critical",
                     f"检疫区升级到Owner [#{item_id}]",
-                    f"超过8小时未处理, module={module}, "
-                    f"请模块Owner立即处理",
+                    f"超过8小时未处理, module={module}, 请模块Owner立即处理",
                 )
 
             elif hours >= 4.0 and current_level < 1:
                 # ---- 超过4小时：通知值班人 ----
                 self._execute(
-                    "UPDATE quarantine_items SET "
-                    "escalation_level=1, last_notified_at=? WHERE id=?",
+                    "UPDATE quarantine_items SET escalation_level=1, last_notified_at=? WHERE id=?",
                     (now, item_id),
                 )
                 _notify(
                     "warning",
                     f"检疫区超4h通知 [#{item_id}]",
-                    f"超过4小时未处理, module={module}, "
-                    f"请值班人处理",
+                    f"超过4小时未处理, module={module}, 请值班人处理",
                 )
 
     def _background_escalation_loop(self, interval_seconds: int = 300):
@@ -937,6 +887,7 @@ class QuarantineManager:
 # ============================================================================
 # 使用示例 / 入口
 # ============================================================================
+
 
 def demo():
     """
@@ -984,9 +935,7 @@ def demo():
     # 2. 测试auto_resolve
     print("\n=== 测试 auto_resolve ===")
     for qid in (qid1, qid2):
-        item = qm._fetchone(
-            "SELECT * FROM quarantine_items WHERE id=?", (qid,)
-        )
+        item = qm._fetchone("SELECT * FROM quarantine_items WHERE id=?", (qid,))
         if item:
             result = qm.auto_resolve(item)
             print(f"条目#{qid} auto_resolve -> {result}")

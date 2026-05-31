@@ -312,7 +312,7 @@ BEGIN
     RAISE NOTICE '角色成员查询:';
     RAISE NOTICE '  SELECT r.rolname AS role_name, m.rolname AS member_name';
     RAISE NOTICE '  FROM pg_roles r';
-    RAISE NOTICE '  JOIN pg_auth_members am ON r.oid = am.roleid';  
+    RAISE NOTICE '  JOIN pg_auth_members am ON r.oid = am.roleid';
     RAISE NOTICE '  JOIN pg_roles m ON m.oid = am.member';
     RAISE NOTICE '  ORDER BY r.rolname;';
     RAISE NOTICE '============================================================';

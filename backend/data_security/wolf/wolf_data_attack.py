@@ -24,13 +24,13 @@ import os
 import random
 import sqlite3
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 import uuid
-from datetime import datetime, timezone
-
+from datetime import UTC, datetime
 
 # ==================== 1. Payload变异引擎 ====================
+
 
 class PayloadMutator:
     """Payload变异引擎：对攻击payload生成N个变体
@@ -67,16 +67,18 @@ class PayloadMutator:
 
     def _apply_random_mutation(self, payload):
         """随机选择一种变异方式"""
-        method = self.rng.choice([
-            self._case_mutate,
-            self._encode_bypass,
-            self._comment_inject,
-            self._whitespace_mutate,
-            self._double_encode,
-            self._unicode_confuse,
-            self._parameter_pollution,
-            self._content_type_switch,
-        ])
+        method = self.rng.choice(
+            [
+                self._case_mutate,
+                self._encode_bypass,
+                self._comment_inject,
+                self._whitespace_mutate,
+                self._double_encode,
+                self._unicode_confuse,
+                self._parameter_pollution,
+                self._content_type_switch,
+            ]
+        )
         self._mutation_count += 1
         return method(payload)
 
@@ -142,9 +144,9 @@ class PayloadMutator:
         result = []
         i = 0
         while i < len(p):
-            if p[i] == '%' and i + 2 < len(p):
+            if p[i] == "%" and i + 2 < len(p):
                 try:
-                    encoded = f"%25{p[i+1]}{p[i+2]}"
+                    encoded = f"%25{p[i + 1]}{p[i + 2]}"
                     result.append(encoded)
                     i += 3
                     continue
@@ -160,23 +162,23 @@ class PayloadMutator:
     def _unicode_confuse(self, payload):
         """Unicode混淆：用相似Unicode字符替代ASCII"""
         confused = {
-            'a': '\u0430',  # Cyrillic а
-            'e': '\u0435',  # Cyrillic е
-            'o': '\u043e',  # Cyrillic о
-            'c': '\u0441',  # Cyrillic с
-            'p': '\u0440',  # Cyrillic р
-            'x': '\u0445',  # Cyrillic х
-            'A': '\u0410',  # Cyrillic А
-            'B': '\u0412',  # Cyrillic В
-            'E': '\u0415',  # Cyrillic Е
-            'H': '\u041d',  # Cyrillic Н
-            'K': '\u041a',  # Cyrillic К
-            'M': '\u041c',  # Cyrillic М
-            'O': '\u041e',  # Cyrillic О
-            'P': '\u0420',  # Cyrillic Р
-            'C': '\u0421',  # Cyrillic С
-            'T': '\u0422',  # Cyrillic Т
-            'X': '\u0425',  # Cyrillic Х
+            "a": "\u0430",  # Cyrillic а
+            "e": "\u0435",  # Cyrillic е
+            "o": "\u043e",  # Cyrillic о
+            "c": "\u0441",  # Cyrillic с
+            "p": "\u0440",  # Cyrillic р
+            "x": "\u0445",  # Cyrillic х
+            "A": "\u0410",  # Cyrillic А
+            "B": "\u0412",  # Cyrillic В
+            "E": "\u0415",  # Cyrillic Е
+            "H": "\u041d",  # Cyrillic Н
+            "K": "\u041a",  # Cyrillic К
+            "M": "\u041c",  # Cyrillic М
+            "O": "\u041e",  # Cyrillic О
+            "P": "\u0420",  # Cyrillic Р
+            "C": "\u0421",  # Cyrillic С
+            "T": "\u0422",  # Cyrillic Т
+            "X": "\u0425",  # Cyrillic Х
         }
         p = json.dumps(payload, ensure_ascii=False)
         result = []
@@ -218,8 +220,7 @@ class PayloadMutator:
             params = urllib.parse.urlencode(body)
             headers_new = dict(headers)
             headers_new["Content-Type"] = "application/x-www-form-urlencoded"
-            return {"method": method, "endpoint": payload["endpoint"],
-                    "headers": headers_new, "body": params}
+            return {"method": method, "endpoint": payload["endpoint"], "headers": headers_new, "body": params}
         elif "form" in ct and isinstance(body, str):
             # 尝试解析并转JSON
             pairs = body.split("&")
@@ -230,8 +231,7 @@ class PayloadMutator:
                     d[k] = v
             headers_new = dict(headers)
             headers_new["Content-Type"] = "application/json"
-            return {"method": method, "endpoint": payload["endpoint"],
-                    "headers": headers_new, "body": d}
+            return {"method": method, "endpoint": payload["endpoint"], "headers": headers_new, "body": d}
         return payload
 
     @property
@@ -240,6 +240,7 @@ class PayloadMutator:
 
 
 # ==================== 2. 数据落盘验证引擎 ====================
+
 
 class DataVerifier:
     """攻击后数据落盘验证引擎
@@ -262,13 +263,15 @@ class DataVerifier:
             if self.db_url.startswith("sqlite://"):
                 path = self.db_url[9:]
                 self._conn = sqlite3.connect(path)
-                self._conn.execute("CREATE TABLE IF NOT EXISTS wolf_audit ("
-                                   "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                                   "attack_id TEXT,"
-                                   "found_payload TEXT,"
-                                   "found_table TEXT,"
-                                   "found_column TEXT,"
-                                   "detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+                self._conn.execute(
+                    "CREATE TABLE IF NOT EXISTS wolf_audit ("
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                    "attack_id TEXT,"
+                    "found_payload TEXT,"
+                    "found_table TEXT,"
+                    "found_column TEXT,"
+                    "detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
+                )
                 self._conn.commit()
                 self._connected = True
                 return True
@@ -288,7 +291,7 @@ class DataVerifier:
         try:
             cursor = self._conn.execute(
                 "SELECT COUNT(*) FROM wolf_audit WHERE attack_id=? AND found_payload LIKE ?",
-                (attack_id, f"%{payload}%")
+                (attack_id, f"%{payload}%"),
             )
             count = cursor.fetchone()[0]
             return count > 0
@@ -302,7 +305,7 @@ class DataVerifier:
         try:
             self._conn.execute(
                 "INSERT INTO wolf_audit (attack_id, found_payload, found_table, found_column) VALUES (?,?,?,?)",
-                (attack_id, str(payload)[:200], table, column)
+                (attack_id, str(payload)[:200], table, column),
             )
             self._conn.commit()
             return True
@@ -314,9 +317,7 @@ class DataVerifier:
         if not self._connected:
             return False
         try:
-            cursor = self._conn.execute(
-                "SELECT COUNT(*) FROM wolf_audit WHERE attack_id=?", (attack_id,)
-            )
+            cursor = self._conn.execute("SELECT COUNT(*) FROM wolf_audit WHERE attack_id=?", (attack_id,))
             return cursor.fetchone()[0] > 0
         except Exception:
             return False
@@ -334,6 +335,7 @@ class DataVerifier:
 
 
 # ==================== 3. 覆盖率引导的变异测试引擎 ====================
+
 
 class CoverageGuide:
     """基于覆盖率引导的变异测试
@@ -398,6 +400,7 @@ class CoverageGuide:
 
 # ==================== 4. 量化评分系统 ====================
 
+
 class ScoringEngine:
     """量化评分系统
     评分公式:
@@ -416,8 +419,7 @@ class ScoringEngine:
         self.blocks = []
         self.data_verifications = 0
 
-    def register_result(self, attack_id, status, defense_layer="unknown",
-                        data_persisted=False):
+    def register_result(self, attack_id, status, defense_layer="unknown", data_persisted=False):
         """注册一次攻击结果"""
         if status == "bypassed":
             self.bypasses.append({"attack_id": attack_id, "defense": defense_layer})
@@ -435,7 +437,7 @@ class ScoringEngine:
     def calculate(self, coverage_pct=0.0):
         """计算最终评分"""
         score = self.base_score
-        score -= len(self.bypasses) * 10   # 每个绕过-10
+        score -= len(self.bypasses) * 10  # 每个绕过-10
         score -= len(self.fp_detected) * 5  # 每个误报-5
         score += self.data_verifications * 5  # 数据验证+5
         # 覆盖率加成
@@ -478,6 +480,7 @@ class ScoringEngine:
 
 # ==================== 5. 主攻击引擎 ====================
 
+
 class WolfDataAttack:
     """战狼数据攻击引擎 v2.0
     运行20个攻击向量，带payload变异+数据验证+量化评分
@@ -501,6 +504,7 @@ class WolfDataAttack:
         if self._payloads is None:
             try:
                 from attack_payloads import ATTACK_PAYLOADS
+
                 self._payloads = ATTACK_PAYLOADS
             except ImportError:
                 print("[战狼] 警告: 无法加载 attack_payloads.py，使用内置最小payload集")
@@ -510,13 +514,22 @@ class WolfDataAttack:
     def _fallback_payloads(self):
         """备用payload（当attack_payloads.py无法加载时）"""
         return [
-            {"id": "D-001", "name": "SQL注入", "description": "测试SQL注入",
-             "category": "sqli", "expected_defense": "WAF",
-             "severity": 9, "payloads": [
-                 {"method": "POST", "endpoint": "/api/v1/login",
-                  "headers": {"Content-Type": "application/json"},
-                  "body": {"username": "' OR '1'='1", "password": "' OR '1'='1"}},
-             ]},
+            {
+                "id": "D-001",
+                "name": "SQL注入",
+                "description": "测试SQL注入",
+                "category": "sqli",
+                "expected_defense": "WAF",
+                "severity": 9,
+                "payloads": [
+                    {
+                        "method": "POST",
+                        "endpoint": "/api/v1/login",
+                        "headers": {"Content-Type": "application/json"},
+                        "body": {"username": "' OR '1'='1", "password": "' OR '1'='1"},
+                    },
+                ],
+            },
         ]
 
     def run_all(self, variants_per_payload=3, concurrency=1):
@@ -527,13 +540,13 @@ class WolfDataAttack:
         Returns:
             dict: 攻击报告
         """
-        print(f"\n{'='*60}")
-        print(f"[战狼] 战狼数据攻击引擎 v2.0 启动")
+        print(f"\n{'=' * 60}")
+        print("[战狼] 战狼数据攻击引擎 v2.0 启动")
         print(f"[战狼] 目标: {self.target_base_url}")
         print(f"[战狼] 会话: #{self.session_id}")
         print(f"[战狼] 攻击向量: {len(self.payloads)} | 变体/Payload: {variants_per_payload}")
         print(f"[战狼] 数据验证: {'启用' if self.db_url else '禁用(仅状态码)'}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         # 连接数据库（如果配置）
         if self.db_url:
@@ -554,7 +567,9 @@ class WolfDataAttack:
 
             # -- 变异引擎生成变体 --
             all_variants = self.mutator.mutate_all(base_payloads, variants_per_payload)
-            print(f"    Payload: {len(base_payloads)}基础 + {len(all_variants)-len(base_payloads)}变异 = {len(all_variants)}总")
+            print(
+                f"    Payload: {len(base_payloads)}基础 + {len(all_variants) - len(base_payloads)}变异 = {len(all_variants)}总"
+            )
 
             attack_ok = 0
             attack_fail = 0
@@ -569,9 +584,7 @@ class WolfDataAttack:
                     continue
 
                 # 执行攻击
-                status_code, defense_layer = self._execute_single_payload(
-                    attack_id, payload, idx
-                )
+                status_code, defense_layer = self._execute_single_payload(attack_id, payload, idx)
 
                 # 标记已测试
                 self.coverage.mark_tested(attack_id, payload)
@@ -586,7 +599,7 @@ class WolfDataAttack:
                     data_found = self.verifier.check_data_persists(attack_id)
                     if data_found:
                         self.scoring.register_data_verification()
-                        print(f"      ⚑ 数据落盘确认: 攻击数据存在于数据库中!")
+                        print("      ⚑ 数据落盘确认: 攻击数据存在于数据库中!")
                     else:
                         # 疑似被拦截
                         pass
@@ -597,24 +610,24 @@ class WolfDataAttack:
                     # 结合数据验证判断
                     if data_found:
                         status = "bypassed"
-                        print(f"      ✗ [{idx+1}] BYPASSED (200 + 数据落盘)")
+                        print(f"      ✗ [{idx + 1}] BYPASSED (200 + 数据落盘)")
                         self.scoring.register_result(attack_id, "bypassed", defense_layer)
                         attack_ok += 1
                     else:
-                        print(f"      ? [{idx+1}] 200响应 (数据状态未知)")
+                        print(f"      ? [{idx + 1}] 200响应 (数据状态未知)")
                         attack_ok += 1
                 elif 400 <= status_code < 500:
                     status = "blocked"
-                    print(f"      ✓ [{idx+1}] BLOCKED ({status_code})")
+                    print(f"      ✓ [{idx + 1}] BLOCKED ({status_code})")
                     self.scoring.register_result(attack_id, "blocked", defense_layer)
                     attack_fail += 1
                 elif status_code in (-1, -2):
                     # 连接错误或超时
                     attack_error += 1
-                    print(f"      ! [{idx+1}] CONNECTION ERROR")
+                    print(f"      ! [{idx + 1}] CONNECTION ERROR")
                 else:
                     # 其他状态码（500等）
-                    print(f"      ~ [{idx+1}] UNKNOWN ({status_code})")
+                    print(f"      ~ [{idx + 1}] UNKNOWN ({status_code})")
 
             # 本攻击汇总
             total_tested = attack_ok + attack_fail
@@ -637,9 +650,9 @@ class WolfDataAttack:
             print(f"[战狼] 未找到攻击: {attack_id}")
             return {"error": f"Attack {attack_id} not found"}
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"[战狼] 单攻击模式: {attack_id} - {target['name']}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         base_payloads = target["payloads"]
         all_variants = self.mutator.mutate_all(base_payloads, variants_per_payload)
@@ -647,9 +660,7 @@ class WolfDataAttack:
         for idx, payload in enumerate(all_variants):
             if payload is None:
                 continue
-            status_code, defense_layer = self._execute_single_payload(
-                attack_id, payload, idx
-            )
+            status_code, defense_layer = self._execute_single_payload(attack_id, payload, idx)
             self.coverage.mark_tested(attack_id, payload)
 
         return {"status": "completed", "attack_id": attack_id, "variants_tested": len(all_variants)}
@@ -716,19 +727,21 @@ class WolfDataAttack:
             tested = len(self.coverage._coverage.get(a["id"], set()))
             total = len(a["payloads"])
             cov = self.coverage.coverage_pct(a["id"], total)
-            details.append({
-                "attack_id": a["id"],
-                "name": a["name"],
-                "category": a["category"],
-                "severity": a["severity"],
-                "payloads_total": total,
-                "payloads_tested": tested,
-                "coverage_pct": round(cov, 1),
-                "expected_defense": a["expected_defense"],
-            })
+            details.append(
+                {
+                    "attack_id": a["id"],
+                    "name": a["name"],
+                    "category": a["category"],
+                    "severity": a["severity"],
+                    "payloads_total": total,
+                    "payloads_tested": tested,
+                    "coverage_pct": round(cov, 1),
+                    "expected_defense": a["expected_defense"],
+                }
+            )
 
         report = {
-            "attack_time": datetime.now(timezone.utc).isoformat(),
+            "attack_time": datetime.now(UTC).isoformat(),
             "session_id": f"wolf-{self.session_id}",
             "target": self.target_base_url,
             "total_attacks": len(self.payloads),
@@ -759,38 +772,41 @@ class WolfDataAttack:
 
 # ==================== 6. 报告输出 & 数据落盘 ====================
 
+
 class ReportWriter:
     """报告输出器：支持控制台、JSON文件、Markdown"""
 
     @staticmethod
     def to_console(report):
         """输出报告到控制台"""
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"[战狼] 攻击报告 #{report['session_id']}")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"  目标:       {report['target']}")
         print(f"  时间:       {report['attack_time']}")
         print(f"  耗时:       {report['elapsed_seconds']}秒")
         print(f"  攻击总数:   {report['total_attacks']} (含变异)")
-        print(f"  ──────────────────────────────")
+        print("  ──────────────────────────────")
         print(f"  拦截:       {report['blocked']}")
         print(f"  绕过:       {report['bypassed']}")
         print(f"  误报:       {report['false_positives']}")
         print(f"  覆盖率:     {report['coverage_pct']}%")
-        print(f"  ──────────────────────────────")
+        print("  ──────────────────────────────")
         print(f"  评分:       {report['score']}/100  (等级: {report['grade']})")
         print(f"  数据验证:   {'✓ 已确认' if report['data_verified'] else '✗ 未启用/未发现'}")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
-        print(f"\n  攻击详情:")
+        print("\n  攻击详情:")
         for d in report.get("details", []):
-            cov_str = f"{d['coverage_pct']}%" if d['payloads_tested'] > 0 else "未测试"
-            print(f"    {d['attack_id']} [{d['category'].upper():>8}] {d['name']} "
-                  f"(严重:{d['severity']}, 覆盖率:{cov_str})")
+            cov_str = f"{d['coverage_pct']}%" if d["payloads_tested"] > 0 else "未测试"
+            print(
+                f"    {d['attack_id']} [{d['category'].upper():>8}] {d['name']} "
+                f"(严重:{d['severity']}, 覆盖率:{cov_str})"
+            )
 
         if report.get("scoring"):
             s = report["scoring"]
-            print(f"\n  评分明细:")
+            print("\n  评分明细:")
             print(f"    基础分:     {s['base_score']}")
             print(f"    绕过扣分:   -{s['bypass_penalty']} ({s['bypass_count']}次)")
             print(f"    误报扣分:   -{s['fp_penalty']} ({s['fp_count']}次)")
@@ -799,7 +815,7 @@ class ReportWriter:
             print(f"    最终评分:   {s['final_score']} (等级: {s['grade']})")
 
         if report.get("coverage_summary"):
-            print(f"\n  覆盖率详情:")
+            print("\n  覆盖率详情:")
             print(report["coverage_summary"])
 
     @staticmethod
@@ -823,8 +839,8 @@ class ReportWriter:
             "",
             "## 概要",
             "",
-            f"| 指标 | 数值 |",
-            f"|------|------|",
+            "| 指标 | 数值 |",
+            "|------|------|",
             f"| 攻击总数 | {report['total_attacks']} |",
             f"| 拦截 | {report['blocked']} |",
             f"| 绕过 | {report['bypassed']} |",
@@ -834,27 +850,31 @@ class ReportWriter:
             "",
             "## 评分明细",
             "",
-            f"| 项目 | 分数 |",
-            f"|------|------|",
+            "| 项目 | 分数 |",
+            "|------|------|",
         ]
         if report.get("scoring"):
             s = report["scoring"]
-            lines.extend([
-                f"| 基础分 | {s['base_score']} |",
-                f"| 绕过扣分 | -{s['bypass_penalty']} |",
-                f"| 误报扣分 | -{s['fp_penalty']} |",
-                f"| 数据验证加分 | +{s['data_verification_bonus']} |",
-                f"| 覆盖率加分 | +{s['coverage_bonus']} |",
-                f"| **最终评分** | **{s['final_score']}** |",
-            ])
+            lines.extend(
+                [
+                    f"| 基础分 | {s['base_score']} |",
+                    f"| 绕过扣分 | -{s['bypass_penalty']} |",
+                    f"| 误报扣分 | -{s['fp_penalty']} |",
+                    f"| 数据验证加分 | +{s['data_verification_bonus']} |",
+                    f"| 覆盖率加分 | +{s['coverage_bonus']} |",
+                    f"| **最终评分** | **{s['final_score']}** |",
+                ]
+            )
 
-        lines.extend([
-            "",
-            "## 攻击详情",
-            "",
-            "| ID | 分类 | 名称 | 严重度 | 覆盖率 | 预期防御 |",
-            "|-----|------|------|--------|--------|----------|",
-        ])
+        lines.extend(
+            [
+                "",
+                "## 攻击详情",
+                "",
+                "| ID | 分类 | 名称 | 严重度 | 覆盖率 | 预期防御 |",
+                "|-----|------|------|--------|--------|----------|",
+            ]
+        )
         for d in report.get("details", []):
             lines.append(
                 f"| {d['attack_id']} | {d['category']} | {d['name']} | "
@@ -870,28 +890,24 @@ class ReportWriter:
 
 # ==================== 7. CLI入口 ====================
 
+
 def main():
     import argparse
+
     parser = argparse.ArgumentParser(
         description="战狼数据攻击引擎 v2.0 — 20个攻击向量 + 变异引擎 + 数据验证 + 量化评分",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("-t", "--target", default="http://localhost:8080",
-                        help="目标URL (默认: http://localhost:8080)")
-    parser.add_argument("-d", "--db", default=None,
-                        help="数据库URL用于数据落盘验证 (例: sqlite:///wolf_audit.db)")
-    parser.add_argument("-v", "--variants", type=int, default=3,
-                        help="每个payload生成变体数 (默认: 3)")
-    parser.add_argument("-s", "--single", default=None,
-                        help="运行单个攻击 (例: D-001)")
-    parser.add_argument("-o", "--output", default=None,
-                        help="报告输出目录 (默认: 当前目录)")
-    parser.add_argument("-f", "--format", choices=["json", "md", "both"], default="both",
-                        help="报告输出格式 (默认: both)")
-    parser.add_argument("--list", action="store_true",
-                        help="列出所有攻击向量")
-    parser.add_argument("--coverage-only", action="store_true",
-                        help="仅显示覆盖率信息（不执行攻击）")
+    parser.add_argument("-t", "--target", default="http://localhost:8080", help="目标URL (默认: http://localhost:8080)")
+    parser.add_argument("-d", "--db", default=None, help="数据库URL用于数据落盘验证 (例: sqlite:///wolf_audit.db)")
+    parser.add_argument("-v", "--variants", type=int, default=3, help="每个payload生成变体数 (默认: 3)")
+    parser.add_argument("-s", "--single", default=None, help="运行单个攻击 (例: D-001)")
+    parser.add_argument("-o", "--output", default=None, help="报告输出目录 (默认: 当前目录)")
+    parser.add_argument(
+        "-f", "--format", choices=["json", "md", "both"], default="both", help="报告输出格式 (默认: both)"
+    )
+    parser.add_argument("--list", action="store_true", help="列出所有攻击向量")
+    parser.add_argument("--coverage-only", action="store_true", help="仅显示覆盖率信息（不执行攻击）")
 
     args = parser.parse_args()
 
@@ -918,7 +934,7 @@ def main():
 
     # 仅覆盖率模式
     if args.coverage_only:
-        print(f"[战狼] 覆盖率模式: 当前攻击覆盖率信息")
+        print("[战狼] 覆盖率模式: 当前攻击覆盖率信息")
         payloads_map = {a["id"]: a["payloads"] for a in engine.payloads}
         print(engine.coverage.summary(payloads_map))
         return
@@ -940,7 +956,7 @@ def main():
         if args.format in ("md", "both"):
             ReportWriter.to_markdown(report, f"{base_path}.md")
 
-    print(f"\n[战狼] 引擎关闭。{'='*20}")
+    print(f"\n[战狼] 引擎关闭。{'=' * 20}")
     return report
 
 
