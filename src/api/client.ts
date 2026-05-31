@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8001';
+const API_BASE = import.meta.env.VITE_API_BASE ?? '';
 
 interface ApiResponse<T> {
   code: number;
@@ -20,7 +20,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<ApiRespo
     if (!res.ok) {
       return { code: res.status, message: `HTTP ${res.status}: ${res.statusText}` };
     }
-    return res.json();
+    const json = await res.json();
+    // 兼容两种后端响应格式：
+    // 格式A（8000后端）: { token, access_token, user, ... } 扁平格式 → 包装为 {code:200, data:json}
+    // 格式B（8001后端）: { code, data, message, ... } 嵌套格式 → 原样返回
+    if (json.code !== undefined) return json;
+    return { code: 200, message: 'ok', data: json };
   } catch (e: any) {
     console.error('[API Error]', path, e);
     return { code: 500, message: e.message || '网络错误，请检查连接' };
