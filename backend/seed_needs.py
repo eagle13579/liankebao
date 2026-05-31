@@ -4,9 +4,9 @@
 直接SQLite写入（避免ORM跨模块依赖问题）
 用法: python seed_needs.py
 """
+
 import logging
 import sqlite3
-import sys
 from datetime import datetime
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -206,9 +206,7 @@ def seed():
         if existing > 0:
             logger.info(f"business_needs 表中已有 {existing} 条数据，跳过种子填充")
             # 列出已有数据
-            cursor.execute(
-                "SELECT id, user_id, title, category, status FROM business_needs"
-            )
+            cursor.execute("SELECT id, user_id, title, category, status FROM business_needs")
             for row in cursor.fetchall():
                 logger.info(f"  [{row['id']}] uid={row['user_id']} | {row['category']} | {row['title'][:30]}")
             return

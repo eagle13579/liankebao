@@ -22,6 +22,7 @@
     --truncate            迁移前清空目标 PostgreSQL 表
     --dry-run             预览迁移内容，不实际写入
 """
+
 import argparse
 import json
 import logging
@@ -49,9 +50,7 @@ try:
     PG_DRIVER_AVAILABLE = True
 except ImportError:
     PG_DRIVER_AVAILABLE = False
-    logger.error(
-        "未安装 psycopg2 驱动。请执行: pip install psycopg2-binary"
-    )
+    logger.error("未安装 psycopg2 驱动。请执行: pip install psycopg2-binary")
     sys.exit(1)
 
 
@@ -73,9 +72,7 @@ def get_pg_connection():
     pg_db = os.environ.get("PG_DATABASE", "")
 
     if not all([pg_user, pg_password, pg_db]):
-        logger.error(
-            "请设置 PG_HOST, PG_PORT, PG_USER, PG_PASSWORD, PG_DATABASE 环境变量"
-        )
+        logger.error("请设置 PG_HOST, PG_PORT, PG_USER, PG_PASSWORD, PG_DATABASE 环境变量")
         sys.exit(1)
 
     conn = psycopg2.connect(
@@ -286,9 +283,7 @@ def import_to_postgres(data: dict, truncate_first: bool = False) -> dict:
             columns = list(records[0].keys())
             # 确保 organization_id 不在导入列中（因为我们还没有创建默认组织）
             # 实际上我们将在导入后设置 organization_id
-            valid_columns = [c for c in columns
-                             if c not in ("organization_id",)
-                             and c in records[0]]
+            valid_columns = [c for c in columns if c not in ("organization_id",) and c in records[0]]
 
             col_names = ", ".join(valid_columns)
             placeholders = ", ".join([f"%({c})s" for c in valid_columns])
@@ -297,7 +292,7 @@ def import_to_postgres(data: dict, truncate_first: bool = False) -> dict:
             batch_size = 100
             inserted = 0
             for i in range(0, len(records), batch_size):
-                batch = records[i:i + batch_size]
+                batch = records[i : i + batch_size]
                 try:
                     cur.executemany(insert_sql, batch)
                     inserted += len(batch)
@@ -317,11 +312,18 @@ def import_to_postgres(data: dict, truncate_first: bool = False) -> dict:
         cur.execute("SELECT COUNT(*) FROM organizations")
         org_count = cur.fetchone()[0]
         if org_count == 0:
-            cur.execute("""
+            cur.execute(
+                """
                 INSERT INTO organizations (name, slug, plan, settings)
                 VALUES (%s, %s, %s, %s)
-            """, ("链客宝科技有限公司", "liankebao", "enterprise",
-                  json.dumps({"display_name": "链客宝", "timezone": "Asia/Shanghai"})))
+            """,
+                (
+                    "链客宝科技有限公司",
+                    "liankebao",
+                    "enterprise",
+                    json.dumps({"display_name": "链客宝", "timezone": "Asia/Shanghai"}),
+                ),
+            )
             conn.commit()
 
             # 获取新创建的 org_id
@@ -343,13 +345,17 @@ def import_to_postgres(data: dict, truncate_first: bool = False) -> dict:
                 )
 
             # 更新所有业务表
-            for table in ["products", "orders", "withdrawals", "contacts",
-                           "activities", "import_history", "business_needs"]:
+            for table in [
+                "products",
+                "orders",
+                "withdrawals",
+                "contacts",
+                "activities",
+                "import_history",
+                "business_needs",
+            ]:
                 try:
-                    cur.execute(
-                        f"UPDATE {table} SET organization_id = %s WHERE organization_id IS NULL",
-                        (org_id,)
-                    )
+                    cur.execute(f"UPDATE {table} SET organization_id = %s WHERE organization_id IS NULL", (org_id,))
                 except Exception:
                     pass
 
@@ -382,9 +388,7 @@ def verify_consistency(sqlite_path: str) -> dict:
         for table in tables:
             try:
                 # SQLite count
-                sqlite_count = sqlite_conn.execute(
-                    f"SELECT COUNT(*) FROM {table}"
-                ).scalar()
+                sqlite_count = sqlite_conn.execute(f"SELECT COUNT(*) FROM {table}").scalar()
 
                 # PostgreSQL count
                 pg_cur.execute(f"SELECT COUNT(*) FROM {table}")
@@ -416,9 +420,7 @@ def verify_consistency(sqlite_path: str) -> dict:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="从 SQLite 迁移数据到 PostgreSQL"
-    )
+    parser = argparse.ArgumentParser(description="从 SQLite 迁移数据到 PostgreSQL")
     parser.add_argument(
         "--sqlite-path",
         default=None,

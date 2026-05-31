@@ -22,25 +22,25 @@ GAP 补齐:
     import matching_engine as matching_engine_module
     app.include_router(matching_engine_module.router)
 """
+
 import json
 import logging
 import os
 import re
 import time
 from collections import defaultdict
-from typing import List, Dict, Optional, Tuple, Any, Callable
+from collections.abc import Callable
+from typing import Any
 
-import numpy as np
 import jieba
-
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+import numpy as np
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from sqlalchemy import text
 
-from app.database import get_db
-from app.models import User, Product, BusinessNeed
 from app.auth import get_current_user
+from app.database import get_db
+from app.models import BusinessNeed, Product, User
 
 logger = logging.getLogger(__name__)
 
@@ -49,26 +49,29 @@ router = APIRouter(prefix="/api/matching", tags=["AI供需匹配"])
 
 # ===== Pydantic 响应模型 =====
 
+
 class MatchResult(BaseModel):
     id: int
     title: str
-    description: Optional[str] = None
-    category: Optional[str] = None
+    description: str | None = None
+    category: str | None = None
     match_score: float  # 0.0 ~ 1.0
-    match_reasons: List[str]
-    strategy: Optional[str] = None  # 标注使用哪个版本
+    match_reasons: list[str]
+    strategy: str | None = None  # 标注使用哪个版本
 
 
 class MatchResponse(BaseModel):
     code: int = 200
     message: str = "success"
-    data: List[MatchResult]
+    data: list[MatchResult]
 
 
 # ===== 缓存层 (GAP 2) =====
 
+
 class CacheEntry:
     """带 TTL 的缓存条目"""
+
     __slots__ = ("data", "timestamp", "ttl")
 
     def __init__(self, data: Any, ttl: float = 60.0):
@@ -80,7 +83,7 @@ class CacheEntry:
         return time.time() - self.timestamp > self.ttl
 
 
-_cache: Dict[str, CacheEntry] = {}
+_cache: dict[str, CacheEntry] = {}
 _CACHE_TTL = 60  # 秒
 
 
@@ -94,7 +97,7 @@ def get_cached(key: str, fetch_func: Callable, ttl: float = _CACHE_TTL) -> Any:
     return data
 
 
-def clear_cache(key: Optional[str] = None) -> None:
+def clear_cache(key: str | None = None) -> None:
     """清除缓存（全部或指定 key）"""
     if key:
         _cache.pop(key, None)
@@ -104,13 +107,14 @@ def clear_cache(key: Optional[str] = None) -> None:
 
 # ===== 监控指标 (GAP 6) =====
 
+
 class MatchMetrics:
     """匹配质量监控：响应时间、分数分布、请求计数"""
 
     def __init__(self):
         self.request_count = 0
         self.total_response_time = 0.0
-        self.score_buckets: Dict[str, int] = defaultdict(int)
+        self.score_buckets: dict[str, int] = defaultdict(int)
         self.daily_requests = 0
         self.last_reset = time.time()
 
@@ -144,21 +148,120 @@ match_metrics = MatchMetrics()
 # ===== 停用词表 =====
 
 STOP_WORDS: set = {
-    "的", "了", "在", "是", "我", "有", "和", "就", "不", "人", "都", "一",
-    "一个", "上", "也", "很", "到", "说", "要", "去", "你", "会", "着",
-    "没有", "看", "好", "自己", "这", "他", "她", "它", "们", "为", "与",
-    "及", "等", "或", "之", "以", "被", "让", "给", "对", "从", "把",
-    "向", "能", "做", "用", "买", "卖", "找", "寻", "求", "供", "需",
-    "可以", "需要", "能够", "应该", "这个", "那个", "什么", "如何", "怎么",
-    "我们", "他们", "你们", "已经", "还是", "因为", "所以", "如果", "虽然",
-    "但是", "而且", "或者", "并且", "不仅", "以及", "关于", "对于", "根据",
-    "按照", "通过", "经过", "进行", "例如", "比如", "希望", "想要", "目前",
-    "现在", "未来", "主要", "相关", "包括", "具有", "提供", "支持", "实现",
-    "开发", "服务", "系统", "平台", "方案", "项目", "产品", "品牌",
+    "的",
+    "了",
+    "在",
+    "是",
+    "我",
+    "有",
+    "和",
+    "就",
+    "不",
+    "人",
+    "都",
+    "一",
+    "一个",
+    "上",
+    "也",
+    "很",
+    "到",
+    "说",
+    "要",
+    "去",
+    "你",
+    "会",
+    "着",
+    "没有",
+    "看",
+    "好",
+    "自己",
+    "这",
+    "他",
+    "她",
+    "它",
+    "们",
+    "为",
+    "与",
+    "及",
+    "等",
+    "或",
+    "之",
+    "以",
+    "被",
+    "让",
+    "给",
+    "对",
+    "从",
+    "把",
+    "向",
+    "能",
+    "做",
+    "用",
+    "买",
+    "卖",
+    "找",
+    "寻",
+    "求",
+    "供",
+    "需",
+    "可以",
+    "需要",
+    "能够",
+    "应该",
+    "这个",
+    "那个",
+    "什么",
+    "如何",
+    "怎么",
+    "我们",
+    "他们",
+    "你们",
+    "已经",
+    "还是",
+    "因为",
+    "所以",
+    "如果",
+    "虽然",
+    "但是",
+    "而且",
+    "或者",
+    "并且",
+    "不仅",
+    "以及",
+    "关于",
+    "对于",
+    "根据",
+    "按照",
+    "通过",
+    "经过",
+    "进行",
+    "例如",
+    "比如",
+    "希望",
+    "想要",
+    "目前",
+    "现在",
+    "未来",
+    "主要",
+    "相关",
+    "包括",
+    "具有",
+    "提供",
+    "支持",
+    "实现",
+    "开发",
+    "服务",
+    "系统",
+    "平台",
+    "方案",
+    "项目",
+    "产品",
+    "品牌",
 }
 
 
 # ===== 匹配引擎 (GAP 8: A/B 测试框架) =====
+
 
 class MatchEngine:
     """
@@ -206,7 +309,7 @@ class MatchEngine:
     # ---- 配置化同义词 (GAP 4) ----
 
     @property
-    def CATEGORY_SYNONYMS(self) -> Dict[str, List[str]]:
+    def CATEGORY_SYNONYMS(self) -> dict[str, list[str]]:
         """从配置文件加载类目同义词，不存在则使用默认值"""
         if self._synonyms is not None:
             return self._synonyms
@@ -216,11 +319,11 @@ class MatchEngine:
         self._synonyms = synonyms
         return self._synonyms
 
-    def _load_synonyms_from_file(self) -> Optional[Dict[str, List[str]]]:
+    def _load_synonyms_from_file(self) -> dict[str, list[str]] | None:
         """从 JSON 配置文件加载类目同义词"""
         try:
             if os.path.exists(self._synonyms_config_path):
-                with open(self._synonyms_config_path, "r", encoding="utf-8") as f:
+                with open(self._synonyms_config_path, encoding="utf-8") as f:
                     return json.load(f)
         except Exception as e:
             logger.warning(f"加载类目同义词配置文件失败: {e}")
@@ -229,25 +332,25 @@ class MatchEngine:
     # ---- 文本规范化 ----
 
     @staticmethod
-    def _normalize_text(text_str: Optional[str]) -> str:
+    def _normalize_text(text_str: str | None) -> str:
         """规范化文本：转小写、去标点"""
         if not text_str:
             return ""
         text_str = text_str.lower().strip()
-        text_str = re.sub(r'[^\w\u4e00-\u9fff\s]', ' ', text_str)
+        text_str = re.sub(r"[^\w\u4e00-\u9fff\s]", " ", text_str)
         return text_str.strip()
 
     # ---- GAP 1: jieba 分词（v2） ----
 
-    def _extract_keywords_v1(self, text_str: Optional[str]) -> List[str]:
+    def _extract_keywords_v1(self, text_str: str | None) -> list[str]:
         """(v1) 按空格和分隔符简单分割"""
         if not text_str:
             return []
         normalized = self._normalize_text(text_str)
-        tokens = re.split(r'[\s,，、/／;；]+', normalized)
+        tokens = re.split(r"[\s,，、/／;；]+", normalized)
         return list({t for t in tokens if len(t) >= 2 and t not in STOP_WORDS})
 
-    def _extract_keywords_v2(self, text_str: Optional[str]) -> List[str]:
+    def _extract_keywords_v2(self, text_str: str | None) -> list[str]:
         """(v2) jieba 分词 + 停用词过滤"""
         if not text_str:
             return []
@@ -255,7 +358,7 @@ class MatchEngine:
         words = jieba.lcut(normalized)
         return [w for w in words if len(w) >= 2 and w not in STOP_WORDS]
 
-    def _extract_keywords(self, text_str: Optional[str]) -> List[str]:
+    def _extract_keywords(self, text_str: str | None) -> list[str]:
         """根据策略选择分词方式"""
         if self.strategy == "v1":
             return self._extract_keywords_v1(text_str)
@@ -263,7 +366,7 @@ class MatchEngine:
 
     # ---- 类目匹配 ----
 
-    def _match_category(self, product_category: Optional[str], need_category: Optional[str]) -> Tuple[float, List[str]]:
+    def _match_category(self, product_category: str | None, need_category: str | None) -> tuple[float, list[str]]:
         """类目匹配打分 (0~40分)"""
         reasons = []
         if not product_category or not need_category:
@@ -289,29 +392,34 @@ class MatchEngine:
 
         # 部分匹配（类目名称有共同字符）
         from difflib import SequenceMatcher
+
         similarity = SequenceMatcher(None, pc, nc).ratio()
         if similarity > 0.3:
             score = round(10 + similarity * 20, 1)  # 10~30分
-            return min(score, 30.0), [f"类目部分匹配 (相似度{int(similarity*100)}%)"]
+            return min(score, 30.0), [f"类目部分匹配 (相似度{int(similarity * 100)}%)"]
 
         return 0.0, reasons
 
     # ---- GAP 5+7: TF-IDF 关键词匹配（始终启用） ----
 
-    def _build_tfidf_corpus(self, product: Product, need: BusinessNeed) -> Tuple[str, str]:
+    def _build_tfidf_corpus(self, product: Product, need: BusinessNeed) -> tuple[str, str]:
         """构建 TF-IDF 语料文本"""
-        prod_text = " ".join([
-            product.name or "",
-            product.description or "",
-            product.tags or "",
-            product.brand or "",
-            product.category or "",
-        ])
-        need_text = " ".join([
-            need.title or "",
-            need.description or "",
-            need.category or "",
-        ])
+        prod_text = " ".join(
+            [
+                product.name or "",
+                product.description or "",
+                product.tags or "",
+                product.brand or "",
+                product.category or "",
+            ]
+        )
+        need_text = " ".join(
+            [
+                need.title or "",
+                need.description or "",
+                need.category or "",
+            ]
+        )
         return prod_text, need_text
 
     def _compute_tfidf_similarity(self, prod_text: str, need_text: str) -> float:
@@ -335,15 +443,20 @@ class MatchEngine:
             logger.debug(f"TF-IDF 相似度计算跳过: {e}")
             return 0.0
 
-    def _match_keywords_v1(self, product: Product, need: BusinessNeed) -> Tuple[float, List[str]]:
+    def _match_keywords_v1(self, product: Product, need: BusinessNeed) -> tuple[float, list[str]]:
         """(v1) set 交集匹配 (0~40分)"""
         reasons = []
         prod_texts = [
-            product.name or "", product.description or "", product.tags or "",
-            product.brand or "", product.category or "",
+            product.name or "",
+            product.description or "",
+            product.tags or "",
+            product.brand or "",
+            product.category or "",
         ]
         need_texts = [
-            need.title or "", need.description or "", need.category or "",
+            need.title or "",
+            need.description or "",
+            need.category or "",
         ]
 
         prod_keywords = self._extract_keywords_v1(" ".join(prod_texts))
@@ -373,15 +486,20 @@ class MatchEngine:
 
         return round(score, 1), reasons
 
-    def _match_keywords_v2(self, product: Product, need: BusinessNeed) -> Tuple[float, List[str]]:
+    def _match_keywords_v2(self, product: Product, need: BusinessNeed) -> tuple[float, list[str]]:
         """(v2) TF-IDF 加权匹配 (0~40分) — GAP 5+7"""
         reasons = []
         prod_texts = [
-            product.name or "", product.description or "", product.tags or "",
-            product.brand or "", product.category or "",
+            product.name or "",
+            product.description or "",
+            product.tags or "",
+            product.brand or "",
+            product.category or "",
         ]
         need_texts = [
-            need.title or "", need.description or "", need.category or "",
+            need.title or "",
+            need.description or "",
+            need.category or "",
         ]
 
         prod_text = " ".join(prod_texts)
@@ -418,17 +536,17 @@ class MatchEngine:
 
         return round(min(score, 40.0), 1), reasons
 
-    def _match_keywords(self, product: Product, need: BusinessNeed) -> Tuple[float, List[str]]:
+    def _match_keywords(self, product: Product, need: BusinessNeed) -> tuple[float, list[str]]:
         """关键词匹配 — 根据策略选择 v1 或 v2"""
         if self.strategy == "v1":
             return self._match_keywords_v1(product, need)
         return self._match_keywords_v2(product, need)
 
-    def _apply_vector_bonus(self, score: float, reasons: List[str],
-                            product: Product, need: BusinessNeed) -> float:
+    def _apply_vector_bonus(self, score: float, reasons: list[str], product: Product, need: BusinessNeed) -> float:
         """向量增强（USE_VECTOR_SEARCH=1 时启用）"""
         try:
-            from app.vector_search import USE_VECTOR_SEARCH as _USE_VS, build_document_text, get_embedding_backend
+            from app.vector_search import USE_VECTOR_SEARCH as _USE_VS
+            from app.vector_search import build_document_text, get_embedding_backend
 
             if _USE_VS:
                 backend = get_embedding_backend()
@@ -459,60 +577,60 @@ class MatchEngine:
     # ---- 价格区间匹配（不变） ----
 
     @staticmethod
-    def _parse_budget(budget_str: Optional[str]) -> Optional[Tuple[float, float]]:
+    def _parse_budget(budget_str: str | None) -> tuple[float, float] | None:
         if not budget_str:
             return None
         budget_str = budget_str.strip()
-        pattern = r'(\d+(?:\.\d+)?)\s*(?:万|w)?\s*[-~至到]\s*(\d+(?:\.\d+)?)\s*(?:万|w)?'
+        pattern = r"(\d+(?:\.\d+)?)\s*(?:万|w)?\s*[-~至到]\s*(\d+(?:\.\d+)?)\s*(?:万|w)?"
         m = re.search(pattern, budget_str)
         if m:
             min_val = float(m.group(1))
             max_val = float(m.group(2))
-            if '万' in budget_str or 'w' in budget_str.lower():
+            if "万" in budget_str or "w" in budget_str.lower():
                 min_val *= 10000
                 max_val *= 10000
             return (min_val, max_val)
 
-        pattern2 = r'(?:>|大于|不低于|以上)\s*(\d+(?:\.\d+)?)\s*(?:万|w)?'
+        pattern2 = r"(?:>|大于|不低于|以上)\s*(\d+(?:\.\d+)?)\s*(?:万|w)?"
         m = re.search(pattern2, budget_str)
         if m:
             val = float(m.group(1))
-            if '万' in budget_str or 'w' in budget_str.lower():
+            if "万" in budget_str or "w" in budget_str.lower():
                 val *= 10000
-            return (val, float('inf'))
+            return (val, float("inf"))
 
         # 匹配 "10万以上"（数字在前，关键词在后）
-        pattern2b = r'(\d+(?:\.\d+)?)\s*(?:万|w)?\s*(?:以上|>|大于|不低于)'
+        pattern2b = r"(\d+(?:\.\d+)?)\s*(?:万|w)?\s*(?:以上|>|大于|不低于)"
         m = re.search(pattern2b, budget_str)
         if m:
             val = float(m.group(1))
-            if '万' in budget_str or 'w' in budget_str.lower():
+            if "万" in budget_str or "w" in budget_str.lower():
                 val *= 10000
-            return (val, float('inf'))
+            return (val, float("inf"))
 
-        pattern3 = r'(?:<|小于|不超过|以内)\s*(\d+(?:\.\d+)?)\s*(?:万|w)?'
+        pattern3 = r"(?:<|小于|不超过|以内)\s*(\d+(?:\.\d+)?)\s*(?:万|w)?"
         m = re.search(pattern3, budget_str)
         if m:
             val = float(m.group(1))
-            if '万' in budget_str or 'w' in budget_str.lower():
+            if "万" in budget_str or "w" in budget_str.lower():
                 val *= 10000
             return (0, val)
 
         # 匹配 "5万以内"（数字在前，关键词在后）
-        pattern3b = r'(\d+(?:\.\d+)?)\s*(?:万|w)?\s*(?:以内|<|小于|不超过)'
+        pattern3b = r"(\d+(?:\.\d+)?)\s*(?:万|w)?\s*(?:以内|<|小于|不超过)"
         m = re.search(pattern3b, budget_str)
         if m:
             val = float(m.group(1))
-            if '万' in budget_str or 'w' in budget_str.lower():
+            if "万" in budget_str or "w" in budget_str.lower():
                 val *= 10000
             return (0, val)
 
         return None
 
     @staticmethod
-    def _match_price_range(product: Product, need: BusinessNeed) -> Tuple[float, List[str]]:
+    def _match_price_range(product: Product, need: BusinessNeed) -> tuple[float, list[str]]:
         reasons = []
-        product_price = getattr(product, 'sale_price', None) or product.price
+        product_price = getattr(product, "sale_price", None) or product.price
 
         budget_range = MatchEngine._parse_budget(need.budget)
         if not budget_range:
@@ -531,7 +649,7 @@ class MatchEngine:
             else:
                 return 20.0, [f"价格匹配: ¥{product_price:.0f} 符合预算"]
 
-        if max_budget != float('inf') and product_price > max_budget:
+        if max_budget != float("inf") and product_price > max_budget:
             ratio = max_budget / max(product_price, 1)
             if ratio >= 0.5:
                 return round(ratio * 10, 1), [f"价格略高于预算 (¥{product_price:.0f} > ¥{max_budget:.0f})"]
@@ -546,14 +664,18 @@ class MatchEngine:
 
     def _get_all_approved_products(self):
         """获取所有已上架产品（带缓存）"""
+
         def fetch():
             return self.db.query(Product).filter(Product.status == "approved").all()
+
         return get_cached("approved_products", fetch)
 
     def _get_all_open_needs(self):
         """获取所有 open 状态需求（带缓存）"""
+
         def fetch():
             return self.db.query(BusinessNeed).filter(BusinessNeed.status == "open").all()
+
         return get_cached("open_needs", fetch)
 
     # ---- GAP 6: 监控埋点 ----
@@ -611,7 +733,7 @@ class MatchEngine:
 
     # ---- 公共匹配方法 ----
 
-    def match_needs_to_products(self, need_id: int, top_k: int = 20) -> List[MatchResult]:
+    def match_needs_to_products(self, need_id: int, top_k: int = 20) -> list[MatchResult]:
         need = self.db.query(BusinessNeed).filter(BusinessNeed.id == need_id).first()
         if not need:
             return []
@@ -626,7 +748,7 @@ class MatchEngine:
         results.sort(key=lambda r: r.match_score, reverse=True)
         return results[:top_k]
 
-    def match_products_to_needs(self, product_id: int, top_k: int = 20) -> List[MatchResult]:
+    def match_products_to_needs(self, product_id: int, top_k: int = 20) -> list[MatchResult]:
         product = self.db.query(Product).filter(Product.id == product_id).first()
         if not product:
             return []
@@ -643,6 +765,7 @@ class MatchEngine:
 
 
 # ===== API Endpoints =====
+
 
 def get_engine(
     db: Session = Depends(get_db),
