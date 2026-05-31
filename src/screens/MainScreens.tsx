@@ -3,7 +3,7 @@ import {
   Search, Home, Grid, User, ChevronRight, Bell, ShoppingBag, Receipt, TrendingUp,
   Users, Database, BarChart3, Target, Globe, FileText, HelpCircle, Package,
   Settings, Crown, GraduationCap, Share2, CheckCircle2, X, Image, Copy, Link,
-  TableProperties, FolderKanban, HandCoins, Shapes
+  TableProperties, FolderKanban, HandCoins, Shapes, Sparkles
 } from 'lucide-react';
 import { useState, useEffect, memo } from 'react';
 import { api } from '../api/client';
@@ -346,6 +346,31 @@ export const ProductPool = memo(function ProductPool() {
   const [categories, setCategories] = useState<string[]>(['全部']);
   const pageSize = 12;
 
+  // ===== AI智能匹配推荐 =====
+  interface AiMatchItem {
+    company: string;
+    match_score: number;
+    description: string;
+  }
+  const [aiRecs, setAiRecs] = useState<AiMatchItem[]>([]);
+  const [aiReady, setAiReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.get<{items: AiMatchItem[]}>('/api/match/recommend');
+        if (!cancelled && res.code === 200 && res.data?.items && res.data.items.length > 0) {
+          setAiRecs(res.data.items);
+          setAiReady(true);
+        }
+      } catch {
+        // 后端不可用 → 优雅降级，隐藏AI匹配区域
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   const params = new URLSearchParams();
   if (search) params.set('q', search);
   if (category && category !== '全部') params.set('category', category);
@@ -444,6 +469,45 @@ export const ProductPool = memo(function ProductPool() {
             ))}
           </select>
         </div>
+
+        {/* ===== AI智能匹配推荐 ===== */}
+        {aiReady && aiRecs.length > 0 && (
+          <div className="px-4 pt-2 pb-1">
+            <div className="bg-dark-surface/80 backdrop-blur-sm rounded-2xl border border-dark-border overflow-hidden shadow-lg">
+              {/* Header */}
+              <div className="flex items-center gap-2 px-5 py-3 border-b border-dark-border/60">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center shadow-sm">
+                  <Sparkles className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-sm font-extrabold text-dark-text">AI智能匹配</span>
+                <span className="text-[10px] text-dark-muted font-medium ml-auto">基于您的需求智能推荐</span>
+              </div>
+              {/* Cards */}
+              <div className="p-4 space-y-3">
+                {aiRecs.map((item, i) => (
+                  <div
+                    key={i}
+                    onClick={() => navigate('/product-detail', { state: { transition: 'push', productId: -1 } })}
+                    className="bg-dark-bg/50 rounded-xl border border-dark-border/60 p-4 hover:border-sky-500/30 hover:bg-dark-bg/70 transition-all cursor-pointer active:scale-[0.98]"
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <h4 className="text-sm font-bold text-dark-text">{item.company}</h4>
+                      <span className="text-xs font-extrabold text-sky-400">{item.match_score}%</span>
+                    </div>
+                    {/* Progress bar */}
+                    <div className="w-full h-1.5 bg-dark-surface rounded-full overflow-hidden mb-2.5">
+                      <div
+                        className="h-full bg-gradient-to-r from-sky-500 to-blue-500 rounded-full transition-all duration-1000 ease-out"
+                        style={{ width: `${Math.min(100, Math.max(0, item.match_score))}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-dark-muted leading-relaxed line-clamp-2">{item.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="px-4 pt-4">
           {status === 'loading' ? (
