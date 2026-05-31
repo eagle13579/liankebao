@@ -9,17 +9,17 @@ TenantContext — 当前请求的租户上下文（线程安全）
 - DB_TYPE=postgres: 强制启用多租户，所有业务数据按 organization_id 隔离
 - DB_TYPE=sqlite: 跳过租户模型，兼容现有数据
 """
-import os
-import threading
+
 import logging
+import threading
 from contextvars import ContextVar
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON, Text, Boolean
-from sqlalchemy.orm import relationship, Session
+from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy.orm import Session, relationship
 
-from app.database import Base, DB_TYPE
+from app.database import DB_TYPE, Base
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +37,7 @@ class TenantContext:
     当前请求的租户上下文。
     通过 ContextVar 实现 asyncio-safe，同时保留 threading.local 兜底。
     """
+
     _context_var: ContextVar[Optional["TenantContext"]] = ContextVar("tenant_context", default=None)
     _thread_local = threading.local()
 
@@ -66,7 +67,7 @@ class TenantContext:
             del cls._thread_local.context
 
 
-def get_current_org_id() -> Optional[int]:
+def get_current_org_id() -> int | None:
     """便捷函数：获取当前请求的 organization_id"""
     ctx = TenantContext.get()
     if ctx is None:
@@ -86,8 +87,10 @@ def get_current_org_slug() -> str:
 # 租户模型
 # ============================================================
 
+
 class Organization(Base):
     """租户组织模型"""
+
     __tablename__ = "organizations"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
@@ -105,6 +108,7 @@ class Organization(Base):
 
 class Membership(Base):
     """用户-组织关联模型"""
+
     __tablename__ = "memberships"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
@@ -121,6 +125,7 @@ class Membership(Base):
 # ============================================================
 # 租户感知的 Session 查询辅助
 # ============================================================
+
 
 def _tenant_filter_kwargs() -> dict:
     """

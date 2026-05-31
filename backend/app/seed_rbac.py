@@ -10,13 +10,11 @@ Seed 数据 — 为 RBAC 测试创建 admin/member/viewer 用户各1个
 """
 
 import logging
-import os
-import sys
 
 from sqlalchemy.orm import Session
 
 from app.auth import hash_password
-from app.database import SessionLocal, init_db, engine, Base
+from app.database import SessionLocal, init_db
 from app.models import User
 
 logger = logging.getLogger(__name__)
@@ -71,11 +69,7 @@ def seed_rbac_users(db: Session | None = None) -> list[User]:
 
     try:
         for user_data in SEED_USERS:
-            existing = (
-                db.query(User)
-                .filter(User.username == user_data["username"])
-                .first()
-            )
+            existing = db.query(User).filter(User.username == user_data["username"]).first()
             if existing:
                 logger.info(f"用户已存在，跳过: {user_data['username']}")
                 continue

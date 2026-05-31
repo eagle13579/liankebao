@@ -4,14 +4,14 @@
 - 回退兼容：若 DB_TYPE 未设置但 DATABASE_URL 存在，按 URL 前缀自动判断
 - 所有路由模块 import from app.database 保持不变
 """
-import os
+
 import json
 import logging
-from typing import Optional
+import os
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
 from passlib.hash import bcrypt as bcrypt_hasher
+from sqlalchemy import create_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 logger = logging.getLogger(__name__)
 
@@ -69,10 +69,7 @@ elif DB_TYPE == "postgres":
                 "DB_TYPE=postgres 但未设置 PG_* 或 PG_URL 环境变量。\n"
                 "请设置 PG_HOST, PG_PORT, PG_USER, PG_PASSWORD, PG_DATABASE 或 PG_URL"
             )
-        PG_URL = (
-            f"postgresql+psycopg2://{PG_USER}:{PG_PASSWORD}"
-            f"@{PG_HOST}:{PG_PORT}/{PG_DATABASE}"
-        )
+        PG_URL = f"postgresql+psycopg2://{PG_USER}:{PG_PASSWORD}@{PG_HOST}:{PG_PORT}/{PG_DATABASE}"
     engine = create_engine(
         PG_URL,
         pool_size=10,
@@ -106,6 +103,7 @@ else:  # sqlite (default)
         cursor.execute("PRAGMA journal_mode=WAL")
         cursor.execute("PRAGMA synchronous=NORMAL")
         cursor.close()
+
     logger.info(f"SQLite 数据库路径: {DB_PATH}")
 
 engine = engine  # 确保非 None
@@ -115,6 +113,7 @@ Base = declarative_base()
 # ===== OpenTelemetry SQLAlchemy 追踪挂载 =====
 try:
     from app.telemetry import instrument_sqlalchemy
+
     instrument_sqlalchemy(engine)
 except Exception as e:
     logger.debug(f"OpenTelemetry SQLAlchemy 追踪挂载跳过: {e}")
@@ -170,11 +169,11 @@ def get_db_for_tenant():
 
 def init_db():
     """初始化数据库：创建表并填充种子数据（如为空）"""
-    from app.models import User, Product, Order, Withdrawal, Contact, ImportHistory, Activity, BusinessCard, UserEvent  # noqa
+    from app.models import User, Product, Order, Withdrawal, Contact, ImportHistory, Activity, BusinessCard, UserEvent, Deal, DealActivity, Enterprise, EnterpriseRelation  # noqa
 
     # === 多租户：PostgreSQL 模式下创建租户表 ===
     if is_multi_tenant():
-        from app.tenant import Organization, Membership  # noqa: F401
+        from app.tenant import Membership, Organization  # noqa: F401
 
     # === 创建表（如果不存在） ===
     Base.metadata.create_all(bind=engine)
@@ -250,24 +249,30 @@ def init_db():
                 category="食品/大健康",
                 brand="丝路果园",
                 stock=500,
-                images=json.dumps([
-                    "https://picsum.photos/seed/chainke-red-dates-1/400/300",
-                    "https://picsum.photos/seed/chainke-red-dates-2/400/300",
-                    "https://picsum.photos/seed/chainke-red-dates-3/400/300"
-                ]),
-                specs=json.dumps({
-                    "规格": "500g×3袋",
-                    "保质期": "12个月",
-                    "产地": "新疆和田",
-                    "贮存条件": "阴凉干燥处",
-                    "包装": "礼盒装"
-                }),
+                images=json.dumps(
+                    [
+                        "https://picsum.photos/seed/chainke-red-dates-1/400/300",
+                        "https://picsum.photos/seed/chainke-red-dates-2/400/300",
+                        "https://picsum.photos/seed/chainke-red-dates-3/400/300",
+                    ]
+                ),
+                specs=json.dumps(
+                    {
+                        "规格": "500g×3袋",
+                        "保质期": "12个月",
+                        "产地": "新疆和田",
+                        "贮存条件": "阴凉干燥处",
+                        "包装": "礼盒装",
+                    }
+                ),
                 details="<h3>产品亮点</h3><ul><li>新疆和田核心产区，日照充足</li><li>国家有机认证，零添加</li><li>颗颗精选，肉厚核小</li></ul><h3>食用建议</h3><p>开袋即食，也可泡茶煮粥。每日3-5颗，健康养颜。</p>",
                 tags="有机,红枣,礼盒,大健康,滋补",
-                files=json.dumps([
-                    {"name": "产品质检报告.pdf", "url": "/uploads/红枣质检报告.pdf", "type": "pdf"},
-                    {"name": "有机认证证书.pdf", "url": "/uploads/有机认证.pdf", "type": "pdf"}
-                ]),
+                files=json.dumps(
+                    [
+                        {"name": "产品质检报告.pdf", "url": "/uploads/红枣质检报告.pdf", "type": "pdf"},
+                        {"name": "有机认证证书.pdf", "url": "/uploads/有机认证.pdf", "type": "pdf"},
+                    ]
+                ),
                 is_featured=1,
                 sort_order=1,
                 status="approved",
@@ -282,25 +287,31 @@ def init_db():
                 category="企业家服务",
                 brand="链客宝",
                 stock=9999,
-                images=json.dumps([
-                    "https://picsum.photos/seed/chainke-digital-card-1/400/300",
-                    "https://picsum.photos/seed/chainke-digital-card-2/400/300",
-                    "https://picsum.photos/seed/chainke-digital-card-3/400/300"
-                ]),
-                specs=json.dumps({
-                    "版本": "Pro版年卡",
-                    "有效期": "购买日起365天",
-                    "模板数量": "50+精选模板",
-                    "AI推荐次数": "无限次",
-                    "人脉容量": "10000人",
-                    "数据导出": "支持Excel/CSV"
-                }),
+                images=json.dumps(
+                    [
+                        "https://picsum.photos/seed/chainke-digital-card-1/400/300",
+                        "https://picsum.photos/seed/chainke-digital-card-2/400/300",
+                        "https://picsum.photos/seed/chainke-digital-card-3/400/300",
+                    ]
+                ),
+                specs=json.dumps(
+                    {
+                        "版本": "Pro版年卡",
+                        "有效期": "购买日起365天",
+                        "模板数量": "50+精选模板",
+                        "AI推荐次数": "无限次",
+                        "人脉容量": "10000人",
+                        "数据导出": "支持Excel/CSV",
+                    }
+                ),
                 details="<h3>核心功能</h3><ul><li>AI智能名片设计</li><li>多模板自由切换</li><li>扫码一键交换</li><li>人脉智能分类管理</li><li>交换数据分析看板</li><li>团队名片统一管理</li></ul><h3>适用人群</h3><p>企业家、销售精英、商务人士、创业者</p>",
                 tags="AI,数字名片,企业家,商务,人脉管理",
-                files=json.dumps([
-                    {"name": "产品使用手册.pdf", "url": "/uploads/数字名片手册.pdf", "type": "pdf"},
-                    {"name": "功能对比表.xlsx", "url": "/uploads/功能对比.xlsx", "type": "xlsx"}
-                ]),
+                files=json.dumps(
+                    [
+                        {"name": "产品使用手册.pdf", "url": "/uploads/数字名片手册.pdf", "type": "pdf"},
+                        {"name": "功能对比表.xlsx", "url": "/uploads/功能对比.xlsx", "type": "xlsx"},
+                    ]
+                ),
                 is_featured=1,
                 sort_order=2,
                 status="approved",
@@ -315,25 +326,31 @@ def init_db():
                 category="企业服务",
                 brand="法务通",
                 stock=200,
-                images=json.dumps([
-                    "https://picsum.photos/seed/chainke-legal-1/400/300",
-                    "https://picsum.photos/seed/chainke-legal-2/400/300",
-                    "https://picsum.photos/seed/chainke-legal-3/400/300"
-                ]),
-                specs=json.dumps({
-                    "服务周期": "12个月",
-                    "合同审核": "不限次数（≤10页/份）",
-                    "法律咨询": "不限次数（工作日9:00-18:00）",
-                    "律师分配": "3人专属服务组",
-                    "响应时效": "4小时内回复",
-                    "适用规模": "10-500人企业"
-                }),
+                images=json.dumps(
+                    [
+                        "https://picsum.photos/seed/chainke-legal-1/400/300",
+                        "https://picsum.photos/seed/chainke-legal-2/400/300",
+                        "https://picsum.photos/seed/chainke-legal-3/400/300",
+                    ]
+                ),
+                specs=json.dumps(
+                    {
+                        "服务周期": "12个月",
+                        "合同审核": "不限次数（≤10页/份）",
+                        "法律咨询": "不限次数（工作日9:00-18:00）",
+                        "律师分配": "3人专属服务组",
+                        "响应时效": "4小时内回复",
+                        "适用规模": "10-500人企业",
+                    }
+                ),
                 details="<h3>服务内容</h3><ul><li>日常法律咨询（电话/微信/邮件）</li><li>合同起草与审核（每年50份内）</li><li>企业规章制度审查</li><li>劳动人事法律支持</li><li>知识产权基础保护</li><li>律师函发送（5次/年）</li></ul><h3>服务流程</h3><p>在线下单 → 分配律师 → 建立服务群 → 全年无忧</p>",
                 tags="法律顾问,企业服务,合同审核,知识产权,法律服务",
-                files=json.dumps([
-                    {"name": "服务合同模板.pdf", "url": "/uploads/法律顾问合同.pdf", "type": "pdf"},
-                    {"name": "服务内容清单.pdf", "url": "/uploads/服务清单.pdf", "type": "pdf"}
-                ]),
+                files=json.dumps(
+                    [
+                        {"name": "服务合同模板.pdf", "url": "/uploads/法律顾问合同.pdf", "type": "pdf"},
+                        {"name": "服务内容清单.pdf", "url": "/uploads/服务清单.pdf", "type": "pdf"},
+                    ]
+                ),
                 is_featured=1,
                 sort_order=3,
                 status="approved",
@@ -348,27 +365,33 @@ def init_db():
                 category="大健康",
                 brand="舒肌宝",
                 stock=1000,
-                images=json.dumps([
-                    "https://picsum.photos/seed/chainke-massage-gun-1/400/300",
-                    "https://picsum.photos/seed/chainke-massage-gun-2/400/300",
-                    "https://picsum.photos/seed/chainke-massage-gun-3/400/300"
-                ]),
-                specs=json.dumps({
-                    "型号": "S3 Pro",
-                    "档位": "6档变速（1200-3200转/分）",
-                    "噪音": "≤35dB（静音款）",
-                    "电池": "2600mAh锂电池",
-                    "续航": "约8小时",
-                    "充电": "Type-C快充（2小时充满）",
-                    "配件": "6种按摩头",
-                    "重量": "约680g"
-                }),
+                images=json.dumps(
+                    [
+                        "https://picsum.photos/seed/chainke-massage-gun-1/400/300",
+                        "https://picsum.photos/seed/chainke-massage-gun-2/400/300",
+                        "https://picsum.photos/seed/chainke-massage-gun-3/400/300",
+                    ]
+                ),
+                specs=json.dumps(
+                    {
+                        "型号": "S3 Pro",
+                        "档位": "6档变速（1200-3200转/分）",
+                        "噪音": "≤35dB（静音款）",
+                        "电池": "2600mAh锂电池",
+                        "续航": "约8小时",
+                        "充电": "Type-C快充（2小时充满）",
+                        "配件": "6种按摩头",
+                        "重量": "约680g",
+                    }
+                ),
                 details="<h3>产品特点</h3><ul><li>超静音电机，使用不扰人</li><li>6档智能变速，满足不同需求</li><li>6种专业按摩头，全身适用</li><li>Type-C通用快充</li><li>人体工学手柄，久握不累</li></ul><h3>适用人群</h3><p>运动爱好者、办公室白领、久站人群、中老年人</p>",
                 tags="筋膜枪,肌肉放松,按摩,大健康,运动恢复",
-                files=json.dumps([
-                    {"name": "产品说明书.pdf", "url": "/uploads/筋膜枪说明书.pdf", "type": "pdf"},
-                    {"name": "CE认证证书.pdf", "url": "/uploads/CE认证.pdf", "type": "pdf"}
-                ]),
+                files=json.dumps(
+                    [
+                        {"name": "产品说明书.pdf", "url": "/uploads/筋膜枪说明书.pdf", "type": "pdf"},
+                        {"name": "CE认证证书.pdf", "url": "/uploads/CE认证.pdf", "type": "pdf"},
+                    ]
+                ),
                 is_featured=1,
                 sort_order=4,
                 status="approved",
@@ -383,25 +406,31 @@ def init_db():
                 category="教育培训",
                 brand="增长学堂",
                 stock=300,
-                images=json.dumps([
-                    "https://picsum.photos/seed/chainke-training-1/400/300",
-                    "https://picsum.photos/seed/chainke-training-2/400/300",
-                    "https://picsum.photos/seed/chainke-training-3/400/300"
-                ]),
-                specs=json.dumps({
-                    "学习周期": "21天（含周末）",
-                    "授课形式": "直播+录播+社群实操",
-                    "课程数量": "15节主课+5次答疑",
-                    "辅导形式": "1v1导师辅导",
-                    "适合人群": "运营从业者/创业者/品牌方",
-                    "结业认证": "颁发结业证书"
-                }),
+                images=json.dumps(
+                    [
+                        "https://picsum.photos/seed/chainke-training-1/400/300",
+                        "https://picsum.photos/seed/chainke-training-2/400/300",
+                        "https://picsum.photos/seed/chainke-training-3/400/300",
+                    ]
+                ),
+                specs=json.dumps(
+                    {
+                        "学习周期": "21天（含周末）",
+                        "授课形式": "直播+录播+社群实操",
+                        "课程数量": "15节主课+5次答疑",
+                        "辅导形式": "1v1导师辅导",
+                        "适合人群": "运营从业者/创业者/品牌方",
+                        "结业认证": "颁发结业证书",
+                    }
+                ),
                 details="<h3>课程大纲</h3><ul><li>第一周：私域底层逻辑与定位</li><li>第二周：社群搭建与用户增长</li><li>第三周：转化变现与数据复盘</li></ul><h3>你将获得</h3><ul><li>一套完整的私域运营SOP</li><li>21天实操落地经验</li><li>行业人脉资源对接</li><li>结业证书+优秀学员推荐就业</li></ul>",
                 tags="私域运营,社群运营,训练营,教育培训,增长",
-                files=json.dumps([
-                    {"name": "课程大纲.pdf", "url": "/uploads/训练营大纲.pdf", "type": "pdf"},
-                    {"name": "讲师介绍.pdf", "url": "/uploads/讲师介绍.pdf", "type": "pdf"}
-                ]),
+                files=json.dumps(
+                    [
+                        {"name": "课程大纲.pdf", "url": "/uploads/训练营大纲.pdf", "type": "pdf"},
+                        {"name": "讲师介绍.pdf", "url": "/uploads/讲师介绍.pdf", "type": "pdf"},
+                    ]
+                ),
                 is_featured=1,
                 sort_order=5,
                 status="approved",
@@ -416,28 +445,34 @@ def init_db():
                 category="SaaS硬件",
                 brand="云考勤",
                 stock=800,
-                images=json.dumps([
-                    "https://picsum.photos/seed/chainke-attendance-1/400/300",
-                    "https://picsum.photos/seed/chainke-attendance-2/400/300",
-                    "https://picsum.photos/seed/chainke-attendance-3/400/300"
-                ]),
-                specs=json.dumps({
-                    "识别方式": "人脸识别（支持口罩识别）",
-                    "屏幕": "8英寸IPS高清屏",
-                    "存储": "10000张人脸 / 50000条记录",
-                    "联网": "WiFi / 以太网",
-                    "活体检测": "支持",
-                    "APP管理": "iOS/Android双端",
-                    "防水等级": "IP65",
-                    "电源": "DC 12V/2A"
-                }),
+                images=json.dumps(
+                    [
+                        "https://picsum.photos/seed/chainke-attendance-1/400/300",
+                        "https://picsum.photos/seed/chainke-attendance-2/400/300",
+                        "https://picsum.photos/seed/chainke-attendance-3/400/300",
+                    ]
+                ),
+                specs=json.dumps(
+                    {
+                        "识别方式": "人脸识别（支持口罩识别）",
+                        "屏幕": "8英寸IPS高清屏",
+                        "存储": "10000张人脸 / 50000条记录",
+                        "联网": "WiFi / 以太网",
+                        "活体检测": "支持",
+                        "APP管理": "iOS/Android双端",
+                        "防水等级": "IP65",
+                        "电源": "DC 12V/2A",
+                    }
+                ),
                 details="<h3>产品优势</h3><ul><li>AI深度学习算法，识别率>99.5%</li><li>支持戴口罩识别，防疫无忧</li><li>活体检测防照片/视频作弊</li><li>手机APP实时查看考勤报表</li><li>支持多班次/弹性打卡/加班审批</li></ul><h3>适用场景</h3><p>中小企业、学校、工厂、工地、办公楼</p>",
                 tags="考勤机,人脸识别,智能硬件,企业管理,SaaS",
-                files=json.dumps([
-                    {"name": "产品安装指南.pdf", "url": "/uploads/考勤机安装指南.pdf", "type": "pdf"},
-                    {"name": "APP操作手册.pdf", "url": "/uploads/考勤APP手册.pdf", "type": "pdf"},
-                    {"name": "3C认证证书.pdf", "url": "/uploads/3C认证.pdf", "type": "pdf"}
-                ]),
+                files=json.dumps(
+                    [
+                        {"name": "产品安装指南.pdf", "url": "/uploads/考勤机安装指南.pdf", "type": "pdf"},
+                        {"name": "APP操作手册.pdf", "url": "/uploads/考勤APP手册.pdf", "type": "pdf"},
+                        {"name": "3C认证证书.pdf", "url": "/uploads/3C认证.pdf", "type": "pdf"},
+                    ]
+                ),
                 is_featured=1,
                 sort_order=6,
                 status="approved",
@@ -497,11 +532,13 @@ def init_db():
         db.add_all(withdrawals)
 
         db.commit()
-        print(f"种子数据填充完成：{len(users)}个用户, {len(products)}个产品, {len(orders)}个订单, {len(withdrawals)}个提现记录")
+        print(
+            f"种子数据填充完成：{len(users)}个用户, {len(products)}个产品, {len(orders)}个订单, {len(withdrawals)}个提现记录"
+        )
 
         # === 多租户：创建默认组织（仅 PostgreSQL 模式首次初始化） ===
         if is_multi_tenant():
-            from app.tenant import Organization, Membership
+            from app.tenant import Membership, Organization
 
             existing_orgs = db.query(Organization).count()
             if existing_orgs == 0:

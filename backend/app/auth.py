@@ -54,7 +54,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     # 如果用户有 organization_id，注入 JWT
     user_id = data.get("sub")
     if user_id:
-        from app.database import is_multi_tenant, SessionLocal
+        from app.database import SessionLocal, is_multi_tenant
 
         if is_multi_tenant():
             try:

@@ -64,6 +64,7 @@ import app.routers.enterprise as enterprise_module
 import app.routers.events as events_module
 import app.routers.insights as insights_module
 import app.routers.needs as needs_module
+import app.routers.mission_control as mission_control_module
 import app.routers.onboarding as onboarding_module
 import app.routers.payment as payment_module
 import app.routers.recommend as recommend_module
@@ -448,6 +449,7 @@ app.include_router(events_module.router)
 app.include_router(payment_module.router)
 app.include_router(insights_module.router)
 app.include_router(needs_module.router)
+app.include_router(mission_control_module.router)
 app.include_router(onboarding_module.router)
 app.include_router(recommend_module.router)
 app.include_router(business_card_module.router)

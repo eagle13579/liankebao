@@ -11,15 +11,15 @@
 
 在 SQLite 模式下，中间件为 no-op，不干扰现有逻辑。
 """
+
 import logging
 import os
-from typing import Optional
 
-from fastapi import Request, Response
+from fastapi import Request
 from jose import JWTError, jwt
 
-from app.database import DB_TYPE, is_multi_tenant
-from app.tenant import IS_MULTI_TENANT, TenantContext
+from app.database import is_multi_tenant
+from app.tenant import TenantContext
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "liankebao-jwt-secret-key-2024-nous")
 ALGORITHM = "HS256"
 
 
-def _extract_org_id_from_jwt(request: Request) -> Optional[int]:
+def _extract_org_id_from_jwt(request: Request) -> int | None:
     """从 JWT Authorization header 中提取 org_id"""
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
@@ -44,7 +44,7 @@ def _extract_org_id_from_jwt(request: Request) -> Optional[int]:
     return None
 
 
-def _extract_org_id_from_header(request: Request) -> Optional[int]:
+def _extract_org_id_from_header(request: Request) -> int | None:
     """从 X-Org-ID 请求头提取 org_id"""
     raw = request.headers.get("X-Org-ID", "")
     if raw:
@@ -55,7 +55,7 @@ def _extract_org_id_from_header(request: Request) -> Optional[int]:
     return None
 
 
-def _extract_org_slug(request: Request) -> Optional[str]:
+def _extract_org_slug(request: Request) -> str | None:
     """从 X-Org-Slug 请求头提取 org_slug"""
     return request.headers.get("X-Org-Slug", "") or None
 
@@ -86,8 +86,8 @@ class TenantMiddleware:
 
         request = Request(scope, receive)
 
-        org_id: Optional[int] = None
-        org_slug: Optional[str] = None
+        org_id: int | None = None
+        org_slug: str | None = None
 
         # 1. 从请求头提取
         org_id = _extract_org_id_from_header(request)

@@ -16,8 +16,8 @@ Permission 注册表:
 """
 
 import logging
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable, List, Optional
 
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
@@ -82,9 +82,9 @@ def user_has_permission(user_role: str, permission: str) -> bool:
 
 def get_tenant_role(
     user: User,
-    org_id: Optional[int] = None,
-    db: Optional[Session] = None,
-) -> Optional[str]:
+    org_id: int | None = None,
+    db: Session | None = None,
+) -> str | None:
     """
     从 Membership 表获取用户在指定组织中的角色。
 
@@ -131,7 +131,7 @@ def get_tenant_role(
 def require_roles(
     allowed_roles: list[str],
     *,
-    permission: Optional[str] = None,
+    permission: str | None = None,
 ) -> Callable:
     """
     FastAPI 依赖注入工厂 — 检查当前用户的角色是否满足要求。
@@ -190,8 +190,7 @@ def require_roles(
             try:
                 request.state.user_role = role
                 request.state.user_permissions = [
-                    p for p, roles in PERMISSION_REGISTRY.items()
-                    if set(roles) & effective
+                    p for p, roles in PERMISSION_REGISTRY.items() if set(roles) & effective
                 ]
             except Exception:
                 pass
@@ -267,10 +266,7 @@ async def inject_permissions(request: Request, call_next):
     """
     # 初始化默认值
     request.state.user_role = "viewer"
-    request.state.user_permissions = list(
-        p for p, roles in PERMISSION_REGISTRY.items()
-        if "viewer" in roles
-    )
+    request.state.user_permissions = list(p for p, roles in PERMISSION_REGISTRY.items() if "viewer" in roles)
 
     # 尝试从认证头获取用户
     auth_header = request.headers.get("Authorization", "")
@@ -294,10 +290,7 @@ async def inject_permissions(request: Request, call_next):
     # 注入 request.state
     request.state.user_role = role
     effective = get_effective_roles(role)
-    request.state.user_permissions = [
-        p for p, roles in PERMISSION_REGISTRY.items()
-        if set(roles) & effective
-    ]
+    request.state.user_permissions = [p for p, roles in PERMISSION_REGISTRY.items() if set(roles) & effective]
 
     response = await call_next(request)
     return response
