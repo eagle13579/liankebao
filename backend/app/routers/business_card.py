@@ -7,6 +7,7 @@
 - POST /api/card/{id}/match — 基于名片触发供需匹配
 """
 
+import io
 import json
 import logging
 import os
@@ -14,8 +15,9 @@ import tempfile
 import uuid
 from typing import Any
 
+import qrcode
 from fastapi import APIRouter, Depends, File, Query, UploadFile, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -29,7 +31,7 @@ from app.business_card_ai import (
     validate_card_fields,
 )
 from app.database import get_db
-from app.models import BusinessCard, Enterprise, User
+from app.models import BusinessCard, User
 from app.posthog_middleware import capture_card_generated
 
 logger = logging.getLogger(__name__)
@@ -337,6 +339,7 @@ async def get_card_detail(
         "cover_image": card.cover_image,
         "album_meta": album_meta,
         "created_at": card.created_at.isoformat() if card.created_at else "",
+        "updated_at": card.updated_at.isoformat() if card.updated_at else "",
         "view_count": card.view_count,
     }
 
@@ -395,9 +398,66 @@ async def get_card_by_token(
                 "cover_image": card.cover_image,
                 "album_meta": album_meta,
                 "created_at": card.created_at.isoformat() if card.created_at else "",
+                "updated_at": card.updated_at.isoformat() if card.updated_at else "",
                 "view_count": card.view_count,
             },
         }
+    )
+
+
+# ============================================================
+# GET /api/card/{id}/qrcode — 生成名片QR码（公开分享）
+# ============================================================
+
+
+@router.get("/{id}/qrcode", summary="生成名片QR码", description="根据名片ID生成分享二维码PNG图片")
+async def get_card_qrcode(
+    id: int,
+    db: Session = Depends(get_db),
+) -> Response:
+    """生成名片分享二维码（返回PNG图片）"""
+    card = (
+        db.query(BusinessCard)
+        .filter(
+            BusinessCard.id == id,
+            BusinessCard.is_deleted == False,
+        )
+        .first()
+    )
+
+    if not card:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"code": 404, "message": "名片不存在"},
+        )
+
+    # 构建名片分享链接
+    share_url = f"https://www.go-aiport.com/card/{card.share_token}"
+
+    # 生成QR码
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_H,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(share_url)
+    qr.make(fit=True)
+
+    img = qr.make_image(fill_color="black", back_color="white")
+
+    # 输出为PNG字节流
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+
+    return Response(
+        content=buf.getvalue(),
+        media_type="image/png",
+        headers={
+            "Content-Disposition": f'inline; filename="card_{card.share_token}_qrcode.png"',
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+        },
     )
 
 
@@ -482,9 +542,7 @@ async def match_card(
             if enterprise_profile:
                 response_data["enterprise"] = enterprise_profile
                 # 同时查询企业关联的供需（按行业/地区精准匹配）
-                related = _get_enterprise_related_items(
-                    enterprise_profile, db, top_k
-                )
+                related = _get_enterprise_related_items(enterprise_profile, db, top_k)
                 if related:
                     response_data["enterprise_related"] = related
 
@@ -654,13 +712,7 @@ def _get_enterprise_related_items(
         if or_clauses:
             need_filters.append(or_(*or_clauses))
 
-        needs = (
-            db.query(BusinessNeed)
-            .filter(*need_filters)
-            .order_by(BusinessNeed.created_at.desc())
-            .limit(top_k)
-            .all()
-        )
+        needs = db.query(BusinessNeed).filter(*need_filters).order_by(BusinessNeed.created_at.desc()).limit(top_k).all()
 
         for n in needs:
             reasons = []
@@ -696,13 +748,7 @@ def _get_enterprise_related_items(
         if or_clauses_prod:
             prod_filters.append(or_(*or_clauses_prod))
 
-        products = (
-            db.query(Product)
-            .filter(*prod_filters)
-            .order_by(Product.created_at.desc())
-            .limit(top_k)
-            .all()
-        )
+        products = db.query(Product).filter(*prod_filters).order_by(Product.created_at.desc()).limit(top_k).all()
 
         for p in products:
             reasons = []
