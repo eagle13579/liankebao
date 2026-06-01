@@ -55,10 +55,10 @@ class TestHealth:
         """FastAPI router 应正确挂载"""
         resp = client.get("/api/digital-brochure/0")
         # 图册 ID=0 不存在，应返回 404 而非 500 或 405
-        assert resp.status_code in (404,), f"意外响应: {resp.status_code} {resp.text}"
+        assert resp.status_code == 404, f"意外响应: {resp.status_code} {resp.text}"
         data = resp.json()
-        assert "code" in data
-        assert data["code"] == 404
+        # FastAPI HTTPException returns {"detail": "..."}
+        assert "detail" in data
 
 
 class TestConnectionManagement:
