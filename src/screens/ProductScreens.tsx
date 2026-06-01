@@ -324,12 +324,24 @@ export const AddProduct = memo(function AddProduct() {
 
         <section className="bg-white rounded-2xl p-4 border border-border-light shadow-sm space-y-4">
           <h2 className="font-bold text-lg">推广分润比例</h2>
-          <div className="bg-sky-50 p-4 rounded-xl border border-sky-100">
-            <p className="text-xs">设置推广分润比例（百分比），推广员推广该产品可获得 <span className="text-xl font-bold text-primary-container font-manrope">{earnPerShare || '5'}</span>% 的分润</p>
+          <div className="space-y-1">
+            <label className="text-xs text-secondary" htmlFor="promotion-commission-rate">设置推广分润比例（百分比）</label>
+            <div className="flex items-center gap-3">
+              <input
+                id="promotion-commission-rate"
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                value={earnPerShare}
+                onChange={e => setEarnPerShare(e.target.value)}
+                className="w-24 h-12 bg-neutral-bg/50 border-b border-border-light focus:border-primary-container outline-none text-center text-xl font-bold text-primary-container"
+              />
+              <span className="text-xl font-bold text-primary-container">%</span>
+            </div>
           </div>
-          <div className="text-[11px] text-slate-400 flex items-center gap-1">
-            <Percent className="w-3.5 h-3.5" />
-            推广员每成交一单 = 销售额 × {earnPerShare || '5'}%
+          <div className="bg-sky-50 p-4 rounded-xl border border-sky-100">
+            <p className="text-xs">如标价 <span className="font-bold">{price || '298'}</span> 元，推广员每单赚 <span className="text-xl font-bold text-primary-container font-manrope">¥{((parseFloat(price) || 298) * (parseFloat(earnPerShare) || 5) / 100).toFixed(2)}</span> 元（<span className="text-text-muted">{earnPerShare || '5'}%</span>）</p>
           </div>
         </section>
       </main>
