@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
+import hashlib
 from passlib.hash import bcrypt as bcrypt_hasher
 from sqlalchemy.orm import Session
 
@@ -19,6 +20,12 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30  # access token 有效期 30 分钟
 REFRESH_TOKEN_EXPIRE_MINUTES = 30 * 24 * 7  # refresh token 有效期 7 天
 
+# Token过期时间（小时）
+TOKEN_EXPIRE_HOURS = 72
+
+# 旧SHA256密码兼容（过渡期）
+HASH_SALT_OLD = "digital_brochure_v2"
+
 # HTTP Bearer token 安全方案
 security = HTTPBearer(auto_error=False)
 
@@ -28,9 +35,17 @@ _token_blacklist: set[str] = set()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """验证密码"""
+    """验证密码 - 先bcrypt验证, 失败则回退SHA256兼容旧密码"""
+    # 先尝试bcrypt验证
     try:
-        return bcrypt_hasher.verify(plain_password, hashed_password)
+        if bcrypt_hasher.verify(plain_password, hashed_password):
+            return True
+    except Exception:
+        pass
+    # 兼容旧SHA256密码（digital_brochure_v2:password）
+    try:
+        old_hash = hashlib.sha256(f"{HASH_SALT_OLD}:{plain_password}".encode()).hexdigest()
+        return old_hash == hashed_password
     except Exception:
         return False
 

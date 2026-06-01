@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 logger = logging.getLogger(__name__)
 
 from app.auth import (
+    HASH_SALT_OLD,
     add_token_to_blacklist,
     create_access_token,
     create_refresh_token,
@@ -121,6 +122,13 @@ def login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="用户名或密码错误",
         )
+
+    # 兼容旧SHA256密码：如果是旧格式密码，自动升级为bcrypt
+    import hashlib as _hl
+    _old_hash = _hl.sha256(f"{HASH_SALT_OLD}:{req.password}".encode()).hexdigest()
+    if _old_hash == user.password_hash:
+        user.password_hash = hash_password(req.password)
+        db.commit()
 
     # 签发 access token 和 refresh token
     token_data = {"sub": user.username, "role": user.role}
