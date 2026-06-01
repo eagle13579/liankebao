@@ -3,6 +3,7 @@
 链客宝是中文平台，所有 API 响应 message 字段应当包含中文而非纯英文。
 验证关键路由的中文本地化一致性。
 """
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -10,11 +11,14 @@ from fastapi.testclient import TestClient
 class TestI18nMessages:
     """API 响应消息中文完整性测试"""
 
-    @pytest.mark.parametrize("url,status_range", [
-        ("/api/auth/login", (200, 422)),
-        ("/api/products", (200,)),
-        ("/api/auth/me", (200, 401)),
-    ])
+    @pytest.mark.parametrize(
+        "url,status_range",
+        [
+            ("/api/auth/login", (200, 422)),
+            ("/api/products", (200,)),
+            ("/api/auth/me", (200, 401)),
+        ],
+    )
     def test_response_contains_chinese(self, client: TestClient, url, status_range):
         """验证响应 message 字段包含中文"""
         resp = client.post("/api/auth/login", json={"username": "buyer1", "password": "Test1234"})
@@ -29,13 +33,15 @@ class TestI18nMessages:
         assert resp.status_code == 200
         msg = resp.json()["message"]
         # 中文登录成功消息
-        assert any(c > '\u4e00' for c in msg), f"消息应包含中文: {msg}"
+        assert any(c > "\u4e00" for c in msg), f"消息应包含中文: {msg}"
 
     def test_error_message_chinese(self, client: TestClient):
         """错误消息为中文"""
         resp = client.post("/api/auth/login", json={"username": "nonexistent", "password": "wrong"})
         assert resp.status_code == 401
-        msg = resp.json().get("detail", resp.json().get("message", ""))
+        body = resp.json()
+        # body可能是{"detail": "..."}或{"message": "..."}
+        msg = body.get("detail", body.get("message", str(body)))
         assert isinstance(msg, str)
 
     def test_health_message_structure(self, client: TestClient):

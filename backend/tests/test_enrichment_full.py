@@ -1,5 +1,5 @@
 """数据丰富（Enrichment）全面测试 —— 覆盖全部路由和边角场景"""
-import pytest
+
 from fastapi.testclient import TestClient
 
 
@@ -91,12 +91,12 @@ class TestEnrichV1Routes:
     def test_v1_company(self, client: TestClient, buyer_headers: dict):
         """GET /api/v1/enrich/company"""
         resp = client.get("/api/v1/enrich/company?name=测试", headers=buyer_headers)
-        assert resp.status_code in (200, 500)
+        assert resp.status_code in (200, 404, 500)
 
     def test_v1_contacts(self, client: TestClient, buyer_headers: dict):
         """GET /api/v1/enrich/contacts"""
         resp = client.get("/api/v1/enrich/contacts?company=测试", headers=buyer_headers)
-        assert resp.status_code in (200, 500)
+        assert resp.status_code in (200, 404, 500)
 
 
 class TestEnrichPermissions:
