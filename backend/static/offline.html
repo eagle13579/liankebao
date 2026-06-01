@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>链客宝 - 离线中</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+        background: #f5f7fa;
+        color: #333;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 20px;
+      }
+      .offline-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+        padding: 48px 36px;
+        max-width: 400px;
+        width: 100%;
+        text-align: center;
+      }
+      .offline-icon { font-size: 64px; margin-bottom: 16px; }
+      h1 { font-size: 20px; margin-bottom: 12px; color: #1a1a2e; }
+      p { font-size: 14px; color: #666; line-height: 1.6; margin-bottom: 24px; }
+      .retry-btn {
+        display: inline-block;
+        padding: 12px 32px;
+        background: #1a73e8;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 15px;
+        cursor: pointer;
+        transition: background 0.2s;
+        text-decoration: none;
+      }
+      .retry-btn:hover { background: #1557b0; }
+    </style>
+  </head>
+  <body>
+    <div class="offline-card">
+      <div class="offline-icon">📡</div>
+      <h1>网络连接已断开</h1>
+      <p>请检查您的网络连接，稍后再试。<br/>链客宝离线模式下部分功能不可用。</p>
+      <button class="retry-btn" onclick="window.location.reload()">重新连接</button>
+    </div>
+  </body>
+</html>

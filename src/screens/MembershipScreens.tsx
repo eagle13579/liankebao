@@ -314,8 +314,8 @@ export function MembershipCenter() {
       membershipApi.getStatus(),
       membershipApi.getTiers(),
     ]).then(([sRes, tRes]) => {
-      if (sRes.code === 0 && sRes.data) setStatus(sRes.data);
-      if (tRes.code === 0 && tRes.data) {
+      if (sRes.code === 200 && sRes.data) setStatus(sRes.data);
+      if (tRes.code === 200 && tRes.data) {
         const sorted = [...tRes.data].sort((a, b) => a.sort_order - b.sort_order);
         setTiers(sorted);
       }
@@ -330,7 +330,7 @@ export function MembershipCenter() {
   useEffect(() => {
     if (status && status.level === 'free' && status.remaining_coupons <= 0 && status.coupon_used_count >= 3) {
       membershipApi.checkTrialEligibility().then(res => {
-        if (res.code === 0 && res.data?.eligible) setShowTrial(true);
+        if (res.code === 200 && res.data?.eligible) setShowTrial(true);
       }).catch(() => {});
     }
   }, [status]);
@@ -526,7 +526,7 @@ export function MembershipCenter() {
           </div>
 
           {/* Mobile: scrollable cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
             {tiers.map((tier) => (
               <TierCard
                 key={tier.id}
@@ -673,7 +673,7 @@ export function MembershipUpgradePage() {
         membershipApi.getTiers(),
         membershipApi.getStatus(),
       ]).then(([tRes, sRes]) => {
-        if (tRes.code === 0 && tRes.data) {
+        if (tRes.code === 200 && tRes.data) {
           const sorted = [...tRes.data].sort((a, b) => a.sort_order - b.sort_order);
           setTiers(sorted);
           if (!selectedTier && locationState.tier) {
@@ -681,7 +681,7 @@ export function MembershipUpgradePage() {
             if (found) setSelectedTier(found);
           }
         }
-        if (sRes.code === 0 && sRes.data) setStatus(sRes.data);
+        if (sRes.code === 200 && sRes.data) setStatus(sRes.data);
       }).catch(() => {});
     }
   }, []);
@@ -702,7 +702,7 @@ export function MembershipUpgradePage() {
       count++;
       try {
         const res = await membershipApi.queryOrder(no);
-        if (res.code === 0 && res.data) {
+        if (res.code === 200 && res.data) {
           if (res.data.status === 'paid') {
             stopPolling();
             setPayStatus('success');
