@@ -50,6 +50,11 @@ class User(Base):
     # 多租户
     organization_id = _org_fk()
 
+    # 会员字段
+    membership_tier = Column(String(20), nullable=False, default="free", comment="会员等级: free/gold/diamond/board")
+    membership_expires_at = Column(DateTime, nullable=True, comment="会员过期时间")
+    match_credits = Column(Integer, nullable=False, default=3, comment="对接券数量")
+
     # 关系（仅多租户模式启用 ForeignKey 关系）
     if _IS_MULTI_TENANT:
         organization = relationship("Organization", back_populates="users", foreign_keys=[organization_id])
@@ -66,6 +71,8 @@ class User(Base):
     orders = relationship("Order", back_populates="user", foreign_keys="Order.user_id")
     promoter_orders = relationship("Order", back_populates="promoter", foreign_keys="Order.promoter_id")
     withdrawals = relationship("Withdrawal", back_populates="user")
+    membership_orders = relationship("MembershipOrder", back_populates="user", cascade="all, delete-orphan")
+    match_credit_logs = relationship("MatchCreditLog", back_populates="user", cascade="all, delete-orphan")
 
 
 class Product(Base):
@@ -427,3 +434,170 @@ class EnterpriseRelation(Base):
     # 关系
     source_enterprise = relationship("Enterprise", foreign_keys=[source_id], back_populates="source_relations")
     target_enterprise = relationship("Enterprise", foreign_keys=[target_id], back_populates="target_relations")
+
+
+# ============================================================
+# 私董会（Private Board）模型
+# ============================================================
+
+
+class PrivateBoardOrder(Base):
+    """私董会申请/订单模型"""
+
+    __tablename__ = "private_board_orders"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    amount = Column(Float, nullable=False, default=19999.00, comment="支付金额（元）")
+    status = Column(
+        String(20), nullable=False, default="pending",
+        comment="pending/approved/rejected/paid/cancelled",
+    )
+    # 申请信息
+    company = Column(String(200), nullable=False, comment="企业全称")
+    revenue = Column(String(100), nullable=True, comment="年营收")
+    industry = Column(String(100), nullable=True, comment="所属行业")
+    position = Column(String(100), nullable=True, comment="职位")
+    referrer = Column(String(100), nullable=True, comment="推荐人姓名/ID")
+    referrer_notes = Column(Text, nullable=True, comment="推荐人备注")
+    # 审核相关
+    approved_by = Column(Integer, ForeignKey("users.id"), nullable=True, comment="审核人ID")
+    approved_at = Column(DateTime, nullable=True, comment="审核时间")
+    reject_reason = Column(String(500), nullable=True, comment="拒绝原因")
+    # 支付相关
+    pay_time = Column(DateTime, nullable=True, comment="支付完成时间")
+    expires_at = Column(DateTime, nullable=True, comment="私董会会员过期时间")
+    transaction_id = Column(String(100), nullable=True, comment="第三方支付订单号")
+    prepay_id = Column(String(100), nullable=True, comment="微信预支付ID")
+    version = Column(BigInteger, nullable=False, default=1, comment="乐观锁版本号")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # 多租户
+    organization_id = _org_fk()
+
+    # 关系
+    user = relationship("User", foreign_keys=[user_id])
+    approver = relationship("User", foreign_keys=[approved_by])
+
+
+# ============================================================
+# 会员系统模型
+# ============================================================
+
+
+class MembershipOrder(Base):
+    """会员升级订单模型"""
+
+    __tablename__ = "membership_orders"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    tier = Column(String(20), nullable=False, comment="升级目标等级: gold/diamond/board")
+    amount = Column(Float, nullable=False, comment="支付金额（元）")
+    status = Column(String(20), nullable=False, default="pending", comment="pending/paid/cancelled/refunded")
+    payment_platform = Column(String(10), nullable=True, comment="支付平台: wxpay/alipay")
+    transaction_id = Column(String(100), nullable=True, comment="第三方支付订单号")
+    prepay_id = Column(String(100), nullable=True, comment="微信预支付ID")
+    paid_at = Column(DateTime, nullable=True, comment="支付完成时间")
+    version = Column(BigInteger, nullable=False, default=1, comment="乐观锁版本号")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # 多租户
+    organization_id = _org_fk()
+
+    # 关系
+    user = relationship("User", back_populates="membership_orders", foreign_keys=[user_id])
+
+
+class MatchCreditLog(Base):
+    """对接券使用日志模型"""
+
+    __tablename__ = "match_credit_logs"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    amount = Column(Integer, nullable=False, comment="变动数量（正数=增加，负数=消耗）")
+    balance_after = Column(Integer, nullable=False, comment="变动后剩余数量")
+    reason = Column(String(100), nullable=False, comment="变动原因: upgrade_reward/use/refund/admin_adjust")
+    related_type = Column(String(50), nullable=True, comment="关联类型: matching_event/order/admin")
+    related_id = Column(Integer, nullable=True, comment="关联ID")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # 多租户
+    organization_id = _org_fk()
+
+    # 关系
+    user = relationship("User", back_populates="match_credit_logs", foreign_keys=[user_id])
+
+
+class OnlineMatchingEvent(Base):
+    """线上对接会活动模型"""
+
+    __tablename__ = "online_matching_events"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    title = Column(String(200), nullable=False, comment="活动标题")
+    description = Column(Text, nullable=True, comment="活动描述")
+    cover_image = Column(String(500), nullable=True, comment="活动封面图")
+    event_date = Column(DateTime, nullable=False, comment="活动日期")
+    end_date = Column(DateTime, nullable=True, comment="活动结束日期")
+    location = Column(String(200), nullable=True, comment="活动地点/线上会议链接")
+    max_participants = Column(Integer, nullable=False, default=100, comment="最大参与人数")
+    current_participants = Column(Integer, nullable=False, default=0, comment="当前报名人数")
+    price = Column(Float, nullable=False, default=0.0, comment="参与价格（0=免费）")
+    status = Column(String(20), nullable=False, default="draft", comment="draft/published/ongoing/completed/cancelled")
+    tags = Column(String(500), nullable=True, comment="标签(逗号分隔)")
+    version = Column(BigInteger, nullable=False, default=1, comment="乐观锁版本号")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    deleted_at = Column(DateTime, nullable=True)
+    is_deleted = Column(Boolean, default=False)
+
+    # 多租户
+    organization_id = _org_fk()
+
+    # 关系
+    registrations = relationship("OnlineMatchingRegistration", back_populates="event", cascade="all, delete-orphan")
+
+
+class OnlineMatchingRegistration(Base):
+    """线上对接会报名模型"""
+
+    __tablename__ = "online_matching_registrations"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    event_id = Column(Integer, ForeignKey("online_matching_events.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    status = Column(String(20), nullable=False, default="confirmed", comment="pending/confirmed/cancelled/attended")
+    company = Column(String(200), nullable=True, comment="报名时填写的公司")
+    position = Column(String(100), nullable=True, comment="报名时填写的职位")
+    phone = Column(String(20), nullable=True, comment="报名时填写的电话")
+    notes = Column(Text, nullable=True, comment="报名备注/需求说明")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # 多租户
+    organization_id = _org_fk()
+
+    # 关系
+    event = relationship("OnlineMatchingEvent", back_populates="registrations", foreign_keys=[event_id])
+    user = relationship("User", foreign_keys=[user_id])
+
+
+class OnlineMatchingFeedback(Base):
+    """线上对接会反馈模型"""
+
+    __tablename__ = "online_matching_feedback"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    event_id = Column(Integer, ForeignKey("online_matching_events.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    rating = Column(Integer, nullable=False, default=5, comment="评分 1-5")
+    comment = Column(Text, nullable=True, comment="反馈内容")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # 多租户
+    organization_id = _org_fk()
+
+    # 关系
+    event = relationship("OnlineMatchingEvent", foreign_keys=[event_id])
+    user = relationship("User", foreign_keys=[user_id])

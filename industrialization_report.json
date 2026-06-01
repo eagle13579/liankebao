@@ -1,0 +1,59 @@
+{
+  "timestamp": "2026-06-01T11:35:31.013741+00:00",
+  "scores": {
+    "① 架构成熟度": 80,
+    "② 代码质量": 76,
+    "③ 安全合规": 80,
+    "④ AI能力": 95,
+    "⑤ 部署运维": 90,
+    "⑥ 数据架构": 85,
+    "⑦ 前端工程": 95,
+    "⑧ 文档完备": 94,
+    "⑨ 团队协作": 77,
+    "⑩ 商业成熟度": 66
+  },
+  "overall": 8.4,
+  "average": 83.8,
+  "total": 838,
+  "files": {
+    "py_files": 231,
+    "ts_files": 104,
+    "css_files": 8,
+    "test_files_py": 52,
+    "test_files_ts": 20
+  },
+  "loc": {
+    "py_loc": 67972,
+    "ts_loc": 22250
+  },
+  "endpoints": {
+    "activities": 2,
+    "admin": 7,
+    "auth": 17,
+    "brochure_bridge": 3,
+    "business_card": 29,
+    "contacts": 17,
+    "crm": 11,
+    "crm_pipeline": 8,
+    "enrichment": 4,
+    "enterprise": 30,
+    "events": 11,
+    "growth": 6,
+    "imports": 20,
+    "insights": 1,
+    "mission_control": 1,
+    "needs": 6,
+    "onboarding": 1,
+    "orders": 16,
+    "organization": 14,
+    "payment": 37,
+    "products": 6,
+    "promoter": 6,
+    "recommend": 6,
+    "search": 21,
+    "vector_search_router": 9
+  },
+  "gaps": [
+    "⑩ 商业成熟度"
+  ]
+}

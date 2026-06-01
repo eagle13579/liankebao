@@ -27,6 +27,7 @@ const AdminBackendLazy = lazy(() => import('./screens/AdminScreens').then(m => (
 const SubordinatePageLazy = lazy(() => import('./screens/SubordinateScreens').then(m => ({ default: m.SubordinatePage })));
 const PromotionTutorialLazy = lazy(() => import('./screens/TutorialScreens').then(m => ({ default: m.PromotionTutorial })));
 const MembershipCenterLazy = lazy(() => import('./screens/MembershipScreens').then(m => ({ default: m.MembershipCenter })));
+const MembershipUpgradeLazy = lazy(() => import('./screens/MembershipScreens').then(m => ({ default: m.MembershipUpgradePage })));
 const PartnerPolicyLazy = lazy(() => import('./screens/PartnerPolicy'));
 const RechargeAmountPageLazy = lazy(() => import('./screens/RechargeScreens').then(m => ({ default: m.RechargeAmountPage })));
 const RechargePaymentPageLazy = lazy(() => import('./screens/RechargeScreens').then(m => ({ default: m.RechargePaymentPage })));
@@ -45,6 +46,9 @@ const RecommendPageLazy = lazy(() => import('./pages/RecommendPage'));
 const PipelinePageLazy = lazy(() => import('./pages/PipelinePage'));
 const DataEnrichPageLazy = lazy(() => import('./pages/DataEnrichPage'));
 const GrowthPageLazy = lazy(() => import('./pages/GrowthPage'));
+const MatchingEventsPageLazy = lazy(() => import('./pages/MatchingEventsPage'));
+const MatchingMetricsPageLazy = lazy(() => import('./pages/MatchingMetricsPage'));
+const PrivateBoardPageLazy = lazy(() => import('./pages/PrivateBoardPage'));
 const SupplyDemandHallLazy = lazy(() => import('./screens/SupplyDemandScreens').then(m => ({ default: m.SupplyDemandHall })));
 const NeedDetailLazy = lazy(() => import('./screens/SupplyDemandScreens').then(m => ({ default: m.NeedDetail })));
 const PostNeedLazy = lazy(() => import('./screens/PostNeedScreen').then(m => ({ default: m.PostNeed })));
@@ -75,6 +79,7 @@ function AnimatedRoutes() {
         <Route path="/promotion-tutorial" element={<PageTransition><LazyPage><PromotionTutorialLazy /></LazyPage></PageTransition>} />
         <Route path="/partner-policy" element={<PageTransition><LazyPage><PartnerPolicyLazy /></LazyPage></PageTransition>} />
         <Route path="/membership" element={<PageTransition><LazyPage><MembershipCenterLazy /></LazyPage></PageTransition>} />
+        <Route path="/membership/upgrade" element={<PageTransition><LazyPage><MembershipUpgradeLazy /></LazyPage></PageTransition>} />
         <Route path="/recharge" element={<PageTransition><LazyPage><RechargeAmountPageLazy /></LazyPage></PageTransition>} />
         <Route path="/recharge/pay" element={<PageTransition><LazyPage><RechargePaymentPageLazy /></LazyPage></PageTransition>} />
         <Route path="/recharge/result" element={<PageTransition><LazyPage><RechargeResultPageLazy /></LazyPage></PageTransition>} />
@@ -105,6 +110,9 @@ function AnimatedRoutes() {
         <Route path="/pipeline" element={<PageTransition><LazyPage><PipelinePageLazy /></LazyPage></PageTransition>} />
         <Route path="/enrich" element={<PageTransition><LazyPage><DataEnrichPageLazy /></LazyPage></PageTransition>} />
         <Route path="/growth" element={<PageTransition><LazyPage><GrowthPageLazy /></LazyPage></PageTransition>} />
+        <Route path="/matching-events" element={<PageTransition><LazyPage><MatchingEventsPageLazy /></LazyPage></PageTransition>} />
+        <Route path="/matching-metrics" element={<PageTransition><LazyPage><MatchingMetricsPageLazy /></LazyPage></PageTransition>} />
+        <Route path="/private-board" element={<PageTransition><LazyPage><PrivateBoardPageLazy /></LazyPage></PageTransition>} />
         <Route path="/promoter" element={<PageTransition><LazyPage><PromoterPageLazy /></LazyPage></PageTransition>} />
         <Route path="/activities" element={<PageTransition><LazyPage><ActivityLogLazy /></LazyPage></PageTransition>} />
       </Routes>

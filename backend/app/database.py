@@ -174,6 +174,10 @@ def init_db():
         Product,
         User,
         Withdrawal,
+        MatchCreditLog,
+        MembershipOrder,
+        OnlineMatchingEvent,
+        OnlineMatchingRegistration,
     )  # noqa
 
     # === 多租户：始终创建组织相关表（SQLite + PostgreSQL 均支持） ===

@@ -66,11 +66,14 @@ import app.routers.enterprise as enterprise_module
 import app.routers.events as events_module
 import app.routers.growth as growth_module
 import app.routers.insights as insights_module
+import app.routers.matching_events as matching_events_module
 import app.routers.mission_control as mission_control_module
+import app.routers.membership as membership_module
 import app.routers.needs as needs_module
 import app.routers.onboarding as onboarding_module
 import app.routers.organization as organization_module
 import app.routers.payment as payment_module
+import app.routers.private_board as private_board_module
 import app.routers.recommend as recommend_module
 import app.routers.vector_search_router as vector_search_module
 import invoice as invoice_module
@@ -78,6 +81,12 @@ import matching_engine as matching_engine_module
 import recharge.callback as recharge_callback_module
 import recharge.routes as recharge_module
 import reconciliation as reconciliation_module
+
+# ===== 搜索引擎（FTS5 / Memory 全文搜索） =====
+import app.search_index as search_index_module
+
+# ===== LLM 智能服务（DeepSeek API） =====
+import app.services.llm_service as llm_service_module
 
 # ===== 认证 =====
 from app.auth import get_current_user
@@ -340,6 +349,9 @@ router_modules = [
     onboarding_module,
     recommend_module,
     business_card_module,
+    matching_events_module,
+    membership_module,
+    private_board_module,
     recharge_module,
     invoice_module,
     reconciliation_module,
@@ -379,6 +391,9 @@ app.include_router(mission_control_module.router)
 app.include_router(onboarding_module.router)
 app.include_router(recommend_module.router)
 app.include_router(business_card_module.router)
+app.include_router(matching_events_module.router)
+app.include_router(membership_module.router)
+app.include_router(private_board_module.router)
 app.include_router(recharge_module.router)
 app.include_router(recharge_callback_module.callback_router)
 app.include_router(invoice_module.router)
@@ -752,6 +767,26 @@ def on_startup():
             logger.warning(f"向量索引启动同步失败: {vsync_e}")
     else:
         logger.info("向量搜索未启用（设置 USE_VECTOR_SEARCH=1 开启）")
+
+    # ---- 初始化搜索引擎 ----
+    try:
+        search_engine = search_index_module.get_search_engine()
+        logger.info(f"搜索引擎已就绪: {type(search_engine).__name__}")
+    except Exception as e:
+        logger.warning(f"搜索引擎初始化失败（将在首次搜索时延迟初始化）: {e}")
+
+    # ---- LLM 智能服务状态 ----
+    api_key_configured = bool(llm_service_module.DEEPSEEK_API_KEY)
+    if api_key_configured:
+        logger.info(
+            "LLM 服务已就绪",
+            extra={
+                "model": llm_service_module.DEEPSEEK_MODEL,
+                "base_url": llm_service_module.DEEPSEEK_BASE_URL,
+            },
+        )
+    else:
+        logger.info("LLM 服务未配置（DEEPSEEK_API_KEY 未设置，相关功能将使用降级方案）")
 
 
 @app.on_event("shutdown")

@@ -45,3 +45,17 @@ quote-style = "double"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+addopts = "-v --tb=short"
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["*/tests/*", "*/venv*/*", "*/migrations/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+fail_under = 30
+
+[tool.bandit]
+exclude_dirs = ["tests", "venv", "venv_new", ".venv"]
+skips = ["B101", "B311"]

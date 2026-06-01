@@ -2,6 +2,7 @@
 
 import logging
 from datetime import datetime, timedelta
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import BaseModel
@@ -13,6 +14,45 @@ from app.database import get_db
 from app.models import Product, User, UserEvent
 
 logger = logging.getLogger(__name__)
+
+# ============================================================
+# LLM 理由缓存（内存 dict，TTL 30 分钟）
+# ============================================================
+
+_AI_REASON_CACHE: dict[str, tuple[str, datetime]] = {}
+_AI_REASON_CACHE_TTL = timedelta(minutes=30)
+
+
+def _make_cache_key(product_id: int, need_id: int) -> str:
+    return f"{product_id}:{need_id}"
+
+
+def _get_cached_reason(product_id: int, need_id: int) -> Optional[str]:
+    """从缓存中获取 AI 理由，过期条目自动失效"""
+    key = _make_cache_key(product_id, need_id)
+    entry = _AI_REASON_CACHE.get(key)
+    if entry is None:
+        return None
+    reason, expire_at = entry
+    if datetime.utcnow() > expire_at:
+        del _AI_REASON_CACHE[key]
+        return None
+    return reason
+
+
+def _set_cached_reason(product_id: int, need_id: int, reason: str) -> None:
+    """将 AI 理由写入缓存，TTL 30 分钟"""
+    key = _make_cache_key(product_id, need_id)
+    _AI_REASON_CACHE[key] = (reason, datetime.utcnow() + _AI_REASON_CACHE_TTL)
+
+
+def _evict_expired_cache() -> int:
+    """清理过期缓存条目，返回清理数量（可定期调用）"""
+    now = datetime.utcnow()
+    expired_keys = [k for k, (_, exp) in _AI_REASON_CACHE.items() if now > exp]
+    for k in expired_keys:
+        del _AI_REASON_CACHE[k]
+    return len(expired_keys)
 
 router = APIRouter(prefix="/api/recommend", tags=["recommend"])
 recommend_router = router  # 显式别名，满足外部引用约定
@@ -359,22 +399,29 @@ def recommend_personalized(
 
                 for m in matches:
                     if m.id not in seen_ids:
-                        # 尝试用 LLM 生成匹配理由
+                        # 尝试用 LLM 生成匹配理由（优先走缓存）
                         llm_reason = None
                         if need_data and hasattr(m, "title"):
-                            try:
-                                from app.services.llm_service import generate_matching_reason
+                            # 1) 查缓存
+                            llm_reason = _get_cached_reason(m.id, nid)
+                            if llm_reason is None:
+                                # 2) 缓存未命中 => 调用 LLM
+                                try:
+                                    from app.services.llm_service import generate_matching_reason
 
-                                product_data = {
-                                    "name": getattr(m, "title", "") or getattr(m, "name", ""),
-                                    "description": getattr(m, "description", ""),
-                                    "category": getattr(m, "category", ""),
-                                    "tags": getattr(m, "tags", ""),
-                                    "price": getattr(m, "price", 0),
-                                }
-                                llm_reason = generate_matching_reason(product_data, need_data)
-                            except Exception:
-                                logger.debug("LLM 匹配理由生成失败，使用规则引擎理由")
+                                    product_data = {
+                                        "name": getattr(m, "title", "") or getattr(m, "name", ""),
+                                        "description": getattr(m, "description", ""),
+                                        "category": getattr(m, "category", ""),
+                                        "tags": getattr(m, "tags", ""),
+                                        "price": getattr(m, "price", 0),
+                                    }
+                                    llm_reason = generate_matching_reason(product_data, need_data)
+                                    if llm_reason:
+                                        # 3) 写入缓存
+                                        _set_cached_reason(m.id, nid, llm_reason)
+                                except Exception:
+                                    logger.debug("LLM 匹配理由生成失败，使用规则引擎理由")
 
                         all_items.append(
                             {
@@ -382,7 +429,7 @@ def recommend_personalized(
                                 "title": m.title,
                                 "match_score": m.match_score,
                                 "match_reasons": m.match_reasons,
-                                "llm_reason": llm_reason,  # AI 生成的理由
+                                "llm_reason": llm_reason,  # AI 生成的理由（缓存或实时）
                                 "strategy": m.strategy,
                             }
                         )
@@ -430,7 +477,7 @@ class FeedbackRequest(BaseModel):
 @router.post(
     "/feedback",
     summary="记录推荐反馈",
-    description="用户对推荐结果的反馈（喜欢/不喜欢），用于后续优化推荐质量",
+    description="用户对推荐结果的反馈（喜欢/不喜欢），用于后续优化推荐质量。高价值反馈（like/click/adopt）同步至匹配引擎影响评分",
 )
 def record_feedback(
     feedback: FeedbackRequest,
@@ -464,6 +511,23 @@ def record_feedback(
             "source": feedback.source,
         },
     )
+
+    # 高价值反馈同步到匹配引擎，影响后续匹配评分
+    try:
+        from matching_engine import MatchEngine
+
+        MatchEngine.record_feedback(feedback.product_id, feedback.action)
+        logger.debug(
+            "feedback_synced_to_matching_engine",
+            extra={
+                "product_id": feedback.product_id,
+                "action": feedback.action,
+            },
+        )
+    except ImportError:
+        logger.warning("matching_engine 不可用，反馈仅记录到 UserEvent")
+    except Exception as e:
+        logger.error(f"同步反馈到匹配引擎失败: {e}")
 
     return {
         "code": 200,

@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Order, Product, User
+from app.models import MembershipOrder, Order, Product, User
 from app.rbac import require_roles
 from app.retry_engine import RetryTask, get_retry_engine
 from app.schemas import ApiResponse, OrderResponse
@@ -135,8 +135,25 @@ async def wxpay_unified_order(
     with tracer.start_as_current_span("payment.wxpay_unified_order") as span:
         span.set_attribute("order_id", req.order_id)
         span.set_attribute("user_id", current_user.id)
-        order = await _check_order_ownership(req.order_id, current_user, db)
-        product = db.query(Product).filter(Product.id == order.product_id, Product.is_deleted == False).first()
+        # 兼容会员订单: 先查 Order, 再查 MembershipOrder
+        is_membership = False
+        try:
+            order = await _check_order_ownership(req.order_id, current_user, db)
+            product = db.query(Product).filter(Product.id == order.product_id, Product.is_deleted == False).first()
+            membership_order = None
+        except HTTPException:
+            # 不是普通订单, 尝试会员订单
+            membership_order = db.query(MembershipOrder).filter(
+                MembershipOrder.id == req.order_id,
+                MembershipOrder.user_id == current_user.id,
+            ).first()
+            if not membership_order:
+                raise HTTPException(status_code=404, detail="订单不存在")
+            if membership_order.status != "pending":
+                raise HTTPException(status_code=400, detail="订单不是待支付状态")
+            is_membership = True
+            order = membership_order  # 统一用 order 变量
+            product = None
 
         if order.status != "pending":
             span.set_attribute("error", "order_not_pending")
@@ -149,13 +166,15 @@ async def wxpay_unified_order(
             span.set_attribute("error", "missing_openid")
             raise HTTPException(status_code=400, detail="缺少用户微信 openid，无法发起微信支付")
 
-        out_trade_no = f"LK{order.id:08d}{int(time.time())}"
-        total_fee = int(order.total_price * 100)
-        description = f"{product.name[:60]} x{order.quantity}" if product else f"订单 #{order.id}"
+        prefix = "LKM" if is_membership else "LK"
+        out_trade_no = f"{prefix}{order.id:08d}{int(time.time())}"
+        total_fee = int(order.amount * 100) if is_membership else int(order.total_price * 100)
+        description = f"会员升级-{order.tier}" if is_membership else (f"{product.name[:60]} x{order.quantity}" if product else f"订单 #{order.id}")
 
+        span.set_attribute("is_membership_order", is_membership)
         span.set_attribute("out_trade_no", out_trade_no)
         span.set_attribute("total_fee_cents", total_fee)
-        span.set_attribute("product_name", product.name if product else "N/A")
+        span.set_attribute("product_name", description)
 
         if has_config(PLATFORM_WXPAY):
             try:
@@ -299,32 +318,55 @@ async def wxpay_callback(
             return {"code": "FAIL", "message": "支付未成功"}
 
     # 更新订单
-    if out_trade_no and out_trade_no.startswith("LK"):
+    if out_trade_no and (out_trade_no.startswith("LK") or out_trade_no.startswith("LKM")):
         try:
-            order_id = int(out_trade_no[2:10])
+            order_id = int(out_trade_no[2:10] if out_trade_no.startswith("LK") else out_trade_no[3:11])
         except (ValueError, IndexError):
             order_id = None
+        is_membership = out_trade_no.startswith("LKM")
     else:
         order_id = None
+        is_membership = False
 
     if order_id:
-        order = db.query(Order).filter(Order.id == order_id, Order.is_deleted == False).first()
-        if order and order.status == "pending":
-            order.status = "paid"
-            order.transaction_id = transaction_id
-            order.wx_transaction_id = transaction_id  # V2 兼容
-            order.payment_time = datetime.utcnow()
-            order.pay_time = datetime.utcnow()  # 兼容旧字段
-            if not order.payment_platform:
-                order.payment_platform = PLATFORM_WXPAY
-            db.commit()
-            logger.info(f"订单 {order_id} 支付成功，状态更新为 paid")
-            return {"code": "SUCCESS", "message": "成功"}
-        elif order:
-            logger.warning(f"订单 {order_id} 状态为 {order.status}，无需更新")
-            return {"code": "SUCCESS", "message": "已处理"}
+        if is_membership:
+            # 会员订单支付回调
+            membership_order = db.query(MembershipOrder).filter(
+                MembershipOrder.id == order_id,
+                MembershipOrder.status == "pending",
+            ).first()
+            if membership_order:
+                membership_order.status = "paid"
+                membership_order.transaction_id = transaction_id
+                membership_order.paid_at = datetime.utcnow()
+                if not membership_order.payment_platform:
+                    membership_order.payment_platform = PLATFORM_WXPAY
+                db.commit()
+                # 更新用户会员信息
+                _process_membership_payment(membership_order, db)
+                logger.info(f"会员订单 {order_id} 支付成功，会员等级已更新")
+                return {"code": "SUCCESS", "message": "成功"}
+            elif membership_order:
+                logger.warning(f"会员订单 {order_id} 状态为 {membership_order.status}，无需更新")
+                return {"code": "SUCCESS", "message": "已处理"}
+        else:
+            order = db.query(Order).filter(Order.id == order_id, Order.is_deleted == False).first()
+            if order and order.status == "pending":
+                order.status = "paid"
+                order.transaction_id = transaction_id
+                order.wx_transaction_id = transaction_id  # V2 兼容
+                order.payment_time = datetime.utcnow()
+                order.pay_time = datetime.utcnow()  # 兼容旧字段
+                if not order.payment_platform:
+                    order.payment_platform = PLATFORM_WXPAY
+                db.commit()
+                logger.info(f"订单 {order_id} 支付成功，状态更新为 paid")
+                return {"code": "SUCCESS", "message": "成功"}
+            elif order:
+                logger.warning(f"订单 {order_id} 状态为 {order.status}，无需更新")
+                return {"code": "SUCCESS", "message": "已处理"}
 
-    # Fallback: 通过 prepay_id 匹配
+    # Fallback: 通过 prepay_id 匹配（先查 Order，再查 MembershipOrder）
     order = (
         db.query(Order)
         .filter(
@@ -345,6 +387,27 @@ async def wxpay_callback(
             order.payment_platform = PLATFORM_WXPAY
         db.commit()
         logger.info(f"订单 {order.id} 支付成功（通过 prepay_id 匹配）")
+        return {"code": "SUCCESS", "message": "成功"}
+
+    # Fallback: 通过 prepay_id 匹配 MembershipOrder
+    membership_order = (
+        db.query(MembershipOrder)
+        .filter(
+            MembershipOrder.status == "pending",
+            MembershipOrder.prepay_id.isnot(None),
+        )
+        .order_by(MembershipOrder.id.desc())
+        .first()
+    )
+    if membership_order:
+        membership_order.status = "paid"
+        membership_order.transaction_id = transaction_id
+        membership_order.paid_at = datetime.utcnow()
+        if not membership_order.payment_platform:
+            membership_order.payment_platform = PLATFORM_WXPAY
+        db.commit()
+        _process_membership_payment(membership_order, db)
+        logger.info(f"会员订单 {membership_order.id} 支付成功（通过 prepay_id 匹配）")
         return {"code": "SUCCESS", "message": "成功"}
 
     # 未匹配到订单，加入重试队列进行补偿
@@ -590,21 +653,39 @@ async def alipay_unified_order(
     current_user: User = Depends(_payment_access),
 ):
     """支付宝统一下单 (APP 支付)"""
-    order = await _check_order_ownership(req.order_id, current_user, db)
-    product = db.query(Product).filter(Product.id == order.product_id, Product.is_deleted == False).first()
+    # 兼容会员订单
+    is_membership = False
+    try:
+        order = await _check_order_ownership(req.order_id, current_user, db)
+        product = db.query(Product).filter(Product.id == order.product_id, Product.is_deleted == False).first()
+    except HTTPException:
+        membership_order = db.query(MembershipOrder).filter(
+            MembershipOrder.id == req.order_id,
+            MembershipOrder.user_id == current_user.id,
+        ).first()
+        if not membership_order:
+            raise HTTPException(status_code=404, detail="订单不存在")
+        if membership_order.status != "pending":
+            raise HTTPException(status_code=400, detail="订单不是待支付状态")
+        is_membership = True
+        order = membership_order
+        product = None
 
     if order.status != "pending":
         raise HTTPException(status_code=400, detail="订单不是待支付状态")
 
-    subject = req.subject or (product.name if product else f"订单 #{order.id}")
-    out_trade_no = f"AL{order.id:08d}{int(time.time())}"
+    subject = req.subject or (f"会员升级-{order.tier}" if is_membership else (product.name if product else f"订单 #{order.id}"))
+    prefix = "ALM" if is_membership else "AL"
+    out_trade_no = f"{prefix}{order.id:08d}{int(time.time())}"
+    # 会员订单使用 amount，普通订单使用 total_price
+    total_amount = order.amount if is_membership else order.total_price
 
     if has_config(PLATFORM_ALIPAY):
         try:
             alipay = _get_alipay_api()
             result = await alipay.unified_order(
                 out_trade_no=out_trade_no,
-                total_amount=order.total_price,
+                total_amount=total_amount,
                 subject=subject[:256],
             )
         except Exception as e:
@@ -630,7 +711,7 @@ async def alipay_unified_order(
         message="下单成功 (mock)",
         data={
             "order": OrderResponse.model_validate(order).model_dump(),
-            "order_string": f"app_id=mock&method=alipay.trade.app.pay&out_trade_no={out_trade_no}&total_amount={order.total_price}",
+            "order_string": f"app_id=mock&method=alipay.trade.app.pay&out_trade_no={out_trade_no}&total_amount={total_amount}",
             "_mode": "mock",
         },
     )
@@ -676,6 +757,37 @@ async def get_payment_config():
 # ============================================================
 # Mock 支付辅助函数
 # ============================================================
+
+
+def _process_membership_payment(membership_order: MembershipOrder, db: Session) -> None:
+    """会员订单支付成功后，更新用户的会员等级、过期时间和对接券数量"""
+    from datetime import timedelta
+
+    from app.routers.membership import MEMBERSHIP_TIERS
+
+    user = db.query(User).filter(User.id == membership_order.user_id).first()
+    if not user:
+        logger.error(f"会员订单 {membership_order.id} 用户 {membership_order.user_id} 不存在")
+        return
+
+    tier = membership_order.tier
+    tier_config = MEMBERSHIP_TIERS.get(tier)
+    if not tier_config:
+        logger.error(f"会员订单 {membership_order.id} 未知等级 {tier}")
+        return
+
+    # 计算过期时间: 从当前时间起 + duration_days
+    duration = tier_config.get("duration_days", 365)
+    user.membership_tier = tier
+    user.membership_expires_at = datetime.utcnow() + timedelta(days=duration)
+    # 更新对接券数量（取最大值，累加）
+    user.match_credits = max(user.match_credits or 0, tier_config.get("match_credits", 0))
+    db.commit()
+    logger.info(
+        f"用户 {user.id} 会员升级: tier={tier}, "
+        f"expires_at={user.membership_expires_at}, "
+        f"match_credits={user.match_credits}"
+    )
 
 
 def _mock_payment(order: Order, total_fee: int = 0, description: str = "") -> dict:
