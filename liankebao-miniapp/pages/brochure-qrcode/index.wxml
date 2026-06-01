@@ -1,0 +1,39 @@
+<view class="container">
+  <view class="card">
+    <view class="qrcode-wrapper">
+      <image src="{{qrcodeUrl}}" mode="widthFix" class="qrcode" wx:if="{{qrcodeUrl}}"/>
+      <view class="qrcode-placeholder" wx:else>
+        <text class="placeholder-text">加载中...</text>
+      </view>
+    </view>
+    <view class="brochure-title">{{brochureTitle}}</view>
+  </view>
+
+  <view class="stats-section" wx:if="{{stats}}">
+    <view class="stat-item">
+      <text class="stat-num">{{stats.views}}</text>
+      <text class="stat-label">浏览次数</text>
+    </view>
+    <view class="stat-item">
+      <text class="stat-num">{{stats.shares}}</text>
+      <text class="stat-label">分享次数</text>
+    </view>
+    <view class="stat-item">
+      <text class="stat-num">{{stats.saves}}</text>
+      <text class="stat-label">保存次数</text>
+    </view>
+  </view>
+
+  <view class="actions">
+    <button class="btn btn-primary" bindtap="saveToAlbum">
+      <text>📥 保存到相册</text>
+    </button>
+    <button class="btn btn-secondary" bindtap="shareBrochure">
+      <text>📤 转发给好友</text>
+    </button>
+  </view>
+
+  <view class="tips">
+    <text class="tip-text">💡 长按或扫描二维码即可查看画册</text>
+  </view>
+</view>

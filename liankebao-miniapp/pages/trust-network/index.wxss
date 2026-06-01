@@ -1,0 +1,177 @@
+.container {
+  padding: 30rpx;
+  min-height: 100vh;
+  background: #f5f7fa;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border-radius: 44rpx;
+  padding: 0 20rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.05);
+}
+
+.search-input {
+  flex: 1;
+  height: 72rpx;
+  font-size: 28rpx;
+  padding: 0 16rpx;
+}
+
+.search-btn {
+  height: 60rpx;
+  line-height: 60rpx;
+  font-size: 26rpx;
+  color: #07c160;
+  background: transparent;
+  border: none;
+  padding: 0 16rpx;
+}
+
+.search-btn::after {
+  border: none;
+}
+
+.section-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 16rpx;
+  padding-left: 8rpx;
+}
+
+.search-results {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.05);
+}
+
+.user-item, .trust-item {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.user-item:last-child, .trust-item:last-child {
+  border-bottom: none;
+}
+
+.user-avatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  margin-right: 20rpx;
+  background: #eee;
+}
+
+.user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-name {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 500;
+  color: #333;
+}
+
+.user-company {
+  display: block;
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 4rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.add-btn {
+  height: 56rpx;
+  line-height: 56rpx;
+  font-size: 24rpx;
+  color: #07c160;
+  background: #e8f8ee;
+  border-radius: 28rpx;
+  padding: 0 20rpx;
+  border: none;
+  flex-shrink: 0;
+}
+
+.add-btn::after {
+  border: none;
+}
+
+.trust-level {
+  flex-shrink: 0;
+  margin-left: 12rpx;
+}
+
+.level-badge {
+  display: inline-block;
+  padding: 4rpx 16rpx;
+  border-radius: 20rpx;
+  font-size: 22rpx;
+  font-weight: 500;
+}
+
+.level-1 {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.level-2 {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.level-3 {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.level-4 {
+  background: #fce4ec;
+  color: #c62828;
+}
+
+.level-5 {
+  background: #f3e5f5;
+  color: #6a1b9a;
+}
+
+.trust-list {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.05);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 120rpx 0;
+}
+
+.empty-icon {
+  font-size: 100rpx;
+  margin-bottom: 20rpx;
+}
+
+.empty-text {
+  display: block;
+  font-size: 32rpx;
+  color: #999;
+  margin-bottom: 12rpx;
+}
+
+.empty-desc {
+  display: block;
+  font-size: 26rpx;
+  color: #bbb;
+}

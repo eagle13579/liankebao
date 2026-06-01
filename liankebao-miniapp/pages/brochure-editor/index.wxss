@@ -1,0 +1,29 @@
+.container {
+  min-height: 100vh;
+  background: #f5f7fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-placeholder {
+  text-align: center;
+}
+
+.placeholder-icon {
+  font-size: 120rpx;
+  display: block;
+  margin-bottom: 20rpx;
+}
+
+.placeholder-title {
+  font-size: 36rpx;
+  color: #333;
+  display: block;
+  margin-bottom: 12rpx;
+}
+
+.placeholder-desc {
+  font-size: 28rpx;
+  color: #999;
+}

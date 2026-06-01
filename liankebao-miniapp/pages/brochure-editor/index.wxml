@@ -1,0 +1,370 @@
+<view class="container">
+  <!-- ===== 顶部进度条 ===== -->
+  <view class="progress-header">
+    <view class="step-indicators">
+      <view class="step-dot {{item.id <= currentStep ? 'active' : ''}} {{item.id === currentStep ? 'current' : ''}}" 
+            wx:for="{{steps}}" wx:key="id" 
+            data-step="{{item.id}}" 
+            catchtap="goToStep">
+        <text class="step-num">{{item.id}}</text>
+      </view>
+      <view class="step-connector {{item.id < currentStep ? 'active' : ''}}" 
+            wx:for="{{steps}}" wx:key="id" 
+            wx:if="{{item.id < totalSteps}}"></view>
+    </view>
+    <view class="step-labels">
+      <text class="step-label {{item.id === currentStep ? 'active' : ''}}" 
+            wx:for="{{steps}}" wx:key="id">
+        {{item.title}}
+      </text>
+    </view>
+    <view class="step-count">步骤 {{currentStep}}/{{totalSteps}}</view>
+  </view>
+
+  <!-- ===== 进度条 ===== -->
+  <view class="progress-bar-wrap">
+    <view class="progress-bar" style="width: {{progressPercent}}%;"></view>
+  </view>
+
+  <!-- ===== 加载中 ===== -->
+  <view class="loading-mask" wx:if="{{loading}}">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <!-- ===== 表单区域（可滚动） ===== -->
+  <scroll-view class="form-scroll" scroll-y="{{true}}" wx:if="{{!loading}}">
+
+    <!-- ==================== Step 1: 基本信息 ==================== -->
+    <view class="form-section" wx:if="{{currentStep === 1}}">
+      <view class="section-title">基本信息</view>
+      <view class="section-desc">填写您的个人基本信息，展示在画册封面</view>
+
+      <!-- 头像 -->
+      <view class="form-item avatar-item">
+        <text class="form-label">头像</text>
+        <view class="avatar-selector" bindtap="onChooseAvatar">
+          <image class="avatar-preview" src="{{avatar || '/images/default-avatar.png'}}" />
+          <view class="avatar-overlay">
+            <text class="avatar-edit-icon">📷</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 姓名 -->
+      <view class="form-item {{fieldErrors.name ? 'has-error' : ''}}">
+        <text class="form-label">姓名 <text class="required">*</text></text>
+        <input class="form-input" placeholder="请输入您的姓名" 
+               value="{{name}}" data-field="name" 
+               bindinput="onFieldChange" maxlength="30" />
+        <text class="error-text" wx:if="{{fieldErrors.name}}">{{fieldErrors.name}}</text>
+      </view>
+
+      <!-- 公司 -->
+      <view class="form-item {{fieldErrors.company ? 'has-error' : ''}}">
+        <text class="form-label">公司 <text class="required">*</text></text>
+        <input class="form-input" placeholder="请输入公司名称" 
+               value="{{company}}" data-field="company" 
+               bindinput="onFieldChange" maxlength="60" />
+        <text class="error-text" wx:if="{{fieldErrors.company}}">{{fieldErrors.company}}</text>
+      </view>
+
+      <!-- 职位 -->
+      <view class="form-item">
+        <text class="form-label">职位</text>
+        <input class="form-input" placeholder="请输入您的职位" 
+               value="{{position}}" data-field="position" 
+               bindinput="onFieldChange" maxlength="30" />
+      </view>
+
+      <!-- 简介 -->
+      <view class="form-item">
+        <text class="form-label">简介</text>
+        <textarea class="form-textarea" placeholder="简单介绍一下自己，展示在画册上" 
+                  value="{{bio}}" data-field="bio" 
+                  bindinput="onFieldChange" maxlength="200" />
+        <text class="char-count">{{bio.length || 0}}/200</text>
+      </view>
+    </view>
+
+    <!-- ==================== Step 2: 联系方式 ==================== -->
+    <view class="form-section" wx:if="{{currentStep === 2}}">
+      <view class="section-title">联系方式</view>
+      <view class="section-desc">填写您的联系方式，方便客户与您取得联系</view>
+
+      <!-- 手机 -->
+      <view class="form-item {{fieldErrors.phone ? 'has-error' : ''}}">
+        <text class="form-label">手机号 <text class="required">*</text></text>
+        <input class="form-input" placeholder="请输入手机号" type="number" 
+               value="{{phone}}" data-field="phone" 
+               bindinput="onFieldChange" maxlength="11" />
+        <text class="error-text" wx:if="{{fieldErrors.phone}}">{{fieldErrors.phone}}</text>
+      </view>
+
+      <!-- 微信 -->
+      <view class="form-item">
+        <text class="form-label">微信号</text>
+        <input class="form-input" placeholder="请输入微信号" 
+               value="{{wechat}}" data-field="wechat" 
+               bindinput="onFieldChange" maxlength="30" />
+      </view>
+
+      <!-- 邮箱 -->
+      <view class="form-item">
+        <text class="form-label">邮箱</text>
+        <input class="form-input" placeholder="请输入邮箱地址" type="email" 
+               value="{{email}}" data-field="email" 
+               bindinput="onFieldChange" maxlength="50" />
+      </view>
+    </view>
+
+    <!-- ==================== Step 3: 产品列表 ==================== -->
+    <view class="form-section" wx:if="{{currentStep === 3}}">
+      <view class="section-title">产品列表</view>
+      <view class="section-desc">添加您的产品或服务，最多可添加10个</view>
+
+      <view class="product-list">
+        <view class="product-card" wx:for="{{products}}" wx:key="id" wx:for-index="idx">
+          <view class="product-header">
+            <text class="product-index">产品 {{idx + 1}}</text>
+            <view class="product-remove" bindtap="onRemoveProduct" data-index="{{idx}}">
+              <text class="remove-icon">🗑️</text>
+              <text class="remove-text">删除</text>
+            </view>
+          </view>
+
+          <!-- 产品图片 -->
+          <view class="product-image-wrap">
+            <view class="product-image-selector" bindtap="onChooseProductImage" data-index="{{idx}}">
+              <image class="product-image-preview" wx:if="{{item.image}}" src="{{item.image}}" mode="aspectFill" />
+              <view class="product-image-placeholder" wx:else>
+                <text class="add-img-icon">🖼️</text>
+                <text class="add-img-text">添加图片</text>
+              </view>
+            </view>
+          </view>
+
+          <view class="product-fields">
+            <view class="form-item product-field">
+              <text class="form-label">名称</text>
+              <input class="form-input" placeholder="请输入产品名称" 
+                     value="{{item.name}}" data-field="name" data-index="{{idx}}" 
+                     bindinput="onProductFieldChange" />
+            </view>
+            <view class="form-item product-field">
+              <text class="form-label">价格</text>
+              <input class="form-input" placeholder="请输入价格（元）" type="digit" 
+                     value="{{item.price}}" data-field="price" data-index="{{idx}}" 
+                     bindinput="onProductFieldChange" />
+            </view>
+            <view class="form-item product-field">
+              <text class="form-label">描述</text>
+              <input class="form-input" placeholder="请输入产品描述" 
+                     value="{{item.description}}" data-field="description" data-index="{{idx}}" 
+                     bindinput="onProductFieldChange" />
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 添加产品按钮 -->
+      <view class="add-product-btn" wx:if="{{products.length < 10}}" bindtap="onAddProduct">
+        <text class="add-product-icon">+</text>
+        <text class="add-product-text">添加产品</text>
+      </view>
+
+      <!-- 空状态 -->
+      <view class="empty-hint" wx:if="{{products.length === 0}}">
+        <text class="empty-icon">📦</text>
+        <text class="empty-desc">暂未添加产品，点击上方按钮添加</text>
+      </view>
+    </view>
+
+    <!-- ==================== Step 4: 供需需求 ==================== -->
+    <view class="form-section" wx:if="{{currentStep === 4}}">
+      <view class="section-title">供需需求</view>
+      <view class="section-desc">发布您的供应或需求信息，吸引更多合作机会</view>
+
+      <!-- 类型切换 -->
+      <view class="type-switcher">
+        <view class="type-option {{needType === 'supply' ? 'active' : ''}}" 
+              data-type="supply" bindtap="onNeedTypeChange">
+          <text class="type-icon">📤</text>
+          <text class="type-label">供应</text>
+          <text class="type-desc">我有产品/服务提供</text>
+        </view>
+        <view class="type-option {{needType === 'demand' ? 'active' : ''}}" 
+              data-type="demand" bindtap="onNeedTypeChange">
+          <text class="type-icon">📥</text>
+          <text class="type-label">需求</text>
+          <text class="type-desc">我正在寻找资源</text>
+        </view>
+      </view>
+
+      <!-- 标题 -->
+      <view class="form-item {{fieldErrors.needTitle ? 'has-error' : ''}}">
+        <text class="form-label">标题 <text class="required">*</text></text>
+        <input class="form-input" placeholder="{{needType === 'supply' ? '供应内容标题' : '需求内容标题'}}" 
+               value="{{needTitle}}" data-field="needTitle" 
+               bindinput="onFieldChange" maxlength="60" />
+        <text class="error-text" wx:if="{{fieldErrors.needTitle}}">{{fieldErrors.needTitle}}</text>
+      </view>
+
+      <!-- 描述 -->
+      <view class="form-item {{fieldErrors.needDesc ? 'has-error' : ''}}">
+        <text class="form-label">描述 <text class="required">*</text></text>
+        <textarea class="form-textarea" placeholder="详细描述您的{{needType === 'supply' ? '供应' : '需求'}}内容" 
+                  value="{{needDesc}}" data-field="needDesc" 
+                  bindinput="onFieldChange" maxlength="500" />
+        <text class="char-count">{{needDesc.length || 0}}/500</text>
+        <text class="error-text" wx:if="{{fieldErrors.needDesc}}">{{fieldErrors.needDesc}}</text>
+      </view>
+
+      <!-- 标签 -->
+      <view class="form-item">
+        <text class="form-label">标签</text>
+        <input class="form-input" placeholder="多个标签用逗号分隔，如：科技,AI,电商" 
+               value="{{needTags}}" data-field="needTags" 
+               bindinput="onFieldChange" maxlength="100" />
+        <text class="form-tip">用逗号分隔多个标签</text>
+      </view>
+    </view>
+
+    <!-- ==================== Step 5: 信任网络 ==================== -->
+    <view class="form-section" wx:if="{{currentStep === 5}}">
+      <view class="section-title">信任网络</view>
+      <view class="section-desc">添加信任关系，增强您的社交信用</view>
+
+      <!-- 搜索 -->
+      <view class="search-bar">
+        <input class="search-input" placeholder="搜索用户添加信任" 
+               bindinput="onSearchInput" bindconfirm="onSearchConfirm" 
+               value="{{searchKeyword}}" />
+        <button class="search-btn" bindtap="onSearchConfirm">搜索</button>
+      </view>
+
+      <!-- 搜索结果 -->
+      <view class="search-results" wx:if="{{searchResults.length > 0 && showSearchResults}}">
+        <view class="sub-section-title">搜索结果</view>
+        <view class="user-item" wx:for="{{searchResults}}" wx:key="id">
+          <image class="user-avatar" src="{{item.avatar || '/images/default-avatar.png'}}" />
+          <view class="user-info">
+            <text class="user-name">{{item.name}}</text>
+            <text class="user-company">{{item.company || ''}}</text>
+          </view>
+          <button class="add-trust-btn" bindtap="addTrust" data-user="{{item}}">+ 信任</button>
+        </view>
+      </view>
+
+      <!-- 信任列表 -->
+      <view class="trust-list" wx:if="{{trustList.length > 0}}">
+        <view class="sub-section-title">已添加信任 ({{trustList.length}})</view>
+        <view class="trust-item" wx:for="{{trustList}}" wx:key="id" data-item="{{item}}" data-index="{{index}}">
+          <image class="user-avatar" src="{{item.avatar || '/images/default-avatar.png'}}" />
+          <view class="user-info">
+            <text class="user-name">{{item.name}}</text>
+            <text class="user-company">{{item.company || ''}}</text>
+          </view>
+          <view class="remove-trust-btn" bindtap="removeTrust" data-item="{{item}}" data-index="{{index}}">
+            <text class="remove-trust-icon">✕</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 空状态 -->
+      <view class="empty-hint" wx:if="{{trustList.length === 0 && !showSearchResults}}">
+        <text class="empty-icon">🤝</text>
+        <text class="empty-desc">搜索并添加信任伙伴，建立您的信任网络</text>
+      </view>
+    </view>
+
+    <!-- ==================== Step 6: 预览发布 ==================== -->
+    <view class="form-section" wx:if="{{currentStep === 6}}">
+      <view class="section-title">预览发布</view>
+      <view class="section-desc">请确认以下信息无误后，点击发布按钮</view>
+
+      <!-- 预览卡片 -->
+      <view class="preview-card">
+        <!-- 用户信息 -->
+        <view class="preview-user">
+          <image class="preview-avatar" src="{{previewData.avatar || '/images/default-avatar.png'}}" />
+          <view class="preview-user-info">
+            <text class="preview-name">{{previewData.name || '请填写姓名'}}</text>
+            <text class="preview-position">{{previewData.company}}{{previewData.position ? ' · ' + previewData.position : ''}}</text>
+            <text class="preview-bio" wx:if="{{previewData.bio}}">{{previewData.bio}}</text>
+          </view>
+        </view>
+
+        <!-- 联系方式 -->
+        <view class="preview-section">
+          <text class="preview-section-title">📞 联系方式</text>
+          <view class="preview-contact-list">
+            <view class="preview-contact-item" wx:if="{{previewData.phone}}">
+              <text class="contact-label">手机</text>
+              <text class="contact-value">{{previewData.phone}}</text>
+            </view>
+            <view class="preview-contact-item" wx:if="{{previewData.wechat}}">
+              <text class="contact-label">微信</text>
+              <text class="contact-value">{{previewData.wechat}}</text>
+            </view>
+            <view class="preview-contact-item" wx:if="{{previewData.email}}">
+              <text class="contact-label">邮箱</text>
+              <text class="contact-value">{{previewData.email}}</text>
+            </view>
+          </view>
+          <view class="preview-empty" wx:if="{{!previewData.phone && !previewData.wechat && !previewData.email}}">
+            <text>暂未填写联系方式</text>
+          </view>
+        </view>
+
+        <!-- 产品列表 -->
+        <view class="preview-section" wx:if="{{previewData.products && previewData.products.length > 0}}">
+          <text class="preview-section-title">📦 产品 ({{previewData.products.length}})</text>
+          <view class="preview-product" wx:for="{{previewData.products}}" wx:key="id" wx:for-index="idx">
+            <text class="preview-product-index">#{{idx + 1}}</text>
+            <text class="preview-product-name">{{item.name || '未命名产品'}}</text>
+            <text class="preview-product-price" wx:if="{{item.price}}">{{item.price}}元</text>
+            <text class="preview-product-desc" wx:if="{{item.description}}">{{item.description}}</text>
+          </view>
+        </view>
+
+        <!-- 供需需求 -->
+        <view class="preview-section" wx:if="{{previewData.need && (previewData.need.title || previewData.need.desc)}}">
+          <text class="preview-section-title">{{previewData.need.type === 'supply' ? '📤 供应' : '📥 需求'}}</text>
+          <text class="preview-need-title" wx:if="{{previewData.need.title}}">{{previewData.need.title}}</text>
+          <text class="preview-need-desc" wx:if="{{previewData.need.desc}}">{{previewData.need.desc}}</text>
+          <view class="preview-tags" wx:if="{{previewData.need.tags}}">
+            <text class="preview-tag" wx:for="{{previewData.need.tags.split(',')}}" wx:key="*this">{{item.trim()}}</text>
+          </view>
+        </view>
+
+        <!-- 信任网络 -->
+        <view class="preview-section" wx:if="{{previewData.trustList && previewData.trustList.length > 0}}">
+          <text class="preview-section-title">🔗 信任网络 ({{previewData.trustList.length}})</text>
+          <view class="preview-trust-grid">
+            <view class="preview-trust-item" wx:for="{{previewData.trustList}}" wx:key="id" wx:for-item="t">
+              <image class="preview-trust-avatar" src="{{t.avatar || '/images/default-avatar.png'}}" />
+              <text class="preview-trust-name">{{t.name}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部占位（给固定按钮留空间） -->
+    <view class="bottom-spacer"></view>
+  </scroll-view>
+
+  <!-- ===== 底部固定按钮 ===== -->
+  <view class="bottom-actions">
+    <button class="btn-prev" wx:if="{{currentStep > 1}}" bindtap="goPrev" disabled="{{submitting}}">
+      上一步
+    </button>
+    <button class="btn-next" wx:if="{{currentStep < totalSteps}}" bindtap="goNext" disabled="{{submitting}}">
+      下一步
+    </button>
+    <button class="btn-submit" wx:if="{{currentStep === totalSteps}}" bindtap="onSubmit" loading="{{submitting}}" disabled="{{submitting}}">
+      {{submitting ? '发布中...' : '发布画册'}}
+    </button>
+  </view>
+</view>

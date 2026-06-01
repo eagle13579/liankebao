@@ -1,0 +1,42 @@
+<view class="container">
+  <!-- 搜索添加信任 -->
+  <view class="search-bar">
+    <input class="search-input" placeholder="搜索用户添加信任" bindinput="onSearchInput" bindconfirm="onSearchConfirm" value="{{searchKeyword}}" />
+    <button class="search-btn" bindtap="onSearchConfirm">搜索</button>
+  </view>
+
+  <!-- 搜索结果 -->
+  <view class="search-results" wx:if="{{searchResults.length > 0 && showSearchResults}}">
+    <view class="section-title">搜索结果</view>
+    <view class="user-item" wx:for="{{searchResults}}" wx:key="id">
+      <image class="user-avatar" src="{{item.avatar || '/images/default-avatar.png'}}" />
+      <view class="user-info">
+        <text class="user-name">{{item.name}}</text>
+        <text class="user-company">{{item.company || ''}}</text>
+      </view>
+      <button class="add-btn" bindtap="addTrust" data-user="{{item}}">+ 信任</button>
+    </view>
+  </view>
+
+  <!-- 信任列表 -->
+  <view class="trust-list" wx:if="{{trustList.length > 0}}">
+    <view class="section-title">我的信任网络 ({{trustList.length}})</view>
+    <view class="trust-item" wx:for="{{trustList}}" wx:key="id" bindlongpress="onLongPress" data-id="{{item.id}}" data-index="{{index}}">
+      <image class="user-avatar" src="{{item.avatar || '/images/default-avatar.png'}}" />
+      <view class="user-info">
+        <text class="user-name">{{item.name}}</text>
+        <text class="user-company">{{item.company || ''}}</text>
+      </view>
+      <view class="trust-level">
+        <text class="level-badge level-{{item.level || 1}}">Lv.{{item.level || 1}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:else>
+    <view class="empty-icon">🤝</view>
+    <text class="empty-text">暂无信任关系</text>
+    <text class="empty-desc">搜索用户并添加信任，建立您的信任网络</text>
+  </view>
+</view>
