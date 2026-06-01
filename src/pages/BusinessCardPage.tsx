@@ -4,7 +4,7 @@ import {
   Upload, Camera, Share2, Copy, Check, ArrowLeft, Loader2,
   User, Briefcase, Building2, Phone, Mail, MessageCircle, MapPin, Globe,
   Sparkles, RefreshCw, ChevronLeft, ChevronRight, QrCode,
-  Eye, EyeOff, ExternalLink,
+  Eye, EyeOff, ExternalLink, Download,
 } from 'lucide-react';
 import { api } from '../api/client';
 
@@ -105,6 +105,11 @@ export default function BusinessCardPage() {
 
   // 分享
   const [copied, setCopied] = useState(false);
+
+  // QR 码
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [qrLoading, setQrLoading] = useState(false);
 
   // 文件上传
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -259,6 +264,70 @@ export default function BusinessCardPage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
+  };
+
+  // ============================================================
+  // QR码下载
+  // ============================================================
+
+  const handleShowQR = async () => {
+    if (!cardData?.id) return;
+
+    setShowQRModal(true);
+    setQrLoading(true);
+    setQrCodeUrl('');
+
+    try {
+      // 用 fetch 获取二维码图片（返回 blob）
+      const token = localStorage.getItem('token');
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const response = await fetch(`/api/card/${cardData.id}/qrcode?download=false`, { headers });
+      if (!response.ok) throw new Error('获取二维码失败');
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      setQrCodeUrl(url);
+    } catch (e: any) {
+      console.error('QR码获取失败:', e);
+      setQrCodeUrl('');
+    } finally {
+      setQrLoading(false);
+    }
+  };
+
+  const handleDownloadQR = async () => {
+    if (!cardData?.id) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const response = await fetch(`/api/card/${cardData.id}/qrcode?download=true`, { headers });
+      if (!response.ok) throw new Error('下载二维码失败');
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `card_${cardData.share_token}_qrcode.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      console.error('QR码下载失败:', e);
+    }
+  };
+
+  const handleCloseQR = () => {
+    if (qrCodeUrl) {
+      URL.revokeObjectURL(qrCodeUrl);
+    }
+    setShowQRModal(false);
+    setQrCodeUrl('');
   };
 
   // ============================================================
@@ -652,12 +721,78 @@ export default function BusinessCardPage() {
             </button>
             <button
               onClick={handleCopyLink}
-              className="py-3 px-4 rounded-xl border border-border-light text-on-surface font-medium text-sm hover:bg-slate-50 transition-colors flex items-center gap-2"
+              className="flex-1 py-3 px-4 rounded-xl border border-border-light text-on-surface font-medium text-sm hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
             >
               <Share2 className="w-4 h-4" />
               分享
             </button>
+            <button
+              onClick={handleShowQR}
+              className="py-3 px-4 rounded-xl border border-border-light text-on-surface font-medium text-sm hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+            >
+              <QrCode className="w-4 h-4" />
+              画册QR
+            </button>
           </div>
+
+          {/* QR Code Modal */}
+          {showQRModal && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+              onClick={handleCloseQR}
+            >
+              <div
+                className="bg-white rounded-2xl p-6 mx-4 max-w-xs w-full shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="text-base font-bold text-center text-on-surface mb-1">
+                  分享画册二维码
+                </h3>
+                <p className="text-xs text-text-muted text-center mb-4">
+                  扫码即可查看您的数字名片画册
+                </p>
+
+                <div className="flex justify-center mb-4">
+                  {qrLoading ? (
+                    <div className="w-48 h-48 flex items-center justify-center">
+                      <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                    </div>
+                  ) : qrCodeUrl ? (
+                    <img
+                      src={qrCodeUrl}
+                      alt="名片二维码"
+                      className="w-48 h-48 rounded-xl"
+                    />
+                  ) : (
+                    <div className="w-48 h-48 flex items-center justify-center bg-slate-50 rounded-xl">
+                      <p className="text-xs text-text-muted">加载失败</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleCloseQR}
+                    className="flex-1 py-2.5 rounded-xl border border-border-light text-sm text-on-surface font-medium hover:bg-slate-50 transition-colors"
+                  >
+                    关闭
+                  </button>
+                  <button
+                    onClick={handleDownloadQR}
+                    disabled={!qrCodeUrl}
+                    className="flex-1 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  >
+                    <Download className="w-4 h-4" />
+                    保存图片
+                  </button>
+                </div>
+
+                <p className="text-[10px] text-text-muted text-center mt-3">
+                  长按或点击「保存图片」即可保存到相册分享
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Match results (if already matched) */}

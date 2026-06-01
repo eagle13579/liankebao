@@ -16,12 +16,12 @@ import uuid
 from typing import Any
 
 import qrcode
-from fastapi import APIRouter, Depends, File, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Header, Query, UploadFile, status
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user
+from app.auth import get_current_user, verify_token
 from app.business_card_ai import (
     CARD_FIELDS,
     extract_fields,
@@ -98,6 +98,26 @@ class ApiResponse(BaseModel):
     code: int = 200
     message: str = "success"
     data: Any = None
+
+
+class CardSyncRequest(BaseModel):
+    """小程序同步名片请求
+
+    对应小程序 brochure-editor 表单字段:
+      - name, company, position, bio, phone, wechat, email
+      - products: [{name, price, desc, image}]
+      - needs: [{title, description, category}]
+    """
+
+    name: str | None = None
+    company: str | None = None
+    position: str | None = None
+    bio: str | None = None
+    phone: str | None = None
+    wechat: str | None = None
+    email: str | None = None
+    user_id: int | None = None  # 小程序用户ID（可选，优先用认证用户）
+    openid: str | None = None  # 微信openid（可选，用来查找或创建用户）
 
 
 # ============================================================
@@ -406,6 +426,125 @@ async def get_card_by_token(
 
 
 # ============================================================
+# POST /api/card/sync-from-miniapp — 小程序数据同步
+# ============================================================
+
+
+@router.post(
+    "/sync-from-miniapp",
+    summary="小程序同步名片",
+    description="接收小程序填写的名片数据，写入BusinessCard表并自动生成album_meta翻页图册",
+)
+async def sync_card_from_miniapp(
+    request: CardSyncRequest,
+    db: Session = Depends(get_db),
+    authorization: str | None = Header(None, description="Bearer token（可选）"),
+) -> JSONResponse:
+    """从小程序同步名片数据
+
+    1. 确定用户身份（优先用token认证用户，其次用 user_id/openid）
+    2. 构建名片字段JSON
+    3. 调用 generate_digital_card 生成album_meta
+    4. 持久化到 BusinessCard 表
+    """
+    with tracer.start_as_current_span("card.sync_from_miniapp") as span:
+        # --- Step 1: 确定用户身份 ---
+        user: User | None = None
+
+        # 1a. 优先尝试从 Authorization header 解析token
+        if authorization and authorization.startswith("Bearer "):
+            token_str = authorization[7:]
+            payload = verify_token(token_str, expected_type="access")
+            if payload:
+                username = payload.get("sub")
+                if username:
+                    user = db.query(User).filter(User.username == username, User.is_deleted.is_(False)).first()
+
+        # 1b. 其次通过 openid 查找
+        if not user and request.openid:
+            user = db.query(User).filter(User.wechat_openid == request.openid, User.is_deleted.is_(False)).first()
+
+        # 1c. 最后通过 user_id 查找
+        if not user and request.user_id:
+            user = db.query(User).filter(User.id == request.user_id, User.is_deleted.is_(False)).first()
+
+        if not user:
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={"code": 401, "message": "无法识别用户身份，请先登录"},
+            )
+
+        span.set_attribute("user_id", user.id)
+
+        # --- Step 2: 构建名片字段 ---
+        fields_dict: dict[str, Any] = {}
+        if request.name:
+            fields_dict["name"] = request.name
+        if request.company:
+            fields_dict["company"] = request.company
+        if request.position:
+            fields_dict["position"] = request.position
+        if request.phone:
+            fields_dict["phone"] = request.phone
+        if request.wechat:
+            fields_dict["wechat"] = request.wechat
+        if request.email:
+            fields_dict["email"] = request.email
+        if request.bio:
+            fields_dict["bio"] = request.bio
+
+        # 如果没有姓名，不能生成名片
+        if not fields_dict.get("name"):
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"code": 400, "message": "姓名(name)为必填字段"},
+            )
+
+        try:
+            # --- Step 3: 生成数字名片数据（含album_meta）---
+            card_data = generate_digital_card(fields_dict)
+            share_token = card_data["share_token"]
+
+            # --- Step 4: 持久化到数据库 ---
+            db_card = BusinessCard(
+                user_id=user.id,
+                fields=json.dumps(fields_dict, ensure_ascii=False),
+                share_token=share_token,
+                view_count=0,
+                cover_image=fields_dict.get("cover_image"),
+                album_meta=json.dumps(card_data["album_meta"], ensure_ascii=False),
+            )
+            db.add(db_card)
+            db.commit()
+            db.refresh(db_card)
+
+            card_data["id"] = db_card.id
+            card_data["share_url"] = f"/card/{share_token}"
+
+            span.set_attribute("card_id", db_card.id)
+            span.set_attribute("share_token", share_token)
+
+            logger.info(f"小程序名片同步成功: id={db_card.id}, user={user.id}")
+
+            return JSONResponse(
+                content={
+                    "code": 200,
+                    "message": "名片同步成功",
+                    "data": card_data,
+                }
+            )
+        except Exception as e:
+            db.rollback()
+            logger.error(f"小程序名片同步失败: {e}", exc_info=True)
+            span.set_attribute("error", str(e))
+            span.record_exception(e)
+            return JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content={"code": 500, "message": f"同步失败: {str(e)}"},
+            )
+
+
+# ============================================================
 # GET /api/card/{id}/qrcode — 生成名片QR码（公开分享）
 # ============================================================
 
@@ -413,9 +552,15 @@ async def get_card_by_token(
 @router.get("/{id}/qrcode", summary="生成名片QR码", description="根据名片ID生成分享二维码PNG图片")
 async def get_card_qrcode(
     id: int,
+    download: bool = Query(False, description="是否作为附件下载（True=下载，False=预览）"),
     db: Session = Depends(get_db),
 ) -> Response:
-    """生成名片分享二维码（返回PNG图片）"""
+    """生成名片分享二维码（返回PNG图片）
+
+    支持 download 查询参数:
+      - ?download=false (默认): 浏览器预览
+      - ?download=true: 触发浏览器下载
+    """
     card = (
         db.query(BusinessCard)
         .filter(
@@ -434,7 +579,7 @@ async def get_card_qrcode(
     # 构建名片分享链接
     share_url = f"https://www.go-aiport.com/card/{card.share_token}"
 
-    # 生成QR码
+    # 生成QR码（带logo装饰 - 在QR码中心嵌入链客宝图标占位）
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_H,
@@ -451,11 +596,13 @@ async def get_card_qrcode(
     img.save(buf, format="PNG")
     buf.seek(0)
 
+    disposition = "attachment" if download else "inline"
+
     return Response(
         content=buf.getvalue(),
         media_type="image/png",
         headers={
-            "Content-Disposition": f'inline; filename="card_{card.share_token}_qrcode.png"',
+            "Content-Disposition": f'{disposition}; filename="card_{card.share_token}_qrcode.png"',
             "Cache-Control": "no-cache, no-store, must-revalidate",
         },
     )
