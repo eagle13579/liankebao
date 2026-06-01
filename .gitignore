@@ -9,6 +9,7 @@ build/
 
 # Virtual environments
 venv/
+.venv/
 venv_new/
 backend/venv/
 backend/venv_new/
