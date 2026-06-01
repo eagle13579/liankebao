@@ -53,7 +53,7 @@ class TestHealth:
 
     def test_brochure_router_exists(self, client):
         """FastAPI router 应正确挂载"""
-        resp = client.get("/api/digital-brochure/0")
+        resp = client.get("/api/v1/digital-brochure/0")
         # 图册 ID=0 不存在，应返回 404 而非 500 或 405
         assert resp.status_code == 404, f"意外响应: {resp.status_code} {resp.text}"
         data = resp.json()

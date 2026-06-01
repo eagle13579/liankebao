@@ -275,26 +275,26 @@ def verify_api():
     client = TestClient(app)
 
     endpoints = [
-        ("GET", "/api/workflow/health", None, 200),
-        ("GET", "/api/workflow/rules", None, 200),
-        ("GET", "/api/workflow/rules/deal_no_followup_24h", None, 200),
-        ("POST", "/api/workflow/events", {
+        ("GET", "/api/v1/workflow/health", None, 200),
+        ("GET", "/api/v1/workflow/rules", None, 200),
+        ("GET", "/api/v1/workflow/rules/deal_no_followup_24h", None, 200),
+        ("POST", "/api/v1/workflow/events", {
             "event_type": "on_order_paid",
             "entity_type": "order",
             "entity_id": 1,
             "payload": {"order": {"id": 1, "order_no": "T", "total_price": 1, "buyer_id": 1}},
         }, 200),
-        ("POST", "/api/workflow/execute", {
+        ("POST", "/api/v1/workflow/execute", {
             "rule_name": "deal_no_followup_24h",
             "context": {"deal": {"id": 1, "title": "T", "owner_id": 1, "contact_id": 1}},
         }, 200),
-        ("GET", "/api/workflow/executions?limit=5", None, 200),
-        ("GET", "/api/workflow/events?limit=5", None, 200),
-        ("GET", "/api/workflow/notifications/1?limit=5", None, 200),
-        ("PUT", "/api/workflow/rules/order_paid_log_activity/toggle", {"enabled": False}, 200),
-        ("POST", "/api/workflow/rules/reload", None, 200),
+        ("GET", "/api/v1/workflow/executions?limit=5", None, 200),
+        ("GET", "/api/v1/workflow/events?limit=5", None, 200),
+        ("GET", "/api/v1/workflow/notifications/1?limit=5", None, 200),
+        ("PUT", "/api/v1/workflow/rules/order_paid_log_activity/toggle", {"enabled": False}, 200),
+        ("POST", "/api/v1/workflow/rules/reload", None, 200),
         # 恢复
-        ("PUT", "/api/workflow/rules/order_paid_log_activity/toggle", {"enabled": True}, 200),
+        ("PUT", "/api/v1/workflow/rules/order_paid_log_activity/toggle", {"enabled": True}, 200),
     ]
 
     for method, path, body, expected_code in endpoints:

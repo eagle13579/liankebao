@@ -6,9 +6,9 @@
 已实现:
 - get_brochure (直接函数)
 - record_visit / get_visitor_logs
-- API: GET /api/digital-brochure/{id}
-- API: POST /api/digital-brochure/{id}/visit
-- API: GET /api/digital-brochure/{id}/visitors
+- API: GET /api/v1/digital-brochure/{id}
+- API: POST /api/v1/digital-brochure/{id}/visit
+- API: GET /api/v1/digital-brochure/{id}/visitors
 
 待实现 (标记 skip):
 - 创建/更新/删除图册
@@ -165,8 +165,8 @@ class TestBrochureAPI:
     """图册 API 端点测试 (已实现)"""
 
     def test_api_get_brochure_success(self, client, test_db, sample_brochure):
-        """GET /api/digital-brochure/{id} 应返回图册信息"""
-        resp = client.get(f"/api/digital-brochure/{sample_brochure['id']}")
+        """GET /api/v1/digital-brochure/{id} 应返回图册信息"""
+        resp = client.get(f"/api/v1/digital-brochure/{sample_brochure['id']}")
         assert resp.status_code == 200, f"获取图册失败: {resp.text}"
         data = resp.json()
         assert data["code"] == 200
@@ -175,15 +175,15 @@ class TestBrochureAPI:
 
     def test_api_get_brochure_not_found(self, client):
         """不存在的图册应返回 404"""
-        resp = client.get("/api/digital-brochure/99999")
+        resp = client.get("/api/v1/digital-brochure/99999")
         assert resp.status_code == 404
         data = resp.json()
         assert data["detail"] == "图册不存在"
         assert resp.status_code == 404
 
     def test_api_record_visit(self, client, sample_brochure):
-        """POST /api/digital-brochure/{id}/visit 应记录访问"""
-        resp = client.post(f"/api/digital-brochure/{sample_brochure['id']}/visit")
+        """POST /api/v1/digital-brochure/{id}/visit 应记录访问"""
+        resp = client.post(f"/api/v1/digital-brochure/{sample_brochure['id']}/visit")
         assert resp.status_code == 200, f"记录访问失败: {resp.text}"
         data = resp.json()
         assert data["code"] == 200
@@ -191,16 +191,16 @@ class TestBrochureAPI:
 
     def test_api_record_visit_not_found(self, client):
         """不存在的图册返回 404"""
-        resp = client.post("/api/digital-brochure/99999/visit")
+        resp = client.post("/api/v1/digital-brochure/99999/visit")
         assert resp.status_code == 404
 
     def test_api_get_visitors(self, client, test_db, sample_brochure):
-        """GET /api/digital-brochure/{id}/visitors 应返回访客列表"""
+        """GET /api/v1/digital-brochure/{id}/visitors 应返回访客列表"""
         # 先创建一条访问记录
         from digital_brochure_api import record_visit
         record_visit(sample_brochure["id"])
 
-        resp = client.get(f"/api/digital-brochure/{sample_brochure['id']}/visitors")
+        resp = client.get(f"/api/v1/digital-brochure/{sample_brochure['id']}/visitors")
         assert resp.status_code == 200, f"获取访客失败: {resp.text}"
         data = resp.json()
         assert data["code"] == 200
@@ -212,7 +212,7 @@ class TestBrochureAPI:
         for _ in range(5):
             record_visit(sample_brochure["id"])
 
-        resp = client.get(f"/api/digital-brochure/{sample_brochure['id']}/visitors?limit=2")
+        resp = client.get(f"/api/v1/digital-brochure/{sample_brochure['id']}/visitors?limit=2")
         assert resp.status_code == 200
         assert len(resp.json()["data"]) <= 2
 
@@ -227,9 +227,9 @@ class TestBrochureCRUD:
 
     @pytest.mark.skip(reason="创建图册端点尚未实现")
     def test_create_brochure(self, client, auth_headers):
-        """POST /api/digital-brochure/ 应创建新图册"""
+        """POST /api/v1/digital-brochure/ 应创建新图册"""
         resp = client.post(
-            "/api/digital-brochure/",
+            "/api/v1/digital-brochure/",
             headers=auth_headers,
             json={
                 "title": "新图册",
@@ -245,9 +245,9 @@ class TestBrochureCRUD:
 
     @pytest.mark.skip(reason="更新图册端点尚未实现")
     def test_update_brochure(self, client, auth_headers, sample_brochure):
-        """PUT /api/digital-brochure/{id} 应更新图册"""
+        """PUT /api/v1/digital-brochure/{id} 应更新图册"""
         resp = client.put(
-            f"/api/digital-brochure/{sample_brochure['id']}",
+            f"/api/v1/digital-brochure/{sample_brochure['id']}",
             headers=auth_headers,
             json={"title": "更新后的标题"},
         )
@@ -256,21 +256,21 @@ class TestBrochureCRUD:
 
     @pytest.mark.skip(reason="删除图册端点尚未实现")
     def test_delete_brochure(self, client, auth_headers, sample_brochure):
-        """DELETE /api/digital-brochure/{id} 应删除图册"""
+        """DELETE /api/v1/digital-brochure/{id} 应删除图册"""
         resp = client.delete(
-            f"/api/digital-brochure/{sample_brochure['id']}",
+            f"/api/v1/digital-brochure/{sample_brochure['id']}",
             headers=auth_headers,
         )
         assert resp.status_code == 200
 
         # 确认已删除
-        resp = client.get(f"/api/digital-brochure/{sample_brochure['id']}")
+        resp = client.get(f"/api/v1/digital-brochure/{sample_brochure['id']}")
         assert resp.status_code == 404
 
     @pytest.mark.skip(reason="图册列表端点尚未实现")
     def test_list_my_brochures(self, client, auth_headers, sample_brochure):
-        """GET /api/digital-brochure/ 应返回当前用户的图册列表"""
-        resp = client.get("/api/digital-brochure/", headers=auth_headers)
+        """GET /api/v1/digital-brochure/ 应返回当前用户的图册列表"""
+        resp = client.get("/api/v1/digital-brochure/", headers=auth_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert len(data["data"]) >= 1
@@ -287,7 +287,7 @@ class TestBrochurePermissions:
         """用户不应能修改其他用户的图册"""
         # second_user 试图修改 sample_user 的图册
         resp = client.put(
-            f"/api/digital-brochure/{sample_brochure['id']}",
+            f"/api/v1/digital-brochure/{sample_brochure['id']}",
             headers=auth_headers,  # 需要 second_user 的 headers
             json={"title": "被篡改的标题"},
         )
@@ -299,7 +299,7 @@ class TestBrochurePermissions:
     ):
         """用户不应能删除其他用户的图册"""
         resp = client.delete(
-            f"/api/digital-brochure/{sample_brochure['id']}",
+            f"/api/v1/digital-brochure/{sample_brochure['id']}",
             headers=auth_headers,
         )
         assert resp.status_code in (403, 404)
@@ -308,7 +308,7 @@ class TestBrochurePermissions:
     def test_unauthorized_create(self, client):
         """未认证用户不应能创建图册"""
         resp = client.post(
-            "/api/digital-brochure/",
+            "/api/v1/digital-brochure/",
             json={"title": "无权限创建"},
         )
         assert resp.status_code == 401
@@ -317,7 +317,7 @@ class TestBrochurePermissions:
     def test_unauthorized_update(self, client, sample_brochure):
         """未认证用户不应能更新图册"""
         resp = client.put(
-            f"/api/digital-brochure/{sample_brochure['id']}",
+            f"/api/v1/digital-brochure/{sample_brochure['id']}",
             json={"title": "无权更新"},
         )
         assert resp.status_code == 401
@@ -325,7 +325,7 @@ class TestBrochurePermissions:
     @pytest.mark.skip(reason="权限隔离尚未实现")
     def test_public_brochure_accessible_without_auth(self, client, sample_brochure):
         """公开图册应允许未认证访问"""
-        resp = client.get(f"/api/digital-brochure/{sample_brochure['id']}")
+        resp = client.get(f"/api/v1/digital-brochure/{sample_brochure['id']}")
         assert resp.status_code == 200
 
     @pytest.mark.skip(reason="权限隔离尚未实现")
@@ -338,5 +338,5 @@ class TestBrochurePermissions:
         )
         test_db.commit()
 
-        resp = client.get(f"/api/digital-brochure/{sample_brochure['id']}")
+        resp = client.get(f"/api/v1/digital-brochure/{sample_brochure['id']}")
         assert resp.status_code in (401, 403)

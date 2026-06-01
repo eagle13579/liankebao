@@ -13,10 +13,12 @@
 
 import logging
 import os
+import re
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 
 from app.database import engine, Base
 from app import __version__
@@ -68,6 +70,29 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# ── API 版本兼容中间件 ────────────────────────────────────────
+# 将旧路径 /api/* 307 重定向到 /api/v1/* (排除 /api/v1/* 本身)
+
+
+@app.middleware("http")
+async def api_version_redirect(request: Request, call_next):
+    """旧 /api/* 路径 307 重定向到 /api/v1/*"""
+    path = request.url.path
+
+    # 只处理 /api/ 路径，跳过 /api/v1/ 和 /api/health
+    if path.startswith("/api/") and not path.startswith("/api/v1/"):
+        if path == "/api/health":
+            # /api/health 保留，继续处理
+            return await call_next(request)
+
+        # 计算新路径: /api/... → /api/v1/...
+        new_path = "/api/v1" + path[4:]
+        logger.info("API版本重定向: %s → %s", path, new_path)
+        return RedirectResponse(url=new_path, status_code=307)
+
+    return await call_next(request)
+
+
 # ── 中间件 ────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
@@ -85,7 +110,7 @@ try:
     from digital_brochure_api import router as brochure_router
     if brochure_router is not None:
         app.include_router(brochure_router)
-        logger.info("数字图册 API 路由已挂载")
+        logger.info("数字图册 API 路由已挂载 (v1)")
 except Exception as e:
     logger.warning("数字图册 API 路由挂载失败: %s", e)
 
@@ -95,12 +120,24 @@ except Exception as e:
 
 @app.get("/health", tags=["系统"])
 async def health_check():
-    """系统健康检查"""
+    """系统健康检查 (旧路径)"""
     return {
         "status": "ok",
         "service": "liankebao",
         "version": __version__,
         "db_type": os.getenv("DB_TYPE", "sqlite"),
+    }
+
+
+@app.get("/api/v1/health", tags=["系统"])
+async def health_check_v1():
+    """系统健康检查 (v1)"""
+    return {
+        "status": "ok",
+        "service": "liankebao",
+        "version": __version__,
+        "db_type": os.getenv("DB_TYPE", "sqlite"),
+        "api_version": "v1",
     }
 
 

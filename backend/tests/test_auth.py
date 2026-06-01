@@ -162,14 +162,14 @@ class TestAuthAPI:
 
     @pytest.mark.skip(reason="注册端点尚未实现")
     def test_register_success(self, client):
-        """POST /api/digital-brochure/auth/register 应成功注册新用户
+        """POST /api/v1/digital-brochure/auth/register 应成功注册新用户
 
         期望:
         - 状态码 201
         - 返回 user_id, username, token
         - 密码已 bcrypt 哈希存储
         """
-        resp = client.post("/api/digital-brochure/auth/register", json={
+        resp = client.post("/api/v1/digital-brochure/auth/register", json={
             "username": "newuser",
             "password": "SecureP@ss1",
             "email": "new@example.com",
@@ -184,7 +184,7 @@ class TestAuthAPI:
     @pytest.mark.skip(reason="注册端点尚未实现")
     def test_register_duplicate_username(self, client, sample_user_data):
         """重复用户名应返回 409"""
-        resp = client.post("/api/digital-brochure/auth/register", json={
+        resp = client.post("/api/v1/digital-brochure/auth/register", json={
             "username": sample_user_data["username"],
             "password": "SecureP@ss1",
         })
@@ -193,7 +193,7 @@ class TestAuthAPI:
     @pytest.mark.skip(reason="注册端点尚未实现")
     def test_register_invalid_password(self, client):
         """弱密码应返回 422"""
-        resp = client.post("/api/digital-brochure/auth/register", json={
+        resp = client.post("/api/v1/digital-brochure/auth/register", json={
             "username": "weakuser",
             "password": "123",
         })
@@ -201,8 +201,8 @@ class TestAuthAPI:
 
     @pytest.mark.skip(reason="登录端点尚未实现")
     def test_login_success(self, client, sample_user_data):
-        """POST /api/digital-brochure/auth/login 应返回 token"""
-        resp = client.post("/api/digital-brochure/auth/login", json={
+        """POST /api/v1/digital-brochure/auth/login 应返回 token"""
+        resp = client.post("/api/v1/digital-brochure/auth/login", json={
             "username": sample_user_data["username"],
             "password": sample_user_data["password"],
         })
@@ -215,7 +215,7 @@ class TestAuthAPI:
     @pytest.mark.skip(reason="登录端点尚未实现")
     def test_login_wrong_password(self, client, sample_user_data):
         """错误密码应返回 401"""
-        resp = client.post("/api/digital-brochure/auth/login", json={
+        resp = client.post("/api/v1/digital-brochure/auth/login", json={
             "username": sample_user_data["username"],
             "password": "WrongPassword!",
         })
@@ -232,7 +232,7 @@ class TestAuthAPI:
         )
         conn.commit()
 
-        resp = client.post("/api/digital-brochure/auth/login", json={
+        resp = client.post("/api/v1/digital-brochure/auth/login", json={
             "username": sample_user_data["username"],
             "password": sample_user_data["password"],
         })
@@ -242,7 +242,7 @@ class TestAuthAPI:
     def test_verify_token_valid(self, client, auth_token):
         """有效 token 应验证通过"""
         headers = {"Authorization": f"Bearer {auth_token['token']}"}
-        resp = client.get("/api/digital-brochure/auth/me", headers=headers)
+        resp = client.get("/api/v1/digital-brochure/auth/me", headers=headers)
         assert resp.status_code == 200
         data = resp.json()
         assert data["data"]["user_id"] == auth_token["user_id"]
@@ -250,14 +250,14 @@ class TestAuthAPI:
     @pytest.mark.skip(reason="Token 验证端点尚未实现")
     def test_verify_token_missing(self, client):
         """无 token 应返回 401"""
-        resp = client.get("/api/digital-brochure/auth/me")
+        resp = client.get("/api/v1/digital-brochure/auth/me")
         assert resp.status_code == 401
 
     @pytest.mark.skip(reason="Token 验证端点尚未实现")
     def test_verify_token_invalid(self, client):
         """无效 token 应返回 401"""
         headers = {"Authorization": "Bearer invalid-token-12345"}
-        resp = client.get("/api/digital-brochure/auth/me", headers=headers)
+        resp = client.get("/api/v1/digital-brochure/auth/me", headers=headers)
         assert resp.status_code == 401
 
     @pytest.mark.skip(reason="Token 验证端点尚未实现")
@@ -272,7 +272,7 @@ class TestAuthAPI:
         conn.commit()
 
         headers = {"Authorization": f"Bearer {auth_token['token']}"}
-        resp = client.get("/api/digital-brochure/auth/me", headers=headers)
+        resp = client.get("/api/v1/digital-brochure/auth/me", headers=headers)
         assert resp.status_code == 401
 
     @pytest.mark.skip(reason="Token 验证端点尚未实现")
@@ -293,5 +293,5 @@ class TestAuthAPI:
         conn.commit()
 
         headers = {"Authorization": f"Bearer {token_str}"}
-        resp = client.get("/api/digital-brochure/auth/me", headers=headers)
+        resp = client.get("/api/v1/digital-brochure/auth/me", headers=headers)
         assert resp.status_code == 401

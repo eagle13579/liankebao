@@ -312,7 +312,7 @@ class TestMatchingEngine:
     def test_confirm_match(self, client, auth_headers):
         """应能确认匹配并建立联系"""
         resp = client.post(
-            "/api/digital-brochure/matches/1/confirm",
+            "/api/v1/digital-brochure/matches/1/confirm",
             headers=auth_headers,
         )
         assert resp.status_code == 200
@@ -322,7 +322,7 @@ class TestMatchingEngine:
     @pytest.mark.skip(reason="匹配引擎功能尚未实现")
     def test_get_match_history(self, client, auth_headers):
         """应能查询匹配历史"""
-        resp = client.get("/api/digital-brochure/matches", headers=auth_headers)
+        resp = client.get("/api/v1/digital-brochure/matches", headers=auth_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert isinstance(data["data"], list)

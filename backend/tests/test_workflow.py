@@ -236,22 +236,22 @@ def test_api_integration():
         client = TestClient(app)
 
         # 健康检查
-        resp = client.get("/api/workflow/health")
-        print(f"  GET /api/workflow/health: {resp.status_code}")
+        resp = client.get("/api/v1/workflow/health")
+        print(f"  GET /api/v1/workflow/health: {resp.status_code}")
         assert resp.status_code == 200
         data = resp.json()
         print(f"    规则数: {data['rules_loaded']}")
 
         # 获取规则列表
-        resp = client.get("/api/workflow/rules")
-        print(f"  GET /api/workflow/rules: {resp.status_code}")
+        resp = client.get("/api/v1/workflow/rules")
+        print(f"  GET /api/v1/workflow/rules: {resp.status_code}")
         assert resp.status_code == 200
         data = resp.json()
         print(f"    规则数: {data['count']}")
 
         # 触发事件
         resp = client.post(
-            "/api/workflow/events",
+            "/api/v1/workflow/events",
             json={
                 "event_type": "on_deal_created",
                 "entity_type": "deal",
@@ -267,19 +267,19 @@ def test_api_integration():
                 },
             },
         )
-        print(f"  POST /api/workflow/events: {resp.status_code}")
+        print(f"  POST /api/v1/workflow/events: {resp.status_code}")
         assert resp.status_code == 200
         data = resp.json()
         print(f"    匹配规则: {data['matched_rules']}")
 
         # 查询执行历史
-        resp = client.get("/api/workflow/executions?limit=5")
-        print(f"  GET /api/workflow/executions: {resp.status_code}")
+        resp = client.get("/api/v1/workflow/executions?limit=5")
+        print(f"  GET /api/v1/workflow/executions: {resp.status_code}")
         assert resp.status_code == 200
 
         # 手动执行规则
         resp = client.post(
-            "/api/workflow/execute",
+            "/api/v1/workflow/execute",
             json={
                 "rule_name": "deal_no_followup_24h",
                 "context": {
@@ -292,22 +292,22 @@ def test_api_integration():
                 },
             },
         )
-        print(f"  POST /api/workflow/execute: {resp.status_code}")
+        print(f"  POST /api/v1/workflow/execute: {resp.status_code}")
         assert resp.status_code == 200
         data = resp.json()
         print(f"    动作数: {data['actions_count']}")
 
         # 启用/禁用规则
         resp = client.put(
-            "/api/workflow/rules/order_paid_log_activity/toggle",
+            "/api/v1/workflow/rules/order_paid_log_activity/toggle",
             json={"enabled": False},
         )
-        print(f"  PUT /api/workflow/rules/.../toggle: {resp.status_code}")
+        print(f"  PUT /api/v1/workflow/rules/.../toggle: {resp.status_code}")
         assert resp.status_code == 200
 
         # 查询通知
-        resp = client.get("/api/workflow/notifications/1?limit=5")
-        print(f"  GET /api/workflow/notifications/1: {resp.status_code}")
+        resp = client.get("/api/v1/workflow/notifications/1?limit=5")
+        print(f"  GET /api/v1/workflow/notifications/1: {resp.status_code}")
         assert resp.status_code == 200
         data = resp.json()
         print(f"    通知数: {data['count']}, 未读: {data['unread_count']}")

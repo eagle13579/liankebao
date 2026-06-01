@@ -302,7 +302,7 @@ def get_visitor_logs(brochure_id: int, limit: int = 50) -> list:
 try:
     from fastapi import APIRouter, HTTPException
 
-    router = APIRouter(prefix="/api/digital-brochure", tags=["觅迹·数字图册"])
+    router = APIRouter(prefix="/api/v1/digital-brochure", tags=["觅迹·数字图册"])
 
     @router.get("/{brochure_id}")
     def api_get_brochure(brochure_id: int):

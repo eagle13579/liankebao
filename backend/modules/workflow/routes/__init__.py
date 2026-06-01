@@ -19,7 +19,7 @@ from modules.workflow.workflow_engine import WorkflowEngine, RuleNotFoundError
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/workflow", tags=["workflow"])
+router = APIRouter(prefix="/api/v1/workflow", tags=["workflow"])
 
 # 全局引擎实例（由应用初始化时设置）
 engine: WorkflowEngine | None = None
