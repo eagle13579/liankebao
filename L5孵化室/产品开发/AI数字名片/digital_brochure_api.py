@@ -42,9 +42,24 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 import uvicorn
 
+# ── 基础设施: 上下文 / 追踪 / 监控 ──────────────────
+import contextvars
+import time
+from collections import defaultdict
+
+# ── 请求追踪上下文 ──────────────────────────────────
+_trace_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("trace_id", default="")
+
+class TraceIDFilter(logging.Filter):
+    """日志过滤器，自动注入 trace_id。"""
+    def filter(self, record):
+        record.trace_id = _trace_id_var.get() or "-"
+        return True
+
 # ── 日志 ──────────────────────────────────────────────
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] [%(trace_id)s] %(message)s")
 logger = logging.getLogger("digital_brochure")
+logger.addFilter(TraceIDFilter())
 
 # ── 配置 ──────────────────────────────────────────────
 PORT = 8003
@@ -734,13 +749,130 @@ def load_data():
 
 
 # ════════════════════════════════════════════════════════
+# 速率限制器
+# ════════════════════════════════════════════════════════
+
+class RateLimiter:
+    """基于IP的内存速率限制器（滑动时间窗口）。"""
+    def __init__(self, max_requests: int = 100, window_seconds: int = 60):
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self._clients: dict[str, list[float]] = {}
+        self._lock = threading.Lock()
+
+    def check(self, client_ip: str) -> tuple[bool, int, int]:
+        now = time.time()
+        with self._lock:
+            if client_ip not in self._clients:
+                self._clients[client_ip] = []
+            cutoff = now - self.window_seconds
+            self._clients[client_ip] = [t for t in self._clients[client_ip] if t > cutoff]
+            remaining = self.max_requests - len(self._clients[client_ip])
+            if remaining <= 0:
+                reset_at = int(cutoff + self.window_seconds)
+                return False, 0, reset_at
+            self._clients[client_ip].append(now)
+            return True, remaining - 1, int(now + self.window_seconds)
+
+rate_limiter = RateLimiter()
+
+
+# ════════════════════════════════════════════════════════
+# Prometheus 指标收集器（内存计数器，无外部依赖）
+# ════════════════════════════════════════════════════════
+
+class PrometheusMetrics:
+    """基础 Prometheus 指标收集器。"""
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._requests_total: int = 0
+        self._errors_total: int = 0
+        self._latency_buckets: dict[str, float] = defaultdict(float)
+
+    def inc_requests(self):
+        with self._lock:
+            self._requests_total += 1
+
+    def inc_errors(self):
+        with self._lock:
+            self._errors_total += 1
+
+    def observe_latency(self, seconds: float):
+        with self._lock:
+            for b in [0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0]:
+                if seconds <= b:
+                    self._latency_buckets[f"le_{b}"] += 1
+            self._latency_buckets["le_inf"] += 1
+
+    def render(self) -> str:
+        with self._lock:
+            lines = [
+                "# HELP http_requests_total Total number of HTTP requests",
+                "# TYPE http_requests_total counter",
+                f'http_requests_total {self._requests_total}',
+                "# HELP http_errors_total Total number of HTTP errors (status >= 400)",
+                "# TYPE http_errors_total counter",
+                f'http_errors_total {self._errors_total}',
+                "# HELP http_request_duration_seconds HTTP request duration histogram",
+                "# TYPE http_request_duration_seconds histogram",
+            ]
+            for bucket in sorted(self._latency_buckets.keys(),
+                                 key=lambda x: float(x[3:]) if x[3:] != "inf" else float("inf")):
+                lines.append(
+                    f'http_request_duration_seconds_bucket{{le="{bucket[3:]}"}} {int(self._latency_buckets[bucket])}'
+                )
+            lines.append(f'http_request_duration_seconds_count {self._requests_total}')
+            return "\n".join(lines) + "\n"
+
+prometheus_metrics = PrometheusMetrics()
+
+
+# ════════════════════════════════════════════════════════
 # FastAPI 应用
 # ════════════════════════════════════════════════════════
+
+# ── Sentry 初始化（可选） ────────────────────────────
+_sentry_initialized = False
+
+def init_sentry():
+    """初始化 Sentry SDK（如果可用）。"""
+    global _sentry_initialized
+    dsn = os.environ.get("SENTRY_DSN", "")
+    if not dsn:
+        logger.info("SENTRY_DSN 未设置，跳过 Sentry 初始化")
+        return
+    try:
+        import sentry_sdk
+        sentry_sdk.init(
+            dsn=dsn,
+            traces_sample_rate=1.0,
+        )
+        _sentry_initialized = True
+        logger.info("Sentry SDK 已初始化")
+    except ImportError:
+        logger.info("sentry_sdk 未安装，跳过 Sentry 初始化")
+    except Exception as e:
+        logger.warning("Sentry 初始化失败: %s", e)
+
+
+# ── Lifespan 上下文管理器 ────────────────────────────
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app_instance: FastAPI):
+    """应用生命周期管理：启动时加载数据 & 初始化 Sentry。"""
+    load_data()
+    init_sentry()
+    logger.info("🚀 AI数字名片 v2.2 启动于 http://%s:%d", HOST, PORT)
+    yield
+    logger.info("服务正在关闭...")
+
 
 app = FastAPI(
     title="AI数字名片 v2.2",
     description="AI数字名片 API — 画册管理、信任网络、供需匹配、链客宝生态融合",
     version="2.2.0",
+    lifespan=lifespan,
 )
 
 # ── API v1 版本路由 ──────────────────────────────────
@@ -753,6 +885,84 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ── 请求ID追踪中间件 ─────────────────────────────────
+@app.middleware("http")
+async def trace_id_middleware(request: Request, call_next):
+    """为每个请求分配 trace_id 并注入上下文。"""
+    trace_id = request.headers.get("X-Trace-Id", "") or uuid.uuid4().hex
+    _trace_id_var.set(trace_id)
+    start_time = time.time()
+    response = await call_next(request)
+    response.headers["X-Trace-Id"] = trace_id
+    # 记录指标
+    elapsed = time.time() - start_time
+    prometheus_metrics.inc_requests()
+    prometheus_metrics.observe_latency(elapsed)
+    if response.status_code >= 400:
+        prometheus_metrics.inc_errors()
+    return response
+
+
+# ── 速率限制中间件 ───────────────────────────────────
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    """基于客户端IP的速率限制。放行 /api/v1/metrics 端点。"""
+    if request.url.path == "/api/v1/metrics":
+        return await call_next(request)
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    allowed, remaining, reset_at = rate_limiter.check(client_ip)
+    if not allowed:
+        logger.warning("速率限制触发: ip=%s, path=%s", client_ip, request.url.path)
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=429,
+            content={
+                "detail": "Too Many Requests",
+                "message": "请求过于频繁，请稍后再试",
+                "trace_id": _trace_id_var.get(),
+            },
+            headers={
+                "X-RateLimit-Limit": str(rate_limiter.max_requests),
+                "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Reset": str(reset_at),
+                "X-Trace-Id": _trace_id_var.get(),
+            },
+        )
+    response = await call_next(request)
+    response.headers["X-RateLimit-Limit"] = str(rate_limiter.max_requests)
+    response.headers["X-RateLimit-Remaining"] = str(remaining)
+    response.headers["X-RateLimit-Reset"] = str(reset_at)
+    return response
+
+
+# ── 异常处理器（注入 trace_id） ──────────────────────
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "detail": exc.detail,
+            "trace_id": _trace_id_var.get(),
+        },
+        headers=exc.headers,
+    )
+
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    logger.error("未捕获异常: %s", exc, exc_info=True)
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal Server Error",
+            "trace_id": _trace_id_var.get(),
+        },
+    )
 
 
 # ── 旧路径兼容中间件（307 重定向 /api/* → /api/v1/*） ──
@@ -934,6 +1144,15 @@ def health_check():
 # v1 版本的健康检查（同时兼容 /api/v1/health）
 health_check_v1 = health_check  # 复用同一函数
 # 由 app.include_router 在文件末尾注册
+
+
+# ── Prometheus metrics 端点 ──────────────────────────
+
+@v1_router.get("/metrics")
+def get_metrics():
+    """暴露 Prometheus 格式的基础指标。"""
+    from fastapi.responses import PlainTextResponse
+    return PlainTextResponse(content=prometheus_metrics.render(), media_type="text/plain")
 
 
 # ── 0. 用户认证 ──────────────────────────────────────
@@ -1733,6 +1952,4 @@ app.include_router(v1_router)
 v1_router.get("/health")(health_check)
 
 if __name__ == "__main__":
-    load_data()
-    logger.info("🚀 AI数字名片 v2.1 启动于 http://%s:%d", HOST, PORT)
     uvicorn.run(app, host=HOST, port=PORT, reload=False)
