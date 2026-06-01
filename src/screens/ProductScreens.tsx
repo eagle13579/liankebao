@@ -201,13 +201,58 @@ export const AddProduct = memo(function AddProduct() {
   const [category, setCategory] = useState('大健康 - 营养膳食');
   const [stock, setStock] = useState('');
   const [loading, setLoading] = useState(false);
+  const [specifications, setSpecifications] = useState<{name: string; price: string}[]>([]);
+  const [newSpecName, setNewSpecName] = useState('');
+  const [newSpecPrice, setNewSpecPrice] = useState('');
+  const [images, setImages] = useState<string[]>([]);
+
+  const handleAddSpecification = () => {
+    const nameTrimmed = newSpecName.trim();
+    if (!nameTrimmed) return;
+    // 去重：检查是否已存在同名规格
+    const exists = specifications.some(s => s.name === nameTrimmed);
+    if (exists) {
+      alert(`规格"${nameTrimmed}"已存在，请勿重复添加`);
+      return;
+    }
+    setSpecifications(prev => [...prev, { name: nameTrimmed, price: newSpecPrice || price || '0' }]);
+    setNewSpecName('');
+    setNewSpecPrice('');
+  };
+
+  const handleRemoveSpecification = (index: number) => {
+    setSpecifications(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // 先本地预览
+    const localUrl = URL.createObjectURL(file);
+    setImages(prev => [...prev, localUrl]);
+    // 尝试上传到服务器
+    const formData = new FormData();
+    formData.append('file', file);
+    api.request<{url: string}>('/api/upload', { method: 'POST', body: formData }).then(res => {
+      if (res.code === 200 && res.data?.url) {
+        setImages(prev => prev.map(img => img === localUrl ? res.data!.url : img));
+      }
+    }).catch(() => {
+      // 上传失败时保留本地预览，不阻塞用户操作
+      console.warn('图片上传失败，保留本地预览');
+    });
+    // 重置 input 以便重复选择同一文件
+    e.target.value = '';
+  };
 
   const handleSubmit = async () => {
     setLoading(true);
     try {
       const res = await api.post<{product: ProductItem}>('/api/products', {
         name, description, price: parseFloat(price), earn_per_share: parseFloat(earnPerShare),
-        category, stock: parseInt(stock)
+        category, stock: parseInt(stock),
+        specifications: specifications.length > 0 ? specifications : undefined,
+        images: images.length > 0 ? images : undefined
       });
       if (res.code === 200) {
         navigate('/my-products', { state: { transition: 'push_back' } });
@@ -248,17 +293,32 @@ export const AddProduct = memo(function AddProduct() {
 
         <section className="bg-white rounded-2xl p-4 border border-border-light shadow-sm space-y-4">
           <h2 className="font-bold text-lg">规格选项</h2>
-          <div className="p-3 bg-neutral-bg rounded-xl border border-border-light flex justify-between items-center">
-            <div className="space-y-1"><p className="font-bold">标准装</p><p className="text-primary-container font-bold">¥{price || '0'}</p></div>
-            <button className="text-error"><Minus className="w-5 h-5" /></button>
+          {specifications.map((spec, i) => (
+            <div key={i} className="p-3 bg-neutral-bg rounded-xl border border-border-light flex justify-between items-center">
+              <div className="space-y-1"><p className="font-bold">{spec.name}</p><p className="text-primary-container font-bold">¥{spec.price}</p></div>
+              <button onClick={() => handleRemoveSpecification(i)} className="text-error"><Minus className="w-5 h-5" /></button>
+            </div>
+          ))}
+          <div className="flex gap-2 items-center">
+            <input value={newSpecName} onChange={e => setNewSpecName(e.target.value)} placeholder="规格名称" className="flex-1 h-10 px-3 bg-neutral-bg/50 border border-border-light rounded-lg text-sm outline-none focus:border-primary-container" />
+            <input value={newSpecPrice} onChange={e => setNewSpecPrice(e.target.value)} placeholder="价格" type="number" className="w-24 h-10 px-3 bg-neutral-bg/50 border border-border-light rounded-lg text-sm outline-none focus:border-primary-container" />
+            <button onClick={handleAddSpecification} className="h-10 px-4 bg-primary-container text-white rounded-lg font-bold text-sm whitespace-nowrap">添加</button>
           </div>
-          <button className="w-full py-3 border-2 border-dashed border-border-light rounded-xl text-secondary flex items-center justify-center gap-2 font-bold text-sm"><Plus className="w-5 h-5" />添加规格</button>
         </section>
 
         <section className="bg-white rounded-2xl p-4 border border-border-light shadow-sm space-y-4">
           <h2 className="font-bold text-lg">产品主图</h2>
           <div className="grid grid-cols-3 gap-3">
-            <div className="aspect-square rounded-xl bg-slate-100 flex items-center justify-center border-2 border-dashed border-border-light"><Camera className="text-slate-400" /></div>
+            {images.map((img, i) => (
+              <div key={i} className="aspect-square rounded-xl overflow-hidden border border-border-light relative group">
+                <img src={img} className="w-full h-full object-cover" />
+                <button onClick={() => setImages(prev => prev.filter((_, j) => j !== i))} className="absolute top-1 right-1 w-6 h-6 bg-black/50 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+              </div>
+            ))}
+            <label className="aspect-square rounded-xl bg-slate-100 flex items-center justify-center border-2 border-dashed border-border-light cursor-pointer active:scale-95 transition-transform">
+              <Camera className="text-slate-400" />
+              <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+            </label>
           </div>
         </section>
 
