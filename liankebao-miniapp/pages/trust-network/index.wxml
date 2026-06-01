@@ -1,0 +1,13 @@
+<view class="page">
+  <view class="search-bar"><input placeholder="搜索用户" bindinput="onSearch" value="{{searchQuery}}"/></view>
+  <block wx:if="{{searchResults.length>0}}"><view class="search-results"><block wx:for="{{searchResults}}" wx:key="id">
+    <view class="user-item"><text>{{item.name}} - {{item.company}}</text><button class="add-btn" data-id="{{item.user_id}}" bindtap="addTrust">添加</button></view>
+  </block></view></block>
+  <view class="section-title">我的信任网络 ({{trustList.length}})</view>
+  <block wx:if="{{trustList.length==0}}"><view class="empty"><text>暂无信任关系</text></view></block>
+  <block wx:else><block wx:for="{{trustList}}" wx:key="id">
+    <view class="trust-item" data-id="{{item.user_id}}" bindlongpress="removeTrust">
+      <image src="{{item.avatar||'/images/default-avatar.png'}}"/><view><text>{{item.name}}</text><text>{{item.company}}</text></view>
+    </view>
+  </block></block>
+</view>
