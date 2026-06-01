@@ -8,10 +8,10 @@ import { api } from './client';
 export interface MembershipTier {
   id: number;
   name: string;
-  level: 'free' | 'gold' | 'diamond';
+  level: 'free' | 'gold' | 'diamond' | 'board';
   price: number;         // 年费，0表示免费
   trial_price: number;   // 体验价
- 对接券_per_month: number;
+  对接券_per_month: number;
   commission_rate: number; // 分润比例 e.g. 0.05
   features: string[];
   badge: string;
@@ -20,7 +20,7 @@ export interface MembershipTier {
 
 /** 用户当前会员状态 */
 export interface MembershipStatus {
-  level: 'free' | 'gold' | 'diamond';
+  level: 'free' | 'gold' | 'diamond' | 'board';
   level_name: string;
   expired_at: string | null;
   remaining_coupons: number;   // 剩余对接券

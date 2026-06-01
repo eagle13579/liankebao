@@ -52,6 +52,15 @@ const levelConfig = {
     gradient: 'from-sky-500 to-blue-600',
     badgeColor: 'bg-sky-100 text-sky-700',
   },
+  board: {
+    name: '私董会',
+    icon: Star,
+    color: 'text-purple-600',
+    bgColor: 'bg-purple-50',
+    borderColor: 'border-purple-200',
+    gradient: 'from-purple-600 to-indigo-700',
+    badgeColor: 'bg-purple-100 text-purple-700',
+  },
 };
 
 // ───────── Component: MembershipStatusBanner ─────────
@@ -385,6 +394,128 @@ export function MembershipCenter() {
             <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
             <span className="text-xs text-rose-700">{error}</span>
           </div>
+        )}
+
+        {/* Level-specific content: 付费用户专属区域 */}
+        {status && status.level !== 'free' && (
+          <section className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
+            {/* Gold: show gold benefits + upgrade to diamond */}
+            {status.level === 'gold' && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Shield className="w-5 h-5 text-amber-500" />
+                  <h2 className="font-manrope font-extrabold text-slate-800 text-base">金卡专属权益</h2>
+                </div>
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center gap-2 text-xs text-slate-600">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>每月 {status.total_coupons_this_month} 张对接券 · 剩余 {status.remaining_coupons} 张</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-600">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>推广佣金提升至 8%</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-600">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>优先审核产品上架</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-600">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>专属客服支持</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    const diamondTier = tiers.find(t => t.level === 'diamond');
+                    if (diamondTier) handleUpgrade(diamondTier);
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 text-white text-xs font-bold active:scale-[0.97] transition-transform shadow-sm"
+                >
+                  升级钻石会员
+                </button>
+              </div>
+            )}
+
+            {/* Diamond: show diamond benefits + upgrade to board */}
+            {status.level === 'diamond' && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Diamond className="w-5 h-5 text-sky-600" />
+                  <h2 className="font-manrope font-extrabold text-slate-800 text-base">钻石会员专属权益</h2>
+                </div>
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center gap-2 text-xs text-slate-600">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>每月 {status.total_coupons_this_month} 张对接券 · 剩余 {status.remaining_coupons} 张</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-600">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>推广佣金提升至 10%</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-600">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>优先匹配高价值商机</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-600">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>专属客户成功经理</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    const boardTier = tiers.find(t => t.level === 'board');
+                    if (boardTier) handleUpgrade(boardTier);
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-700 text-white text-xs font-bold active:scale-[0.97] transition-transform shadow-sm"
+                >
+                  升级私董会
+                </button>
+              </div>
+            )}
+
+            {/* Board: show board exclusive page */}
+            {status.level === 'board' && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Star className="w-5 h-5 text-purple-600" fill="currentColor" />
+                  <h2 className="font-manrope font-extrabold text-slate-800 text-base">私董会专属空间</h2>
+                </div>
+                <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-4 border border-purple-100 mb-4">
+                  <p className="text-xs text-purple-700 font-medium mb-2">
+                    欢迎进入私董会！享受最高级别的专属权益与服务。
+                  </p>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-xs text-slate-600">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span>无限张对接券 · 不限量使用</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-slate-600">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span>最高推广佣金 15%</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-slate-600">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span>私董会专属资源对接</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-slate-600">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span>一对一专属顾问服务</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-slate-600">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span>优先参与高端闭门会议</span>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => navigate('/private-board')}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-700 text-white text-xs font-bold active:scale-[0.97] transition-transform shadow-sm"
+                >
+                  进入私董会
+                </button>
+              </div>
+            )}
+          </section>
         )}
 
         {/* Tier Comparison */}
