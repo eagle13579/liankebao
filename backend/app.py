@@ -115,6 +115,15 @@ except Exception as e:
     logger.warning("数字图册 API 路由挂载失败: %s", e)
 
 
+# 会员体系 API 路由
+try:
+    from app.routers.membership import router as membership_router
+    app.include_router(membership_router)
+    logger.info("会员体系 API 路由已挂载 (v1)")
+except Exception as e:
+    logger.warning("会员体系 API 路由挂载失败: %s", e)
+
+
 # ── 健康检查 ──────────────────────────────────────────────────
 
 

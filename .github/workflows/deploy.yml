@@ -1,0 +1,100 @@
+# ============================================================
+# 链客宝 CI/CD — 自动回滚 + 多环境部署
+# ============================================================
+# 分支策略:
+#   staging → 测试环境 (:8004)
+#   master  → 生产环境 (:8003)
+# ============================================================
+# GitHub Secrets 要求:
+#   SSH_HOST, SSH_USER, SSH_PRIVATE_KEY - SSH连接
+#   DEPLOY_PATH - 部署路径
+#   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID - Telegram通知
+#   WEBHOOK_URL - 通用Webhook通知
+# ============================================================
+
+name: 链客宝 CI/CD
+
+on:
+  push:
+    branches:
+      - master
+      - staging
+  workflow_dispatch:
+    inputs:
+      deploy_target:
+        description: '部署目标 (auto=按分支, staging, production)'
+        required: false
+        default: 'auto'
+
+env:
+  DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/var/www/liankebao' }}
+  BACKUP_RETENTION: 3
+
+jobs:
+  build-and-test:
+    name: 构建 + 测试
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: 安装依赖
+        run: |
+          cd backend
+          pip install --no-cache-dir -r requirements.txt
+          pip install pytest httpx
+      - name: 运行测试
+        run: |
+          cd backend
+          python -m pytest tests/ -v --tb=short --maxfail=5
+        continue-on-error: false
+
+  deploy:
+    name: 部署
+    needs: build-and-test
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/staging' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 确定部署环境与端口
+        id: env
+        run: |
+          if [[ "\${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TARGET="\${{ github.event.inputs.deploy_target }}"
+            if [[ "\$TARGET" == "production" ]]; then
+              echo "BRANCH=master" >> \$GITHUB_OUTPUT
+              echo "PORT=8003" >> \$GITHUB_OUTPUT
+              echo "ENV_NAME=production" >> \$GITHUB_OUTPUT
+            elif [[ "\$TARGET" == "staging" ]]; then
+              echo "BRANCH=staging" >> \$GITHUB_OUTPUT
+              echo "PORT=8004" >> \$GITHUB_OUTPUT
+              echo "ENV_NAME=staging" >> \$GITHUB_OUTPUT
+            else
+              echo "BRANCH=\${GITHUB_REF#refs/heads/}" >> \$GITHUB_OUTPUT
+              if [[ "\${GITHUB_REF#refs/heads/}" == "master" ]]; then
+                echo "PORT=8003" >> \$GITHUB_OUTPUT
+                echo "ENV_NAME=production" >> \$GITHUB_OUTPUT
+              else
+                echo "PORT=8004" >> \$GITHUB_OUTPUT
+                echo "ENV_NAME=staging" >> \$GITHUB_OUTPUT
+              fi
+            fi
+          else
+            BRANCH="\${GITHUB_REF#refs/heads/}"
+            echo "BRANCH=\$BRANCH" >> \$GITHUB_OUTPUT
+            if [[ "\$BRANCH" == "master" ]]; then
+              echo "PORT=8003" >> \$GITHUB_OUTPUT
+              echo "ENV_NAME=production" >> \$GITHUB_OUTPUT
+            else
+              echo "PORT=8004" >> \$GITHUB_OUTPUT
+              echo "ENV_NAME=staging" >> \$GITHUB_OUTPUT
+            fi
+          fi
+
+# test append
+axb
+# continue building deploy.yml...
