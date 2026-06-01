@@ -35,11 +35,37 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 import uvicorn
+
+# ── P2: tracing / rate-limit / sentry / metrics / i18n ──────────
+import contextvars
+import time
+from collections import deque
+
+from app.i18n import _, detect_lang
+from app.rate_limiter import (
+    MemoryRateLimiter,
+    get_rate_limiter,
+    get_route_limit,
+    extract_client_ip,
+    extract_user_id,
+    is_rate_limiting_enabled as _rate_limit_enabled,
+)
+from app.sentry_config import setup_sentry, wrap_with_sentry, is_sentry_active
+from app.observability import get_metrics_collector, get_system_info
+
+# FastAPI exception handlers
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+
+# ── 全局 trace_id 上下文 ──────────────────────────────────
+_trace_id_var: contextvars.ContextVar[str] = contextvars.ContextVar('trace_id', default='')
+_lang_var: contextvars.ContextVar[str] = contextvars.ContextVar('lang', default='zh')
+
 
 # ── 日志 ──────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -781,6 +807,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── 注册 P2 中间件（按顺序: trace_id → metrics → i18n → rate_limit） ──
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(I18nLanguageMiddleware)
+app.add_middleware(MetricsMiddleware)
+
 
 # ── Pydantic 模型 ──────────────────────────────────────
 
@@ -890,14 +921,14 @@ def require_user_id(
     if credentials is None:
         raise HTTPException(
             status_code=401,
-            detail="缺少 Authorization 头，请先登录",
+            detail=_("缺少 Authorization 头，请先登录", _lang_var.get()),
             headers={"WWW-Authenticate": "Bearer"},
         )
     user = db_get_user_by_token(credentials.credentials)
     if user is None:
         raise HTTPException(
             status_code=401,
-            detail="Token 无效或已过期，请重新登录",
+            detail=_("Token 无效或已过期，请重新登录", _lang_var.get()),
             headers={"WWW-Authenticate": "Bearer"},
         )
     return user["user_id"]
@@ -918,6 +949,128 @@ def ensure_brochure_id(user_id: str) -> str:
     return user_id
 
 
+
+# ════════════════════════════════════════════════════════
+# P2: trace_id+限流+国际化 中间件
+# ════════════════════════════════════════════════════════
+
+@app.middleware("http")
+async def trace_id_middleware(request: Request, call_next):
+    """为每个请求分配 trace_id，设置 X-Trace-Id 响应头。"""
+    trace_id = request.headers.get("X-Trace-Id", uuid.uuid4().hex[:16])
+    _trace_id_var.set(trace_id)
+    request.state.trace_id = trace_id
+    response = await call_next(request)
+    response.headers["X-Trace-Id"] = trace_id
+    return response
+
+
+@app.exception_handler(Exception)
+async def http_exception_handler(request: Request, exc: Exception):
+    """全局异常处理：返回含 trace_id 的 JSON 错误响应。"""
+    trace_id = _trace_id_var.get() or getattr(request.state, 'trace_id', '')
+    status_code = 500
+    detail = _("内部服务器错误", detect_lang(request.headers.get("Accept-Language", "")))
+
+    if isinstance(exc, HTTPException):
+        status_code = exc.status_code
+        detail = exc.detail
+
+    logger.error("请求异常: path=%s, trace_id=%s, status=%d, detail=%s",
+                 request.url.path, trace_id, status_code, detail)
+
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "code": status_code,
+            "data": None,
+            "message": detail,
+            "trace_id": trace_id,
+        },
+    )
+
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    """速率限制中间件 — 100次/分钟/IP，滑动窗口"""
+
+    EXEMPT_PATHS = {"/api/health", "/api/v1/metrics"}
+
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+
+        # 排除免限流路径
+        if path in self.EXEMPT_PATHS:
+            return await call_next(request)
+
+        # 检查是否启用
+        if not _rate_limit_enabled():
+            return await call_next(request)
+
+        client_ip = extract_client_ip(request)
+        limiter: MemoryRateLimiter = get_rate_limiter()
+        default_limit = 100
+
+        # 获取路径特定的限流上限
+        route_limit = get_route_limit(path, default=default_limit)
+
+        allowed, retry_after = limiter.check(client_ip, limit=route_limit)
+        remaining = limiter.get_remaining(client_ip, limit=route_limit)
+
+        if not allowed:
+            lang = detect_lang(request.headers.get("Accept-Language", ""))
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "code": 429,
+                    "data": None,
+                    "message": _("请求过于频繁，请稍后再试", lang),
+                },
+                headers={
+                    "X-RateLimit-Limit": str(route_limit),
+                    "X-RateLimit-Remaining": "0",
+                    "X-RateLimit-Reset": str(retry_after),
+                    "Retry-After": str(retry_after),
+                },
+            )
+
+        response = await call_next(request)
+        response.headers["X-RateLimit-Limit"] = str(route_limit)
+        response.headers["X-RateLimit-Remaining"] = str(remaining)
+        response.headers["X-RateLimit-Reset"] = str(limiter.window_sec)
+        return response
+
+
+class I18nLanguageMiddleware(BaseHTTPMiddleware):
+    """国际化中间件: 从 Accept-Language 检测语言并设置 _lang_var"""
+
+    async def dispatch(self, request: Request, call_next):
+        accept_lang = request.headers.get("Accept-Language", "")
+        lang = detect_lang(accept_lang)
+        _lang_var.set(lang)
+        request.state.lang = lang
+        response = await call_next(request)
+        response.headers["X-Content-Language"] = lang
+        return response
+
+
+class MetricsMiddleware(BaseHTTPMiddleware):
+    """Prometheus 指标采集中间件"""
+
+    async def dispatch(self, request: Request, call_next):
+        start_time = time.time()
+        response = await call_next(request)
+        elapsed = time.time() - start_time
+
+        collector = get_metrics_collector()
+        collector.record_request(
+            method=request.method,
+            path=request.url.path,
+            status_code=response.status_code,
+            elapsed_sec=elapsed,
+        )
+        return response
+
+
 # ════════════════════════════════════════════════════════
 # API 端点
 # ════════════════════════════════════════════════════════
@@ -931,14 +1084,38 @@ def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/api/health")
-def health_check():
+def health_check(request: Request = None):
+    lang = _lang_var.get() or detect_lang(request.headers.get("Accept-Language", "")) if request else "zh"
+    collector = get_metrics_collector()
+    snap = collector.snapshot()
+    metrics_status = _("指标收集器状态正常", lang) if snap["total_requests"] >= 0 else _("无指标数据", lang)
     return {
         "status": "ok",
         "service": "AI数字名片 v2.2",
         "version": "2.2.0",
         "brochures_count": len(BROCHURES),
         "storage": "sqlite",
+        "metrics": {
+            "total_requests": snap["total_requests"],
+            "status": metrics_status,
+        },
     }
+
+
+# ── Prometheus metrics 端点 ──
+
+@app.get("/api/v1/metrics")
+def metrics_endpoint():
+    """返回 Prometheus text/plain 格式的指标数据"""
+    collector = get_metrics_collector()
+    prometheus_text = collector.generate_prometheus_text()
+    return Response(
+        content=prometheus_text,
+        media_type="text/plain; charset=utf-8",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+        },
+    )
 
 
 # ── 0. 用户认证 ──────────────────────────────────────
@@ -949,17 +1126,17 @@ def register(data: RegisterRequest):
     # 检查手机号是否已注册
     existing = db_get_user_by_phone(data.phone)
     if existing:
-        raise HTTPException(status_code=409, detail="该手机号已注册")
+        raise HTTPException(status_code=409, detail=_("该手机号已注册", _lang_var.get()))
 
     # 创建用户
     user = db_create_user(name=data.name, phone=data.phone, password=data.password)
     if not user:
-        raise HTTPException(status_code=500, detail="注册失败，请稍后再试")
+        raise HTTPException(status_code=500, detail=_("注册失败，请稍后再试", _lang_var.get()))
 
     # 自动登录：创建 token
     token = db_create_token(user["user_id"])
     if not token:
-        raise HTTPException(status_code=500, detail="创建 token 失败")
+        raise HTTPException(status_code=500, detail=_("创建 token 失败", _lang_var.get()))
 
     logger.info("新用户注册: %s (%s)", user["name"], user["phone"])
     return TokenResponse(
@@ -982,11 +1159,11 @@ def login(data: LoginRequest):
     """用户登录（手机号 + 密码），返回 token。"""
     user = db_authenticate_user(data.phone, data.password)
     if not user:
-        raise HTTPException(status_code=401, detail="手机号或密码错误")
+        raise HTTPException(status_code=401, detail=_("手机号或密码错误", _lang_var.get()))
 
     token = db_create_token(user["user_id"])
     if not token:
-        raise HTTPException(status_code=500, detail="创建 token 失败")
+        raise HTTPException(status_code=500, detail=_("创建 token 失败", _lang_var.get()))
 
     logger.info("用户登录: %s (%s)", user["name"], user["phone"])
     return TokenResponse(
@@ -1009,7 +1186,7 @@ def get_me(current_user_id: str = Depends(require_user_id)):
     """获取当前登录用户的信息。"""
     user = db_get_user_by_id(current_user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="用户不存在")
+        raise HTTPException(status_code=404, detail=_("用户不存在", _lang_var.get()))
     return {
         "code": 200,
         "data": UserInfoResponse(
@@ -1030,7 +1207,7 @@ def logout(credentials: Optional[HTTPAuthorizationCredentials] = Depends(securit
     """退出登录（删除 token）。"""
     if credentials:
         db_delete_token(credentials.credentials)
-    return {"code": 200, "message": "已退出登录"}
+    return {"code": 200, "message": _("已退出登录", _lang_var.get())}
 
 
 # ── 我的画册列表（当前用户） ─────────────────────────
@@ -1074,7 +1251,7 @@ def get_brochure(user_id: str):
         if brochure:
             BROCHURES[bid] = brochure
         else:
-            raise HTTPException(status_code=404, detail="画册不存在")
+            raise HTTPException(status_code=404, detail=_("画册不存在", _lang_var.get()))
     return {"code": 200, "data": brochure}
 
 
@@ -1089,10 +1266,10 @@ def create_brochure(data: BrochureCreate, current_user_id: str = Depends(require
 
     # 用户隔离：只能用自己的 user_id 创建画册
     if effective_user_id != current_user_id:
-        raise HTTPException(status_code=403, detail="不能为其他用户创建画册")
+        raise HTTPException(status_code=403, detail=_("不能为其他用户创建画册", _lang_var.get()))
 
     if bid in BROCHURES:
-        raise HTTPException(status_code=409, detail="该用户画册已存在")
+        raise HTTPException(status_code=409, detail=_("该用户画册已存在", _lang_var.get()))
 
     brochure = {
         "brochure_id": bid,
@@ -1126,7 +1303,7 @@ def create_brochure(data: BrochureCreate, current_user_id: str = Depends(require
     for trusted_id in data.trust_network:
         db_add_trust(effective_user_id, trusted_id)
 
-    return {"code": 201, "message": "画册创建成功", "data": brochure}
+    return {"code": 201, "message": _("画册创建成功", _lang_var.get()), "data": brochure}
 
 
 # ── 5. 更新画册（需登录 + 所有权校验） ────────────────
@@ -1137,11 +1314,11 @@ def update_brochure(user_id: str, data: BrochureUpdate,
     bid = ensure_brochure_id(user_id)
     brochure = BROCHURES.get(bid)
     if not brochure:
-        raise HTTPException(status_code=404, detail="画册不存在")
+        raise HTTPException(status_code=404, detail=_("画册不存在", _lang_var.get()))
 
     # 用户隔离：只能更新自己的画册
     if brochure.get("user_id") != current_user_id:
-        raise HTTPException(status_code=403, detail="无权修改此画册")
+        raise HTTPException(status_code=403, detail=_("无权修改此画册", _lang_var.get()))
 
     update_fields = data.model_dump(exclude_unset=True)
     for field, value in update_fields.items():
@@ -1152,7 +1329,7 @@ def update_brochure(user_id: str, data: BrochureUpdate,
     BROCHURES[bid] = brochure
     sync_to_db(bid)
 
-    return {"code": 200, "message": "画册更新成功", "data": brochure}
+    return {"code": 200, "message": _("画册更新成功", _lang_var.get()), "data": brochure}
 
 
 # ── 6. 删除画册（需登录 + 所有权校验） ────────────────
@@ -1162,16 +1339,16 @@ def delete_brochure(user_id: str, current_user_id: str = Depends(require_user_id
     bid = ensure_brochure_id(user_id)
     brochure = BROCHURES.get(bid)
     if not brochure:
-        raise HTTPException(status_code=404, detail="画册不存在")
+        raise HTTPException(status_code=404, detail=_("画册不存在", _lang_var.get()))
 
     # 用户隔离：只能删除自己的画册
     if brochure.get("user_id") != current_user_id:
-        raise HTTPException(status_code=403, detail="无权删除此画册")
+        raise HTTPException(status_code=403, detail=_("无权删除此画册", _lang_var.get()))
 
     del BROCHURES[bid]
     db_delete_brochure(bid)
 
-    return {"code": 200, "message": "画册已删除"}
+    return {"code": 200, "message": _("画册已删除", _lang_var.get())}
 
 
 # ── 7. 获取信任网络 ──────────────────────────────────
@@ -1181,7 +1358,7 @@ def get_trust_network(user_id: str):
     bid = ensure_brochure_id(user_id)
     brochure = BROCHURES.get(bid)
     if not brochure:
-        raise HTTPException(status_code=404, detail="画册不存在")
+        raise HTTPException(status_code=404, detail=_("画册不存在", _lang_var.get()))
 
     # 从 SQLite 获取信任关系
     trusted_ids = db_get_trust_network(user_id)
@@ -1230,18 +1407,18 @@ def add_trust(user_id: str, data: TrustAddRequest,
               current_user_id: str = Depends(require_user_id)):
     # 用户隔离：只能操作自己的信任网络
     if user_id != current_user_id:
-        raise HTTPException(status_code=403, detail="无权操作其他用户的信任网络")
+        raise HTTPException(status_code=403, detail=_("无权操作其他用户的信任网络", _lang_var.get()))
     bid = ensure_brochure_id(user_id)
     if bid not in BROCHURES:
-        raise HTTPException(status_code=404, detail="画册不存在")
+        raise HTTPException(status_code=404, detail=_("画册不存在", _lang_var.get()))
 
     trusted_bid = ensure_brochure_id(data.trusted_user_id)
     if trusted_bid not in BROCHURES:
-        raise HTTPException(status_code=404, detail="被信任用户画册不存在")
+        raise HTTPException(status_code=404, detail=_("被信任用户画册不存在", _lang_var.get()))
 
     ok = db_add_trust(user_id, data.trusted_user_id)
     if not ok:
-        raise HTTPException(status_code=500, detail="添加信任关系失败")
+        raise HTTPException(status_code=500, detail=_("添加信任关系失败", _lang_var.get()))
 
     # 更新内存缓存
     if "trust_network" not in BROCHURES[bid]:
@@ -1251,7 +1428,7 @@ def add_trust(user_id: str, data: TrustAddRequest,
     BROCHURES[bid]["updated_at"] = datetime.now().isoformat()
     sync_to_db(bid)
 
-    return {"code": 200, "message": "信任关系添加成功"}
+    return {"code": 200, "message": _("信任关系添加成功", _lang_var.get())}
 
 
 # ── 9. 移除信任关系（需登录 + 只能操作自己的信任网络） ─
@@ -1261,14 +1438,14 @@ def remove_trust(user_id: str, trusted_user_id: str = Query(..., description="�
                  current_user_id: str = Depends(require_user_id)):
     # 用户隔离：只能操作自己的信任网络
     if user_id != current_user_id:
-        raise HTTPException(status_code=403, detail="无权操作其他用户的信任网络")
+        raise HTTPException(status_code=403, detail=_("无权操作其他用户的信任网络", _lang_var.get()))
     bid = ensure_brochure_id(user_id)
     if bid not in BROCHURES:
-        raise HTTPException(status_code=404, detail="画册不存在")
+        raise HTTPException(status_code=404, detail=_("画册不存在", _lang_var.get()))
 
     ok = db_remove_trust(user_id, trusted_user_id)
     if not ok:
-        raise HTTPException(status_code=500, detail="移除信任关系失败")
+        raise HTTPException(status_code=500, detail=_("移除信任关系失败", _lang_var.get()))
 
     # 更新内存缓存
     if "trust_network" in BROCHURES[bid] and trusted_user_id in BROCHURES[bid]["trust_network"]:
@@ -1276,7 +1453,7 @@ def remove_trust(user_id: str, trusted_user_id: str = Query(..., description="�
     BROCHURES[bid]["updated_at"] = datetime.now().isoformat()
     sync_to_db(bid)
 
-    return {"code": 200, "message": "信任关系已移除"}
+    return {"code": 200, "message": _("信任关系已移除", _lang_var.get())}
 
 
 # ── 10. 获取匹配列表 ─────────────────────────────────
@@ -1285,7 +1462,7 @@ def remove_trust(user_id: str, trusted_user_id: str = Query(..., description="�
 def get_matches(user_id: str):
     bid = ensure_brochure_id(user_id)
     if bid not in BROCHURES:
-        raise HTTPException(status_code=404, detail="画册不存在")
+        raise HTTPException(status_code=404, detail=_("画册不存在", _lang_var.get()))
 
     matches = db_get_matches(user_id)
     enriched = []
@@ -1315,7 +1492,7 @@ def match_brochures(req: MatchRequest):
     """匹配引擎：计算指定用户与其他所有用户的供需匹配度。"""
     source_id = ensure_brochure_id(req.user_id)
     if source_id not in BROCHURES:
-        raise HTTPException(status_code=404, detail="源用户画册不存在")
+        raise HTTPException(status_code=404, detail=_("源用户画册不存在", _lang_var.get()))
 
     results = run_matching(source_id, BROCHURES)
     limited = results[:req.limit]
@@ -1378,7 +1555,7 @@ def get_user(user_id: str):
                     "bio": brochure.get("bio", ""),
                 },
             }
-        raise HTTPException(status_code=404, detail="用户不存在")
+        raise HTTPException(status_code=404, detail=_("用户不存在", _lang_var.get()))
     finally:
         conn.close()
 
@@ -1396,7 +1573,7 @@ def brochure_preview(brochure_id: str, request: Request,
     bid = ensure_brochure_id(brochure_id)
     brochure = BROCHURES.get(bid) or db_get_brochure(bid)
     if not brochure:
-        raise HTTPException(status_code=404, detail="画册不存在")
+        raise HTTPException(status_code=404, detail=_("画册不存在", _lang_var.get()))
 
     # ── 记录访客 ──
     visitor_ip = request.client.host if request.client else "0.0.0.0"
@@ -1496,7 +1673,7 @@ def get_visitors(brochure_id: str, limit: int = 30):
     bid = ensure_brochure_id(brochure_id)
     brochure = BROCHURES.get(bid) or db_get_brochure(bid)
     if not brochure:
-        raise HTTPException(status_code=404, detail="画册不存在")
+        raise HTTPException(status_code=404, detail=_("画册不存在", _lang_var.get()))
 
     visitors = db_get_visitors(bid, limit=min(limit, 100))
     total = db_count_visitors(bid)
@@ -1520,7 +1697,7 @@ def get_brochure_qrcode(brochure_id: str, request: Request):
     bid = ensure_brochure_id(brochure_id)
     brochure = BROCHURES.get(bid) or db_get_brochure(bid)
     if not brochure:
-        raise HTTPException(status_code=404, detail="画册不存在")
+        raise HTTPException(status_code=404, detail=_("画册不存在", _lang_var.get()))
 
     # 构建扫描短链接
     scheme = request.headers.get("x-forwarded-proto", "http")
@@ -1546,7 +1723,7 @@ def scan_redirect(brochure_id: str, request: Request):
     bid = ensure_brochure_id(brochure_id)
     brochure = BROCHURES.get(bid) or db_get_brochure(bid)
     if not brochure:
-        raise HTTPException(status_code=404, detail="画册不存在")
+        raise HTTPException(status_code=404, detail=_("画册不存在", _lang_var.get()))
 
     # 302 临时重定向到预览页
     scheme = request.headers.get("x-forwarded-proto", "http")
@@ -1567,7 +1744,7 @@ def sync_chainke(current_user_id: str = Depends(require_user_id)):
     Returns:
         {
             "code": 0,
-            "message": "同步完成",
+            "message": _("同步完成", _lang_var.get()),
             "data": {
                 "trust_pushed": N,
                 "matches_pulled": N,
@@ -1579,7 +1756,7 @@ def sync_chainke(current_user_id: str = Depends(require_user_id)):
     if not bridge:
         return {
             "code": 0,
-            "message": "链客宝桥接模块未加载，同步跳过",
+            "message": _("链客宝桥接模块未加载，同步跳过", _lang_var.get()),
             "data": {
                 "trust_pushed": 0,
                 "matches_pulled": 0,
@@ -1644,7 +1821,7 @@ def sync_chainke(current_user_id: str = Depends(require_user_id)):
 
     return {
         "code": 0,
-        "message": "同步完成",
+        "message": _("同步完成", _lang_var.get()),
         "data": {
             "trust_pushed": trust_pushed,
             "matches_pulled": matches_pulled,
@@ -1660,7 +1837,7 @@ def sync_chainke(current_user_id: str = Depends(require_user_id)):
 def batch_import(data: BatchImportRequest):
     """批量导入企业用户，自动创建画册。"""
     if not data.users:
-        raise HTTPException(status_code=400, detail="导入列表不能为空")
+        raise HTTPException(status_code=400, detail=_("导入列表不能为空", "zh"))
 
     imported = []
     errors = []
@@ -1716,7 +1893,7 @@ def batch_import(data: BatchImportRequest):
 
     return {
         "code": 201 if imported else 400,
-        "message": f"成功导入 {len(imported)} 个用户，失败 {len(errors)} 个",
+        "message": _("成功导入", "zh") + f" {len(imported)} " + _("个用户，失败", "zh") + f" {len(errors)} 个",
         "data": {
             "imported": imported,
             "errors": errors,
@@ -1733,5 +1910,8 @@ def batch_import(data: BatchImportRequest):
 
 if __name__ == "__main__":
     load_data()
-    logger.info("🚀 AI数字名片 v2.1 启动于 http://%s:%d", HOST, PORT)
-    uvicorn.run(app, host=HOST, port=PORT, reload=False)
+    # 初始化 Sentry（从 SENTRY_DSN 环境变量读取）
+    setup_sentry()
+    app_wrapped = wrap_with_sentry(app)
+    logger.info("🚀 AI数字名片 v2.2 启动于 http://%s:%d", HOST, PORT)
+    uvicorn.run(app_wrapped, host=HOST, port=PORT, reload=False)
