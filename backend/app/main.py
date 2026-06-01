@@ -60,14 +60,19 @@ import app.routers.activities as activities_module
 import app.routers.business_card as business_card_module
 import app.routers.contacts as contacts_module
 import app.routers.crm as crm_module
+import app.routers.crm_pipeline as crm_pipeline_module
+import app.routers.enrichment as enrichment_module
 import app.routers.enterprise as enterprise_module
 import app.routers.events as events_module
+import app.routers.growth as growth_module
 import app.routers.insights as insights_module
-import app.routers.needs as needs_module
 import app.routers.mission_control as mission_control_module
+import app.routers.needs as needs_module
 import app.routers.onboarding as onboarding_module
+import app.routers.organization as organization_module
 import app.routers.payment as payment_module
 import app.routers.recommend as recommend_module
+import app.routers.vector_search_router as vector_search_module
 import invoice as invoice_module
 import matching_engine as matching_engine_module
 import recharge.callback as recharge_callback_module
@@ -209,94 +214,9 @@ except Exception as e:
 
 # ===== Rate Limiting 中间件（滑动窗口，零依赖） =====
 # 必须在 CORSMiddleware 之后，确保 CORS 头已预先处理
-from app.rate_limiter import (
-    MemoryRateLimiter,
-    extract_client_ip,
-    extract_user_id,
-    get_rate_limiter,
-    get_route_limit,
-    is_rate_limiting_enabled,
-)
+from app.middleware.rate_limit import RateLimitMiddleware as NewRateLimitMiddleware
 
-
-class RateLimitMiddleware:
-    """FastAPI 速率限制中间件
-
-    基于滑动窗口算法，支持 per-IP 和 per-user 限流，
-    对 /api/auth/*、/api/search/*、/api/payment/* 等关键路由配置差异化速率。
-    """
-
-    def __init__(self, app):
-        self.app = app
-        self.limiter: MemoryRateLimiter = get_rate_limiter()
-
-    async def __call__(self, scope, receive, send):
-        if scope["type"] != "http":
-            await self.app(scope, receive, send)
-            return
-
-        if not is_rate_limiting_enabled():
-            await self.app(scope, receive, send)
-            return
-
-        # 构造 Request 对象用于提取信息
-        from fastapi import Request
-        from fastapi.responses import JSONResponse
-
-        request = Request(scope, receive)
-
-        path = request.url.path
-
-        # 跳过非 API 路径（静态资源、健康检查等）
-        if not path.startswith("/api/") or path.startswith("/api/v1/"):
-            await self.app(scope, receive, send)
-            return
-
-        # 提取客户端 IP
-        client_ip = extract_client_ip(request)
-
-        # 提取用户标识（如已认证）
-        user_id = extract_user_id(request)
-
-        # 获取路径对应的速率上限
-        route_limit = get_route_limit(path)
-
-        # 优先使用用户级限流（如已认证），否则使用 IP 级限流
-        rate_key = user_id if user_id else f"ip:{client_ip}"
-
-        allowed, retry_after = self.limiter.check(rate_key, limit=route_limit)
-
-        if not allowed:
-            logger.warning(
-                "rate_limit_exceeded",
-                extra={
-                    "path": path,
-                    "client_ip": client_ip,
-                    "user_id": user_id or "",
-                    "rate_key": rate_key,
-                    "limit": route_limit,
-                    "retry_after": retry_after,
-                },
-            )
-            response = JSONResponse(
-                status_code=429,
-                content={
-                    "detail": "Rate limit exceeded",
-                    "retry_after": retry_after,
-                },
-                headers={
-                    "Retry-After": str(retry_after),
-                    "X-RateLimit-Limit": str(route_limit),
-                    "X-RateLimit-Remaining": "0",
-                },
-            )
-            await response(scope, receive, send)
-            return
-
-        await self.app(scope, receive, send)
-
-
-app.add_middleware(RateLimitMiddleware)
+app.add_middleware(NewRateLimitMiddleware)
 
 # ===== 可观测性：指标收集器 =====
 from app.observability import (
@@ -410,6 +330,7 @@ router_modules = [
     import_router,
     contacts_module,
     crm_module,
+    crm_pipeline_module,
     enterprise_module,
     activities_module,
     payment_module,
@@ -425,6 +346,10 @@ router_modules = [
     admin_config_module,
     matching_engine_module,
     bi_module,
+    vector_search_module,
+    enrichment_module,
+    organization_module,
+    growth_module,
 ]
 
 # 第一轮：/api/v1/ 版本化路由
@@ -444,6 +369,7 @@ app.include_router(search.router)
 app.include_router(import_router.router)
 app.include_router(contacts_module.router)
 app.include_router(crm_module.router)
+app.include_router(crm_pipeline_module.router)
 app.include_router(enterprise_module.router)
 app.include_router(events_module.router)
 app.include_router(payment_module.router)
@@ -460,6 +386,15 @@ app.include_router(reconciliation_module.router)
 app.include_router(admin_config_module.router)
 app.include_router(matching_engine_module.router)
 app.include_router(bi_module.router)
+app.include_router(vector_search_module.router)
+app.include_router(enrichment_module.router)
+app.include_router(organization_module.router)
+app.include_router(growth_module.router)
+
+# ===== 启动时初始化增长引擎数据库 =====
+from app.routers.growth import init_growth_db
+
+init_growth_db()
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session

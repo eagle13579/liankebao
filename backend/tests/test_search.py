@@ -566,3 +566,106 @@ class TestSearchStats:
         stats = data["data"]
         assert "engine" in stats
         assert "documents" in stats
+
+
+# ============================================================
+# 新增搜索路由测试：vector / rerank / enterprises
+# ============================================================
+
+
+class TestVectorSearch:
+    """向量搜索路由测试（向量搜索默认未启用，返回 400）"""
+
+    def test_vector_search_empty_query(self, client):
+        """空查询返回空结果"""
+        resp = client.get("/api/search/vector", params={"q": ""})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["code"] == 200
+        assert data["data"]["items"] == []
+
+    def test_vector_search_basic(self, client):
+        """向量搜索基本功能（未启用时返回 400）"""
+        resp = client.get("/api/search/vector", params={"q": "测试", "top_k": 10})
+        # 向量搜索未启用时返回 400，启用时返回 200
+        assert resp.status_code in (200, 400)
+        data = resp.json()
+        if resp.status_code == 200:
+            assert data["code"] == 200
+            assert "items" in data["data"]
+        else:
+            assert "未启用" in data.get("message", "") or "未启用" in data.get("detail", "")
+
+    def test_vector_search_stats(self, client):
+        """向量搜索状态统计"""
+        resp = client.get("/api/search/vector/stats")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["code"] == 200
+
+
+class TestRerankSearch:
+    """向量重排序搜索路由测试（默认未启用，返回 400）"""
+
+    def test_rerank_empty_query(self, client):
+        """空查询返回空结果"""
+        resp = client.get("/api/search/rerank", params={"q": ""})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["code"] == 200
+        assert data["data"]["items"] == []
+
+    def test_rerank_basic(self, client):
+        """重排序搜索基本功能（未启用时返回 400）"""
+        resp = client.get("/api/search/rerank", params={"q": "测试", "page": 1, "page_size": 10})
+        # 向量重排序未启用时返回 400，启用时返回 200
+        assert resp.status_code in (200, 400)
+        data = resp.json()
+        if resp.status_code == 200:
+            assert data["code"] == 200
+            assert "items" in data["data"]
+
+
+class TestEnterpriseSearch:
+    """企业搜索路由测试"""
+
+    def test_enterprise_search_empty(self, client):
+        """空搜索返回全部企业（或空列表）"""
+        resp = client.get("/api/search/enterprises", params={"q": ""})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["code"] == 200
+        assert "items" in data["data"]
+        assert isinstance(data["data"]["items"], list)
+
+    def test_enterprise_search_by_name(self, client):
+        """按企业名称搜索"""
+        resp = client.get("/api/search/enterprises", params={"q": "链客宝"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["code"] == 200
+        assert "items" in data["data"]
+
+    def test_enterprise_search_pagination(self, client):
+        """企业搜索分页"""
+        resp = client.get("/api/search/enterprises", params={"q": "", "page": 1, "page_size": 10})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["code"] == 200
+        assert data["data"]["page"] == 1
+        assert data["data"]["page_size"] == 10
+
+    def test_enterprise_search_no_results(self, client):
+        """无匹配结果"""
+        resp = client.get("/api/search/enterprises", params={"q": "ZZZZNOTEXISTZZZZ"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["code"] == 200
+        assert data["data"]["total"] == 0
+
+    def test_enterprise_search_with_filters(self, client):
+        """按行业和地区筛选"""
+        resp = client.get("/api/search/enterprises", params={"q": "", "industry": "科技", "region": "北京"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["code"] == 200

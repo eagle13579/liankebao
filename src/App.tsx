@@ -40,6 +40,11 @@ const ContactMergePageLazy = lazy(() => import('./pages/ContactMergePage'));
 const ProfilePageLazy = lazy(() => import('./pages/ProfilePage'));
 const BusinessCardPageLazy = lazy(() => import('./pages/BusinessCardPage'));
 const BIPageLazy = lazy(() => import('./pages/BIPage'));
+const DashboardPageLazy = lazy(() => import('./pages/DashboardPage'));
+const RecommendPageLazy = lazy(() => import('./pages/RecommendPage'));
+const PipelinePageLazy = lazy(() => import('./pages/PipelinePage'));
+const DataEnrichPageLazy = lazy(() => import('./pages/DataEnrichPage'));
+const GrowthPageLazy = lazy(() => import('./pages/GrowthPage'));
 const SupplyDemandHallLazy = lazy(() => import('./screens/SupplyDemandScreens').then(m => ({ default: m.SupplyDemandHall })));
 const NeedDetailLazy = lazy(() => import('./screens/SupplyDemandScreens').then(m => ({ default: m.NeedDetail })));
 const PostNeedLazy = lazy(() => import('./screens/PostNeedScreen').then(m => ({ default: m.PostNeed })));
@@ -95,6 +100,11 @@ function AnimatedRoutes() {
         <Route path="/card/:token" element={<PageTransition><LazyPage><BusinessCardPageLazy /></LazyPage></PageTransition>} />
         <Route path="/profile" element={<PageTransition><LazyPage><ProfilePageLazy /></LazyPage></PageTransition>} />
         <Route path="/bi" element={<PageTransition><LazyPage><BIPageLazy /></LazyPage></PageTransition>} />
+        <Route path="/dashboard" element={<PageTransition><LazyPage><DashboardPageLazy /></LazyPage></PageTransition>} />
+        <Route path="/recommend" element={<PageTransition><LazyPage><RecommendPageLazy /></LazyPage></PageTransition>} />
+        <Route path="/pipeline" element={<PageTransition><LazyPage><PipelinePageLazy /></LazyPage></PageTransition>} />
+        <Route path="/enrich" element={<PageTransition><LazyPage><DataEnrichPageLazy /></LazyPage></PageTransition>} />
+        <Route path="/growth" element={<PageTransition><LazyPage><GrowthPageLazy /></LazyPage></PageTransition>} />
         <Route path="/promoter" element={<PageTransition><LazyPage><PromoterPageLazy /></LazyPage></PageTransition>} />
         <Route path="/activities" element={<PageTransition><LazyPage><ActivityLogLazy /></LazyPage></PageTransition>} />
       </Routes>

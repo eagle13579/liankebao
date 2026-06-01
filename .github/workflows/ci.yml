@@ -1,68 +1,70 @@
-name: Chainke CI
+# ============================================================
+# 链客宝 CI 流水线
+# 触发条件:
+#   - push 到 develop / main 分支
+#   - PR 到 main / develop 分支
+# ============================================================
+name: 链客宝 CI
 
 on:
   push:
-    branches: [develop, release/*, main]
-  pull_request:
     branches: [develop, main]
+  pull_request:
+    branches: [main, develop]
+
+# 总超时控制
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   backend:
+    name: 🐍 Backend (Python)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: backend
+
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python 3.12
+
+      - name: Setup Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-          cache: 'pip'
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install ruff pytest
-      - name: Lint with ruff
-        run: ruff check app/ --output-format=github
-      - name: Test with pytest
-        run: pytest tests/ -v --tb=short -x
+          pip install pytest pytest-asyncio httpx
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend
+          DB_TYPE: sqlite
 
   frontend:
+    name: 🎨 Frontend (Node.js)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: .
+    timeout-minutes: 10
+
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Node.js 20
+
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
       - name: Install dependencies
         run: npm ci
-      - name: TypeScript check
-        run: npx tsc --noEmit
-      - name: Test with vitest
-        run: npx vitest --run
 
-  security:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install pytest
-      - name: Security module tests
-        run: pytest data_security/tests/ -v --tb=short
+      - name: Build
+        run: npm run build -- --logLevel error

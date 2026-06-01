@@ -53,7 +53,15 @@ class User(Base):
     # 关系（仅多租户模式启用 ForeignKey 关系）
     if _IS_MULTI_TENANT:
         organization = relationship("Organization", back_populates="users", foreign_keys=[organization_id])
-    memberships = relationship("Membership", back_populates="user", cascade="all, delete-orphan")
+        memberships = relationship("Membership", back_populates="user", cascade="all, delete-orphan")
+    else:
+        memberships = relationship(
+            "OrganizationMember",
+            back_populates="user",
+            primaryjoin="User.id==OrganizationMember.user_id",
+            foreign_keys="OrganizationMember.user_id",
+            cascade="all, delete-orphan",
+        )
     products = relationship("Product", back_populates="owner", foreign_keys="Product.owner_id")
     orders = relationship("Order", back_populates="user", foreign_keys="Order.user_id")
     promoter_orders = relationship("Order", back_populates="promoter", foreign_keys="Order.promoter_id")

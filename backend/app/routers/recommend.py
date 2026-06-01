@@ -3,7 +3,8 @@
 import logging
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from pydantic import BaseModel
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
@@ -14,6 +15,7 @@ from app.models import Product, User, UserEvent
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/recommend", tags=["recommend"])
+recommend_router = router  # 显式别名，满足外部引用约定
 
 
 @router.get(
@@ -243,6 +245,230 @@ def _product_to_dict(product: Product) -> dict:
         "is_featured": product.is_featured,
         "sort_order": product.sort_order,
         "created_at": product.created_at.isoformat() if product.created_at else None,
+    }
+
+
+# ============================================================
+# 新增路由：按用户ID推荐产品
+# ============================================================
+
+
+@router.get(
+    "/products/{user_id}",
+    summary="按用户ID推荐产品",
+    description="基于用户浏览/偏好行为推荐产品，无行为时返回热门产品",
+)
+def recommend_products_by_user(
+    user_id: int = Path(..., description="用户ID"),
+    limit: int = Query(8, ge=1, le=50),
+    db: Session = Depends(get_db),
+):
+    """按用户ID推荐产品"""
+    personalized = _recommend_by_user_behavior(db, user_id, limit)
+    if personalized:
+        return {
+            "code": 200,
+            "message": "success",
+            "data": {"items": personalized, "total": len(personalized), "strategy": "personalized"},
+        }
+    hot_products = _recommend_hot_products(db, limit)
+    return {
+        "code": 200,
+        "message": "success",
+        "data": {"items": hot_products, "total": len(hot_products), "strategy": "hot"},
+    }
+
+
+# ============================================================
+# 新增路由：热门产品推荐
+# ============================================================
+
+
+@router.get(
+    "/hot",
+    summary="热门产品推荐",
+    description="返回过去7天浏览最多的产品列表，无数据时按上架时间返回",
+)
+def recommend_hot(
+    limit: int = Query(10, ge=1, le=50),
+    db: Session = Depends(get_db),
+):
+    """热门产品推荐"""
+    items = _recommend_hot_products(db, limit)
+    return {
+        "code": 200,
+        "message": "success",
+        "data": {"items": items, "total": len(items)},
+    }
+
+
+# ============================================================
+# 新增路由：个性化推荐（结合 matching_engine）
+# ============================================================
+
+
+@router.get(
+    "/personalized/{user_id}",
+    summary="个性化推荐（结合匹配引擎 + LLM）",
+    description="基于用户画像与 matching_engine 进行个性化供需匹配推荐，由 LLM 生成智能匹配理由",
+)
+def recommend_personalized(
+    user_id: int = Path(..., description="用户ID"),
+    limit: int = Query(10, ge=1, le=50),
+    db: Session = Depends(get_db),
+):
+    """个性化推荐 — 使用 matching_engine 做协同过滤 + LLM 生成匹配理由"""
+    try:
+        from matching_engine import MatchEngine
+
+        engine = MatchEngine(db)
+        # 获取用户发布的需求（如果有），反向匹配产品
+        user_needs = (
+            db.query(UserEvent)
+            .filter(
+                UserEvent.user_id == user_id,
+                UserEvent.event_type.in_(["need_view", "need_post"]),
+                UserEvent.target_id.isnot(None),
+            )
+            .order_by(UserEvent.created_at.desc())
+            .limit(5)
+            .all()
+        )
+        need_ids = [e.target_id for e in user_needs if e.target_id]
+
+        all_items = []
+        seen_ids = set()
+
+        if need_ids:
+            for nid in need_ids[:3]:  # 最多取3个需求做匹配
+                matches = engine.match_needs_to_products(nid)
+                # 获取原始需求数据用于 LLM
+                need_data = None
+                try:
+                    from app.models import Need
+
+                    need_obj = db.query(Need).filter(Need.id == nid).first()
+                    if need_obj:
+                        need_data = {
+                            "title": getattr(need_obj, "title", ""),
+                            "description": getattr(need_obj, "description", ""),
+                            "category": getattr(need_obj, "category", ""),
+                        }
+                except Exception:
+                    pass
+
+                for m in matches:
+                    if m.id not in seen_ids:
+                        # 尝试用 LLM 生成匹配理由
+                        llm_reason = None
+                        if need_data and hasattr(m, "title"):
+                            try:
+                                from app.services.llm_service import generate_matching_reason
+
+                                product_data = {
+                                    "name": getattr(m, "title", "") or getattr(m, "name", ""),
+                                    "description": getattr(m, "description", ""),
+                                    "category": getattr(m, "category", ""),
+                                    "tags": getattr(m, "tags", ""),
+                                    "price": getattr(m, "price", 0),
+                                }
+                                llm_reason = generate_matching_reason(product_data, need_data)
+                            except Exception:
+                                logger.debug("LLM 匹配理由生成失败，使用规则引擎理由")
+
+                        all_items.append(
+                            {
+                                "id": m.id,
+                                "title": m.title,
+                                "match_score": m.match_score,
+                                "match_reasons": m.match_reasons,
+                                "llm_reason": llm_reason,  # AI 生成的理由
+                                "strategy": m.strategy,
+                            }
+                        )
+                        seen_ids.add(m.id)
+
+        if not all_items:
+            # 兜底：热门产品
+            hot = _recommend_hot_products(db, limit)
+            all_items = [
+                {
+                    "id": p["id"],
+                    "title": p["name"],
+                    "match_score": 0.5,
+                    "match_reasons": ["热门推荐"],
+                    "llm_reason": None,
+                    "strategy": "hot",
+                }
+                for p in hot
+            ]
+
+        return {
+            "code": 200,
+            "message": "success",
+            "data": {"items": all_items[:limit], "total": len(all_items[:limit])},
+        }
+    except ImportError:
+        logger.warning("matching_engine 不可用，降级为行为推荐")
+        return recommend_products_by_user(user_id, limit, db)
+
+
+# ============================================================
+# 新增路由：推荐反馈
+# ============================================================
+
+
+class FeedbackRequest(BaseModel):
+    """推荐反馈请求模型"""
+
+    user_id: int
+    product_id: int
+    action: str  # "like" 或 "dislike"
+    source: str = "recommend"  # 推荐来源标识
+
+
+@router.post(
+    "/feedback",
+    summary="记录推荐反馈",
+    description="用户对推荐结果的反馈（喜欢/不喜欢），用于后续优化推荐质量",
+)
+def record_feedback(
+    feedback: FeedbackRequest,
+    db: Session = Depends(get_db),
+):
+    """记录推荐反馈"""
+    if feedback.action not in ("like", "dislike"):
+        raise HTTPException(status_code=422, detail="action 必须为 'like' 或 'dislike'")
+
+    product = db.query(Product).filter(Product.id == feedback.product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="产品不存在")
+
+    # 记录为 UserEvent
+    event = UserEvent(
+        user_id=feedback.user_id,
+        event_type=f"recommend_{feedback.action}",
+        target_type="product",
+        target_id=feedback.product_id,
+        created_at=datetime.utcnow(),
+    )
+    db.add(event)
+    db.commit()
+
+    logger.info(
+        "recommend_feedback",
+        extra={
+            "user_id": feedback.user_id,
+            "product_id": feedback.product_id,
+            "action": feedback.action,
+            "source": feedback.source,
+        },
+    )
+
+    return {
+        "code": 200,
+        "message": "反馈已记录",
+        "data": {"action": feedback.action, "product_id": feedback.product_id},
     }
 
 

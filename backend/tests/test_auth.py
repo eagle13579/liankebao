@@ -26,8 +26,9 @@ class TestAuth:
         assert resp.status_code == 200
         data = resp.json()
         assert data["code"] == 200
-        assert data["data"]["username"] == username
-        assert data["data"]["role"] == "buyer"
+        user = data["data"]["user"]
+        assert user["username"] == username
+        assert user["role"] == "buyer"
         assert "password" not in str(data["data"])
 
     def test_login_success(self, client: TestClient):
@@ -124,3 +125,110 @@ class TestAuth:
         )
         assert resp.status_code == 401
         assert "错误" in resp.text
+
+
+class TestAuthExtended:
+    """认证模块扩展测试：logout / forgot-password / reset-password"""
+
+    def test_logout_success(self, client, buyer_token):
+        """正常退出登录"""
+        headers = {"Authorization": f"Bearer {buyer_token}"}
+        resp = client.post("/api/auth/logout", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["code"] == 200
+
+    def test_logout_twice(self, client, buyer_token):
+        """重复退出：第一次成功，第二次 token 已失效返回 401"""
+        headers = {"Authorization": f"Bearer {buyer_token}"}
+        resp1 = client.post("/api/auth/logout", headers=headers)
+        assert resp1.status_code == 200
+        # 使用同一个 token 再次退出（已加入黑名单，token 失效）
+        resp2 = client.post("/api/auth/logout", headers=headers)
+        assert resp2.status_code in (400, 401, 403)
+
+    def test_logout_unauthenticated(self, client):
+        """未登录退出返回 401"""
+        resp = client.post("/api/auth/logout")
+        assert resp.status_code in (401, 403)
+
+    def test_logout_no_header(self, client):
+        """无认证头退出返回 400 或 401"""
+        resp = client.post("/api/auth/logout", headers={"Authorization": "Bearer "})
+        assert resp.status_code in (400, 401, 403)
+
+    def test_forgot_password_existing_user(self, client):
+        """已存在用户请求密码重置"""
+        resp = client.post(
+            "/api/auth/forgot-password",
+            json={"email": "buyer1"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["code"] == 200
+        # 开发阶段直接返回 reset_token
+        assert "reset_token" in data["data"]
+
+    def test_forgot_password_nonexistent_user(self, client):
+        """不存在的用户请求密码重置（安全起见仍返回 200）"""
+        resp = client.post(
+            "/api/auth/forgot-password",
+            json={"email": "nonexistent_user_99999"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["code"] == 200
+
+    def test_forgot_password_invalid_email(self, client):
+        """空邮箱请求密码重置"""
+        resp = client.post(
+            "/api/auth/forgot-password",
+            json={"email": ""},
+        )
+        # 空字符串可能通过验证也可能被拒绝
+        assert resp.status_code in (200, 422)
+
+    def test_reset_password_success(self, client):
+        """正常重置密码流程：先 forgot 获取 token，再用 token 重置"""
+        # Step 1: forgot-password 获取 reset_token
+        forgot_resp = client.post(
+            "/api/auth/forgot-password",
+            json={"email": "buyer1"},
+        )
+        assert forgot_resp.status_code == 200
+        reset_token = forgot_resp.json()["data"]["reset_token"]
+
+        # Step 2: 用 token 重置密码
+        resp = client.post(
+            "/api/auth/reset-password",
+            json={"token": reset_token, "password": "NewPass12345"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["code"] == 200
+        assert data["message"] == "密码重置成功"
+
+        # Step 3: 用新密码登录
+        login_resp = client.post(
+            "/api/auth/login",
+            json={"username": "buyer1", "password": "NewPass12345"},
+        )
+        assert login_resp.status_code == 200
+
+    def test_reset_password_invalid_token(self, client):
+        """无效的重置令牌返回 400"""
+        resp = client.post(
+            "/api/auth/reset-password",
+            json={"token": "invalid-token-12345", "password": "NewPass12345"},
+        )
+        assert resp.status_code == 400
+        data = resp.json()
+        assert "无效" in data.get("detail", "")
+
+    def test_reset_password_short_password(self, client):
+        """密码太短返回 400"""
+        resp = client.post(
+            "/api/auth/reset-password",
+            json={"token": "some-token", "password": "short"},
+        )
+        assert resp.status_code in (400, 422)

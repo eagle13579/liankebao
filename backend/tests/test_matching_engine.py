@@ -694,3 +694,129 @@ class TestNormalization:
             eng._match_price_range = orig_price
 
             assert result.match_score == 1.0, f"满分应归一化为1.0, 实际{result.match_score}"
+
+
+# ============================================================
+# API 路由集成测试 — 覆盖 matching_engine 全部5个路由
+# ============================================================
+
+
+class TestMatchingEngineRoutes:
+    """匹配引擎 API 路由测试（使用 conftest 的 TestClient + 种子数据）"""
+
+    MATCHING_PREFIX = "/api/matching"
+
+    @pytest.fixture
+    def _auth_token(self, client):
+        """为匹配引擎测试注册专用用户并返回 token（避免依赖 buyer_token 被其他测试修改密码）"""
+        import time
+
+        username = f"matcheng_user_{int(time.time() * 1000000)}"
+        register_resp = client.post(
+            "/api/auth/register",
+            json={
+                "username": username,
+                "password": "TestPass123",
+                "name": "匹配测试用户",
+                "role": "buyer",
+            },
+        )
+        assert register_resp.status_code == 200, f"注册失败: {register_resp.text}"
+        token = register_resp.json()["data"]["access_token"]
+        return token
+
+    def test_needs_to_products(self, client, _auth_token):
+        """GET /api/matching/needs/{need_id}/products — 需求匹配产品"""
+        headers = {"Authorization": f"Bearer {_auth_token}"}
+        # 种子数据中有 need_id=1 (buyer1 发布的 "寻找企业级CRM系统供应商")
+        resp = client.get(f"{self.MATCHING_PREFIX}/needs/1/products", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["code"] == 200
+        assert "data" in data
+        assert "strategy" in data
+
+    def test_needs_to_products_not_found(self, client, _auth_token):
+        """需求不存在时返回空列表"""
+        headers = {"Authorization": f"Bearer {_auth_token}"}
+        resp = client.get(f"{self.MATCHING_PREFIX}/needs/9999/products", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data.get("data", [])) == 0
+
+    def test_needs_to_products_unauthenticated(self, client):
+        """未登录访问返回 401"""
+        resp = client.get(f"{self.MATCHING_PREFIX}/needs/1/products")
+        assert resp.status_code == 401 or resp.status_code == 403
+
+    def test_products_to_needs(self, client, _auth_token):
+        """GET /api/matching/products/{product_id}/needs — 产品匹配需求"""
+        headers = {"Authorization": f"Bearer {_auth_token}"}
+        # 种子数据中有 product_id=1 (supplier1 的 "测试产品 A")
+        resp = client.get(f"{self.MATCHING_PREFIX}/products/1/needs", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["code"] == 200
+        assert "data" in data
+        assert "strategy" in data
+
+    def test_products_to_needs_not_found(self, client, _auth_token):
+        """产品不存在时返回空列表"""
+        headers = {"Authorization": f"Bearer {_auth_token}"}
+        resp = client.get(f"{self.MATCHING_PREFIX}/products/9999/needs", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data.get("data", [])) == 0
+
+    def test_products_to_needs_unauthenticated(self, client):
+        """未登录访问返回 401"""
+        resp = client.get(f"{self.MATCHING_PREFIX}/products/1/needs")
+        assert resp.status_code == 401 or resp.status_code == 403
+
+    def test_refresh_index(self, client, _auth_token):
+        """POST /api/matching/refresh — 重建匹配索引"""
+        headers = {"Authorization": f"Bearer {_auth_token}"}
+        resp = client.post(f"{self.MATCHING_PREFIX}/refresh", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["code"] == 200
+        assert data["data"]["status"] == "ready"
+
+    def test_refresh_index_unauthenticated(self, client):
+        """未登录访问返回 401"""
+        resp = client.post(f"{self.MATCHING_PREFIX}/refresh")
+        assert resp.status_code == 401 or resp.status_code == 403
+
+    def test_get_metrics(self, client, _auth_token):
+        """GET /api/matching/metrics — 获取匹配引擎监控指标"""
+        headers = {"Authorization": f"Bearer {_auth_token}"}
+        # 先做一次匹配产生数据
+        client.get(f"{self.MATCHING_PREFIX}/needs/1/products", headers=headers)
+        resp = client.get(f"{self.MATCHING_PREFIX}/metrics", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["code"] == 200
+        assert "total_requests" in data["data"]
+        assert data["data"]["total_requests"] >= 1
+
+    def test_get_metrics_unauthenticated(self, client):
+        """未登录访问返回 401"""
+        resp = client.get(f"{self.MATCHING_PREFIX}/metrics")
+        assert resp.status_code == 401 or resp.status_code == 403
+
+    def test_get_cache_status(self, client, _auth_token):
+        """GET /api/matching/cache/status — 获取缓存状态"""
+        headers = {"Authorization": f"Bearer {_auth_token}"}
+        # 先触发一次缓存写入
+        client.get(f"{self.MATCHING_PREFIX}/needs/1/products", headers=headers)
+        resp = client.get(f"{self.MATCHING_PREFIX}/cache/status", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["code"] == 200
+        # 缓存应有内容
+        assert isinstance(data["data"], dict)
+
+    def test_get_cache_status_unauthenticated(self, client):
+        """未登录访问返回 401"""
+        resp = client.get(f"{self.MATCHING_PREFIX}/cache/status")
+        assert resp.status_code == 401 or resp.status_code == 403

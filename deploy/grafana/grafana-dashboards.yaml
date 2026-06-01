@@ -1,0 +1,15 @@
+# ============================================================
+# Grafana Dashboard 置入配置
+# ============================================================
+apiVersion: 1
+
+providers:
+  - name: "链客宝仪表盘"
+    orgId: 1
+    folder: "链客宝"
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
