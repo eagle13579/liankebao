@@ -1,0 +1,19 @@
+name: imports
+version: "1.0.0"
+description: 数据导入管理
+author: 链客宝
+dependencies:
+  - auth
+  - products
+  - contacts
+routes:
+  prefix: /api/imports
+  auth_required: true
+frontend:
+  entry: ./frontend/ImportsModule
+  routes:
+    - /imports
+    - /imports/history
+permissions:
+  - imports.execute
+  - imports.history

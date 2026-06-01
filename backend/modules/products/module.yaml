@@ -1,0 +1,20 @@
+name: products
+version: "1.0.0"
+description: 产品管理
+author: 链客宝
+dependencies:
+  - auth
+routes:
+  prefix: /api/products
+  auth_required: true
+frontend:
+  entry: ./frontend/ProductsModule
+  routes:
+    - /products
+    - /products/create
+    - /products/:id/edit
+permissions:
+  - products.view
+  - products.create
+  - products.edit
+  - products.delete

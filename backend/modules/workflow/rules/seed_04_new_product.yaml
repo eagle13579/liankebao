@@ -1,0 +1,24 @@
+name: "new_product_notify_promoters"
+description: "新产品上架 → 通知相关推广员"
+trigger:
+  type: event
+  event: on_product_created
+conditions:
+  - field: product.status
+    operator: "=="
+    value: approved
+actions:
+  - type: notify_promoters
+    params:
+      title: "新产品上架"
+      content: "新产品「{{ product.name }}」已上架，¥{{ product.price }}/件，欢迎推广！"
+      category: "{{ product.category }}"
+      reference_type: product
+      reference_id: "{{ product.id }}"
+  - type: create_activity
+    params:
+      action_type: note
+      summary: "新产品上架通知已发送"
+      detail: "产品 {{ product.name }} (ID: {{ product.id }}) 上架通知已推送给所有推广员"
+      owner_id: "{{ product.owner_id }}"
+enabled: true

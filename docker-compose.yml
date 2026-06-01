@@ -1,0 +1,41 @@
+# ============================================================
+# 链客宝 - Docker Compose
+# ============================================================
+# 使用方式:
+#   cp .env.example .env   # 编辑环境变量
+#   docker compose up -d    # 启动后台服务
+#   docker compose logs -f  # 查看日志
+#   docker compose down     # 停止服务
+# ============================================================
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: liankebao-backend
+    restart: unless-stopped
+    ports:
+      - "8003:8003"
+    volumes:
+      # 持久化 SQLite 数据库
+      - ./data:/app/data
+    env_file:
+      - .env
+    environment:
+      # 默认值 (会被 .env 覆盖)
+      - DB_TYPE=${DB_TYPE:-sqlite}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - liankebao-net
+
+networks:
+  liankebao-net:
+    name: liankebao-network
+    driver: bridge

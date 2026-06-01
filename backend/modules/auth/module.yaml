@@ -1,0 +1,16 @@
+name: auth
+version: "1.0.0"
+description: 用户认证与登录注册
+author: 链客宝
+dependencies: []
+routes:
+  prefix: /api/auth
+  auth_required: false
+frontend:
+  entry: ./frontend/AuthModule
+  routes:
+    - /login
+    - /register
+permissions:
+  - auth.login
+  - auth.register

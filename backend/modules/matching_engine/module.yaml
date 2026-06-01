@@ -1,0 +1,18 @@
+name: matching_engine
+version: "1.0.0"
+description: 匹配引擎
+author: 链客宝
+dependencies:
+  - auth
+  - products
+routes:
+  prefix: /api/matching
+  auth_required: true
+frontend:
+  entry: ./frontend/MatchingEngineModule
+  routes:
+    - /matching
+    - /matching/results
+permissions:
+  - matching.execute
+  - matching.results

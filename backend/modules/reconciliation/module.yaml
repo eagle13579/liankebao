@@ -1,0 +1,19 @@
+name: reconciliation
+version: "1.0.0"
+description: 对账管理
+author: 链客宝
+dependencies:
+  - auth
+  - orders
+routes:
+  prefix: /api/reconciliation
+  auth_required: true
+frontend:
+  entry: ./frontend/ReconciliationModule
+  routes:
+    - /reconciliation
+    - /reconciliation/reports
+permissions:
+  - reconciliation.view
+  - reconciliation.reports
+  - reconciliation.export
