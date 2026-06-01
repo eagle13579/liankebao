@@ -5,16 +5,27 @@ pytest 配置: Fixtures 和测试数据库
 - 临时 SQLite 数据库 (每个测试函数独立)
 - FastAPI TestClient
 - 预置测试用户/图册数据
+- 信任网络/匹配记录工厂
+
+所有 fixture 使用独立的临时数据库, 不影响生产数据.
 """
+
 import os
 import sys
 import tempfile
-import pytest
+import uuid as uuid_mod
+from datetime import datetime, timedelta
 from pathlib import Path
+
+import bcrypt
+import pytest
 
 # 确保能导入 backend 包
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BACKEND_DIR))
+
+from digital_brochure_api import close_connection, dict_from_row, get_connection, init_db
+
 
 # ============================================================
 # 测试数据库 Fixture
@@ -24,17 +35,13 @@ sys.path.insert(0, str(BACKEND_DIR))
 @pytest.fixture(autouse=True)
 def setup_test_env():
     """在每个测试前设置测试环境变量"""
-    # 使用临时目录作为数据库目录
     old_env = os.environ.get("BROCHURE_DB_DIR")
     os.environ["BROCHURE_DB_DIR"] = tempfile.mkdtemp()
     yield
-    # 清理
     if old_env is None:
         os.environ.pop("BROCHURE_DB_DIR", None)
     else:
         os.environ["BROCHURE_DB_DIR"] = old_env
-    # 关闭并清理数据库连接
-    from digital_brochure_api import close_connection
     close_connection()
 
 
@@ -42,17 +49,11 @@ def setup_test_env():
 def test_db():
     """
     提供已初始化的测试数据库连接。
-
-    每个测试函数获得一个独立的临时数据库，
-    数据在测试结束后自动清理 (通过 setup_test_env 的 tmpdir 清理)。
+    每个测试函数获得一个独立的临时数据库。
     """
-    from digital_brochure_api import get_connection, init_db
-
-    # 确保数据库已初始化
     init_db()
     conn = get_connection()
 
-    # 清理所有表（保持测试隔离）
     tables = [
         "visitor_logs", "match_records", "trust_network",
         "brochures", "users", "auth_tokens", "auth_users",
@@ -68,41 +69,38 @@ def test_db():
 def client():
     """
     FastAPI TestClient 实例。
-
     使用 digital_brochure_api 中的 router 挂载到测试 App。
-    每个测试获得独立客户端（背后是独立数据库）。
     """
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
-    from digital_brochure_api import router, init_db
+    from digital_brochure_api import router, init_db as _init_db
 
-    # 确保数据库已初始化
-    init_db()
+    _init_db()
 
     app = FastAPI(title="觅迹·数字图册 - Test")
     if router is not None:
         app.include_router(router)
 
-    # 添加健康检查端点
     @app.get("/health")
     def health():
         return {"status": "ok", "service": "digital-brochure"}
+
+    @app.get("/metrics")
+    def metrics():
+        return {"total_brochures": 0, "total_users": 0, "total_visits": 0}
 
     with TestClient(app) as c:
         yield c
 
 
 # ============================================================
-# 测试数据工厂
+# 测试数据工厂 (原有)
 # ============================================================
 
 
 @pytest.fixture
 def sample_user_data(test_db) -> dict:
     """创建一个测试用户并返回用户信息"""
-    import bcrypt
-    from digital_brochure_api import dict_from_row
-
     conn = test_db
     cursor = conn.cursor()
 
@@ -172,18 +170,11 @@ def sample_brochure(test_db, sample_user_data) -> dict:
 
 @pytest.fixture
 def auth_token(test_db, sample_user_data) -> dict:
-    """
-    创建一个有效 token 并返回 token 信息。
-
-    包含: token, token_type, expires_at, user_id
-    """
-    import uuid
-    from datetime import datetime, timedelta
-
+    """创建一个有效 token 并返回 token 信息"""
     conn = test_db
     cursor = conn.cursor()
 
-    token_str = str(uuid.uuid4())
+    token_str = str(uuid_mod.uuid4())
     expires_at = (datetime.utcnow() + timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
 
     cursor.execute(
@@ -212,8 +203,6 @@ def auth_headers(auth_token) -> dict:
 @pytest.fixture
 def second_user(test_db) -> dict:
     """创建第二个用户（用于权限隔离测试）"""
-    import bcrypt
-
     conn = test_db
     cursor = conn.cursor()
 
@@ -240,4 +229,175 @@ def second_user(test_db) -> dict:
         "profile_id": profile_id,
         "username": "otheruser",
         "password": password,
+    }
+
+
+# ============================================================
+# 额外测试数据工厂 (Brochure 专用)
+# ============================================================
+
+
+@pytest.fixture
+def brochure_db(test_db):
+    """test_db 别名 (兼容 brochure 测试文件)"""
+    return test_db
+
+
+@pytest.fixture
+def brochure_client(client):
+    """client 别名 (兼容 brochure 测试文件)"""
+    return client
+
+
+@pytest.fixture
+def brochure_user(sample_user_data):
+    """sample_user_data 别名 (兼容 brochure 测试文件)"""
+    return sample_user_data
+
+
+@pytest.fixture
+def brochure_user2(second_user):
+    """second_user 别名 (兼容 brochure 测试文件)"""
+    return second_user
+
+
+@pytest.fixture
+def brochure_token(auth_token):
+    """auth_token 别名 (兼容 brochure 测试文件)"""
+    return auth_token
+
+
+@pytest.fixture
+def brochure_headers(auth_headers):
+    """auth_headers 别名 (兼容 brochure 测试文件)"""
+    return auth_headers
+
+
+@pytest.fixture
+def brochure_sample(sample_brochure):
+    """sample_brochure 别名 (兼容 brochure 测试文件)"""
+    return sample_brochure
+
+
+@pytest.fixture
+def brochure_sample_draft(test_db, sample_user_data):
+    """创建一本草稿状态的测试图册"""
+    conn = test_db
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """INSERT INTO brochures
+           (user_id, title, cover, pages_count, description, status, is_public)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (
+            sample_user_data["profile_id"],
+            "草稿画册",
+            None,
+            0,
+            "这是一本草稿画册",
+            "draft",
+            0,
+        ),
+    )
+    brochure_id = cursor.lastrowid
+    conn.commit()
+
+    return {
+        "id": brochure_id,
+        "user_id": sample_user_data["profile_id"],
+        "title": "草稿画册",
+        "status": "draft",
+        "is_public": False,
+    }
+
+
+@pytest.fixture
+def brochure_other_sample(test_db, second_user):
+    """创建属于 second_user 的图册 (用于权限测试)"""
+    conn = test_db
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """INSERT INTO brochures
+           (user_id, title, cover, pages_count, description, status, is_public)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (
+            second_user["profile_id"],
+            "其他用户的画册",
+            "https://example.com/other.jpg",
+            8,
+            "这是其他用户的画册",
+            "published",
+            1,
+        ),
+    )
+    brochure_id = cursor.lastrowid
+    conn.commit()
+
+    return {
+        "id": brochure_id,
+        "user_id": second_user["profile_id"],
+        "title": "其他用户的画册",
+    }
+
+
+@pytest.fixture
+def brochure_trust(test_db, sample_user_data, second_user):
+    """创建一条 trust_network 关系"""
+    conn = test_db
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """INSERT INTO trust_network
+           (user_id, target_user_id, trust_level, tags, notes, is_mutual, source)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (
+            sample_user_data["profile_id"],
+            second_user["profile_id"],
+            2,
+            '["合作", "推荐"]',
+            "通过项目合作建立信任",
+            0,
+            "manual",
+        ),
+    )
+    trust_id = cursor.lastrowid
+    conn.commit()
+
+    return {
+        "id": trust_id,
+        "user_id": sample_user_data["profile_id"],
+        "target_user_id": second_user["profile_id"],
+        "trust_level": 2,
+    }
+
+
+@pytest.fixture
+def brochure_match_record(test_db, sample_user_data, second_user):
+    """创建一条匹配记录"""
+    conn = test_db
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """INSERT INTO match_records
+           (user_id, matched_user_id, match_type, match_score, match_reason, status)
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        (
+            sample_user_data["profile_id"],
+            second_user["profile_id"],
+            "supply_demand",
+            0.85,
+            "供应与需求高度匹配",
+            "pending",
+        ),
+    )
+    record_id = cursor.lastrowid
+    conn.commit()
+
+    return {
+        "id": record_id,
+        "user_id": sample_user_data["profile_id"],
+        "matched_user_id": second_user["profile_id"],
+        "match_type": "supply_demand",
+        "match_score": 0.85,
     }
