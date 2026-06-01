@@ -18,6 +18,7 @@ class Organization(Base):
     """组织模型 — 多租户核心实体"""
 
     __tablename__ = "organizations"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     name = Column(String(200), nullable=False, comment="组织名称")

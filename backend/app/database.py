@@ -170,19 +170,10 @@ def get_db_for_tenant():
 def init_db():
     """初始化数据库：创建表并填充种子数据（如为空）"""
     from app.models import (
-        User,
-        Product,
         Order,
+        Product,
+        User,
         Withdrawal,
-        Contact,
-        ImportHistory,
-        Activity,
-        BusinessCard,
-        UserEvent,
-        Deal,
-        DealActivity,
-        Enterprise,
-        EnterpriseRelation,
     )  # noqa
 
     # === 多租户：始终创建组织相关表（SQLite + PostgreSQL 均支持） ===
