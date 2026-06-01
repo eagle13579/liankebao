@@ -42,6 +42,10 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     deleted_at = Column(DateTime, nullable=True)
     is_deleted = Column(Boolean, default=False)
+    # 轻量会员字段
+    membership_tier = Column(String(20), nullable=False, default="free", comment="会员等级: free/gold/diamond")
+    membership_expires_at = Column(DateTime, nullable=True, comment="会员过期时间")
+    match_credits = Column(Integer, nullable=False, default=3, comment="剩余对接券数")
 
     # 密码重置
     password_reset_token = Column(String(255), nullable=True, index=True, comment="密码重置令牌")
@@ -105,6 +109,10 @@ class Product(Base):
     version = Column(BigInteger, nullable=False, default=1, comment="乐观锁版本号")
     deleted_at = Column(DateTime, nullable=True)
     is_deleted = Column(Boolean, default=False)
+    # 轻量会员字段
+    membership_tier = Column(String(20), nullable=False, default="free", comment="会员等级: free/gold/diamond")
+    membership_expires_at = Column(DateTime, nullable=True, comment="会员过期时间")
+    match_credits = Column(Integer, nullable=False, default=3, comment="剩余对接券数")
 
     # 多租户
     organization_id = _org_fk()
@@ -144,6 +152,10 @@ class Order(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     deleted_at = Column(DateTime, nullable=True)
     is_deleted = Column(Boolean, default=False)
+    # 轻量会员字段
+    membership_tier = Column(String(20), nullable=False, default="free", comment="会员等级: free/gold/diamond")
+    membership_expires_at = Column(DateTime, nullable=True, comment="会员过期时间")
+    match_credits = Column(Integer, nullable=False, default=3, comment="剩余对接券数")
 
     # 多租户
     organization_id = _org_fk()
@@ -176,6 +188,10 @@ class Contact(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     deleted_at = Column(DateTime, nullable=True)
     is_deleted = Column(Boolean, default=False)
+    # 轻量会员字段
+    membership_tier = Column(String(20), nullable=False, default="free", comment="会员等级: free/gold/diamond")
+    membership_expires_at = Column(DateTime, nullable=True, comment="会员过期时间")
+    match_credits = Column(Integer, nullable=False, default=3, comment="剩余对接券数")
 
     # 多租户
     organization_id = _org_fk()
@@ -199,6 +215,10 @@ class Activity(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     deleted_at = Column(DateTime, nullable=True)
     is_deleted = Column(Boolean, default=False)
+    # 轻量会员字段
+    membership_tier = Column(String(20), nullable=False, default="free", comment="会员等级: free/gold/diamond")
+    membership_expires_at = Column(DateTime, nullable=True, comment="会员过期时间")
+    match_credits = Column(Integer, nullable=False, default=3, comment="剩余对接券数")
 
     # 多租户
     organization_id = _org_fk()
@@ -230,6 +250,10 @@ class ImportHistory(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     deleted_at = Column(DateTime, nullable=True)
     is_deleted = Column(Boolean, default=False)
+    # 轻量会员字段
+    membership_tier = Column(String(20), nullable=False, default="free", comment="会员等级: free/gold/diamond")
+    membership_expires_at = Column(DateTime, nullable=True, comment="会员过期时间")
+    match_credits = Column(Integer, nullable=False, default=3, comment="剩余对接券数")
 
     # 多租户
     organization_id = _org_fk()
@@ -258,6 +282,10 @@ class BusinessNeed(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     deleted_at = Column(DateTime, nullable=True)
     is_deleted = Column(Boolean, default=False)
+    # 轻量会员字段
+    membership_tier = Column(String(20), nullable=False, default="free", comment="会员等级: free/gold/diamond")
+    membership_expires_at = Column(DateTime, nullable=True, comment="会员过期时间")
+    match_credits = Column(Integer, nullable=False, default=3, comment="剩余对接券数")
 
     # 多租户
     organization_id = _org_fk()
@@ -283,6 +311,10 @@ class BusinessCard(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     deleted_at = Column(DateTime, nullable=True)
     is_deleted = Column(Boolean, default=False)
+    # 轻量会员字段
+    membership_tier = Column(String(20), nullable=False, default="free", comment="会员等级: free/gold/diamond")
+    membership_expires_at = Column(DateTime, nullable=True, comment="会员过期时间")
+    match_credits = Column(Integer, nullable=False, default=3, comment="剩余对接券数")
 
     # 多租户
     organization_id = _org_fk()
@@ -329,6 +361,10 @@ class Withdrawal(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     deleted_at = Column(DateTime, nullable=True)
     is_deleted = Column(Boolean, default=False)
+    # 轻量会员字段
+    membership_tier = Column(String(20), nullable=False, default="free", comment="会员等级: free/gold/diamond")
+    membership_expires_at = Column(DateTime, nullable=True, comment="会员过期时间")
+    match_credits = Column(Integer, nullable=False, default=3, comment="剩余对接券数")
 
     # 多租户
     organization_id = _org_fk()

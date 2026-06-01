@@ -76,6 +76,7 @@ import app.routers.payment as payment_module
 import app.routers.private_board as private_board_module
 import app.routers.recommend as recommend_module
 import app.routers.vector_search_router as vector_search_module
+import app.routers.membership as membership_module
 import invoice as invoice_module
 import matching_engine as matching_engine_module
 import recharge.callback as recharge_callback_module
@@ -404,6 +405,7 @@ app.include_router(bi_module.router)
 app.include_router(vector_search_module.router)
 app.include_router(enrichment_module.router)
 app.include_router(organization_module.router)
+app.include_router(membership_module.router)
 app.include_router(growth_module.router)
 
 # ===== 启动时初始化增长引擎数据库 =====
