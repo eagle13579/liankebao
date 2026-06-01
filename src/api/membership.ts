@@ -47,30 +47,30 @@ export interface UpgradeOrderQuery {
 export const membershipApi = {
   /** 获取所有会员层级配置 */
   getTiers: () =>
-    api.get<MembershipTier[]>('/api/v1/membership/tiers'),
+    api.get<MembershipTier[]>('/api/membership/tiers'),
 
   /** 获取当前用户会员状态 */
   getStatus: () =>
-    api.get<MembershipStatus>('/api/v1/membership/status'),
+    api.get<MembershipStatus>('/api/membership/status'),
 
   /** 升级会员（创建支付订单） */
   upgrade: (tierId: number, platform: string = 'alipay') =>
-    api.post<UpgradePaymentData>('/api/v1/membership/upgrade', {
+    api.post<UpgradePaymentData>('/api/membership/upgrade', {
       tier_id: tierId,
       platform,
     }),
 
   /** 首月体验金卡 */
   trialGold: (platform: string = 'alipay') =>
-    api.post<UpgradePaymentData>('/api/v1/membership/trial', {
+    api.post<UpgradePaymentData>('/api/membership/trial', {
       platform,
     }),
 
   /** 查询升级订单状态 */
   queryOrder: (orderNo: string) =>
-    api.get<UpgradeOrderQuery>('/api/v1/membership/order/' + orderNo),
+    api.get<UpgradeOrderQuery>('/api/membership/order/' + orderNo),
 
   /** 检查是否需要展示体验弹窗 */
   checkTrialEligibility: () =>
-    api.get<{ eligible: boolean; reason?: string }>('/api/v1/membership/trial-eligible'),
+    api.get<{ eligible: boolean; reason?: string }>('/api/membership/trial-eligible'),
 };

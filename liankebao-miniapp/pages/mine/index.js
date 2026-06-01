@@ -39,7 +39,7 @@ Page({
   },
   loadUnreadCount: function() {
     var self = this
-    api.get('/api/notifications/unread-count').then(function(res) {
+    api.get('/api/v1/notifications/unread-count').then(function(res) {
       var count = 0
       if (res && res.code === 200 && res.data) {
         count = parseInt(res.data.count !== undefined ? res.data.count : res.data)

@@ -33,7 +33,7 @@ Page({
     var params = { page: self.data.page, pageSize: self.data.pageSize }
     if (self.data.currentCategory) params.category = self.data.currentCategory
 
-    api.get('/api/needs?' + objToParams(params)).then(function(res) {
+    api.get('/api/v1/needs?' + objToParams(params)).then(function(res) {
       var raw = (res.data && res.data.items) || res.data || []
       if (!Array.isArray(raw)) raw = []
 
