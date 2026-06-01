@@ -22,9 +22,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/membership", tags=["会员"])
 
-# ============================================================
-# 会员等级定价配置
-# ============================================================
 MEMBERSHIP_TIERS = {
     "free": {
         "name": "免费会员",
@@ -34,95 +31,108 @@ MEMBERSHIP_TIERS = {
         "features": [
             "浏览产品和企业信息",
             "发布供需需求",
-            "基础搜索功能",
             "每月3次对接机会",
+            "接收智能推荐",
+            "查看平台成交案例",
         ],
     },
     "gold": {
-        "name": "黄金会员",
-        "price": 199.00,
+        "name": "金卡会员",
+        "price": 999.00,
         "duration_days": 365,
         "match_credits": 20,
         "features": [
             "所有免费会员权益",
-            "无限次对接机会",
-            "AI智能匹配推荐",
-            "企业背景查询",
-            "专属客服支持",
-            "数据分析看板",
+            "无限发布供需需求",
+            "查看对方联系方式",
+            "AI匹配优先推荐",
+            "每月5次定向对接机会",
+            "企业身份认证标识",
+            "首月不满意全额退款",
         ],
     },
     "diamond": {
         "name": "钻石会员",
-        "price": 599.00,
+        "price": 4999.00,
         "duration_days": 365,
         "match_credits": 60,
         "features": [
-            "所有黄金会员权益",
-            "优先对接推荐",
-            "线下活动优先参与",
-            "商业情报推送",
-            "一对一商务顾问",
-            "品牌曝光加权",
+            "所有金卡会员权益",
+            "线上闭门对接会（每季1次）",
+            "专属撮合经理服务",
+            "需求优先推荐TOP3",
+            "企业深度认证+信用报告",
+            "交易安全保障金",
+            "CRM对接工具+合作追踪",
+            "续费推荐返现15%",
         ],
     },
     "board": {
-        "name": "董事会会员",
-        "price": 2999.00,
+        "name": "私董会",
+        "price": 19999.00,
         "duration_days": 365,
         "match_credits": 200,
         "features": [
             "所有钻石会员权益",
-            "高端闭门对接会参与",
-            "链客宝官方背书",
-            "投资机构对接通道",
-            "定制化商业方案",
-            "年度CEO闭门晚宴邀请",
+            "线下闭门私董会（每季1次）",
+            "一对一商业诊断（季度）",
+            "专家导师库（TOP100企业家）",
+            "优先投资对接",
+            "独家项目路演",
+            "同行业不超过2家",
+            "限额50席·创始人邀请制",
         ],
     },
 }
 
-# ============================================================
-# Pydantic 请求/响应模型
-# ============================================================
+TIER_ORDER = ["free", "gold", "diamond", "board"]
 
 
 class UpgradeRequest(BaseModel):
-    """升级会员请求"""
-
-    tier: str = Field(..., pattern=r"^(gold|diamond|board)$", description="目标会员等级")
-    payment_platform: str = Field(default="wxpay", pattern=r"^(wxpay|alipay)$")
+    tier: str = Field(..., description="目标会员等级: gold/diamond/board")
 
 
-class UseCreditRequest(BaseModel):
-    """使用对接券请求"""
+class MembershipStatusResponse(BaseModel):
+    tier: str
+    expires_at: datetime | None = None
+    is_active: bool
+    match_credits: int
 
-    event_id: int = Field(..., description="对接会活动ID")
-    notes: str | None = None
 
-
-# ============================================================
-# API 端点
-# ============================================================
+class CreditsResponse(BaseModel):
+    credits: int
+    tier: str
 
 
 @router.get("/tiers")
-def list_tiers():
-    """获取三层会员信息+价格（含免费层）"""
-    tiers = []
-    for tier_key in ["free", "gold", "diamond", "board"]:
-        t = MEMBERSHIP_TIERS[tier_key]
-        tiers.append(
-            {
-                "tier": tier_key,
-                "name": t["name"],
-                "price": t["price"],
-                "duration_days": t["duration_days"],
-                "match_credits": t["match_credits"],
-                "features": t["features"],
-            }
-        )
-    return {"code": 200, "message": "success", "data": tiers}
+def get_membership_tiers():
+    """返回所有会员等级配置"""
+    result = []
+    for key in TIER_ORDER:
+        if key in MEMBERSHIP_TIERS:
+            tier = dict(MEMBERSHIP_TIERS[key])
+            tier["tier"] = key
+            result.append(tier)
+    return {"code": 200, "message": "success", "data": result}
+
+
+@router.get("/status", response_model=MembershipStatusResponse)
+def get_membership_status(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """获取当前用户的会员状态"""
+    now = datetime.utcnow()
+    is_active = False
+    tier = current_user.membership_tier or "free"
+    if tier != "free" and current_user.membership_expires_at:
+        is_active = current_user.membership_expires_at > now
+    return MembershipStatusResponse(
+        tier=tier,
+        expires_at=current_user.membership_expires_at,
+        is_active=is_active,
+        match_credits=current_user.match_credits or 0,
+    )
 
 
 @router.post("/upgrade")
@@ -131,124 +141,61 @@ def upgrade_membership(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """升级会员 — 生成会员升级订单"""
-    # 校验会员等级
-    tier_config = MEMBERSHIP_TIERS.get(req.tier)
-    if not tier_config:
-        raise HTTPException(status_code=400, detail="无效的会员等级")
+    """升级会员（生成订单，需支付后生效）"""
+    if req.tier not in MEMBERSHIP_TIERS:
+        raise HTTPException(status_code=400, detail=f"不支持的会员等级: {req.tier}")
+    if req.tier == "free":
+        raise HTTPException(status_code=400, detail="无法升级到免费会员")
 
-    # 检查是否已经是目标等级且未过期
-    if (
-        current_user.membership_tier == req.tier
-        and current_user.membership_expires_at
-        and current_user.membership_expires_at > datetime.utcnow()
-    ):
-        raise HTTPException(status_code=400, detail="您已经是该等级会员且仍在有效期内")
+    tier_config = MEMBERSHIP_TIERS[req.tier]
+    price = tier_config["price"]
 
-    # 创建订单
-    order = MembershipOrder(
+    from app.models import Order
+
+    order = Order(
         user_id=current_user.id,
-        tier=req.tier,
-        amount=tier_config["price"],
+        product_id=None,
+        quantity=1,
+        total_price=price,
         status="pending",
-        payment_platform=req.payment_platform,
+        promoter_id=None,
+        commission=0,
     )
     db.add(order)
     db.commit()
     db.refresh(order)
 
     return {
-        "code": 200,
-        "message": "订单创建成功",
-        "data": {
-            "order_id": order.id,
-            "tier": order.tier,
-            "amount": order.amount,
-            "status": order.status,
-            "payment_platform": order.payment_platform,
-            "created_at": order.created_at.isoformat() if order.created_at else None,
-        },
-    }
-
-
-@router.get("/status")
-def membership_status(
-    current_user: User = Depends(get_current_user),
-):
-    """当前会员状态"""
-    now = datetime.utcnow()
-    is_expired = bool(
-        current_user.membership_expires_at
-        and current_user.membership_expires_at < now
-    )
-
-    # 如果已过期，自动降级为 free
-    effective_tier = current_user.membership_tier
-    if is_expired and effective_tier != "free":
-        effective_tier = "free"
-
-    expires_at = current_user.membership_expires_at.isoformat() if current_user.membership_expires_at else None
-
-    return {
-        "code": 200,
-        "message": "success",
-        "data": {
-            "user_id": current_user.id,
-            "username": current_user.username,
-            "membership_tier": effective_tier,
-            "membership_expires_at": expires_at,
-            "is_expired": is_expired,
-            "match_credits": current_user.match_credits,
-            "tier_info": MEMBERSHIP_TIERS.get(effective_tier, MEMBERSHIP_TIERS["free"]),
-        },
+        "order_id": order.id,
+        "tier": req.tier,
+        "price": price,
+        "status": "pending",
+        "message": f"订单已创建，请完成支付以激活{tier_config['name']}",
     }
 
 
 @router.post("/credits/use")
 def use_match_credit(
-    req: UseCreditRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """使用对接券"""
-    if current_user.match_credits < 1:
-        raise HTTPException(status_code=400, detail="对接券不足，请升级会员获取更多对接券")
-
-    # 扣除对接券
+    """使用1张对接券"""
+    if current_user.match_credits <= 0:
+        raise HTTPException(status_code=400, detail="对接券不足")
     current_user.match_credits -= 1
-
-    # 记录日志
-    log = MatchCreditLog(
-        user_id=current_user.id,
-        amount=-1,
-        balance_after=current_user.match_credits,
-        reason="use",
-        related_type="matching_event",
-        related_id=req.event_id,
-    )
+    log = MatchCreditLog(user_id=current_user.id, action="use", credits_before=current_user.match_credits + 1, credits_after=current_user.match_credits)
     db.add(log)
     db.commit()
-
-    return {
-        "code": 200,
-        "message": "对接券使用成功",
-        "data": {
-            "remaining_credits": current_user.match_credits,
-            "used_for_event_id": req.event_id,
-        },
-    }
+    return {"code": 200, "credits": current_user.match_credits}
 
 
-@router.get("/credits")
+@router.get("/credits", response_model=CreditsResponse)
 def get_match_credits(
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    """剩余对接券"""
-    return {
-        "code": 200,
-        "message": "success",
-        "data": {
-            "match_credits": current_user.match_credits,
-            "membership_tier": current_user.membership_tier,
-        },
-    }
+    """获取当前用户剩余对接券数量"""
+    return CreditsResponse(
+        credits=current_user.match_credits or 0,
+        tier=current_user.membership_tier or "free",
+    )

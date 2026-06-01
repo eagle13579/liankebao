@@ -114,6 +114,7 @@ _db_lock = threading.Lock()
 
 # ════════════════════════════════════════════════════════
 # SQLite 持久化层
+
 # ════════════════════════════════════════════════════════
 
 def get_db_conn() -> sqlite3.Connection:
@@ -695,8 +696,10 @@ def db_count_visitors(brochure_id: str) -> int:
         conn.close()
 
 
+
 # ════════════════════════════════════════════════════════
 # 匹配引擎
+
 # ════════════════════════════════════════════════════════
 
 def compute_tag_similarity(user_a_tags: list[dict], user_b_tags: list[dict]) -> float:
@@ -776,8 +779,10 @@ def run_matching(source_user_id: str, target_brochures: dict[str, dict]) -> list
     return results
 
 
+
 # ════════════════════════════════════════════════════════
 # 启动前数据加载
+
 # ════════════════════════════════════════════════════════
 
 def load_data():
@@ -789,8 +794,10 @@ def load_data():
     logger.info("数据加载完成，当前共 %d 个画册（来自 SQLite）", len(BROCHURES))
 
 
+
 # ════════════════════════════════════════════════════════
 # FastAPI 应用
+
 # ════════════════════════════════════════════════════════
 
 app = FastAPI(
@@ -807,10 +814,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── 注册 P2 中间件（按顺序: trace_id → metrics → i18n → rate_limit） ──
-app.add_middleware(RateLimitMiddleware)
-app.add_middleware(I18nLanguageMiddleware)
-app.add_middleware(MetricsMiddleware)
 
 
 # ── Pydantic 模型 ──────────────────────────────────────
@@ -950,8 +953,10 @@ def ensure_brochure_id(user_id: str) -> str:
 
 
 
+
 # ════════════════════════════════════════════════════════
 # P2: trace_id+限流+国际化 中间件
+
 # ════════════════════════════════════════════════════════
 
 @app.middleware("http")
@@ -1071,8 +1076,15 @@ class MetricsMiddleware(BaseHTTPMiddleware):
         return response
 
 
+
+# ── P2 middleware registration ──
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(I18nLanguageMiddleware)
+app.add_middleware(MetricsMiddleware)
+
 # ════════════════════════════════════════════════════════
 # API 端点
+
 # ════════════════════════════════════════════════════════
 
 # ── 1. 健康检查 ──────────────────────────────────────
@@ -1560,8 +1572,10 @@ def get_user(user_id: str):
         conn.close()
 
 
+
 # ════════════════════════════════════════════════════════
 # 新增功能: 访客感知 + 扫码优化 + 企业批量导入
+
 # ════════════════════════════════════════════════════════
 
 # ── 14. 画册预览HTML（访客感知注入点）────────────────
@@ -1904,8 +1918,10 @@ def batch_import(data: BatchImportRequest):
     }
 
 
+
 # ════════════════════════════════════════════════════════
 # 启动
+
 # ════════════════════════════════════════════════════════
 
 if __name__ == "__main__":

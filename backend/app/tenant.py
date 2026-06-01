@@ -88,35 +88,18 @@ def get_current_org_slug() -> str:
 # ============================================================
 
 
-class Organization(Base):
-    """租户组织模型"""
-
-    __tablename__ = "organizations"
-
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    name = Column(String(200), nullable=False)
-    slug = Column(String(100), unique=True, nullable=False, index=True)
-    plan = Column(String(50), nullable=False, default="free")  # free / starter / business / enterprise
-    settings = Column(JSON, nullable=True)  # 自定义配置（JSON）
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    # 关系（仅多租户模式启用）
-    memberships = relationship("Membership", back_populates="organization", cascade="all, delete-orphan")
-    if IS_MULTI_TENANT:
-        users = relationship("User", back_populates="organization", foreign_keys="User.organization_id")
-
-
-class Membership(Base):
-    """用户-组织关联模型"""
-
-    __tablename__ = "memberships"
-
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
-    role = Column(String(20), nullable=False, default="member")  # admin / member / viewer
-    created_at = Column(DateTime, default=datetime.utcnow)
-
+if _IS_MULTI_TENANT:
+    class Membership(Base):
+            """用户-组织关联模型"""
+    
+        __tablename__ = "memberships"
+    
+        id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+        user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+        org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+        role = Column(String(20), nullable=False, default="member")  # admin / member / viewer
+        created_at = Column(DateTime, default=datetime.utcnow)
+    
     # 关系
     user = relationship("User", back_populates="memberships", foreign_keys=[user_id])
     organization = relationship("Organization", back_populates="memberships")
