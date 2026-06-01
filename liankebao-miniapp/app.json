@@ -15,6 +15,10 @@
     "pages/notifications/index",
     "pages/partner-policy/index",
     "pages/webview/index"
+    "pages/brochure/index",
+    "pages/brochure-editor/index",
+    "pages/brochure-qrcode/index",
+    "pages/trust-network/index"
   ],
   "window": {
     "navigationStyle": "custom",

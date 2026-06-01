@@ -1,0 +1,1 @@
+<view class="page"><view class="qr-area"><image class="qr-img" src="{{qrCodeUrl}}" mode="widthFix"/><text class="hint">扫一扫查看我的画册</text></view><view class="stats-bar"><text>访问次数: {{visitorCount}}</text></view><button class="btn" bindtap="saveImage">保存到相册</button><button class="btn secondary" open-type="share">转发给好友</button></view>

@@ -1,0 +1,24 @@
+<view class="page">
+  <block wx:if="{{loading}}">
+    <view class="skeleton"><view class="skeleton-avatar"></view><view class="skeleton-name"></view><view class="skeleton-card"></view></view>
+  </block>
+  <block wx:elif="{{error}}">
+    <view class="error-state"><text class="error-icon">!</text><text class="error-text">{{error}}</text><button class="retry-btn" bindtap="onLoad">重试</button></view>
+  </block>
+  <block wx:else>
+    <view class="profile-card"><view class="avatar-ring"><image class="avatar" src="{{userInfo.avatar || '/images/default-avatar.png'}}" /></view>
+      <text class="name">{{userInfo.name}}</text><text class="company">{{userInfo.company}} · {{userInfo.position}}</text>
+      <text class="bio">{{userInfo.bio}}</text>
+    </view>
+    <view class="trust-bar"><text>信任网络 {{trustCount}}人</text><block wx:if="{{hasBadge}}"><text class="badge">认证</text></block></view>
+    <view class="section"><text class="section-title">产品</text>
+      <scroll-view scroll-x class="product-scroll"><block wx:for="{{products}}" wx:key="index">
+        <view class="product-card"><image src="{{item.image}}"/><text>{{item.name}}</text><text class="price">¥{{item.price}}</text></view>
+      </block></scroll-view>
+    </view>
+    <view class="section"><text class="section-title">需求</text>
+      <block wx:for="{{needs}}" wx:key="index"><view class="need-item"><text>{{item.title}}</text><text class="tag {{item.type}}">{{item.type}}</text></view></block>
+    </view>
+    <view class="btn-group"><button class="btn" bindtap="goEdit">编辑画册</button><button class="btn secondary" bindtap="goQR">二维码</button><button class="btn secondary" bindtap="goTrust">信任网络</button></view>
+  </block>
+</view>
