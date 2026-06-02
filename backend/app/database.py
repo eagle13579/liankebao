@@ -185,7 +185,10 @@ def init_db():
 
     # === 多租户：PostgreSQL 模式下创建额外租户表 ===
     if is_multi_tenant():
-        from app.tenant import Membership as TenantMembership  # noqa: F401
+        try:
+            from app.tenant import Membership as TenantMembership  # noqa: F401
+        except ImportError:
+            TenantMembership = None  # noqa: F401
 
     # === 创建表（如果不存在） ===
     Base.metadata.create_all(bind=engine)

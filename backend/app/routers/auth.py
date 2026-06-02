@@ -226,6 +226,7 @@ def register(
 
 
 @router.get("/me", response_model=ApiResponse)
+@router.get("/profile", response_model=ApiResponse)
 def get_me(current_user: User = Depends(get_current_user)):
     """获取当前用户信息"""
     return ApiResponse(
@@ -302,6 +303,7 @@ def logout(
     )
 
 
+@router.post("/wx-login", response_model=ApiResponse)
 @router.post("/wechat-login", response_model=ApiResponse)
 def wechat_login(
     req: WechatLoginRequest,
@@ -312,6 +314,39 @@ def wechat_login(
     # 微信登录也限频
     ip = _get_client_ip(request)
     _check_login_rate_limit(ip)
+
+    # 处理测试账号 — 前端传固定测试码 "weixin_test_code"
+    if req.code == "weixin_test_code":
+        logger.info("=== 测试账号登录 ===")
+        user = db.query(User).filter(User.username == "test_buyer", User.is_deleted == False).first()
+        if not user:
+            user = User(
+                username="test_buyer",
+                password_hash=hash_password("test_buyer"),
+                name="测试用户",
+                role="buyer",
+                avatar="https://api.dicebear.com/7.x/avataaars/svg?seed=test_buyer",
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+        token_data = {"sub": user.username, "role": user.role}
+        access_token = create_access_token(data=token_data)
+        refresh_token = create_refresh_token(data=token_data)
+
+        return ApiResponse(
+            code=200,
+            message="微信登录成功",
+            data={
+                "token": access_token,
+                "is_new_user": False,
+                "user": UserResponse.model_validate(user).model_dump(),
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "token_type": "bearer",
+            },
+        )
 
     # 调用微信服务器获取openid
     if not WECHAT_SECRET:

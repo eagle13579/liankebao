@@ -1,0 +1,22 @@
+name: "deal_stale_qualification"
+description: "Deal在qualification阶段>7天 → 提醒负责人"
+trigger:
+  type: event
+  event: on_deal_stage_changed
+conditions:
+  - field: stage
+    operator: "=="
+    value: qualification
+  - field: stage_duration_days
+    operator: ">="
+    value: 7
+actions:
+  - type: create_notification
+    params:
+      user_id: "{{ deal.owner_id }}"
+      title: "商机停滞提醒"
+      content: "商机「{{ deal.title }}」在 qualification 阶段已超过7天，请尽快推进。"
+      notification_type: warning
+      reference_type: deal
+      reference_id: "{{ deal.id }}"
+enabled: true

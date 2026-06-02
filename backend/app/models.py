@@ -7,6 +7,12 @@ from sqlalchemy.orm import relationship
 
 from app.database import DB_TYPE, Base
 
+# === Stub Membership for non-multi-tenant mode ===
+class _StubMembership:  # placeholder when IS_MULTI_TENANT=False
+    __tablename__ = "memberships"
+    pass
+
+
 # ============================================================
 # 多租户判断：PostgreSQL 模式下强制启用 organization_id
 # ============================================================
@@ -61,7 +67,7 @@ class User(Base):
 
     # 关系（仅多租户模式启用 ForeignKey 关系）
     if _IS_MULTI_TENANT:
-        organization = relationship("Organization", back_populates="users", foreign_keys=[organization_id])
+        organization = relationship("Organization", foreign_keys=[organization_id])
         memberships = relationship("Membership", back_populates="user", cascade="all, delete-orphan")
     else:
         memberships = relationship(

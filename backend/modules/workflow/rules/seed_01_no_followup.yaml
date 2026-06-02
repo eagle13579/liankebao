@@ -1,0 +1,24 @@
+name: "deal_no_followup_24h"
+description: "新Deal创建后24小时未跟进 → 创建跟进提醒"
+trigger:
+  type: event
+  event: on_deal_created
+conditions:
+  - field: elapsed_hours
+    operator: ">="
+    value: 24
+actions:
+  - type: create_activity
+    params:
+      action_type: task
+      summary: "跟进提醒: Deal {{ deal.title }} 已创建24小时未跟进"
+      detail: "商机 {{ deal.title }} (ID: {{ deal.id }}) 已创建超过24小时，请及时跟进。"
+      owner_id: "{{ deal.owner_id }}"
+      contact_id: "{{ deal.contact_id }}"
+  - type: create_notification
+    params:
+      user_id: "{{ deal.owner_id }}"
+      title: "跟进提醒"
+      content: "商机「{{ deal.title }}」已创建24小时，请及时跟进。"
+      notification_type: warning
+enabled: true

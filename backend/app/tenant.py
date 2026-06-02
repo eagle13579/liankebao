@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # ============================================================
 # 是否启用多租户
 # ============================================================
-IS_MULTI_TENANT = DB_TYPE == "postgres"
+IS_MULTI_TENANT = False
 
 
 # ============================================================
@@ -88,10 +88,11 @@ def get_current_org_slug() -> str:
 # ============================================================
 
 
-if _IS_MULTI_TENANT:
+if IS_MULTI_TENANT:
     class Membership(Base):
-            """用户-组织关联模型"""
+        """用户-组织关联模型"""
     
+        __table_args__ = {"extend_existing": True}
         __tablename__ = "memberships"
     
         id = Column(Integer, primary_key=True, index=True, autoincrement=True)
@@ -99,10 +100,9 @@ if _IS_MULTI_TENANT:
         org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
         role = Column(String(20), nullable=False, default="member")  # admin / member / viewer
         created_at = Column(DateTime, default=datetime.utcnow)
-    
-    # 关系
-    user = relationship("User", back_populates="memberships", foreign_keys=[user_id])
-    organization = relationship("Organization", back_populates="memberships")
+
+        user = relationship("User", back_populates="memberships", foreign_keys=[user_id])
+        organization = relationship("Organization", back_populates="memberships")
 
 
 # ============================================================
