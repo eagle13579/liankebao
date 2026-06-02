@@ -222,8 +222,13 @@ export function LoginPage() {
           </button>
         </p>
         <p className="text-[9px] text-slate-400 tracking-wider font-medium">
-          企业信任关系网络 © 2025 链客宝 · 版权所有
-        </p>
+              企业信任关系网络 © 2025 链客宝 · 版权所有
+            </p>
+            <p className="text-[9px] text-slate-400 mt-1">
+              <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer" className="hover:text-slate-500 transition-colors">
+                沪ICP备2026007459号-2
+              </a>
+            </p>
       </footer>
 
       {/* Entrance animation keyframe */}

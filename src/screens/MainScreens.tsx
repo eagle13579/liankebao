@@ -309,10 +309,16 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
         </div>
       </main>
 
-      <BottomNav active="home" />
-    </div>
-  );
-});
+          <BottomNav active="home" />
+          {/* ICP备案号 */}
+          <footer className="w-full py-3 text-center text-xs text-gray-400 border-t border-gray-100 bg-white">
+            <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer" className="hover:text-gray-500 transition-colors">
+              沪ICP备2026007459号-2
+            </a>
+          </footer>
+        </div>
+      );
+    });
 
 // Handshake icon component
 function HandshakeIcon({ className }: { className?: string }) {
@@ -659,10 +665,16 @@ export const ProductPool = memo(function ProductPool() {
         </div>
       </main>
 
-      <BottomNav active="product" />
-    </div>
-  );
-});
+          <BottomNav active="product" />
+          {/* ICP备案号 */}
+          <footer className="w-full py-3 text-center text-xs text-gray-400 border-t border-gray-100 bg-white">
+            <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer" className="hover:text-gray-500 transition-colors">
+              沪ICP备2026007459号-2
+            </a>
+          </footer>
+        </div>
+      );
+    });
 
 // ==============================
 //  PromotionCenter
@@ -972,7 +984,13 @@ export function PromotionCenter() {
         )}
       </main>
 
-      <BottomNav active="profile" />
-    </div>
-  );
-}
+          <BottomNav active="profile" />
+          {/* ICP备案号 */}
+          <footer className="w-full py-3 text-center text-xs text-gray-400 border-t border-gray-100 bg-white">
+            <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer" className="hover:text-gray-500 transition-colors">
+              沪ICP备2026007459号-2
+            </a>
+          </footer>
+        </div>
+      );
+    }
