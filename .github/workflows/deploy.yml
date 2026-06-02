@@ -10,40 +10,29 @@ concurrency:
 
 jobs:
   deploy:
-    name: 🔨 构建 & 部署
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: npm
-
       - run: npm ci && npm run build
 
-      - name: SSH Deploy
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: 47.116.116.87
-          username: root
-          password: ${{ secrets.DEPLOY_PASSWORD }}
-          script: |
-            set -e
+      - name: Deploy via SSH with password
+        env:
+          SSHPASS: ${{ secrets.DEPLOY_PASSWORD }}
+        run: |
+          sudo apt-get install -y -qq sshpass
+          sshpass -e ssh -o StrictHostKeyChecking=no root@47.116.116.87 '
             cd /var/www/liankebao
             git fetch origin master
             git reset --hard origin/master
             git clean -fd
-            VITE_API_BASE='' npm run build -- --logLevel error
+            VITE_API_BASE="" npm run build -- --logLevel error
             cd backend && source .venv/bin/activate && pip install -r requirements.txt -q
-            systemctl daemon-reload
-            systemctl restart chainke-backend
+            systemctl daemon-reload && systemctl restart chainke-backend
             sleep 10
-            for i in 1 2 3 4 5 6 7 8; do
-              STATUS=$(curl -s -o /dev/null -w "%%{http_code}" http://127.0.0.1:8001/health 2>/dev/null || echo "000")
-              echo "Attempt $i/8: HTTP $STATUS"
-              [ "$STATUS" = "200" ] && echo '✅ OK' && exit 0
-              sleep 5
-            done
-            echo '⚠️ Timeout'
+            curl -sf http://127.0.0.1:8001/health > /dev/null && echo "DEPLOY_OK" || echo "HEALTH_CHECK_FAILED"
+          '
