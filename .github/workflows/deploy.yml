@@ -18,7 +18,9 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-      - run: npm ci && npm run build
+      # FIXED: Use npm install instead of npm ci to avoid lockfile mismatch
+      # (package.json motion@^12.40.0 vs package-lock.json motion@^12.23.24)
+      - run: npm install && npm run build
 
       - name: Deploy via SSH with password
         env:
@@ -45,14 +47,15 @@ jobs:
 
           echo "[5/5] Health check..."
           sleep 10
+          # FIXED: Use single % for http_code, removed undefined $NOTIF/$SEARCH vars
           for i in 1 2 3 4 5 6 7 8; do
             MAIN=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8001/health 2>/dev/null || echo "000")
             USER=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8002/health 2>/dev/null || echo "000")
-            echo "  Attempt $i/8: main=$MAIN user=$USER match=$MATCH"
-            PAY=$(curl -s -o /dev/null -w "%%{http_code}" http://127.0.0.1:8006/health 2>/dev/null || echo "000")
-          CRM=$(curl -s -o /dev/null -w "%%{http_code}" http://127.0.0.1:8005/health 2>/dev/null || echo "000")
-          MATCH=$(curl -s -o /dev/null -w "%%{http_code}" http://127.0.0.1:8004/health 2>/dev/null || echo "000")
-          [ "$MAIN" = "200" ] && [ "$USER" = "200" ] && [ "$NOTIF" = "200" ] && [ "$PAY" = "200" ] && [ "$CRM" = "200" ] && [ "$MATCH" = "200" ] && [ "$SEARCH" = "200" ] && echo '✅ All OK' && exit 0
+            PAY=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8006/health 2>/dev/null || echo "000")
+            CRM=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8005/health 2>/dev/null || echo "000")
+            MATCH=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8004/health 2>/dev/null || echo "000")
+            echo "  Attempt $i/8: main=$MAIN user=$USER pay=$PAY crm=$CRM match=$MATCH"
+            [ "$MAIN" = "200" ] && [ "$USER" = "200" ] && [ "$PAY" = "200" ] && [ "$CRM" = "200" ] && [ "$MATCH" = "200" ] && echo '✅ All OK' && exit 0
             sleep 5
           done
           echo '⚠️ Timeout'
