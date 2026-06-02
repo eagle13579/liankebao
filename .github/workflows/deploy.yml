@@ -5,16 +5,16 @@ name: 链客宝 CI/CD
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   workflow_dispatch:
     inputs:
       branch:
         description: "部署分支"
         required: true
-        default: "main"
+        default: "master"
         type: choice
         options:
-          - main
+          - master
           - develop
 
 concurrency:
@@ -71,8 +71,8 @@ jobs:
             # 通过 git 拉取最新代码
             echo "[部署] git pull..."
             cd "$TARGET_DIR"
-            git fetch origin main
-            git reset --hard origin/main
+            git fetch origin master
+            git reset --hard origin/master
             git clean -fd
 
             # 安装后端依赖
