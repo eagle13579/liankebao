@@ -1,21 +1,8 @@
-# 链客宝 CI/CD 流水线
-# 触发: push 到 main 分支
-# 构建前端 → 运行测试 → SSH部署到 liankebao.top
 name: 链客宝 CI/CD
-
 on:
   push:
     branches: [master]
   workflow_dispatch:
-    inputs:
-      branch:
-        description: "部署分支"
-        required: true
-        default: "master"
-        type: choice
-        options:
-          - master
-          - develop
 
 concurrency:
   group: cd-${{ github.ref }}
@@ -26,79 +13,58 @@ jobs:
     name: 🔨 构建 & 部署
     runs-on: ubuntu-latest
     timeout-minutes: 15
-
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.branch || github.ref_name }}
+          ref: ${{ github.ref_name }}
 
-      - name: 安装前端依赖
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: npm
           cache-dependency-path: package-lock.json
 
-      - name: 安装 npm 依赖
-        run: npm ci
+      - name: Install & Build
+        run: |
+          npm ci
+          npm run build -- --logLevel error
 
-      - name: 构建前端
-        run: npm run build -- --logLevel error
-
-      - name: SSH 部署到服务器
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: 47.116.116.87
           username: root
+          password: ${{ secrets.DEPLOY_PASSWORD }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             set -e
-            echo "=== 链客宝自动部署 ==="
-            echo "Commit: ${{ github.sha }}"
-            echo "时间: $(date '+%Y-%m-%d %H:%M:%S')"
+            echo "=== Deploy: $(date '+%Y-%m-%d %H:%M:%S') ==="
+            TARGET="/var/www/liankebao"
+            cd $TARGET
 
-            TARGET_DIR="/var/www/liankebao"
-
-            # 备份当前版本
-            BACKUP_DIR="${TARGET_DIR}_backup_$(date +%Y%m%d_%H%M%S)"
-            if [ -d "$TARGET_DIR/dist" ]; then
-              echo "[备份] $BACKUP_DIR"
-              mkdir -p "$BACKUP_DIR"
-              cp -r "$TARGET_DIR/dist" "$BACKUP_DIR/"
-            fi
-
-            # 通过 git 拉取最新代码
-            echo "[部署] git pull..."
-            cd "$TARGET_DIR"
+            echo "[1/5] Git pull..."
             git fetch origin master
             git reset --hard origin/master
             git clean -fd
 
-            # 安装后端依赖
-            echo "[部署] 安装后端依赖..."
-            cd "$TARGET_DIR/backend"
-            if [ ! -d ".venv" ]; then
-              python3 -m venv .venv
-            fi
+            echo "[2/5] Build frontend..."
+            VITE_API_BASE='' npm run build -- --logLevel error 2>/dev/null
+
+            echo "[3/5] Backend deps..."
+            cd backend
             source .venv/bin/activate
             pip install -r requirements.txt -q
 
-            # 重启服务
-            echo "[部署] 重启服务..."
+            echo "[4/5] Restart service..."
             systemctl daemon-reload
             systemctl restart chainke-backend
 
-            # 健康检查
-            echo "[部署] 健康检查..."
-            sleep 8
-            for i in $(seq 1 12); do
-              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8001/health 2>/dev/null || echo "000")
-              if [ "$HTTP_CODE" = "200" ]; then
-                echo "  ✅ 健康检查通过 ($i/12)"
-                break
-              fi
-              echo "  ⏳ 等待... ($i/12, HTTP $HTTP_CODE)"
+            echo "[5/5] Health check..."
+            sleep 10
+            for i in 1 2 3 4 5 6 7 8; do
+              STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8001/health 2>/dev/null || echo "000")
+              echo "  Attempt $i/8: HTTP $STATUS"
+              if [ "$STATUS" = "200" ]; then echo '✅ Deploy OK'; exit 0; fi
               sleep 5
             done
-            echo "=== ✅ 部署完成 ==="
+            echo '⚠️ Health check timeout'
