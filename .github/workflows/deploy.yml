@@ -22,12 +22,14 @@ jobs:
       # (package.json motion@^12.40.0 vs package-lock.json motion@^12.23.24)
       - run: npm install && npm run build
 
-      - name: Deploy via SSH with password
+      - name: Deploy via SSH with password (retry)
         env:
           SSHPASS: ${{ secrets.DEPLOY_PASSWORD }}
         run: |
           sudo apt-get install -y -qq sshpass
-          sshpass -e ssh -o StrictHostKeyChecking=no root@47.116.116.87 '
+          for attempt in 1 2 3; do
+            echo "--- SSH attempt $attempt/3 ---"
+            sshpass -e ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -o ServerAliveInterval=10 root@47.116.116.87 '
             cd /var/www/liankebao
             git fetch origin master
             git reset --hard origin/master
@@ -38,6 +40,14 @@ jobs:
             sleep 10
             curl -sf http://127.0.0.1:8001/health > /dev/null && echo "DEPLOY_OK" || echo "HEALTH_CHECK_FAILED"
           '
+          if [ $? -eq 0 ]; then
+            echo "✅ SSH attempt $attempt/3 succeeded"
+            break
+          else
+            echo "❌ SSH attempt $attempt/3 failed, retrying in 5s..."
+            sleep 5
+          fi
+          done
           # Start user-service
           echo "[4/5] Starting user-service..."
           cd /var/www/liankebao/user-service
