@@ -274,7 +274,6 @@ export default function Shell({
         <main className="flex-1 overflow-auto p-6">
           {children ?? <Outlet />}
         </main>
-
         {/* --- Footer — ICP备案号 --- */}
         <footer className="flex-shrink-0 border-t border-gray-200 text-center text-xs text-gray-400 py-3">
           <a

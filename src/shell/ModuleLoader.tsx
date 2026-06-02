@@ -68,6 +68,7 @@ const moduleComponentMap: Record<string, React.LazyExoticComponent<ComponentType
   './frontend/RechargeModule':       lazy(() => import('../pages/recharge/RechargeModule')),
   './frontend/ReconciliationModule': lazy(() => import('../pages/reconciliation/ReconciliationModule')),
   './frontend/SearchModule':         lazy(() => import('../pages/search/SearchModule')),
+  './frontend/BusinessCardModule':   lazy(() => import('../pages/business-card/BusinessCardModule')),
 };
 
 /* ------------------------------------------------------------------ */
