@@ -310,6 +310,13 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
       </main>
 
       <BottomNav active="home" />
+
+      {/* ICP备案号 */}
+      <footer className="py-3 text-center text-xs text-gray-400 bg-white border-t border-gray-100">
+        <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer" className="hover:text-gray-500 transition-colors">
+          沪ICP备2026007459号-2
+        </a>
+      </footer>
     </div>
   );
 });
