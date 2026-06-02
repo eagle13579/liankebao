@@ -9,62 +9,41 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  deploy:
     name: 🔨 构建 & 部署
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref_name }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: npm
-          cache-dependency-path: package-lock.json
 
-      - name: Install & Build
-        run: |
-          npm ci
-          npm run build -- --logLevel error
+      - run: npm ci && npm run build
 
-      - name: Deploy via SSH
+      - name: SSH Deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: 47.116.116.87
           username: root
           password: ${{ secrets.DEPLOY_PASSWORD }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             set -e
-            echo "=== Deploy: $(date '+%Y-%m-%d %H:%M:%S') ==="
-            TARGET="/var/www/liankebao"
-            cd $TARGET
-
-            echo "[1/5] Git pull..."
+            cd /var/www/liankebao
             git fetch origin master
             git reset --hard origin/master
             git clean -fd
-
-            echo "[2/5] Build frontend..."
-            VITE_API_BASE='' npm run build -- --logLevel error 2>/dev/null
-
-            echo "[3/5] Backend deps..."
-            cd backend
-            source .venv/bin/activate
-            pip install -r requirements.txt -q
-
-            echo "[4/5] Restart service..."
+            VITE_API_BASE='' npm run build -- --logLevel error
+            cd backend && source .venv/bin/activate && pip install -r requirements.txt -q
             systemctl daemon-reload
             systemctl restart chainke-backend
-
-            echo "[5/5] Health check..."
             sleep 10
             for i in 1 2 3 4 5 6 7 8; do
-              STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8001/health 2>/dev/null || echo "000")
-              echo "  Attempt $i/8: HTTP $STATUS"
-              if [ "$STATUS" = "200" ]; then echo '✅ Deploy OK'; exit 0; fi
+              STATUS=$(curl -s -o /dev/null -w "%%{http_code}" http://127.0.0.1:8001/health 2>/dev/null || echo "000")
+              echo "Attempt $i/8: HTTP $STATUS"
+              [ "$STATUS" = "200" ] && echo '✅ OK' && exit 0
               sleep 5
             done
-            echo '⚠️ Health check timeout'
+            echo '⚠️ Timeout'
