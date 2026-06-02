@@ -49,9 +49,10 @@ jobs:
             MAIN=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8001/health 2>/dev/null || echo "000")
             USER=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8002/health 2>/dev/null || echo "000")
             echo "  Attempt $i/8: main=$MAIN user=$USER match=$MATCH"
-            CRM=$(curl -s -o /dev/null -w "%%{http_code}" http://127.0.0.1:8005/health 2>/dev/null || echo "000")
+            PAY=$(curl -s -o /dev/null -w "%%{http_code}" http://127.0.0.1:8006/health 2>/dev/null || echo "000")
+          CRM=$(curl -s -o /dev/null -w "%%{http_code}" http://127.0.0.1:8005/health 2>/dev/null || echo "000")
           MATCH=$(curl -s -o /dev/null -w "%%{http_code}" http://127.0.0.1:8004/health 2>/dev/null || echo "000")
-          [ "$MAIN" = "200" ] && [ "$USER" = "200" ] && [ "$CRM" = "200" ] && [ "$MATCH" = "200" ] && echo '✅ All OK' && exit 0
+          [ "$MAIN" = "200" ] && [ "$USER" = "200" ] && [ "$PAY" = "200" ] && [ "$CRM" = "200" ] && [ "$MATCH" = "200" ] && echo '✅ All OK' && exit 0
             sleep 5
           done
           echo '⚠️ Timeout'
