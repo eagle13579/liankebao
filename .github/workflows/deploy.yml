@@ -36,3 +36,20 @@ jobs:
             sleep 10
             curl -sf http://127.0.0.1:8001/health > /dev/null && echo "DEPLOY_OK" || echo "HEALTH_CHECK_FAILED"
           '
+          # Start user-service
+          echo "[4/5] Starting user-service..."
+          cd /var/www/liankebao/user-service
+          fuser -k 8002/tcp 2>/dev/null || true
+          nohup /var/www/liankebao/backend/.venv/bin/python standalone_auth.py > user-service.log 2>&1 &
+          sleep 3
+
+          echo "[5/5] Health check..."
+          sleep 10
+          for i in 1 2 3 4 5 6 7 8; do
+            MAIN=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8001/health 2>/dev/null || echo "000")
+            USER=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8002/health 2>/dev/null || echo "000")
+            echo "  Attempt $i/8: main=$MAIN user=$USER"
+            [ "$MAIN" = "200" ] && [ "$USER" = "200" ] && echo '✅ All OK' && exit 0
+            sleep 5
+          done
+          echo '⚠️ Timeout'
