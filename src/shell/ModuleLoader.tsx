@@ -307,4 +307,4 @@ export default function ModuleLoader({
 /* ------------------------------------------------------------------ */
 
 export type { ModuleInfo, FrontendConfig, ModulesResponse, ModuleRouteConfig };
-export { moduleComponentMap, ModuleContext, useModuleRoutes };
+export { moduleComponentMap, ModuleContext };

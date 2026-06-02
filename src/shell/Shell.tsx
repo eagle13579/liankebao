@@ -274,6 +274,18 @@ export default function Shell({
         <main className="flex-1 overflow-auto p-6">
           {children ?? <Outlet />}
         </main>
+
+        {/* --- Footer — ICP备案号 --- */}
+        <footer className="flex-shrink-0 border-t border-gray-200 text-center text-xs text-gray-400 py-3">
+          <a
+            href="https://beian.miit.gov.cn/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-gray-500 transition-colors"
+          >
+            沪ICP备2026007459号-2
+          </a>
+        </footer>
       </div>
     </div>
   );

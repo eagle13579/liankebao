@@ -26,13 +26,23 @@ const Dashboard = lazy(() => import('./pages/dashboard/Dashboard'));
 
 function LoginPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100">
       <div className="bg-white p-8 rounded-lg shadow-md w-96">
         <h1 className="text-2xl font-bold text-center mb-6">链客宝</h1>
         <p className="text-center text-gray-500 text-sm">
           登录功能由 auth 模块提供
         </p>
       </div>
+      <footer className="mt-8 text-center text-xs text-gray-400">
+        <a
+          href="https://beian.miit.gov.cn/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-gray-500 transition-colors"
+        >
+          沪ICP备2026007459号-2
+        </a>
+      </footer>
     </div>
   );
 }
