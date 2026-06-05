@@ -41,7 +41,7 @@ const PAIN_OPTIONS: PainOption[] = [
     id: 'distribution_pain',
     icon: <Repeat2 className="w-6 h-6" />,
     title: '分销结算太麻烦',
-    description: '渠道佣金计算繁琐，希望一键发布任务邀请伙伴推广',
+    description: '渠道佣金计算繁琐，希望一键发布信息邀请伙伴推广',
     emoji: '🔄',
   },
 ];
@@ -130,7 +130,7 @@ export function getOnboardingRedirect(painPoint: PainPoint | null): string {
     case 'lack_trust':
       return '/supply-demand'; // 「企业信任网络」引导
     case 'distribution_pain':
-      return '/promotion-center'; // 「发布任务→邀请伙伴」引导
+      return '/promotion-center'; // 「发布信息→邀请伙伴」引导
     default:
       return '/home';
   }
