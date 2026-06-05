@@ -250,6 +250,7 @@ export function UserRegistration() {
   const [registerSuccess, setRegisterSuccess] = useState(false);
   const [onboardingPainPoint, setOnboardingPainPoint] = useState<PainPoint | null>(null);
   const [showMore, setShowMore] = useState(false);
+  const [useEmail, setUseEmail] = useState(false);
   const [cardScanLoading, setCardScanLoading] = useState(false);
   const [cardScanMessage, setCardScanMessage] = useState('');
 
@@ -375,8 +376,19 @@ export function UserRegistration() {
         {/* 核心三字段：手机号 + 姓名 + 密码 */}
         <section className="space-y-4">
           <div className="space-y-1">
-            <label className="text-xs text-slate-500 font-medium px-1">手机号码</label>
-            <input value={phone} onChange={e => setPhone(e.target.value)} className="w-full h-12 bg-white border border-slate-200 rounded-xl px-4 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all text-sm" placeholder="请输入11位手机号" />
+            <div className="flex items-center gap-2 mb-1">
+              <label className="text-xs text-slate-500 font-medium px-1">手机号码</label>
+              <span className="text-[9px] text-slate-400">或</span>
+              <label className="text-xs text-sky-500 font-medium cursor-pointer hover:underline" 
+                     onClick={() => { setUseEmail(!useEmail); setPhone(''); }}>
+                {useEmail ? '使用手机号注册' : '使用邮箱注册'}
+              </label>
+            </div>
+            {useEmail ? (
+              <input value={phone} onChange={e => setPhone(e.target.value)} className="w-full h-12 bg-white border border-slate-200 rounded-xl px-4 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all text-sm" placeholder="请输入邮箱地址" />
+            ) : (
+              <input value={phone} onChange={e => setPhone(e.target.value)} className="w-full h-12 bg-white border border-slate-200 rounded-xl px-4 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all text-sm" placeholder="请输入11位手机号" />
+            )}
           </div>
           <div className="space-y-1">
             <label className="text-xs text-slate-500 font-medium px-1">姓名</label>
