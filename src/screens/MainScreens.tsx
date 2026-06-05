@@ -229,7 +229,17 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
         </div>
       </div>
 
-      {/* ====== 实时动态 ====== */}
+      {/* ====== 平台生态 ====== */}
+      <div className="px-4 max-w-3xl mx-auto w-full mt-3 relative z-10">
+        <div className="bg-dark-surface/30 backdrop-blur-sm rounded-xl border border-dark-border/30 p-3">
+          <div className="text-[10px] font-bold text-dark-muted uppercase tracking-wider mb-2">平台生态</div>
+          <div className="flex flex-wrap gap-1.5">
+            {['AI科技','企业服务','大健康','教育培训','消费品','供应链','跨境电商','金融服务','SaaS'].map((tag, i) => (
+              <span key={i} className="text-[9px] px-2 py-1 rounded-full bg-dark-surface/60 text-dark-muted/80 border border-dark-border/40">{tag}</span>
+            ))}
+          </div>
+        </div>
+      </div>
       <div className="px-4 max-w-3xl mx-auto w-full mt-4 relative z-10">
         <div className="bg-dark-surface/40 backdrop-blur-sm rounded-xl border border-dark-border/40 p-3">
           <div className="flex items-center gap-2 mb-2">
