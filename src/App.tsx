@@ -7,6 +7,8 @@ import React, { Suspense, lazy } from 'react';
 import { I18nProvider } from './i18n';
 import { Globe } from 'lucide-react';
 import { useLocale } from './i18n';
+import { ThemeProvider } from './contexts/ThemeContext';
+import './styles/themes.css';
 
 // Lazy-loaded screen components for code splitting
 const LoginPageLazy = lazy(() => import('./screens/AuthScreens').then(m => ({ default: m.LoginPage })));

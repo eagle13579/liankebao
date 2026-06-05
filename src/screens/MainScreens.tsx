@@ -191,6 +191,9 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
               <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-gradient-to-br from-rose-500 to-rose-600 rounded-full text-white text-[8px] font-bold flex items-center justify-center shadow-sm">{unreadCount > 99 ? '99+' : unreadCount}</span>
               )}
             </button>
+            <button onClick={() => { const d=document.documentElement; const n=d.getAttribute('data-theme')==='light'?'dark':'light'; d.setAttribute('data-theme',n); d.classList.remove('light','dark'); d.classList.add(n); localStorage.setItem('liankebao-theme',n); }} className="w-9 h-9 rounded-full bg-dark-surface flex items-center justify-center text-dark-muted hover:bg-sky-500/15 hover:text-sky-400 active:scale-90 transition-all border border-dark-border">
+              <span className="text-base">☀️</span>
+            </button>
             <button onClick={() => navigate('/profile')} className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center text-white shadow-md shadow-sky-500/20 active:scale-90 transition-all border-2 border-dark-surface">
               <User className="w-4.5 h-4.5" />
             </button>
