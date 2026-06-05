@@ -207,6 +207,9 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
             <button onClick={() => navigate('/profile')} className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center text-white shadow-md shadow-sky-500/20 active:scale-90 transition-all border-2 border-dark-surface">
               <User className="w-4.5 h-4.5" />
             </button>
+            <button onClick={() => navigate('/product-pool')} className="w-9 h-9 rounded-full bg-dark-surface flex items-center justify-center text-dark-muted hover:bg-sky-500/15 hover:text-sky-400 active:scale-90 transition-all border border-dark-border">
+              <Search className="w-4.5 h-4.5" />
+            </button>
           </div>
         </div>
       </header>
