@@ -201,7 +201,25 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
         </div>
       </header>
 
-      <main className="pt-16 max-w-3xl mx-auto w-full relative z-10">
+      {/* ====== 平台数据总览 ====== */}
+      <div className="pt-20 px-4 max-w-3xl mx-auto w-full relative z-10">
+        <div className="bg-dark-surface/60 backdrop-blur-sm rounded-2xl border border-dark-border/60 p-4 grid grid-cols-3 gap-3">
+          <div className="text-center">
+            <div className="text-lg font-extrabold text-sky-400">100+</div>
+            <div className="text-[10px] text-dark-muted font-medium">企业入驻</div>
+          </div>
+          <div className="text-center">
+            <div className="text-lg font-extrabold text-emerald-400">500+</div>
+            <div className="text-[10px] text-dark-muted font-medium">成功对接</div>
+          </div>
+          <div className="text-center">
+            <div className="text-lg font-extrabold text-violet-400">95%</div>
+            <div className="text-[10px] text-dark-muted font-medium">满意度</div>
+          </div>
+        </div>
+      </div>
+
+      <main className="pt-4 max-w-3xl mx-auto w-full relative z-10">
         {/* ====== 3 MAIN BUTTONS — enhanced ====== */}
         <div className="px-4 pt-8 pb-2">
           {/* Section label — dark theme */}
