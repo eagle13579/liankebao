@@ -149,6 +149,19 @@
   background-color: var(--bg-muted) !important;
 }
 
+/* ===== 卡片容器暗色统一 ===== */
+[data-theme="dark"] .rounded-xl.border,
+[data-theme="dark"] .rounded-2xl.border,
+[data-theme="dark"] .rounded-lg.border {
+  border-color: var(--border-primary) !important;
+}
+
+[data-theme="dark"] .shadow-sm,
+[data-theme="dark"] .shadow-md,
+[data-theme="dark"] .shadow-lg {
+  box-shadow: var(--shadow-sm) !important;
+}
+
 /* ===== 品牌设计Token统一 ===== */
 :root {
   --brand-radius-sm: 0.5rem;
