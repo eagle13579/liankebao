@@ -61,6 +61,7 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showMore, setShowMore] = useState(false);
   const [animatingBtn, setAnimatingBtn] = useState<string | null>(null);
+  const [showGuide, setShowGuide] = useState(!localStorage.getItem('liankebao_guide_done'));
 
   // 从 /api/home/mission-control 获取3个核心功能的状态
   const [missionStatus, setMissionStatus] = useState<{
@@ -221,6 +222,19 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
       </div>
 
       <main className="pt-4 max-w-3xl mx-auto w-full relative z-10">
+        {/* ====== 新用户引导条 ====== */}
+        {showGuide && (
+          <div className="mx-4 mb-4 bg-gradient-to-r from-sky-500/10 to-blue-500/10 rounded-2xl border border-sky-500/20 p-4 relative">
+            <button onClick={() => { setShowGuide(false); localStorage.setItem('liankebao_guide_done', '1'); }} className="absolute top-2 right-2 w-6 h-6 rounded-full bg-dark-surface/60 flex items-center justify-center text-dark-muted text-xs hover:bg-dark-surface transition-colors">✕</button>
+            <h4 className="text-sm font-bold text-sky-400 mb-1">🚀 欢迎来到链客宝</h4>
+            <p className="text-[11px] text-dark-muted leading-relaxed">发布你的第一个产品，或者浏览产品池发现商机。AI匹配引擎会为你推荐最合适的合作伙伴。</p>
+            <div className="flex gap-2 mt-3">
+              <button onClick={() => navigate('/add-product')} className="text-[10px] px-3 py-1.5 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-lg font-bold hover:opacity-90 transition-all">发布产品</button>
+              <button onClick={() => navigate('/product-pool')} className="text-[10px] px-3 py-1.5 bg-dark-surface text-dark-muted rounded-lg font-medium border border-dark-border hover:border-sky-500/30 transition-all">浏览产品池</button>
+            </div>
+          </div>
+        )}
+
         {/* ====== 3 MAIN BUTTONS — enhanced ====== */}
         <div className="px-4 pt-8 pb-2">
           {/* Section label — dark theme */}
