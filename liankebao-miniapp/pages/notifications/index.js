@@ -30,7 +30,7 @@ Page({
 
     var params = { page: self.data.page, pageSize: self.data.pageSize }
 
-    api.get('/api/v1/notifications?' + objToParams(params)).then(function(res) {
+    api.get('/api/notifications?' + objToParams(params)).then(function(res) {
       var raw = (res.data && res.data.items) || res.data || []
       if (!Array.isArray(raw)) raw = []
 
@@ -60,7 +60,7 @@ Page({
     }
     self.setData({ list: list })
 
-    api.put('/api/v1/notifications/' + id + '/read').then(function(res) {
+    api.put('/api/notifications/' + id + '/read').then(function(res) {
       // silent
     }).catch(function() {
       // silent

@@ -10,7 +10,7 @@ Page({
     var self = this, user = wx.getStorageSync("user")
     if (!user || !user.user_id) { wx.showToast({ title: "请先登录", icon: "none" }); return }
     self.setData({ submitting: true })
-    api.request("/api/v1/brochures/" + user.user_id, "PUT", self.data.form).then(function(r) {
+    api.request("/api/brochures/" + user.user_id, "PUT", self.data.form).then(function(r) {
       wx.showToast({ title: "保存成功" })
       setTimeout(function() { wx.navigateBack() }, 1500)
     }).catch(function(e) { wx.showToast({ title: "保存失败", icon: "none" }) })

@@ -10,7 +10,7 @@ Page({
   },
   loadQR: function(id) {
     var self = this
-    api.request("/api/v1/brochure/" + id + "/qrcode").then(function(r) {
+    api.request("/api/brochure/" + id + "/qrcode").then(function(r) {
       if (r && r.data) self.setData({ qrCodeUrl: r.data.url || "", visitorCount: r.data.visitor_count || 0 })
     })
   },

@@ -13,7 +13,7 @@ Page({
   },
   loadBrochure: function(userId) {
     var self = this
-    api.request("/api/v1/brochures/" + userId).then(function(res) {
+    api.request("/api/brochures/" + userId).then(function(res) {
       if (res && res.data) {
         self.setData({
           userInfo: res.data, products: res.data.products || [],

@@ -41,7 +41,7 @@ Page({
     if (self.data.description) data.description = self.data.description
     if (self.data.contact) data.contact = self.data.contact
 
-    api.post('/api/v1/needs', data).then(function(res) {
+    api.post('/api/needs', data).then(function(res) {
       self.setData({ submitting: false })
       if (res && res.code === 200) {
         wx.showToast({ title: '发布成功', icon: 'success' })

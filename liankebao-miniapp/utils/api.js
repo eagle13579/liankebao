@@ -1,7 +1,7 @@
 // 链客宝小程序 API 请求封装 v2.0
 // 同步网页版 /api/v1/ 版本
 
-var BASE_URL = 'https://www.go-aiport.com/lkapi'
+var BASE_URL = 'https://liankebao.top/lkapi'
 
 function request(path, method, data) {
   if (!method) method = 'GET'
