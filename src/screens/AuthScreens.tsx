@@ -49,7 +49,7 @@ export function LoginPage() {
           </div>
           <div>
             <h1 className="font-manrope text-xl font-extrabold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent leading-tight">链客宝</h1>
-            <p className="text-[10px] text-slate-400 font-medium tracking-wider -mt-0.5">企业信任关系网，对接更快更准</p>
+            <p className="text-[10px] text-slate-400 font-medium tracking-wider -mt-0.5">AI驱动 · 企业信任关系网络 · 供需精准匹配</p>
           </div>
         </div>
         <button

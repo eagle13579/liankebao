@@ -176,7 +176,7 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
               <h1 className="font-manrope text-xl font-extrabold bg-gradient-to-r from-sky-400 to-blue-400 bg-clip-text text-transparent leading-tight">
                 链客宝
               </h1>
-              <p className="text-[10px] text-dark-muted font-medium tracking-wider -mt-0.5">企业信任关系网</p>
+              <p className="text-[10px] text-dark-muted font-medium tracking-wider -mt-0.5">AI驱动 · 企业信任关系网络 · 供需精准匹配</p>
             <div className="flex items-center gap-4 mt-1">
               <span className="text-[9px] text-sky-400/70">🏪 100+ 企业入驻</span>
               <span className="text-[9px] text-emerald-400/70">🤝 500+ 成功对接</span>
