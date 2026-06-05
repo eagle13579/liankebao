@@ -678,6 +678,12 @@ export const ProductPool = memo(function ProductPool() {
               >
                 发布新产品
               </button>
+              <div className="flex items-center gap-3 mt-4 text-[10px] text-slate-400">
+                <span>或者</span>
+                <button onClick={() => navigate('/supply-demand')} className="text-sky-500 hover:underline font-medium">查看供需匹配</button>
+                <span>·</span>
+                <button onClick={() => navigate('/promotion-center')} className="text-sky-500 hover:underline font-medium">去推广中心</button>
+              </div>
             </div>
           ) : (
             <>
