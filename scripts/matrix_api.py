@@ -4,10 +4,12 @@ matrix_api.py — 盖娅矩阵统一母体API（轻量版）
 基于 FastAPI 的 RESTful 服务，提供统一母体资源查询接口。
 
 接口:
-  GET  /api/v1/matrix/skills?category=xxx     — 查询技能
-  GET  /api/v1/matrix/employees?role=xxx      — 查询员工
-  GET  /api/v1/matrix/mental-models?tag=xxx   — 查询心智模型
-  GET  /api/v1/matrix/status                  — 健康检查
+  GET  /api/v1/matrix/skills?category=xxx        — 查询技能
+  GET  /api/v1/matrix/employees?role=xxx         — 查询员工
+  GET  /api/v1/matrix/mental-models?tag=xxx      — 查询心智模型
+  GET  /api/v1/matrix/mental-models/related?name=xxx  — 关联心智模型
+  GET  /api/v1/matrix/mental-models/search?q=xxx      — 搜索心智模型
+  GET  /api/v1/matrix/status                     — 健康检查
 
 用法:
   python matrix_api.py                         # 默认启动 :5199
@@ -22,6 +24,10 @@ import argparse
 import logging
 from datetime import datetime
 from typing import Optional
+
+# ── 导入知识图谱引擎（纯 Python 零外部依赖） ──
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import knowledge_graph as kg
 
 # ── 全局路径 ──
 HERMES = r"D:\向海容的知识库\wiki\wiki\记忆宫殿"
@@ -252,6 +258,31 @@ def get_system_status() -> dict:
 
 
 # ══════════════════════════════════════════════
+#  知识图谱缓存（惰性加载）
+# ══════════════════════════════════════════════
+
+_kg_cache = {"models": None, "index": None}
+
+def _ensure_kg_loaded():
+    """确保知识图谱数据已加载（惰性加载 + 缓存）"""
+    if _kg_cache["models"] is None:
+        logger.info("知识图谱：首次扫描模型池并构建索引...")
+        models = kg.scan_model_files()
+        index = kg.build_inverted_index(models)
+        _kg_cache["models"] = models
+        _kg_cache["index"] = index
+        logger.info("知识图谱：加载完成 — %d 个模型, %d 个关键词", len(models), len(index))
+    return _kg_cache["models"], _kg_cache["index"]
+
+
+def _reset_kg_cache():
+    """重置知识图谱缓存（用于热加载场景）"""
+    _kg_cache["models"] = None
+    _kg_cache["index"] = None
+    logger.info("知识图谱缓存已重置")
+
+
+# ══════════════════════════════════════════════
 #  FastAPI 应用
 # ══════════════════════════════════════════════
 
@@ -350,7 +381,8 @@ def create_app():
     async def get_mental_models(
         tag: Optional[str] = Query(None, description="按标签筛选"),
         name: Optional[str] = Query(None, description="按名称搜索"),
-        limit: int = Query(100, ge=1, le=1000, description="返回数量上限")
+        limit: int = Query(100, ge=1, le=1000, description="返回数量上限"),
+        with_related: bool = Query(False, description="是否附带关联模型"),
     ):
         """查询母体心智模型"""
         try:
@@ -359,16 +391,84 @@ def create_app():
             if tag:
                 models = [m for m in models if any(tag.lower() in t.lower() for t in m.get("tags", []))]
 
+            target_name = None
             if name:
                 models = [m for m in models if name.lower() in m.get("name", "").lower()]
+                # 如果有精确匹配，用于关联查询
+                exact = [m for m in models if m.get("name", "").lower() == name.lower()]
+                if exact:
+                    target_name = exact[0].get("name", "")
+
+            result_models = models[:limit]
+
+            # 附加上下文关联（仅当查询了具体名称或有 with_related 标志）
+            if (target_name or with_related) and result_models:
+                try:
+                    kg_models, kg_index = _ensure_kg_loaded()
+                    for m in result_models:
+                        m_name = m.get("name", "")
+                        related = kg.compute_related_models(kg_models, kg_index, m_name, top_n=5)
+                        if related:
+                            m["related_models"] = [
+                                {"name": r["name"], "weight": r["weight"]}
+                                for r in related
+                            ]
+                        else:
+                            m["related_models"] = []
+                except Exception as kg_err:
+                    logger.warning("知识图谱关联查询失败（非致命）: %s", kg_err)
 
             return {
                 "total": len(models),
                 "limit": limit,
-                "mental_models": models[:limit]
+                "mental_models": result_models
             }
         except Exception as e:
             logger.error("查询心智模型失败: %s", e)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    # ── 心智模型关联查询 ──
+    @app.get("/api/v1/matrix/mental-models/related")
+    async def get_related_mental_models(
+        name: str = Query(..., description="心智模型名称"),
+        top_n: int = Query(10, ge=1, le=50, description="返回数量上限"),
+    ):
+        """返回与指定心智模型关联的其他模型"""
+        try:
+            models, index = _ensure_kg_loaded()
+            related = kg.compute_related_models(models, index, name, top_n=top_n)
+            if not related:
+                # 尝试模糊匹配
+                candidates = [m for m in models if name.lower() in m["name"].lower()]
+                if candidates:
+                    related = kg.compute_related_models(models, index, candidates[0]["name"], top_n=top_n)
+                    name = candidates[0]["name"]
+            return {
+                "source": name,
+                "total": len(related),
+                "related_models": related
+            }
+        except Exception as e:
+            logger.error("查询关联心智模型失败: %s", e)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    # ── 心智模型搜索 ──
+    @app.get("/api/v1/matrix/mental-models/search")
+    async def search_mental_models(
+        q: str = Query(..., description="搜索关键词"),
+        top_n: int = Query(20, ge=1, le=100, description="返回数量上限"),
+    ):
+        """搜索心智模型（关键词匹配引擎）"""
+        try:
+            models, index = _ensure_kg_loaded()
+            results = kg.search_models(index, models, q, top_n=top_n)
+            return {
+                "query": q,
+                "total": len(results),
+                "results": results
+            }
+        except Exception as e:
+            logger.error("搜索心智模型失败: %s", e)
             raise HTTPException(status_code=500, detail=str(e))
 
     # ── 总览 ──
