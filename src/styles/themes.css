@@ -43,6 +43,25 @@
   color: var(--text-primary);
 }
 
+/* ===== Login/Register page dark mode override ===== */
+[data-theme="dark"] .login-mesh {
+  background: var(--bg-primary) !important;
+}
+[data-theme="dark"] .login-mesh .bg-white\\/80,
+[data-theme="dark"] .login-mesh .bg-white\\/70 {
+  background: var(--bg-surface) !important;
+  border-color: var(--border-primary) !important;
+}
+[data-theme="dark"] .login-mesh .text-slate-500,
+[data-theme="dark"] .login-mesh .text-slate-700,
+[data-theme="dark"] .login-mesh .text-slate-600 {
+  color: var(--text-secondary) !important;
+}
+[data-theme="dark"] .login-mesh .text-slate-400,
+[data-theme="dark"] .login-mesh .text-slate-300 {
+  color: var(--text-muted) !important;
+}
+
 /* ===== 亮色主题 ===== */
 [data-theme="light"] {
   --bg-primary: #ffffff;
