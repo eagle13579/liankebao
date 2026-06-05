@@ -89,3 +89,42 @@
 
   --gradient-brand: linear-gradient(135deg, #3b82f6, #6366f1);
 }
+
+/* ===== 全局页面深色覆盖（前端工业化统一） ===== */
+[data-theme="dark"] .bg-neutral-bg,
+[data-theme="dark"] .bg-white,
+[data-theme="dark"] .bg-slate-50 {
+  background-color: var(--bg-primary) !important;
+}
+
+[data-theme="dark"] .bg-white\\/80,
+[data-theme="dark"] .bg-white\\/70,
+[data-theme="dark"] .bg-white\\/90 {
+  background-color: var(--bg-secondary) !important;
+}
+
+[data-theme="dark"] .border-border-light,
+[data-theme="dark"] .border-slate-100,
+[data-theme="dark"] .border-slate-200 {
+  border-color: var(--border-primary) !important;
+}
+
+[data-theme="dark"] .text-on-surface,
+[data-theme="dark"] .text-slate-700,
+[data-theme="dark"] .text-slate-800 {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .text-text-muted,
+[data-theme="dark"] .text-slate-400,
+[data-theme="dark"] .text-slate-500 {
+  color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .bg-slate-50\\/80 {
+  background-color: var(--bg-muted) !important;
+}
+
+[data-theme="dark"] .hover\\:bg-slate-100:hover {
+  background-color: var(--bg-secondary) !important;
+}
