@@ -150,6 +150,7 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
     { icon: GraduationCap, label: '推广教程', desc: '学习推广技巧', path: '/promotion-tutorial', color: 'text-teal-400', bg: 'bg-teal-500/15' },
     { icon: Crown, label: '会员中心', desc: '尊享会员权益', path: '/membership', color: 'text-amber-400', bg: 'bg-amber-500/15' },
     { icon: FileText, label: '合伙人政策', desc: '查看分账规则', path: '/partner-policy', color: 'text-blue-400', bg: 'bg-blue-500/15' },
+    { icon: Globe, label: 'GEO诊断', desc: 'AI搜索品牌可见度分析', path: 'https://liankebao.top/geo-diagnosis', color: 'text-sky-400', bg: 'bg-sky-500/15' },
     { icon: BarChart3, label: '数据洞察', desc: '生意增长分析', path: '#data', color: 'text-cyan-400', bg: 'bg-cyan-500/15' },
     { icon: HelpCircle, label: '操作指南', desc: '新手上路必看', path: '/promotion-tutorial', color: 'text-slate-400', bg: 'bg-slate-500/15' },
     { icon: Settings, label: '个人设置', desc: '账号安全/偏好', path: '/profile', color: 'text-slate-400', bg: 'bg-slate-500/15' },
