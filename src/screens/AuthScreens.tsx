@@ -483,7 +483,7 @@ export function UserRegistration() {
         <div className="flex items-start gap-2 py-4">
           <input type="checkbox" id="terms" className="mt-1 rounded text-sky-500 focus:ring-sky-500" defaultChecked />
           <label htmlFor="terms" className="text-[11px] text-slate-400 leading-relaxed">
-            我已阅读并同意 <span className="text-sky-600 font-medium">《用户注册协议》</span> 与 <span className="text-sky-600 font-medium">《隐私政策》</span>
+            我已阅读并同意 <span className="text-sky-600 font-medium cursor-pointer hover:underline" onClick={() => window.open('/privacy', '_blank')}>《用户注册协议》</span> 与 <span className="text-sky-600 font-medium cursor-pointer hover:underline" onClick={() => window.open('/privacy', '_blank')}>《隐私政策》</span>
           </label>
         </div>
       </main>
