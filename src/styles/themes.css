@@ -30,6 +30,19 @@
   --gradient-brand: linear-gradient(135deg, #3b82f6, #6366f1);
 }
 
+/* Body background based on theme */
+[data-theme="dark"] body,
+[data-theme="dark"] #root {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+[data-theme="light"] body,
+[data-theme="light"] #root {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
 /* ===== 亮色主题 ===== */
 [data-theme="light"] {
   --bg-primary: #ffffff;
