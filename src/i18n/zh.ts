@@ -219,6 +219,34 @@ const zh: Record<string, string> = {
   'home.recentOrders': '最近订单',
   'home.recentContacts': '最近联系人',
   'home.moreFeatures': '更多功能',
+  // ===== AI名片扫描 =====
+  'business_card.title': 'AI名片扫描',
+  'business_card.upload': '上传名片图片',
+  'business_card.scanning': '正在识别...',
+  'business_card.name': '姓名',
+  'business_card.phone': '电话',
+  'business_card.email': '邮箱',
+  'business_card.company': '公司',
+  'business_card.position': '职位',
+  'business_card.drop_hint': '拖拽图片到此处，或点击上传',
+  'business_card.supported_formats': '支持 JPG / PNG / WEBP 格式',
+  'business_card.scan_success': '扫描完成',
+  'business_card.scan_fail': '识别失败，请重试',
+
+  // ===== AI名片扫描 =====
+  'business_card.title': 'AI名片扫描',
+  'business_card.upload': '上传名片图片',
+  'business_card.scanning': '正在识别...',
+  'business_card.result': '识别结果',
+  'business_card.name': '姓名',
+  'business_card.phone': '电话',
+  'business_card.email': '邮箱',
+  'business_card.company': '公司',
+  'business_card.position': '职位',
+  'business_card.drop_hint': '拖拽图片到此处，或点击上传',
+  'business_card.supported_formats': '支持 JPG / PNG / WEBP 格式',
+  'business_card.scan_success': '扫描完成',
+  'business_card.scan_fail': '识别失败，请重试',
 };
 
 export default zh;

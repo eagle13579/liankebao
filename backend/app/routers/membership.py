@@ -29,10 +29,13 @@ class UpgradeRequest(BaseModel):
     tier: str = Field(..., description="target tier: gold/diamond/board")
 
 class MembershipStatusResponse(BaseModel):
-    tier: str
-    expires_at: datetime | None = None
-    is_active: bool
-    match_credits: int
+    level: str
+    level_name: str
+    expired_at: datetime | None = None
+    remaining_coupons: int
+    total_coupons_this_month: int
+    trial_used: bool = False
+    coupon_used_count: int = 0
 
 class CreditsResponse(BaseModel):
     credits: int
@@ -53,7 +56,7 @@ def get_membership_tiers():
                 "level": key,
                 "price": t["price"],
                 "trial_price": t["price"] // 10 if t["price"] > 0 else 0,
-                "duijiequan_per_month": t.get("match_credits", 0),
+                "对接券_per_month": t.get("match_credits", 0),
                 "commission_rate": commission_map.get(key, 0.05),
                 "features": t.get("features", []),
                 "badge": badge_map.get(key, ""),
@@ -68,7 +71,16 @@ def get_membership_status(current_user: User = Depends(get_current_user), db: Se
     tier = current_user.membership_tier or "free"
     if tier != "free" and current_user.membership_expires_at:
         is_active = current_user.membership_expires_at > now
-    return MembershipStatusResponse(tier=tier, expires_at=current_user.membership_expires_at, is_active=is_active, match_credits=current_user.match_credits or 0)
+    tier_config = MEMBERSHIP_TIERS.get(tier, {})
+    return MembershipStatusResponse(
+        level=tier,
+        level_name=tier_config.get("name", "免费会员"),
+        expired_at=current_user.membership_expires_at,
+        remaining_coupons=current_user.match_credits or 0,
+        total_coupons_this_month=tier_config.get("match_credits", 3),
+        trial_used=False,
+        coupon_used_count=0,
+    )
 
 @router.post("/upgrade")
 def upgrade_membership(req: UpgradeRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):

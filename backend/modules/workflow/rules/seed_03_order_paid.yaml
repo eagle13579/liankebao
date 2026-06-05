@@ -1,0 +1,22 @@
+name: "order_paid_log_activity"
+description: "订单支付成功 → 创建活动日志"
+trigger:
+  type: event
+  event: on_order_paid
+conditions: []
+actions:
+  - type: create_activity
+    params:
+      action_type: order
+      summary: "订单已支付: {{ order.order_no }}"
+      detail: "订单 {{ order.order_no }} 已支付 ¥{{ order.total_price }}，产品: {{ order.product.name if order.product else 'N/A' }}"
+      owner_id: "{{ order.buyer_id }}"
+  - type: create_notification
+    params:
+      user_id: "{{ order.buyer_id }}"
+      title: "支付成功"
+      content: "订单 {{ order.order_no }} 支付成功，金额 ¥{{ order.total_price }}"
+      notification_type: success
+      reference_type: order
+      reference_id: "{{ order.id }}"
+enabled: true

@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: chainke
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+      - name: user-service
+        image: liankebao/user-service:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DB_TYPE
+          value: "sqlite"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: chainke
+spec:
+  selector:
+    app: user-service
+  ports:
+  - port: 8000
+    targetPort: 8000

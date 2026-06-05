@@ -5,6 +5,7 @@ import PageTransition from './components/PageTransition';
 import PwaUpdatePrompt from './pwa';
 import React, { Suspense, lazy } from 'react';
 import { I18nProvider } from './i18n';
+import FloatingLangSwitcher from './components/FloatingLangSwitcher';
 import { Globe } from 'lucide-react';
 import { useLocale } from './i18n';
 
@@ -123,7 +124,7 @@ function AnimatedRoutes() {
 export default function App() {
   return (
     <I18nProvider>
-      <Router basename="/app">
+      <Router basename="/">
         <AppContent />
       </Router>
     </I18nProvider>
@@ -139,17 +140,8 @@ function AppContent() {
       <AnimatedRoutes />
       <PwaUpdatePrompt />
 
-      {/* Language toggle - top right corner */}
-      <div className="fixed top-3 right-3 z-[9999]">
-        <button
-          onClick={() => setLocale(locale === 'zh' ? 'en' : 'zh')}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-white/80 backdrop-blur-md rounded-full border border-border-light shadow-sm text-xs font-medium text-on-surface hover:bg-white hover:shadow-md transition-all active:scale-95"
-          title={locale === 'zh' ? 'Switch to English' : '切换到中文'}
-        >
-          <Globe className="w-3.5 h-3.5" />
-          {locale === 'zh' ? 'EN' : '中'}
-        </button>
-      </div>
+      {/* Floating draggable language switcher */}
+      <FloatingLangSwitcher />
 
       {/* Hidden toggle for Admin vs User experience - not in spec but useful for preview */}
       <div className="fixed bottom-20 left-4 z-[9999] flex gap-2 opacity-5 pointer-events-none hover:opacity-100 hover:pointer-events-auto transition-opacity">

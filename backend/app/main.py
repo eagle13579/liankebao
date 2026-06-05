@@ -963,6 +963,8 @@ from app.sentry_config import wrap_with_sentry
 app = wrap_with_sentry(app)
 
 # ===== 直接启动入口 =====
+from modules.workflow.routes import router as workflow_router
+app.include_router(workflow_router)
 if __name__ == "__main__":
     import uvicorn
 
