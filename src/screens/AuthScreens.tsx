@@ -325,7 +325,7 @@ export function UserRegistration() {
           };
           const target = onboardingPainPoint ? redirectMap[onboardingPainPoint] : '/home';
           navigate(target, { state: { transition: 'push' } });
-        }, 2000);
+        }, 800);
       } else {
         setError(res.message || '注册失败');
       }
