@@ -128,3 +128,23 @@
 [data-theme="dark"] .hover\\:bg-slate-100:hover {
   background-color: var(--bg-secondary) !important;
 }
+
+/* ===== 表单元素暗色覆盖 ===== */
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] select,
+[data-theme="dark"] .field-input {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-primary) !important;
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .bg-slate-50\\/80,
+[data-theme="dark"] .bg-white\\/60 {
+  background-color: var(--bg-muted) !important;
+}
