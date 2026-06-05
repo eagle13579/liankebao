@@ -1,0 +1,20 @@
+name: invoice
+version: "1.0.0"
+description: 发票管理
+author: 链客宝
+dependencies:
+  - auth
+  - orders
+routes:
+  prefix: /api/invoice
+  auth_required: true
+frontend:
+  entry: ./frontend/InvoiceModule
+  routes:
+    - /invoice
+    - /invoice/apply
+    - /invoice/history
+permissions:
+  - invoice.apply
+  - invoice.history
+  - invoice.approve
