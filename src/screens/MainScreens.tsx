@@ -232,7 +232,17 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
         </div>
       </div>
 
-      {/* ====== 成功案例 ====== */}
+      {/* ====== 热门发现 ====== */}
+      <div className="px-4 max-w-3xl mx-auto w-full mt-3 relative z-10">
+        <div className="bg-dark-surface/30 backdrop-blur-sm rounded-xl border border-dark-border/30 p-3">
+          <div className="text-[10px] font-bold text-dark-muted uppercase tracking-wider mb-2">🔥 热门发现</div>
+          <div className="flex flex-wrap gap-1.5">
+            {['AI营销工具','企业礼品定制','短视频代运营','供应链金融','智能办公','企业培训','品牌策划','直播带货'].map((tag, i) => (
+              <span key={i} onClick={() => navigate('/product-pool')} className="text-[10px] px-2.5 py-1 rounded-full bg-dark-surface/60 text-dark-muted/80 border border-dark-border/40 cursor-pointer hover:border-sky-500/40 hover:text-sky-400 transition-all">{tag}</span>
+            ))}
+          </div>
+        </div>
+      </div>
       <div className="px-4 max-w-3xl mx-auto w-full mt-3 relative z-10">
         <div className="bg-dark-surface/30 backdrop-blur-sm rounded-xl border border-dark-border/30 p-3">
           <div className="text-[10px] font-bold text-dark-muted uppercase tracking-wider mb-2">成功案例</div>
