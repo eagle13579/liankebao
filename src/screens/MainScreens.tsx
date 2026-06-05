@@ -232,7 +232,27 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
         </div>
       </div>
 
-      {/* ====== 平台生态 ====== */}
+      {/* ====== 成功案例 ====== */}
+      <div className="px-4 max-w-3xl mx-auto w-full mt-3 relative z-10">
+        <div className="bg-dark-surface/30 backdrop-blur-sm rounded-xl border border-dark-border/30 p-3">
+          <div className="text-[10px] font-bold text-dark-muted uppercase tracking-wider mb-2">成功案例</div>
+          <div className="space-y-2">
+            {[
+              { icon: '🏢', title: '某科技公司', desc: '通过链客宝匹配到3家渠道商，月销售额提升200%' },
+              { icon: '🏭', title: '某制造企业', desc: '发布供应链需求后48小时内收到15家供应商报价' },
+              { icon: '💼', title: '某贸易公司', desc: 'AI数字名片替代传统纸质名片，客户转化率提升40%' },
+            ].map((c, i) => (
+              <div key={i} className="flex items-start gap-2.5 p-2 rounded-lg bg-dark-surface/40">
+                <span className="text-base shrink-0 mt-0.5">{c.icon}</span>
+                <div>
+                  <div className="text-[11px] font-bold text-dark-text">{c.title}</div>
+                  <div className="text-[10px] text-dark-muted/80 leading-relaxed">{c.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
       <div className="px-4 max-w-3xl mx-auto w-full mt-3 relative z-10">
         <div className="bg-dark-surface/30 backdrop-blur-sm rounded-xl border border-dark-border/30 p-3">
           <div className="text-[10px] font-bold text-dark-muted uppercase tracking-wider mb-2">平台生态</div>
