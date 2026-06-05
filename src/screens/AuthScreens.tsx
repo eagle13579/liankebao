@@ -492,7 +492,7 @@ export function UserRegistration() {
         {registerSuccess ? (
           <div className="w-full h-13 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-center gap-2 text-emerald-700 font-bold text-sm">
             <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-            <span>注册成功，请返回登录</span>
+            <span>注册成功，正在进入...</span>
           </div>
         ) : (
           <button
