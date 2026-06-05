@@ -208,20 +208,10 @@ def register(
     except Exception:
         pass
 
-    # 签发 token，方便前端立即调用需认证的接口（如保存痛点偏好）
-    token_data = {"sub": user.username, "role": user.role}
-    access_token = create_access_token(data=token_data)
-    refresh_token = create_refresh_token(data=token_data)
-
     return ApiResponse(
         code=200,
-        message="注册成功",
-        data={
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "token_type": "bearer",
-            "user": UserResponse.model_validate(user).model_dump(),
-        },
+        message="注册成功，请前往登录页使用手机号/邮箱和密码登录",
+        data={},
     )
 
 

@@ -1,106 +1,103 @@
 export default {
   pages: [
     'pages/index/index',
+    'pages/card-match/index',
+    'pages/mine/index',
     'pages/login/index',
-    'pages/product/index',
+    'pages/card-editor/index',
+    'pages/brochure-preview/index',
   ],
   subpackages: [
     {
       root: 'pages/orders',
       name: 'orders',
-      pages: [
-        'index',
-      ],
-    },
-    {
-      root: 'pages/mine',
-      name: 'mine',
-      pages: [
-        'index',
-      ],
+      pages: ['index'],
     },
     {
       root: 'pages/recharge',
       name: 'recharge',
-      pages: [
-        'index',
-      ],
+      pages: ['index'],
     },
     {
       root: 'pages/supply-demand',
       name: 'supplyDemand',
-      pages: [
-        'index',
-      ],
+      pages: ['index'],
     },
     {
       root: 'pages/contacts',
       name: 'contacts',
-      pages: [
-        'index',
-        'detail',
-      ],
+      pages: ['index', 'detail'],
     },
     {
       root: 'pages/membership',
       name: 'membership',
-      pages: [
-        'index',
-      ],
+      pages: ['index'],
     },
     {
       root: 'pages/notifications',
       name: 'notifications',
-      pages: [
-        'index',
-      ],
+      pages: ['index'],
     },
     {
       root: 'pages/tutorial',
       name: 'tutorial',
-      pages: [
-        'index',
-      ],
+      pages: ['index'],
     },
-    /* ===== 新增页面 - GAP-3 覆盖率提升 ===== */
     {
       root: 'pages/promoter',
       name: 'promoter',
-      pages: [
-        'index',
-      ],
+      pages: ['index'],
     },
     {
       root: 'pages/activities',
       name: 'activities',
-      pages: [
-        'index',
-      ],
+      pages: ['index'],
     },
     {
       root: 'pages/admin',
       name: 'admin',
-      pages: [
-        'index',
-      ],
+      pages: ['index'],
     },
     {
       root: 'pages/search',
       name: 'search',
-      pages: [
-        'index',
-      ],
+      pages: ['index'],
     },
     {
       root: 'pages/imports',
       name: 'imports',
-      pages: [
-        'index',
-      ],
+      pages: ['index'],
     },
   ],
   window: {
     navigationStyle: 'custom',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#0f0c29',
+    backgroundTextStyle: 'dark',
+  },
+  tabBar: {
+    color: '#94a3b8',
+    selectedColor: '#667eea',
+    backgroundColor: '#0f172a',
+    borderStyle: 'black',
+    list: [
+      {
+        pagePath: 'pages/index/index',
+        text: '名片',
+        iconPath: 'images/tab_card.png',
+        selectedIconPath: 'images/tab_card_active.png',
+      },
+      {
+        pagePath: 'pages/card-match/index',
+        text: '匹配',
+        iconPath: 'images/tab_match.png',
+        selectedIconPath: 'images/tab_match_active.png',
+      },
+      {
+        pagePath: 'pages/mine/index',
+        text: '我的',
+        iconPath: 'images/tab_mine.png',
+        selectedIconPath: 'images/tab_mine_active.png',
+      },
+    ],
   },
 }

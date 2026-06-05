@@ -1,6 +1,6 @@
 import Taro from '@tarojs/taro'
 
-const API_BASE = '/miniapp-api/api'
+const API_BASE = 'http://localhost:8003/api'
 
 export const api = {
   get: (path: string) => request(path),

@@ -75,6 +75,7 @@ import app.routers.organization as organization_module
 import app.routers.payment as payment_module
 import app.routers.private_board as private_board_module
 import app.routers.recommend as recommend_module
+import app.routers.upload as upload_module
 import app.routers.vector_search_router as vector_search_module
 import app.routers.membership as membership_module
 import invoice as invoice_module
@@ -353,6 +354,7 @@ router_modules = [
     matching_events_module,
     membership_module,
     private_board_module,
+    upload_module,
     recharge_module,
     invoice_module,
     reconciliation_module,
@@ -395,6 +397,7 @@ app.include_router(business_card_module.router)
 app.include_router(matching_events_module.router)
 app.include_router(membership_module.router)
 app.include_router(private_board_module.router)
+app.include_router(upload_module.router)
 app.include_router(recharge_module.router)
 app.include_router(recharge_callback_module.callback_router)
 app.include_router(invoice_module.router)

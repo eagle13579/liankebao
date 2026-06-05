@@ -1,0 +1,300 @@
+@import '../../styles/variables.scss';
+
+.match-page {
+  min-height: 100vh;
+  background: $bg-gradient;
+  padding-bottom: calc(100px + $safe-bottom);
+}
+
+/* 搜索栏 */
+.match-search-bar {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-md $spacing-lg;
+}
+
+.search-input-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: $radius-md;
+  padding: 0 $spacing-md;
+  height: 40px;
+}
+
+.search-icon {
+  font-size: 16px;
+  margin-right: $spacing-xs;
+}
+
+.search-input {
+  flex: 1;
+  height: 100%;
+  font-size: 14px;
+  color: $text-primary;
+  background: transparent;
+  border: none;
+}
+
+.search-clear {
+  font-size: 14px;
+  color: $text-tertiary;
+  padding: 4px;
+}
+
+.search-btn {
+  height: 40px;
+  line-height: 40px;
+  padding: 0 $spacing-lg;
+  background: $primary-gradient;
+  color: #fff;
+  border: none;
+  border-radius: $radius-md;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.search-btn:active {
+  opacity: 0.85;
+}
+
+/* 筛选栏 */
+.match-filter-bar {
+  padding: 0 $spacing-lg $spacing-sm;
+}
+
+.filter-chips {
+  display: flex;
+  gap: $spacing-sm;
+}
+
+.filter-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 13px;
+  color: $text-secondary;
+}
+
+.filter-chip.active {
+  background: rgba(102, 126, 234, 0.2);
+  border-color: $primary-start;
+  color: #8b9eff;
+}
+
+.chip-arrow {
+  font-size: 10px;
+}
+
+/* 筛选面板 */
+.filter-panel {
+  margin: 0 $spacing-lg $spacing-md;
+  padding: $spacing-lg;
+}
+
+.filter-section {
+  margin-bottom: $spacing-md;
+}
+
+.filter-section:last-child {
+  margin-bottom: 0;
+}
+
+.filter-label {
+  font-size: 13px;
+  color: $text-tertiary;
+  margin-bottom: $spacing-sm;
+  display: block;
+}
+
+.filter-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-xs;
+}
+
+.filter-option {
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  color: $text-secondary;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.filter-option.active {
+  background: rgba(102, 126, 234, 0.2);
+  border-color: $primary-start;
+  color: #8b9eff;
+}
+
+/* 匹配列表 */
+.match-list {
+  padding: $spacing-sm $spacing-lg;
+  max-height: calc(100vh - 200px);
+}
+
+.match-loading {
+  padding: $spacing-lg 0;
+}
+
+.match-skeleton {
+  display: flex;
+  align-items: center;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-md;
+}
+
+/* 匹配项卡片 */
+.match-item {
+  padding: $spacing-lg;
+  margin-bottom: $spacing-md;
+}
+
+.match-item-top {
+  display: flex;
+  align-items: center;
+  margin-bottom: $spacing-md;
+}
+
+.match-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: $primary-gradient;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: $spacing-md;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.match-avatar-img {
+  width: 100%;
+  height: 100%;
+}
+
+.match-avatar-text {
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.match-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.match-name-row {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-bottom: 4px;
+}
+
+.match-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.match-score-badge {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-radius: 10px;
+  padding: 2px 8px;
+}
+
+.match-score-text {
+  font-size: 11px;
+  color: #fff;
+  font-weight: 600;
+}
+
+.match-company {
+  font-size: 13px;
+  color: $text-secondary;
+}
+
+/* 标签 */
+.match-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: $spacing-md;
+}
+
+.tag-more {
+  background: rgba(255, 255, 255, 0.06);
+  color: $text-tertiary;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+}
+
+/* 联系方式行 */
+.match-contact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: $spacing-sm;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.contact-masked {
+  font-size: 13px;
+  color: $text-tertiary;
+}
+
+.btn-unlock-sm {
+  height: 30px;
+  line-height: 30px;
+  padding: 0 14px;
+  background: linear-gradient(135deg, #f5576c, #ff6b6b);
+  color: #fff;
+  border: none;
+  border-radius: 15px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.btn-unlock-sm:active {
+  opacity: 0.85;
+}
+
+/* 空状态 */
+.match-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 80px 0;
+}
+
+.match-empty .empty-icon {
+  font-size: 60px;
+  margin-bottom: $spacing-lg;
+}
+
+.match-empty .empty-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: $text-primary;
+  margin-bottom: $spacing-sm;
+}
+
+.match-empty .empty-desc {
+  font-size: 14px;
+  color: $text-tertiary;
+  margin-bottom: $spacing-xl;
+}

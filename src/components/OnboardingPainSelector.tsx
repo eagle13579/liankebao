@@ -12,7 +12,7 @@
 import { useState } from 'react';
 import { CheckCircle2, TrendingDown, ShieldAlert, Repeat2 } from 'lucide-react';
 
-export type PainPoint = 'low_acquisition_cost' | 'lack_trust' | 'distribution_pain';
+export type PainPoint = 'low_acquisition_cost' | 'lack_trust' | 'distribution_pain' | 'other';
 
 interface PainOption {
   id: PainPoint;
@@ -44,14 +44,28 @@ const PAIN_OPTIONS: PainOption[] = [
     description: '渠道佣金计算繁琐，希望一键发布任务邀请伙伴推广',
     emoji: '🔄',
   },
+  {
+    id: 'other',
+    icon: <span className="w-6 h-6 flex items-center justify-center text-lg font-bold">⋯</span>,
+    title: '其他问题',
+    description: '以上都不符合，我有其他痛点或需求',
+    emoji: '💬',
+  },
 ];
 
 interface OnboardingPainSelectorProps {
   selected: PainPoint | null;
   onSelect: (painPoint: PainPoint) => void;
+  customText?: string;
+  onCustomTextChange?: (text: string) => void;
 }
 
-export function OnboardingPainSelector({ selected, onSelect }: OnboardingPainSelectorProps) {
+export function OnboardingPainSelector({
+  selected,
+  onSelect,
+  customText = '',
+  onCustomTextChange,
+}: OnboardingPainSelectorProps) {
   return (
     <section className="space-y-3">
       <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -96,6 +110,23 @@ export function OnboardingPainSelector({ selected, onSelect }: OnboardingPainSel
           </div>
         ))}
       </div>
+
+      {selected === 'other' && (
+        <div className="pl-1 animate-[fadeIn_0.25s_ease-out]">
+          <label className="text-xs text-slate-500 font-medium px-1 mb-1.5 block">
+            请描述您的具体需求或问题
+          </label>
+          <input
+            value={customText}
+            onChange={(e) => onCustomTextChange?.(e.target.value)}
+            className="w-full h-12 bg-white border border-slate-200 rounded-xl px-4 text-sm
+                       placeholder:text-slate-400 focus:ring-2 focus:ring-sky-500/20
+                       focus:border-sky-500 outline-none transition-all"
+            placeholder="请输入您遇到的其他问题..."
+            autoFocus
+          />
+        </div>
+      )}
     </section>
   );
 }
@@ -114,6 +145,8 @@ export function getFeaturePriorityByPainPoint(
       return ['supply-demand', 'contacts', 'product-pool', 'promotion-center', 'my-orders', 'data'];
     case 'distribution_pain':
       return ['promotion-center', 'product-pool', 'my-orders', 'contacts', 'supply-demand', 'data'];
+    case 'other':
+      return ['product-pool', 'promotion-center', 'contacts', 'supply-demand', 'my-orders', 'data'];
     default:
       return ['product-pool', 'promotion-center', 'contacts', 'my-orders', 'supply-demand', 'data'];
   }
@@ -131,6 +164,8 @@ export function getOnboardingRedirect(painPoint: PainPoint | null): string {
       return '/supply-demand'; // 「企业信任网络」引导
     case 'distribution_pain':
       return '/promotion-center'; // 「发布任务→邀请伙伴」引导
+    case 'other':
+      return '/home'; // 其他问题则进入首页
     default:
       return '/home';
   }

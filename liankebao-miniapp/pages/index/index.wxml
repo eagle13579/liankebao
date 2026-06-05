@@ -1,132 +1,147 @@
-<view class="index">
-  <!-- 头部 -->
-  <view class="header">
-    <view class="header-top">
-      <text class="logo">链客宝</text>
-      <text class="header-subtitle">企业家供需匹配平台</text>
-    </view>
-    <view class="header-search" bindtap="goPool">
-      <text class="search-icon">🔍</text>
-      <text class="search-placeholder">搜索AI名片、GEO诊断...</text>
+<!-- pages/index/index.wxml -->
+<view class="home-page">
+  <!-- 自定义导航栏 -->
+  <view class="home-nav">
+    <view class="nav-title">AI数字名片</view>
+    <view class="nav-actions">
+      <button class="nav-btn" open-type="share">📤</button>
     </view>
   </view>
 
-  <!-- 骨架屏 -->
+  <!-- 加载状态 -->
   <block wx:if="{{loading}}">
-    <view class="skeleton">
-      <!-- 骨架屏 - 轮播占位 -->
-      <view class="skeleton-banner"></view>
-      <!-- 骨架屏 - 分类导航占位 -->
-      <view class="skeleton-nav">
-        <view class="skeleton-nav-item"></view>
-        <view class="skeleton-nav-item"></view>
-        <view class="skeleton-nav-item"></view>
-        <view class="skeleton-nav-item"></view>
-      </view>
-      <!-- 骨架屏 - 区块标题占位 -->
-      <view class="skeleton-section-header">
-        <view class="skeleton-title-block"></view>
-        <view class="skeleton-more-block"></view>
-      </view>
-      <!-- 骨架屏 - 推荐列表占位 -->
-      <view class="skeleton-list">
-        <view class="skeleton-item">
-          <view class="skeleton-item-img"></view>
-          <view class="skeleton-item-body">
-            <view class="skeleton-line skeleton-line-60"></view>
-            <view class="skeleton-line skeleton-line-40"></view>
-            <view class="skeleton-line skeleton-line-30"></view>
-          </view>
-        </view>
-        <view class="skeleton-item">
-          <view class="skeleton-item-img"></view>
-          <view class="skeleton-item-body">
-            <view class="skeleton-line skeleton-line-60"></view>
-            <view class="skeleton-line skeleton-line-40"></view>
-            <view class="skeleton-line skeleton-line-30"></view>
-          </view>
-        </view>
-        <view class="skeleton-item">
-          <view class="skeleton-item-img"></view>
-          <view class="skeleton-item-body">
-            <view class="skeleton-line skeleton-line-60"></view>
-            <view class="skeleton-line skeleton-line-40"></view>
-            <view class="skeleton-line skeleton-line-30"></view>
-          </view>
-        </view>
-      </view>
+    <view class="skeleton-container">
+      <view class="skeleton skeleton-card"></view>
     </view>
   </block>
 
-  <!-- 正常内容 -->
+  <!-- 无名片状态 -->
+  <block wx:elif="{{!hasBrochure}}">
+    <view class="empty-state">
+      <text class="empty-icon">📇</text>
+      <text class="empty-title">还没有数字名片</text>
+      <text class="empty-desc">创建你的第一张AI数字名片，连接更多商业机会</text>
+      <button class="btn-primary" bindtap="onCreateNew">创建我的名片</button>
+    </view>
+  </block>
+
+  <!-- 名片翻页展示 -->
   <block wx:else>
-    <!-- 轮播图 -->
-    <swiper class="banner" indicator-dots="{{true}}" autoplay="{{true}}" interval="{{4000}}" duration="{{500}}" circular="{{true}}">
-      <swiper-item wx:for="{{banners}}" wx:key="index">
-        <image class="banner-img" src="{{item.image}}" mode="aspectFill" />
-      </swiper-item>
-    </swiper>
+    <view class="flipbook-container"
+      bindtouchstart="onTouchStart"
+      bindtouchend="onTouchEnd">
 
-    <!-- AI功能按钮 -->
-    <view class="ai-actions">
-      <view class="ai-btn" bindtap="goAIDiagnosis">
-        <text class="ai-btn-icon">🧠</text>
-        <text class="ai-btn-text">AI诊断</text>
-      </view>
-      <view class="ai-btn" bindtap="goAICard">
-        <text class="ai-btn-icon">🪪</text>
-        <text class="ai-btn-text">AI名片</text>
-      </view>
-    </view>
+      <!-- 封面页 -->
+      <view class="flip-page {{currentPage === 0 ? 'active' : ''}}">
+        <view class="page-card glass cover-card">
+          <view class="avatar-section">
+            <view class="avatar-ring">
+              <text class="avatar-text">{{brochure.name ? brochure.name[0] : '?'}}</text>
+            </view>
+            <text class="user-name">{{brochure.name || '未知'}}</text>
+            <text class="user-company" wx:if="{{brochure.company}}">{{brochure.company}}{{brochure.position ? ' · ' + brochure.position : ''}}</text>
+            <text class="user-bio" wx:if="{{brochure.bio}}">{{brochure.bio}}</text>
+          </view>
 
-    <!-- 分类导航 -->
-    <view class="nav-grid">
-      <view class="nav-item" data-cat="AI名片" bindtap="goPoolWithCat">
-        <view class="nav-icon nav-icon-1">🪪</view>
-        <text class="nav-label">AI名片</text>
-      </view>
-      <view class="nav-item" data-cat="GEO诊断" bindtap="goPoolWithCat">
-        <view class="nav-icon nav-icon-2">📍</view>
-        <text class="nav-label">GEO诊断</text>
-      </view>
-      <view class="nav-item" data-cat="数字分身" bindtap="goPoolWithCat">
-        <view class="nav-icon nav-icon-3">🧑‍💻</view>
-        <text class="nav-label">数字分身</text>
-      </view>
-      <view class="nav-item" data-cat="" bindtap="goPool">
-        <view class="nav-icon nav-icon-4">📦</view>
-        <text class="nav-label">全部产品</text>
-      </view>
-    </view>
+          <view class="purpose-section" wx:if="{{brochure.purpose}}">
+            <text class="purpose-badge">{{brochure.purpose}}</text>
+          </view>
 
-    <!-- 为您推荐 -->
-    <view class="section">
-      <view class="section-header">
-        <text class="section-title">为您推荐</text>
-        <text class="section-more" bindtap="goPool">查看更多 &gt;</text>
-      </view>
-    </view>
-
-    <block wx:if="{{recommendProducts.length === 0}}">
-      <text class="empty">暂无推荐产品</text>
-    </block>
-    <block wx:else>
-      <view class="recommend-list">
-        <view class="recommend-item" wx:for="{{recommendProducts}}" wx:key="id" data-id="{{item.id}}" bindtap="goDetail">
-          <image class="recommend-img" src="{{item.firstImage}}" mode="aspectFill" />
-          <view class="recommend-body">
-            <text class="recommend-name">{{item.name}}</text>
-            <text class="recommend-desc" wx:if="{{item.description}}">{{item.description}}</text>
-            <view class="recommend-bottom">
-              <text class="recommend-price">¥{{item.price}}</text>
-              <text class="recommend-earn" wx:if="{{item.earn_per_share > 0}}">推广赚 ¥{{item.earn_per_share}}</text>
+          <view class="tags-section">
+            <view class="tag-group" wx:if="{{brochure.provide_tags && brochure.provide_tags.length > 0}}">
+              <text class="tag-label">我能提供:</text>
+              <view class="tags">
+                <text class="tag tag-provide" wx:for="{{brochure.provide_tags}}" wx:key="*this">{{item}}</text>
+              </view>
+            </view>
+            <view class="tag-group" wx:if="{{brochure.need_tags && brochure.need_tags.length > 0}}">
+              <text class="tag-label">我需要:</text>
+              <view class="tags">
+                <text class="tag tag-need" wx:for="{{brochure.need_tags}}" wx:key="*this">{{item}}</text>
+              </view>
             </view>
           </view>
         </view>
       </view>
-    </block>
-  </block>
 
-  <!-- 底部占位 -->
-  <view class="bottom-spacer"></view>
+      <!-- 联系方式页 -->
+      <view class="flip-page {{currentPage === 1 ? 'active' : ''}}">
+        <view class="page-card glass contact-card">
+          <text class="page-title">📞 联系方式</text>
+          <view class="contact-item" wx:if="{{brochure.phone}}">
+            <text class="contact-icon">📞</text>
+            <text class="contact-value">{{brochure.phone}}</text>
+          </view>
+          <view class="contact-item" wx:if="{{brochure.email}}">
+            <text class="contact-icon">✉️</text>
+            <text class="contact-value">{{brochure.email}}</text>
+          </view>
+          <view class="contact-item" wx:if="{{brochure.wechat}}">
+            <text class="contact-icon">💬</text>
+            <text class="contact-value">{{brochure.wechat}}</text>
+          </view>
+          <view class="contact-empty" wx:elif="{{!brochure.phone && !brochure.email && !brochure.wechat}}">
+            <text>暂无联系方式信息</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 企业信息页 -->
+      <view class="flip-page {{currentPage === 2 ? 'active' : ''}}">
+        <view class="page-card glass company-card">
+          <text class="page-title">🏢 企业信息</text>
+          <view class="info-row">
+            <text class="info-label">公司</text>
+            <text class="info-value">{{brochure.company || '未填写'}}</text>
+          </view>
+          <view class="info-row">
+            <text class="info-label">职位</text>
+            <text class="info-value">{{brochure.position || '未填写'}}</text>
+          </view>
+          <view class="info-row">
+            <text class="info-label">主营</text>
+            <text class="info-value">{{brochure.business || '未填写'}}</text>
+          </view>
+          <view class="info-row">
+            <text class="info-label">优势</text>
+            <text class="info-value">{{brochure.advantage || '未填写'}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 二维码页 -->
+      <view class="flip-page {{currentPage === 3 ? 'active' : ''}}">
+        <view class="page-card glass qrcode-card">
+          <text class="page-title">📱 扫码添加</text>
+          <view class="qrcode-area">
+            <view class="qrcode-placeholder">
+              <text class="qrcode-icon">〰️</text>
+              <text>扫一扫添加好友</text>
+            </view>
+          </view>
+          <text class="qrcode-hint">打开微信扫一扫，添加我为好友</text>
+        </view>
+      </view>
+
+      <!-- 分页指示器 -->
+      <view class="page-indicator">
+        <view class="indicator-dot {{currentPage === 0 ? 'active' : ''}}"></view>
+        <view class="indicator-dot {{currentPage === 1 ? 'active' : ''}}"></view>
+        <view class="indicator-dot {{currentPage === 2 ? 'active' : ''}}"></view>
+        <view class="indicator-dot {{currentPage === 3 ? 'active' : ''}}"></view>
+      </view>
+    </view>
+
+    <!-- 底部操作栏 -->
+    <view class="bottom-actions">
+      <view class="action-bar glass">
+        <button class="action-btn" open-type="share">📤 分享</button>
+        <button class="action-btn primary" bindtap="handleContact">💬 联系我</button>
+        <button class="action-btn" bindtap="goEdit">✏️ 编辑</button>
+      </view>
+      <view class="view-stats">
+        <text>👁️ {{viewCount}} 次浏览</text>
+      </view>
+    </view>
+  </block>
 </view>

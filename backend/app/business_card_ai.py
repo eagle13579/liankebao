@@ -808,9 +808,6 @@ def _run_matching(
         close_session = True
 
     try:
-        from matching_engine import MatchEngine
-
-        engine = MatchEngine(db_session)
         results: list[dict[str, Any]] = []
 
         # ===== 企业知识图谱增强 =====

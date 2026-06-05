@@ -1,48 +1,35 @@
 {
   "pages": [
     "pages/index/index",
-    "pages/login/index",
-    "pages/register/index",
-    "pages/product/index",
-    "pages/pool/index",
-    "pages/orders/index",
-    "pages/promotion/index",
-    "pages/manage-products/index",
-    "pages/address/index",
+    "pages/match/index",
     "pages/mine/index",
-    "pages/needs/index",
-    "pages/post-need/index",
-    "pages/notifications/index",
-    "pages/partner-policy/index",
-    "pages/webview/index"
-    "pages/brochure/index",
-    "pages/brochure-editor/index",
-    "pages/brochure-qrcode/index",
-    "pages/trust-network/index"
+    "pages/login/index",
+    "pages/card-editor/index",
+    "pages/brochure-preview/index"
   ],
   "window": {
     "navigationStyle": "custom",
-    "backgroundColor": "#f5f5f5",
+    "backgroundColor": "#0f0c29",
     "backgroundTextStyle": "light",
-    "navigationBarTitleText": "链客宝"
+    "navigationBarTitleText": "链客宝·AI数字名片"
   },
   "tabBar": {
     "color": "#94a3b8",
-    "selectedColor": "#0ea5e9",
-    "backgroundColor": "#ffffff",
-    "borderStyle": "white",
+    "selectedColor": "#667eea",
+    "backgroundColor": "#0f172a",
+    "borderStyle": "black",
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "首页",
-        "iconPath": "images/tab_home.png",
-        "selectedIconPath": "images/tab_home_active.png"
+        "text": "名片",
+        "iconPath": "images/tab_card.png",
+        "selectedIconPath": "images/tab_card_active.png"
       },
       {
-        "pagePath": "pages/pool/index",
-        "text": "产品池",
-        "iconPath": "images/tab_pool.png",
-        "selectedIconPath": "images/tab_pool_active.png"
+        "pagePath": "pages/match/index",
+        "text": "匹配",
+        "iconPath": "images/tab_match.png",
+        "selectedIconPath": "images/tab_match_active.png"
       },
       {
         "pagePath": "pages/mine/index",

@@ -32,6 +32,7 @@ def list_products(
     category: str = Query(None, description="按分类筛选"),
     status: str = Query(None, description="产品状态（不传则显示所有已上架）"),
     search: str = Query(None, description="搜索关键词"),
+    mine: bool = Query(False, description="是否只查当前用户的产品"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
@@ -61,6 +62,10 @@ def list_products(
         pass  # 管理员和产品方看所有
     else:
         query = query.filter(Product.status == "approved")
+
+    # 只查当前用户的产品（我的产品）
+    if mine and current_user:
+        query = query.filter(Product.owner_id == current_user.id)
 
     if status:
         query = query.filter(Product.status == status)

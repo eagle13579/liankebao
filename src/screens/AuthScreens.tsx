@@ -254,6 +254,7 @@ export function UserRegistration() {
   const [error, setError] = useState('');
   const [registerSuccess, setRegisterSuccess] = useState(false);
   const [onboardingPainPoint, setOnboardingPainPoint] = useState<PainPoint | null>(null);
+  const [onboardingCustomText, setOnboardingCustomText] = useState('');
   const [showMore, setShowMore] = useState(false);
   const [cardScanLoading, setCardScanLoading] = useState(false);
   const [cardScanMessage, setCardScanMessage] = useState('');
@@ -311,7 +312,10 @@ export function UserRegistration() {
         if (onboardingPainPoint) {
           try {
             await api.post('/api/auth/onboarding-preference', {
-              pain_point: onboardingPainPoint
+              pain_point: onboardingPainPoint,
+              ...(onboardingPainPoint === 'other' && onboardingCustomText
+                ? { custom_text: onboardingCustomText }
+                : {}),
             });
           } catch (e) {
             // 痛点保存失败不影响注册成功
@@ -321,15 +325,8 @@ export function UserRegistration() {
 
         setRegisterSuccess(true);
         setTimeout(() => {
-          // 根据痛点引导到不同页面
-          const redirectMap: Record<string, string> = {
-            low_acquisition_cost: '/product-pool',
-            lack_trust: '/supply-demand',
-            distribution_pain: '/promotion-center',
-          };
-          const target = onboardingPainPoint ? redirectMap[onboardingPainPoint] : '/home';
-          navigate(target, { state: { transition: 'push' } });
-        }, 2000);
+          navigate('/', { state: { transition: 'push' } });
+        }, 1500);
       } else {
         setError(res.message || '注册失败');
       }
@@ -380,16 +377,16 @@ export function UserRegistration() {
         {/* 核心三字段：手机号 + 姓名 + 密码 */}
         <section className="space-y-4">
           <div className="space-y-1">
-            <label className="text-xs text-slate-500 font-medium px-1">手机号码</label>
+            <label className="text-xs text-slate-500 font-medium px-1">手机号码 <span className="text-red-500">*</span></label>
             <input value={phone} onChange={e => setPhone(e.target.value)} className="w-full h-12 bg-white border border-slate-200 rounded-xl px-4 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all text-sm" placeholder="请输入11位手机号" />
           </div>
           <div className="space-y-1">
-            <label className="text-xs text-slate-500 font-medium px-1">姓名</label>
+            <label className="text-xs text-slate-500 font-medium px-1">姓名 <span className="text-red-500">*</span></label>
             <input value={name} onChange={e => setName(e.target.value)} className="w-full h-12 bg-white border border-slate-200 rounded-xl px-4 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all text-sm" placeholder="请输入真实姓名" />
           </div>
           <div className="space-y-1">
-            <label className="text-xs text-slate-500 font-medium px-1">密码</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full h-12 bg-white border border-slate-200 rounded-xl px-4 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all text-sm" placeholder="请设置登录密码（至少6位）" />
+            <label className="text-xs text-slate-500 font-medium px-1">密码 <span className="text-red-500">*</span></label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full h-12 bg-white border border-slate-200 rounded-xl px-4 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all text-sm" placeholder="请设置登录密码（至少8位）" />
           </div>
         </section>
 
@@ -401,7 +398,7 @@ export function UserRegistration() {
           >
             <span className="flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-sky-50 flex items-center justify-center text-xs text-sky-500">+</span>
-              完善更多信息（公司 / 职位 / 身份）
+              完善更多信息（公司 / 职位）
             </span>
             <svg
               className={`w-4 h-4 transition-transform ${showMore ? 'rotate-180' : ''}`}
@@ -421,41 +418,6 @@ export function UserRegistration() {
                 <input value={position} onChange={e => setPosition(e.target.value)} className="w-full h-12 bg-white border border-slate-200 rounded-xl px-4 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all text-sm" placeholder="请输入担任职位（选填）" />
               </div>
 
-              {/* 角色选择移到折叠区最下方 */}
-              <div className="pt-2">
-                <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3">
-                  <span className="w-1 h-4 bg-sky-500 rounded-full"></span>
-                  选择您的身份
-                </h2>
-                <div className="grid gap-2.5">
-                  {[
-                    { id: 'buyer', title: '企业主 / 购买者', desc: '寻找优质产品与商务合作', emoji: '🤝' },
-                    { id: 'promoter', title: '推广员', desc: '共享资源，赚取高额分销佣金', emoji: '📢' },
-                    { id: 'supplier', title: '产品方', desc: '上架您的优质货源，触达海量推客', emoji: '📦' }
-                  ].map(r => (
-                    <div
-                      key={r.id}
-                      onClick={() => setRole(r.id)}
-                      className={`p-3 rounded-xl border-2 transition-all cursor-pointer flex items-center gap-3 ${
-                        role === r.id
-                          ? 'border-sky-500 bg-white shadow-md shadow-sky-100'
-                          : 'border-slate-100 bg-white/50 hover:border-slate-200'
-                      }`}
-                    >
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg ${
-                        role === r.id ? 'bg-sky-50' : 'bg-slate-50'
-                      }`}>
-                        {r.emoji}
-                      </div>
-                      <div className="flex-1">
-                        <h3 className={`font-bold text-sm ${role === r.id ? 'text-sky-600' : 'text-slate-800'}`}>{r.title}</h3>
-                        <p className="text-[10px] text-slate-400">{r.desc}</p>
-                      </div>
-                      {role === r.id && <CheckCircle2 className="w-4 h-4 text-sky-500" />}
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           )}
         </section>
@@ -464,6 +426,8 @@ export function UserRegistration() {
         <OnboardingPainSelector
           selected={onboardingPainPoint}
           onSelect={setOnboardingPainPoint}
+          customText={onboardingCustomText}
+          onCustomTextChange={setOnboardingCustomText}
         />
 
         {error && (

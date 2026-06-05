@@ -106,7 +106,7 @@ Page({
               })
             } else {
               wx.setClipboardData({
-                data: 'https://www.go-aiport.com/lkapi/share?product=' + id,
+                data: 'https://liankebao.top/lkapi/share?product=' + id,
                 success: function() { wx.showToast({ title: '链接已复制', icon: 'success' }) }
               })
             }
@@ -115,7 +115,7 @@ Page({
       } else {
         // 降级：直接复制链接
         wx.setClipboardData({
-          data: 'https://www.go-aiport.com/lkapi/share?product=' + id,
+          data: 'https://liankebao.top/lkapi/share?product=' + id,
           success: function() { wx.showToast({ title: '推广链接已复制', icon: 'success' }) }
         })
       }

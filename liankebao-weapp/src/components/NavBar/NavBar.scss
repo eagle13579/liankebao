@@ -1,0 +1,45 @@
+@import '../../styles/variables.scss';
+
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc($safe-top + 8px) $spacing-lg $spacing-sm;
+  position: sticky;
+  top: 0;
+  z-index: $z-nav;
+  background: $glass-dark-bg;
+  backdrop-filter: $glass-blur;
+  -webkit-backdrop-filter: $glass-blur;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  min-height: calc($nav-height + $safe-top);
+}
+
+.navbar-left {
+  min-width: 80px;
+}
+
+.navbar-back {
+  font-size: 15px;
+  color: $text-secondary;
+  font-weight: 500;
+  padding: $spacing-xs $spacing-sm;
+}
+
+.navbar-back:active {
+  opacity: 0.7;
+}
+
+.navbar-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: $text-primary;
+  text-align: center;
+  flex: 1;
+}
+
+.navbar-right {
+  min-width: 80px;
+  display: flex;
+  justify-content: flex-end;
+}
