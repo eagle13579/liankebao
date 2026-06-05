@@ -232,7 +232,33 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
         </div>
       </div>
 
-      {/* ====== 热门发现 ====== */}
+      {/* ====== 每日推荐 ====== */}
+      <div className="px-4 max-w-3xl mx-auto w-full mt-3 relative z-10">
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-[11px] font-bold text-white flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            今日推荐
+          </div>
+          <span onClick={() => navigate('/product-pool')} className="text-[9px] text-sky-400 cursor-pointer hover:text-sky-300 transition-colors">查看更多 →</span>
+        </div>
+        <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1">
+          {[
+            { icon: '🖥️', name: 'AI智能营销系统', tag: '企业服务·热' },
+            { icon: '🎯', name: '企业礼品定制', tag: '采购·火' },
+            { icon: '📹', name: '短视频代运营', tag: '营销·爆' },
+            { icon: '💼', name: '企业级智能办公', tag: '效率·新' },
+          ].map((item, i) => (
+            <div key={i} onClick={() => navigate('/product-pool')} className="card-hover shrink-0 w-32 bg-dark-surface/60 backdrop-blur-sm rounded-xl border border-dark-border/60 p-2.5 cursor-pointer">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="text-lg">{item.icon}</span>
+                <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-white">{item.tag}</span>
+              </div>
+              <div className="text-[10px] font-medium text-white/80 leading-tight">{item.name}</div>
+              <div className="text-[8px] text-dark-muted/60 mt-1">🔥 本周热门</div>
+            </div>
+          ))}
+        </div>
+      </div>
       <div className="px-4 max-w-3xl mx-auto w-full mt-3 relative z-10">
         <div className="bg-dark-surface/30 backdrop-blur-sm rounded-xl border border-dark-border/30 p-3">
           <div className="text-[10px] font-bold text-dark-muted uppercase tracking-wider mb-2">🔥 热门发现</div>
