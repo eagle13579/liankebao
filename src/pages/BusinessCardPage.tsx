@@ -1018,6 +1018,23 @@ export default function BusinessCardPage() {
           </div>
         )}
 
+        {/* 已有名片预览 */}
+        {step === 'upload' && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-slate-700">我的名片夹</h3>
+              <span className="text-[10px] text-slate-400">暂无名片，开始创建第一张</span>
+            </div>
+            <div className="bg-gradient-to-br from-sky-50 to-blue-50 rounded-2xl border border-sky-100 p-6 text-center">
+              <div className="w-16 h-16 bg-white rounded-2xl shadow-sm border border-sky-100 flex items-center justify-center mx-auto mb-3">
+                <QrCode className="w-7 h-7 text-sky-500" />
+              </div>
+              <h4 className="text-sm font-bold text-slate-700 mb-1">创建你的第一张AI数字名片</h4>
+              <p className="text-[11px] text-slate-400 mb-4">上传名片图片或直接填写信息，AI自动识别并生成电子画册</p>
+            </div>
+          </div>
+        )}
+
         {/* Render current step */}
         {step === 'upload' && renderUpload()}
         {step === 'review' && renderReview()}

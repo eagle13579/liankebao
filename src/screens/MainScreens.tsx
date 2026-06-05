@@ -78,7 +78,7 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
       } catch {
         // fallback: show static labels if API unavailable
         setMissionStatus({
-          publish_task: { label: '发布任务', icon: 'flame', description: '创建分销/合作任务', status: 'active', badge: null, action_hint: '发布新产品', sort_order: 1 },
+          publish_task: { label: '发布信息', icon: 'flame', description: '创建分销/合作任务', status: 'active', badge: null, action_hint: '发布新产品', sort_order: 1 },
           invite_partner: { label: '邀请伙伴', icon: 'handshake', description: '发送邀请链接/二维码', status: 'active', badge: null, action_hint: '立即邀请', sort_order: 2 },
           track_split: { label: '追踪分账', icon: 'chart', description: '查看收益/佣金/结算', status: 'active', badge: null, action_hint: '查看详情', sort_order: 3 },
         });
@@ -103,7 +103,7 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
   const missionButtons = [
     {
       id: 'publish_task', icon: '🔥',
-      label: missionStatus.publish_task?.label || '发布任务',
+      label: missionStatus.publish_task?.label || '发布信息',
       desc: missionStatus.publish_task?.description || '创建分销/合作任务',
       hint: missionStatus.publish_task?.action_hint || '发布新产品',
       badge: missionStatus.publish_task?.badge,
@@ -308,6 +308,17 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
           </div>
         </div>
       </main>
+
+      {/* Site Footer — 公司信息 */}
+      <footer className="px-4 py-6 mt-2 border-t border-dark-border/40">
+        <div className="max-w-3xl mx-auto text-center">
+          <p className="text-[11px] text-dark-muted/60 font-medium mb-1">
+          </p>
+          <p className="text-[10px] text-dark-muted/40">
+            沪ICP备2026007459号-2
+          </p>
+        </div>
+      </footer>
 
       <BottomNav active="home" />
     </div>
@@ -577,7 +588,19 @@ export const ProductPool = memo(function ProductPool() {
           ) : status === 'error' ? (
             <ErrorBlock message={error} onRetry={refetch} />
           ) : !products || products.length === 0 ? (
-            <Empty text="暂无产品" />
+            <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+              <div className="w-20 h-20 bg-gradient-to-br from-sky-100 to-blue-50 rounded-2xl flex items-center justify-center mb-5 shadow-sm border border-sky-100">
+                <span className="text-3xl">📦</span>
+              </div>
+              <h3 className="text-base font-bold text-slate-700 mb-2">还没有产品</h3>
+              <p className="text-xs text-slate-400 mb-6 max-w-[240px] leading-relaxed">发布第一个产品，开启你的企业家之旅</p>
+              <button
+                onClick={() => navigate('/add-product')}
+                className="px-6 py-2.5 bg-gradient-to-r from-sky-500 to-blue-600 text-white text-xs font-bold rounded-xl shadow-md shadow-sky-500/20 hover:shadow-lg active:scale-95 transition-all"
+              >
+                发布新产品
+              </button>
+            </div>
           ) : (
             <>
               <div className="grid grid-cols-2 gap-3">
@@ -598,6 +621,16 @@ export const ProductPool = memo(function ProductPool() {
                         </div>
                       )}
                       <p className="text-sky-600 font-manrope font-bold">¥{item.price.toFixed(2)}</p>
+                      {item.brochure_id && (
+                        <a
+                          href={`https://liankebao.top/api/brochure/${item.brochure_id}/brochure`}
+                          target="_blank"
+                          onClick={(e) => e.stopPropagation()}
+                          className="block w-full py-1.5 border border-emerald-200 text-emerald-600 rounded-full text-[10px] font-bold hover:bg-emerald-500 hover:text-white hover:border-emerald-500 active:scale-95 transition-all text-center"
+                        >
+                          📖 电子画册
+                        </a>
+                      )}
                       <button
                         onClick={(e) => { e.stopPropagation(); navigate('/product-detail', { state: { transition: 'push', productId: item.id } }); }}
                         className="w-full py-1.5 border border-sky-200 text-sky-600 rounded-full text-[10px] font-bold hover:bg-sky-500 hover:text-white hover:border-sky-500 active:scale-95 transition-all"

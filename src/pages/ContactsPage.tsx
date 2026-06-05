@@ -168,7 +168,21 @@ export default function ContactsPage() {
         ) : status === 'error' ? (
           <ErrorBlock message={error} onRetry={fetchContacts} />
         ) : contacts.length === 0 ? (
-          <Empty text="暂无联系人" icon="👥" />
+          <div className="flex flex-col items-center justify-center py-20 px-6">
+            <div className="w-28 h-28 bg-gradient-to-br from-violet-100 to-purple-50 rounded-3xl flex items-center justify-center mb-6 shadow-lg shadow-violet-100/50 border border-violet-100">
+              <svg className="w-14 h-14 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-extrabold text-slate-800 mb-3">还没有联系人</h3>
+            <p className="text-sm text-slate-400 mb-8 text-center max-w-[280px] leading-relaxed">导入或添加联系人，开启你的人际网络管理</p>
+            <button
+              onClick={() => navigate('/contacts/import')}
+              className="px-8 py-3 bg-gradient-to-r from-violet-500 to-purple-600 text-white text-sm font-extrabold rounded-2xl shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 active:scale-95 transition-all"
+            >
+              去导入联系人
+            </button>
+          </div>
         ) : (
           <>
             <div className="px-4 pb-2 flex items-center justify-between">
