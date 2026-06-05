@@ -118,7 +118,7 @@ export function PromotionTutorial() {
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <h1 className="font-manrope text-lg font-extrabold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent">
+        <h1 className="font-manrope text-lg font-extrabold bg-gradient-to-r from-sky-500 to-indigo-500 bg-clip-text text-transparent">
           推广教程
         </h1>
       </header>

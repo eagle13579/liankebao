@@ -82,7 +82,7 @@ export function ActivityLog() {
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-b from-sky-50/30 via-white to-white font-sans pb-8">
       {/* Header */}
-      <header className="bg-gradient-to-r from-sky-600 to-blue-600 px-4 pt-12 pb-6 relative overflow-hidden">
+      <header className="bg-gradient-to-r from-sky-500 to-indigo-500 px-4 pt-12 pb-6 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute w-72 h-72 bg-white rounded-full -top-20 -right-20" />
           <div className="absolute w-48 h-48 bg-white rounded-full bottom-0 left-10" />

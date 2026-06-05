@@ -80,7 +80,7 @@ export default function NotificationsScreen() {
               <div className="w-7 h-7 rounded-lg brand-gradient flex items-center justify-center">
                 <Bell className="w-4 h-4 text-white" />
               </div>
-              <h1 className="font-manrope text-lg font-extrabold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent">
+              <h1 className="font-manrope text-lg font-extrabold bg-gradient-to-r from-sky-500 to-indigo-500 bg-clip-text text-transparent">
                 消息中心
               </h1>
             </div>

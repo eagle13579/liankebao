@@ -354,7 +354,7 @@ export function MembershipCenter() {
           <button onClick={() => navigate(-1)} className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 hover:bg-sky-50 hover:text-sky-600 active:scale-90 transition-all">
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <h1 className="font-manrope text-lg font-extrabold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent">会员中心</h1>
+          <h1 className="font-manrope text-lg font-extrabold bg-gradient-to-r from-sky-500 to-indigo-500 bg-clip-text text-transparent">会员中心</h1>
         </header>
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="w-8 h-8 text-sky-500 animate-spin" />
@@ -373,7 +373,7 @@ export function MembershipCenter() {
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <h1 className="font-manrope text-lg font-extrabold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent">
+        <h1 className="font-manrope text-lg font-extrabold bg-gradient-to-r from-sky-500 to-indigo-500 bg-clip-text text-transparent">
           会员中心
         </h1>
       </header>
@@ -862,7 +862,7 @@ export function MembershipUpgradePage() {
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <h1 className="font-manrope text-lg font-extrabold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent">
+        <h1 className="font-manrope text-lg font-extrabold bg-gradient-to-r from-sky-500 to-indigo-500 bg-clip-text text-transparent">
           {isTrial ? '首月体验金卡' : '升级会员'}
         </h1>
       </header>

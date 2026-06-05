@@ -182,7 +182,7 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
               <HandshakeIcon className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="font-manrope text-xl font-extrabold bg-gradient-to-r from-sky-400 to-blue-400 bg-clip-text text-transparent leading-tight">
+              <h1 className="font-manrope text-xl font-extrabold bg-gradient-to-r from-sky-500 to-indigo-500 bg-clip-text text-transparent leading-tight">
                 链客宝
               </h1>
               <p className="text-[10px] text-dark-muted font-medium tracking-wider -mt-0.5">AI驱动 · 企业信任关系网络 · 供需精准匹配</p>
@@ -577,7 +577,7 @@ export const ProductPool = memo(function ProductPool() {
           <div className="w-7 h-7 rounded-lg brand-gradient flex items-center justify-center">
             <Grid className="w-4 h-4 text-white" />
           </div>
-          <h1 className="font-manrope text-lg font-extrabold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent">产品池</h1>
+          <h1 className="font-manrope text-lg font-extrabold bg-gradient-to-r from-sky-500 to-indigo-500 bg-clip-text text-transparent">产品池</h1>
         </div>
         <button className="w-9 h-9 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 hover:bg-sky-50 hover:text-sky-600 active:scale-90 transition-all border border-slate-100">
           <Search className="w-4.5 h-4.5" />
@@ -838,7 +838,7 @@ export function PromotionCenter() {
           <div className="w-7 h-7 rounded-lg brand-gradient flex items-center justify-center">
             <TrendingUp className="w-4 h-4 text-white" />
           </div>
-          <h1 className="font-manrope text-lg font-extrabold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent">推广中心</h1>
+          <h1 className="font-manrope text-lg font-extrabold bg-gradient-to-r from-sky-500 to-indigo-500 bg-clip-text text-transparent">推广中心</h1>
         </div>
         <button className="w-9 h-9 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 hover:bg-sky-50 hover:text-sky-600 active:scale-90 transition-all border border-slate-100">
           <Settings className="w-4.5 h-4.5" />

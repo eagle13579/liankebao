@@ -62,7 +62,7 @@ export function DataInsight() {
     return (
       <div className="flex flex-col min-h-screen bg-gradient-to-b from-sky-50/30 via-white to-white font-sans pb-8">
         <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-sky-100/50 flex items-center gap-3 px-4 h-16">
-          <h1 className="font-manrope text-lg font-extrabold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent">数据洞察</h1>
+          <h1 className="font-manrope text-lg font-extrabold bg-gradient-to-r from-sky-500 to-indigo-500 bg-clip-text text-transparent">数据洞察</h1>
         </header>
         <Loading text="加载数据中..." />
       </div>
@@ -79,7 +79,7 @@ export function DataInsight() {
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <h1 className="font-manrope text-lg font-extrabold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent">数据洞察</h1>
+          <h1 className="font-manrope text-lg font-extrabold bg-gradient-to-r from-sky-500 to-indigo-500 bg-clip-text text-transparent">数据洞察</h1>
         </header>
         <ErrorBlock message={error || '加载失败'} onRetry={refetch} />
       </div>
@@ -95,7 +95,7 @@ export function DataInsight() {
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <h1 className="font-manrope text-lg font-extrabold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent">
+        <h1 className="font-manrope text-lg font-extrabold bg-gradient-to-r from-sky-500 to-indigo-500 bg-clip-text text-transparent">
           数据洞察
         </h1>
       </header>
