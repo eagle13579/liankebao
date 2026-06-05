@@ -63,6 +63,14 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
   const [animatingBtn, setAnimatingBtn] = useState<string | null>(null);
   const [showGuide, setShowGuide] = useState(!localStorage.getItem('liankebao_guide_done'));
 
+  const recentActivities = [
+    { icon: '🏪', text: '某科技公司新上架「AI营销系统」', time: '2分钟前' },
+    { icon: '🤝', text: '张先生与李总成功建立对接', time: '8分钟前' },
+    { icon: '📋', text: '某制造企业发布「供应链管理系统」需求', time: '15分钟前' },
+    { icon: '✅', text: '某贸易公司完成企业认证', time: '23分钟前' },
+    { icon: '🔥', text: '「企业智能健康手表S3」被3人推广', time: '31分钟前' },
+  ];
+
   // 从 /api/home/mission-control 获取3个核心功能的状态
   const [missionStatus, setMissionStatus] = useState<{
     publish_task?: any; invite_partner?: any; track_split?: any;
@@ -217,6 +225,25 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
           <div className="text-center">
             <div className="text-lg font-extrabold text-violet-400">95%</div>
             <div className="text-[10px] text-dark-muted font-medium">满意度</div>
+          </div>
+        </div>
+      </div>
+
+      {/* ====== 实时动态 ====== */}
+      <div className="px-4 max-w-3xl mx-auto w-full mt-4 relative z-10">
+        <div className="bg-dark-surface/40 backdrop-blur-sm rounded-xl border border-dark-border/40 p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-[10px] font-bold text-dark-muted uppercase tracking-wider">实时动态</span>
+          </div>
+          <div className="space-y-1.5">
+            {recentActivities.map((act, i) => (
+              <div key={i} className="flex items-center gap-2 text-[10px] text-dark-muted/80">
+                <span>{act.icon}</span>
+                <span className="flex-1 truncate">{act.text}</span>
+                <span className="shrink-0">{act.time}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
