@@ -46,6 +46,7 @@ class User(Base):
     membership_tier = Column(String(20), nullable=False, default="free", comment="会员等级: free/gold/diamond")
     membership_expires_at = Column(DateTime, nullable=True, comment="会员过期时间")
     match_credits = Column(Integer, nullable=False, default=3, comment="剩余对接券数")
+    brochure_id = Column(String(64), nullable=True, comment="关联电子画册ID")
 
     # 密码重置
     password_reset_token = Column(String(255), nullable=True, index=True, comment="密码重置令牌")
@@ -113,6 +114,7 @@ class Product(Base):
     membership_tier = Column(String(20), nullable=False, default="free", comment="会员等级: free/gold/diamond")
     membership_expires_at = Column(DateTime, nullable=True, comment="会员过期时间")
     match_credits = Column(Integer, nullable=False, default=3, comment="剩余对接券数")
+    brochure_id = Column(String(64), nullable=True, comment="关联电子画册ID")
 
     # 多租户
     organization_id = _org_fk()
@@ -156,6 +158,7 @@ class Order(Base):
     membership_tier = Column(String(20), nullable=False, default="free", comment="会员等级: free/gold/diamond")
     membership_expires_at = Column(DateTime, nullable=True, comment="会员过期时间")
     match_credits = Column(Integer, nullable=False, default=3, comment="剩余对接券数")
+    brochure_id = Column(String(64), nullable=True, comment="关联电子画册ID")
 
     # 多租户
     organization_id = _org_fk()
@@ -192,6 +195,7 @@ class Contact(Base):
     membership_tier = Column(String(20), nullable=False, default="free", comment="会员等级: free/gold/diamond")
     membership_expires_at = Column(DateTime, nullable=True, comment="会员过期时间")
     match_credits = Column(Integer, nullable=False, default=3, comment="剩余对接券数")
+    brochure_id = Column(String(64), nullable=True, comment="关联电子画册ID")
 
     # 多租户
     organization_id = _org_fk()
@@ -219,6 +223,7 @@ class Activity(Base):
     membership_tier = Column(String(20), nullable=False, default="free", comment="会员等级: free/gold/diamond")
     membership_expires_at = Column(DateTime, nullable=True, comment="会员过期时间")
     match_credits = Column(Integer, nullable=False, default=3, comment="剩余对接券数")
+    brochure_id = Column(String(64), nullable=True, comment="关联电子画册ID")
 
     # 多租户
     organization_id = _org_fk()
@@ -254,6 +259,7 @@ class ImportHistory(Base):
     membership_tier = Column(String(20), nullable=False, default="free", comment="会员等级: free/gold/diamond")
     membership_expires_at = Column(DateTime, nullable=True, comment="会员过期时间")
     match_credits = Column(Integer, nullable=False, default=3, comment="剩余对接券数")
+    brochure_id = Column(String(64), nullable=True, comment="关联电子画册ID")
 
     # 多租户
     organization_id = _org_fk()
@@ -286,6 +292,7 @@ class BusinessNeed(Base):
     membership_tier = Column(String(20), nullable=False, default="free", comment="会员等级: free/gold/diamond")
     membership_expires_at = Column(DateTime, nullable=True, comment="会员过期时间")
     match_credits = Column(Integer, nullable=False, default=3, comment="剩余对接券数")
+    brochure_id = Column(String(64), nullable=True, comment="关联电子画册ID")
 
     # 多租户
     organization_id = _org_fk()
@@ -315,6 +322,7 @@ class BusinessCard(Base):
     membership_tier = Column(String(20), nullable=False, default="free", comment="会员等级: free/gold/diamond")
     membership_expires_at = Column(DateTime, nullable=True, comment="会员过期时间")
     match_credits = Column(Integer, nullable=False, default=3, comment="剩余对接券数")
+    brochure_id = Column(String(64), nullable=True, comment="关联电子画册ID")
 
     # 多租户
     organization_id = _org_fk()
@@ -365,6 +373,7 @@ class Withdrawal(Base):
     membership_tier = Column(String(20), nullable=False, default="free", comment="会员等级: free/gold/diamond")
     membership_expires_at = Column(DateTime, nullable=True, comment="会员过期时间")
     match_credits = Column(Integer, nullable=False, default=3, comment="剩余对接券数")
+    brochure_id = Column(String(64), nullable=True, comment="关联电子画册ID")
 
     # 多租户
     organization_id = _org_fk()

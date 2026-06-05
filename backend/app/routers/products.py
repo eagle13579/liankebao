@@ -145,6 +145,8 @@ def create_product(
     db.add(product)
     db.commit()
     db.refresh(product)
+    product.brochure_id = str(product.owner_id)
+    db.commit()
 
     return ApiResponse(
         code=200,
@@ -187,6 +189,7 @@ def update_product(
 
     db.commit()
     db.refresh(product)
+    db.commit()
 
     return ApiResponse(
         code=200,

@@ -157,6 +157,7 @@ class ProductBase(BaseModel):
     files: str | None = None
     is_featured: int | None = 0
     sort_order: int | None = 0
+    brochure_id: str | None = None
 
 
 class ProductCreate(ProductBase):
