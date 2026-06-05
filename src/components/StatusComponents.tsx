@@ -56,16 +56,21 @@ export function ErrorBlock({ message, onRetry }: { message: string; onRetry?: ()
   );
 }
 
-// Empty 组件 - 增强版
-export function Empty({ text = '暂无数据', icon, description }: { text?: string; icon?: string; description?: string }) {
+// Empty 组件 - 增强版(动画+暗色适配)
+export function Empty({ text = '暂无数据', icon, description, actionText, onAction }: { text?: string; icon?: string; description?: string; actionText?: string; onAction?: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center py-16">
-      <div className="w-16 h-16 bg-gradient-to-br from-slate-50 to-sky-50 rounded-2xl flex items-center justify-center mb-4 border border-slate-100 shadow-sm">
-        <span className="text-2xl">{icon || '📭'}</span>
+    <div className="flex flex-col items-center justify-center py-16 animate-fadeIn">
+      <div className="w-16 h-16 bg-gradient-to-br from-slate-50 to-sky-50 dark:from-dark-surface dark:to-sky-500/10 rounded-2xl flex items-center justify-center mb-4 border border-slate-100 dark:border-dark-border shadow-sm">
+        <span className="text-2xl animate-bounce-subtle">{icon || '📭'}</span>
       </div>
-      <p className="text-sm text-slate-500 font-medium">{text}</p>
+      <p className="text-sm text-slate-500 dark:text-dark-muted font-medium">{text}</p>
       {description && (
-        <p className="text-xs text-slate-400 mt-1">{description}</p>
+        <p className="text-xs text-slate-400 dark:text-dark-muted/60 mt-1">{description}</p>
+      )}
+      {actionText && onAction && (
+        <button onClick={onAction} className="mt-3 text-xs px-4 py-2 rounded-lg bg-gradient-to-r from-sky-500 to-blue-600 text-white font-medium shadow-md hover:shadow-lg hover:scale-105 active:scale-95 transition-all">
+          {actionText}
+        </button>
       )}
     </div>
   );
