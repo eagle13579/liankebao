@@ -174,48 +174,48 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
         <div className="absolute bottom-0 left-1/3 w-[500px] h-[500px] bg-gradient-to-tr from-emerald-500/5 to-teal-600/3 rounded-full blur-[100px]" />
       </div>
 
-      {/* Top Navigation Bar - dark theme */}
-      <header className="fixed top-0 w-full z-50 bg-dark-surface/80 backdrop-blur-xl border-b border-dark-border/60 px-4 h-16">
+      {/* Top Navigation Bar - clean minimal */}
+      <header className="fixed top-0 w-full z-50 bg-dark-surface/80 backdrop-blur-xl border-b border-dark-border/60 px-4 h-14">
         <div className="flex items-center justify-between h-full max-w-3xl mx-auto">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl brand-gradient flex items-center justify-center shadow-lg shadow-sky-500/20 glow-pulse">
-              <HandshakeIcon className="w-6 h-6 text-white" />
+            <div className="w-8 h-8 rounded-xl brand-gradient flex items-center justify-center shadow-lg shadow-sky-500/20">
+              <HandshakeIcon className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="font-manrope text-xl font-extrabold bg-gradient-to-r from-sky-500 to-indigo-500 bg-clip-text text-transparent leading-tight">
-                链客宝
-              </h1>
-              <p className="text-[10px] text-dark-muted font-medium tracking-wider -mt-0.5">AI驱动 · 企业信任关系网络 · 供需精准匹配</p>
-            <div className="flex items-center gap-4 mt-1">
-              <span className="text-[9px] text-sky-400/70">🏪 100+ 企业入驻</span>
-              <span className="text-[9px] text-emerald-400/70">🤝 500+ 成功对接</span>
-              <span className="text-[9px] text-violet-400/70">⭐ 95% 满意度</span>
-            </div>
+              <h1 className="font-manrope text-lg font-extrabold bg-gradient-to-r from-sky-500 to-indigo-500 bg-clip-text text-transparent leading-tight">链客宝</h1>
+              <p className="text-[9px] text-dark-muted font-medium tracking-wider -mt-0.5">企业信任关系网络</p>
             </div>
           </div>
-
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/notifications')} className="relative w-9 h-9 rounded-full bg-dark-surface flex items-center justify-center text-dark-muted hover:bg-sky-500/15 hover:text-sky-400 active:scale-90 transition-all border border-dark-border">
-              <Bell className="w-4.5 h-4.5" />
+          <div className="flex items-center gap-2">
+            <button onClick={() => navigate('/notifications')} className="relative w-8 h-8 rounded-full bg-dark-surface flex items-center justify-center text-dark-muted hover:bg-sky-500/15 hover:text-sky-400 active:scale-90 transition-all border border-dark-border">
+              <Bell className="w-4 h-4" />
               {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-gradient-to-br from-rose-500 to-rose-600 rounded-full text-white text-[8px] font-bold flex items-center justify-center shadow-sm">{unreadCount > 99 ? '99+' : unreadCount}</span>
+              <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-gradient-to-br from-rose-500 to-rose-600 rounded-full text-white text-[7px] font-bold flex items-center justify-center shadow-sm">{unreadCount > 99 ? '99+' : unreadCount}</span>
               )}
             </button>
-            <button onClick={() => { const d=document.documentElement; const n=d.getAttribute('data-theme')==='light'?'dark':'light'; d.setAttribute('data-theme',n); d.classList.remove('light','dark'); d.classList.add(n); localStorage.setItem('liankebao-theme',n); }} className="w-9 h-9 rounded-full bg-dark-surface flex items-center justify-center text-dark-muted hover:bg-sky-500/15 hover:text-sky-400 active:scale-90 transition-all border border-dark-border">
-              <span className="text-base">☀️</span>
-            </button>
-            <button onClick={() => navigate('/profile')} className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center text-white shadow-md shadow-sky-500/20 active:scale-90 transition-all border-2 border-dark-surface">
-              <User className="w-4.5 h-4.5" />
-            </button>
-            <button onClick={() => navigate('/product-pool')} className="w-9 h-9 rounded-full bg-dark-surface flex items-center justify-center text-dark-muted hover:bg-sky-500/15 hover:text-sky-400 active:scale-90 transition-all border border-dark-border">
-              <Search className="w-4.5 h-4.5" />
+            <button onClick={() => navigate('/profile')} className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center text-white shadow-md shadow-sky-500/20 active:scale-90 transition-all border-2 border-dark-surface">
+              <User className="w-4 h-4" />
             </button>
           </div>
         </div>
       </header>
+      
+      {/* ====== 全局搜索栏 ====== */}
+      <div className="fixed top-14 w-full z-40 px-4 pt-2 pb-2 bg-dark-bg/95 max-w-3xl mx-auto left-0 right-0">
+        <div className="flex items-center gap-2 bg-dark-surface border border-dark-border/60 rounded-xl px-3 h-10 shadow-sm">
+          <Search className="w-4 h-4 text-dark-muted shrink-0" />
+          <input
+            type="text"
+            placeholder="搜索产品、企业、服务..."
+            className="flex-1 bg-transparent text-sm text-white placeholder-dark-muted/60 outline-none border-none"
+            onFocus={() => navigate('/product-pool')}
+          />
+          <span className="text-[10px] text-dark-muted/40 font-mono bg-dark-bg/40 px-1.5 py-0.5 rounded">⌘K</span>
+        </div>
+      </div>
 
       {/* ====== 平台数据总览 ====== */}
-      <div className="pt-20 px-4 max-w-3xl mx-auto w-full relative z-10">
+      <div className="pt-28 px-4 max-w-3xl mx-auto w-full relative z-10">
         <div className="bg-dark-surface/60 backdrop-blur-sm rounded-2xl border border-dark-border/60 p-4 grid grid-cols-3 gap-3">
           <div className="text-center">
             <div className="text-lg font-extrabold text-sky-400">100+</div>
