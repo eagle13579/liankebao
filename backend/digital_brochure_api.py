@@ -58,6 +58,30 @@ from app.rate_limiter import (
 from app.sentry_config import setup_sentry, wrap_with_sentry, is_sentry_active
 from app.observability import get_metrics_collector, get_system_info
 
+# ── 主后端API代理（数据真实化：统一认证） ──────────────
+CHAINKE_MAIN_API_URL = os.environ.get("CHAINKE_MAIN_API_URL", "http://localhost:8001")
+
+def _call_main_api(method: str, path: str, json_data: dict = None, token: str = None):
+    """调用主后端API的HTTP代理，零外部依赖"""
+    import urllib.request, urllib.error
+    url = CHAINKE_MAIN_API_URL + path
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = "Bearer " + token
+    data = json.dumps(json_data).encode() if json_data else None
+    try:
+        req = urllib.request.Request(url, data=data, headers=headers, method=method)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            body = resp.read().decode()
+            return resp.status, json.loads(body)
+    except urllib.error.HTTPError as e:
+        try:
+            return e.code, json.loads(e.read().decode())
+        except:
+            return e.code, {"detail": str(e)}
+    except urllib.error.URLError as e:
+        return 502, {"detail": "主后端不可达: " + str(e)}
+
 # FastAPI exception handlers
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -920,21 +944,26 @@ def get_current_user_id(
 def require_user_id(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ) -> str:
-    """要求必须有有效 token，否则返回 401。"""
+    """要求必须有有效的主后端JWT token，否则返回401。"""
     if credentials is None:
         raise HTTPException(
             status_code=401,
             detail=_("缺少 Authorization 头，请先登录", _lang_var.get()),
             headers={"WWW-Authenticate": "Bearer"},
         )
-    user = db_get_user_by_token(credentials.credentials)
-    if user is None:
+    # 通过主后端验证JWT
+    status, data = _call_main_api("GET", "/api/auth/me", token=credentials.credentials)
+    if status != 200:
         raise HTTPException(
             status_code=401,
             detail=_("Token 无效或已过期，请重新登录", _lang_var.get()),
             headers={"WWW-Authenticate": "Bearer"},
         )
-    return user["user_id"]
+    user_info = data.get("data", data)
+    user_id = str(user_info.get("id", ""))
+    if not user_id:
+        raise HTTPException(status_code=401, detail="无法解析用户ID")
+    return user_id
 
 
 # ── 同步内存与数据库 ──────────────────────────────────
@@ -1134,82 +1163,93 @@ def metrics_endpoint():
 
 @app.post("/api/v1/auth/register", status_code=201)
 def register(data: RegisterRequest):
-    """用户注册（手机号 + 密码 + 姓名）。"""
-    # 检查手机号是否已注册
-    existing = db_get_user_by_phone(data.phone)
-    if existing:
-        raise HTTPException(status_code=409, detail=_("该手机号已注册", _lang_var.get()))
-
-    # 创建用户
-    user = db_create_user(name=data.name, phone=data.phone, password=data.password)
-    if not user:
-        raise HTTPException(status_code=500, detail=_("注册失败，请稍后再试", _lang_var.get()))
-
-    # 自动登录：创建 token
-    token = db_create_token(user["user_id"])
-    if not token:
-        raise HTTPException(status_code=500, detail=_("创建 token 失败", _lang_var.get()))
-
-    logger.info("新用户注册: %s (%s)", user["name"], user["phone"])
-    return TokenResponse(
-        access_token=token,
-        user=UserInfoResponse(
-            user_id=user["user_id"],
-            name=user["name"],
-            phone=user["phone"],
-            company=user.get("company", ""),
-            position=user.get("position", ""),
-            avatar=user.get("avatar", ""),
-            bio=user.get("bio", ""),
-            created_at=user.get("created_at", ""),
-        ),
-    )
+    """用户注册 — 代理到主后端统一用户系统"""
+    status, resp_data = _call_main_api("POST", "/api/auth/register", json_data={
+        "username": data.phone,
+        "password": data.password,
+        "name": data.name,
+        "phone": data.phone,
+        "company": "",
+        "position": "",
+        "role": "buyer",
+    })
+    if status != 200:
+        detail = resp_data.get("detail", "注册失败")
+        raise HTTPException(status_code=status, detail=detail)
+    # 注册成功后自动登录获取JWT
+    _, login_data = _call_main_api("POST", "/api/auth/login", json_data={
+        "username": data.phone,
+        "password": data.password,
+    })
+    if login_data.get("code") == 200 or status == 200:
+        # 从主后端获取用户信息
+        user_info = login_data.get("data", {}).get("user", resp_data.get("data", resp_data))
+        token = login_data.get("data", {}).get("access_token", "")
+        return TokenResponse(
+            access_token=token,
+            user=UserInfoResponse(
+                user_id=str(user_info.get("id", "")),
+                name=user_info.get("name", data.name),
+                phone=user_info.get("phone", data.phone),
+                company=user_info.get("company", ""),
+                position=user_info.get("position", ""),
+                avatar=user_info.get("avatar", ""),
+                bio="",
+                created_at=user_info.get("created_at", ""),
+            ),
+        )
+    raise HTTPException(status_code=500, detail="注册成功但获取token失败")
 
 
 @app.post("/api/v1/auth/login")
 def login(data: LoginRequest):
-    """用户登录（手机号 + 密码），返回 token。"""
-    user = db_authenticate_user(data.phone, data.password)
-    if not user:
+    """用户登录 — 代理到主后端JWT认证"""
+    status, resp_data = _call_main_api("POST", "/api/auth/login", json_data={
+        "username": data.phone,
+        "password": data.password,
+    })
+    if status != 200 or resp_data.get("code") != 200:
         raise HTTPException(status_code=401, detail=_("手机号或密码错误", _lang_var.get()))
-
-    token = db_create_token(user["user_id"])
-    if not token:
-        raise HTTPException(status_code=500, detail=_("创建 token 失败", _lang_var.get()))
-
-    logger.info("用户登录: %s (%s)", user["name"], user["phone"])
+    user_info = resp_data["data"]["user"]
     return TokenResponse(
-        access_token=token,
+        access_token=resp_data["data"]["access_token"],
         user=UserInfoResponse(
-            user_id=user["user_id"],
-            name=user["name"],
-            phone=user["phone"],
-            company=user.get("company", ""),
-            position=user.get("position", ""),
-            avatar=user.get("avatar", ""),
-            bio=user.get("bio", ""),
-            created_at=user.get("created_at", ""),
+            user_id=str(user_info["id"]),
+            name=user_info.get("name", ""),
+            phone=user_info.get("phone", data.phone),
+            company=user_info.get("company", ""),
+            position=user_info.get("position", ""),
+            avatar=user_info.get("avatar", ""),
+            bio="",
+            created_at=user_info.get("created_at", ""),
         ),
     )
 
 
 @app.get("/api/v1/auth/me")
-def get_me(current_user_id: str = Depends(require_user_id)):
-    """获取当前登录用户的信息。"""
-    user = db_get_user_by_id(current_user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail=_("用户不存在", _lang_var.get()))
+def get_me(current_user_id: str = Depends(require_user_id), credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)):
+    """获取当前用户信息 — 从主后端获取"""
+    import urllib.request, json as _json
+    try:
+        req = urllib.request.Request(CHAINKE_MAIN_API_URL + "/api/auth/me")
+        if credentials:
+            req.add_header("Authorization", f"Bearer {credentials.credentials}")
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            body = _json.loads(resp.read().decode())
+            user_info = body.get("data", {})
+    except:
+        user_info = {}
     return {
         "code": 200,
         "data": UserInfoResponse(
-            user_id=user["user_id"],
-            name=user["name"],
-            phone=user["phone"],
-            company=user.get("company", ""),
-            position=user.get("position", ""),
-            avatar=user.get("avatar", ""),
-            bio=user.get("bio", ""),
-            created_at=user.get("created_at", ""),
+            user_id=current_user_id,
+            name=user_info.get("name", ""),
+            phone=user_info.get("phone", ""),
+            company=user_info.get("company", ""),
+            position=user_info.get("position", ""),
+            avatar=user_info.get("avatar", ""),
+            bio="",
+            created_at=user_info.get("created_at", ""),
         ),
     }
 
@@ -1254,7 +1294,7 @@ def get_all_brochures():
 # ── 3. 获取指定用户画册 ──────────────────────────────
 
 @app.get("/api/v1/brochures/{user_id:path}")
-def get_brochure(user_id: str):
+def get_brochure(user_id: str, viewer_id: str = Query(None, description="查看者用户ID，用于计算共同好友")):
     bid = ensure_brochure_id(user_id)
     brochure = BROCHURES.get(bid)
     if not brochure:
@@ -1264,7 +1304,28 @@ def get_brochure(user_id: str):
             BROCHURES[bid] = brochure
         else:
             raise HTTPException(status_code=404, detail=_("画册不存在", _lang_var.get()))
-    return {"code": 200, "data": brochure}
+
+    # 计算共同好友（仅当 viewer_id 提供时）
+    common_count = 0
+    common_names = []
+    if viewer_id and viewer_id != user_id:
+        try:
+            viewer_trusted = set(db_get_trust_network(viewer_id))
+            owner_trusted = set(db_get_trust_network(user_id))
+            common_ids = viewer_trusted & owner_trusted
+            common_count = len(common_ids)
+            # 取前5个共同好友的名字
+            for cid in list(common_ids)[:5]:
+                cb = BROCHURES.get(cid) or db_get_brochure(cid)
+                if cb:
+                    common_names.append(cb.get("name", cid))
+        except Exception as e:
+            logger.debug("计算共同好友失败: %s", e)
+
+    result = dict(brochure)
+    result["common_connections_count"] = common_count
+    result["common_connections_names"] = common_names
+    return {"code": 200, "data": result}
 
 
 # ── 4. 创建画册（需登录） ─────────────────────────────
@@ -1920,8 +1981,37 @@ def batch_import(data: BatchImportRequest):
 
 
 # ════════════════════════════════════════════════════════
-# 启动
+# ── ⭐ Phase 0: 共同好友检测 ──────────────────────────
 
+@app.get("/api/v1/common-connections")
+def get_common_connections(
+    brochure_user_id: str = Query(..., description="画册所有者用户ID"),
+    viewer_user_id: str = Query(..., description="查看者用户ID"),
+):
+    """获取两个用户之间的共同好友"""
+    viewer_trusted = set(db_get_trust_network(viewer_user_id))
+    owner_trusted = set(db_get_trust_network(brochure_user_id))
+    common_ids = viewer_trusted & owner_trusted
+
+    common_names = []
+    for cid in list(common_ids)[:5]:
+        cb = BROCHURES.get(cid) or db_get_brochure(cid)
+        if cb:
+            common_names.append(cb.get("name", cid))
+
+    return {
+        "code": 200,
+        "data": {
+            "count": len(common_ids),
+            "names": common_names,
+            "viewer_user_id": viewer_user_id,
+            "brochure_user_id": brochure_user_id,
+        },
+    }
+
+
+# ════════════════════════════════════════════════════════
+# 启动
 # ════════════════════════════════════════════════════════
 
 if __name__ == "__main__":

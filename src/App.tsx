@@ -41,7 +41,7 @@ const ContactsImportPageLazy = lazy(() => import('./pages/ContactsImportPage'));
 const ContactDetailPageLazy = lazy(() => import('./pages/ContactDetailPage'));
 const ContactMergePageLazy = lazy(() => import('./pages/ContactMergePage'));
 const ProfilePageLazy = lazy(() => import('./pages/ProfilePage'));
-const BusinessCardPageLazy = lazy(() => import('./pages/BusinessCardPage'));
+const BusinessCardPageLazy = lazy(() => import('./pages/business-card/BusinessCardPage'));
 const BIPageLazy = lazy(() => import('./pages/BIPage'));
 const DashboardPageLazy = lazy(() => import('./pages/DashboardPage'));
 const RecommendPageLazy = lazy(() => import('./pages/RecommendPage'));

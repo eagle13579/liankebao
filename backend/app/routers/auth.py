@@ -190,6 +190,33 @@ def register(
     db.commit()
     db.refresh(user)
 
+    # ── 注册成功后自动创建数字名片记录（数据真实化） ──
+    try:
+        import urllib.request as _urllib, json as _json
+        _brochure_data = _json.dumps({
+            "user_id": str(user.id),
+            "name": user.name or req.name or "",
+            "company": user.company or req.company or "",
+            "position": user.position or req.position or "",
+            "phone": user.phone or req.phone or "",
+            "avatar": user.avatar or "",
+            "title": f"{user.name or req.name or ''} 的数字名片",
+            "bio": "",
+            "tags": [],
+            "email": "",
+            "wechat": "",
+        }).encode()
+        _req = _urllib.Request(
+            "http://localhost:8003/api/v1/brochures",
+            data=_brochure_data,
+            headers={"Content-Type": "application/json",
+                     "Authorization": f"Bearer {access_token}"},
+            method="POST",
+        )
+        _urllib.urlopen(_req, timeout=5)
+    except Exception:
+        pass  # brochure服务不可达时不阻塞注册
+
     # PostHog 用户注册埋点
     try:
         capture_user_registered(
@@ -212,6 +239,28 @@ def register(
     token_data = {"sub": user.username, "role": user.role}
     access_token = create_access_token(data=token_data)
     refresh_token = create_refresh_token(data=token_data)
+
+    # ── 注册成功后自动创建数字名片记录（数据真实化） ──
+    try:
+        import urllib.request as _urllib, json as _json
+        _brochure_data = _json.dumps({
+            "user_id": str(user.id),
+            "name": user.name or req.name or "",
+            "company": user.company or req.company or "",
+            "position": user.position or req.position or "",
+            "phone": user.phone or req.phone or "",
+            "avatar": user.avatar or "",
+            "title": f"{user.name or req.name or ''} 的数字名片",
+            "bio": "", "tags": [], "email": "", "wechat": "",
+        }).encode()
+        _req = _urllib.Request("http://localhost:8003/api/v1/brochures",
+            data=_brochure_data,
+            headers={"Content-Type": "application/json",
+                     "Authorization": f"Bearer {access_token}"},
+            method="POST")
+        _urllib.urlopen(_req, timeout=5)
+    except Exception:
+        pass
 
     return ApiResponse(
         code=200,
