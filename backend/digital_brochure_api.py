@@ -150,6 +150,23 @@ def get_db_conn() -> sqlite3.Connection:
     return conn
 
 
+def close_connection():
+    """关闭数据库连接（兼容测试框架）"""
+    pass
+
+
+def dict_from_row(row):
+    """将 sqlite3.Row 转为 dict（兼容测试框架）"""
+    if row is None:
+        return None
+    return dict(row)
+
+
+def get_connection():
+    """获取数据库连接（兼容测试框架，同 get_db_conn）"""
+    return get_db_conn()
+
+
 def init_db():
     """初始化数据库表结构。"""
     conn = get_db_conn()
