@@ -72,3 +72,38 @@ def record_visit(user_id: int, db: Session = Depends(get_db)):
 @router.post("/{user_id}/interest")
 def record_interest(user_id: int, db: Session = Depends(get_db)):
     return {"code": 200, "message": "已收到意向，我们会尽快联系您"}
+
+
+@router.put("/{user_id}")
+def update_brochure(user_id: int, data: dict, db: Session = Depends(get_db)):
+    """更新名片资料（bio/tags/联系方式）"""
+    profile = db.query(CardProfile).filter(CardProfile.user_id == user_id).first()
+    if not profile:
+        profile = CardProfile(user_id=user_id)
+        db.add(profile)
+    if "bio" in data:
+        profile.bio = data["bio"]
+    if "contact_phone" in data:
+        profile.contact_phone = data["contact_phone"]
+    if "contact_wechat" in data:
+        profile.contact_wechat = data["contact_wechat"]
+    if "headline" in data:
+        profile.headline = data["headline"]
+    if "display_name" in data:
+        profile.display_name = data["display_name"]
+    if "tags" in data:
+        profile.tags = json.dumps(data["tags"])
+    if "avatar_url" in data:
+        profile.avatar_url = data["avatar_url"]
+    db.commit()
+    return {"code": 200, "message": "已更新"}
+
+
+@router.delete("/{user_id}")
+def delete_brochure(user_id: int, db: Session = Depends(get_db)):
+    """删除名片资料"""
+    profile = db.query(CardProfile).filter(CardProfile.user_id == user_id).first()
+    if profile:
+        db.delete(profile)
+        db.commit()
+    return {"code": 200, "message": "已删除"}
