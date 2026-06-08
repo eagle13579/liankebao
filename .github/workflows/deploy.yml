@@ -1,31 +1,13 @@
 # ============================================================
-<<<<<<< HEAD
-# liankebao CI/CD pipeline - auto build + deploy
-# Trigger: push to master branch
-# Target: 47.116.116.87
-# ============================================================
-name: liankebao CI/CD
-=======
 # 链客宝 CI/CD 流水线
 # 触发: push 到 master 分支
 # 构建 -> 测试 -> 部署到 47.116.116.87
 # ============================================================
 name: 链客宝 CI/CD
->>>>>>> origin/master
 
 on:
   push:
     branches: [master]
-<<<<<<< HEAD
-
-concurrency:
-  group: deploy-${{ github.ref }}
-  cancel-in-progress: false
-
-jobs:
-  build-and-deploy:
-    name: Build and Deploy
-=======
   # 也支持手动触发
   workflow_dispatch:
     inputs:
@@ -46,29 +28,10 @@ concurrency:
 jobs:
   ci:
     name: 🔨 构建 & 测试
->>>>>>> origin/master
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
-<<<<<<< HEAD
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build frontend
-        run: npm run build
-
-      - name: Deploy via SSH
-=======
       - name: 检出代码
         uses: actions/checkout@v4
         with:
@@ -113,7 +76,6 @@ jobs:
 
       # ---- 步骤 5: 通过 SSH 部署到 47.116.116.87 ----
       - name: SSH 部署到 47.116.116.87
->>>>>>> origin/master
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: 47.116.116.87
@@ -121,8 +83,6 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT || '22' }}
           script: |
-<<<<<<< HEAD
-=======
             set -e
             echo "============================================"
             echo "  链客宝 自动部署"
@@ -242,4 +202,3 @@ jobs:
           echo "分支: ${{ github.ref_name }}"
           echo "Commit: ${{ github.sha }}"
           echo "参见: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
->>>>>>> origin/master

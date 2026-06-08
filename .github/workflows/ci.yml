@@ -48,6 +48,20 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/backend
           DB_TYPE: sqlite
 
+      - name: 技术债扫描
+        run: |
+          pip install radon
+          python scripts/tech_debt_scanner.py --output reports/tech-debt
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend
+
+      - name: 上传技术债报告
+        uses: actions/upload-artifact@v4
+        with:
+          name: tech-debt-report
+          path: backend/reports/tech-debt/
+          retention-days: 7
+
   frontend:
     name: 🎨 Frontend (Node.js)
     runs-on: ubuntu-latest

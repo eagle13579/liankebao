@@ -51,6 +51,12 @@ const GrowthPageLazy = lazy(() => import('./pages/GrowthPage'));
 const MatchingEventsPageLazy = lazy(() => import('./pages/MatchingEventsPage'));
 const MatchingMetricsPageLazy = lazy(() => import('./pages/MatchingMetricsPage'));
 const PrivateBoardPageLazy = lazy(() => import('./pages/PrivateBoardPage'));
+// ===== P0心智模型注入页面 =====
+const HypothesisGatePageLazy = lazy(() => import('./pages/admin/HypothesisGatePage'));
+const UnitEconomicsPageLazy = lazy(() => import('./pages/admin/UnitEconomicsPage'));
+const RetroBoardPageLazy = lazy(() => import('./pages/admin/RetroBoardPage'));
+const RetentionDashboardPageLazy = lazy(() => import('./pages/admin/RetentionDashboardPage'));
+const LearningCenterPageLazy = lazy(() => import('./pages/LearningCenterPage'));
 const SupplyDemandHallLazy = lazy(() => import('./screens/SupplyDemandScreens').then(m => ({ default: m.SupplyDemandHall })));
 const NeedDetailLazy = lazy(() => import('./screens/SupplyDemandScreens').then(m => ({ default: m.NeedDetail })));
 const PostNeedLazy = lazy(() => import('./screens/PostNeedScreen').then(m => ({ default: m.PostNeed })));
@@ -117,6 +123,12 @@ function AnimatedRoutes() {
         <Route path="/private-board" element={<PageTransition><LazyPage><PrivateBoardPageLazy /></LazyPage></PageTransition>} />
         <Route path="/promoter" element={<PageTransition><LazyPage><PromoterPageLazy /></LazyPage></PageTransition>} />
         <Route path="/activities" element={<PageTransition><LazyPage><ActivityLogLazy /></LazyPage></PageTransition>} />
+        {/* ===== P0心智模型注入路由 ===== */}
+        <Route path="/admin/hypothesis-gate" element={<PageTransition><LazyPage><HypothesisGatePageLazy /></LazyPage></PageTransition>} />
+        <Route path="/admin/unit-economics" element={<PageTransition><LazyPage><UnitEconomicsPageLazy /></LazyPage></PageTransition>} />
+        <Route path="/admin/retro-board" element={<PageTransition><LazyPage><RetroBoardPageLazy /></LazyPage></PageTransition>} />
+        <Route path="/admin/retention" element={<PageTransition><LazyPage><RetentionDashboardPageLazy /></LazyPage></PageTransition>} />
+        <Route path="/learning-center" element={<PageTransition><LazyPage><LearningCenterPageLazy /></LazyPage></PageTransition>} />
       </Routes>
     </AnimatePresence>
   );

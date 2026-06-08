@@ -912,8 +912,14 @@ class MatchEngine:
 
     # ---- GAP 6: 监控埋点 + 增强功能 ----
 
-    def _calculate_match(self, product: Product, need: BusinessNeed) -> MatchResult:
-        """计算单个产品-需求对的匹配分数和原因（带监控 + 冷启动 + 反馈 + 特征集成）"""
+    def _calculate_match(self, product: Product, need: BusinessNeed, trust_weight: float = 0.0) -> MatchResult:
+        """计算单个产品-需求对的匹配分数和原因（带监控 + 冷启动 + 反馈 + 特征集成 + 信任加权）
+
+        Args:
+            product: 产品对象
+            need: 需求对象
+            trust_weight: 信任加权系数 (0.0~1.0)，从信任网络中计算
+        """
         start_time = time.time()
         total_score = 0.0
         all_reasons = []
@@ -973,6 +979,13 @@ class MatchEngine:
             final_score = min(max(final_score + feedback_weight, 0.0), 1.0)
             direction = "正向" if feedback_weight > 0 else "负向"
             all_reasons.append(f"反馈{direction}调整 ({feedback_weight:+.4f})")
+
+        # ⭐ TRUST: 信任加权（Phase 0）
+        if trust_weight > 0:
+            original_score = final_score
+            final_score = min(final_score * (1.0 + trust_weight * 0.3), 1.0)
+            if final_score > original_score:
+                all_reasons.append(f"信任加权 (x{1.0 + trust_weight * 0.3:.2f})")
 
         # 监控记录（增强：传入类目）
         elapsed = time.time() - start_time

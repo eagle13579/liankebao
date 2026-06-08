@@ -646,3 +646,19 @@ class OnlineMatchingFeedback(Base):
     # 关系
     event = relationship("OnlineMatchingEvent", foreign_keys=[event_id])
     user = relationship("User", foreign_keys=[user_id])
+
+
+# ============================================================
+# Token黑名单模型（解决重启后黑名单丢失的安全漏洞）
+# ============================================================
+
+
+class RevokedToken(Base):
+    """已撤销JWT令牌黑名单"""
+
+    __tablename__ = "revoked_tokens"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    token_id = Column(String(64), unique=True, nullable=False, index=True, comment="JWT jti")
+    revoked_at = Column(DateTime, default=datetime.utcnow, nullable=False, comment="撤销时间")
+    user_id = Column(Integer, nullable=True, comment="撤销时的用户ID（冗余，便于审计）")

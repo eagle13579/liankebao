@@ -285,12 +285,12 @@ def get_me(current_user: User = Depends(get_current_user)):
 
 
 @router.post("/refresh", response_model=ApiResponse)
-def refresh_token(req: RefreshTokenRequest):
+def refresh_token(req: RefreshTokenRequest, db: Session = Depends(get_db)):
     """
     刷新access token（refresh token轮换）
     接收 refresh_token，验证后返回新的 access_token + refresh_token
     """
-    payload = verify_token(req.refresh_token, expected_type="refresh")
+    payload = verify_token(req.refresh_token, expected_type="refresh", db=db)
     if payload is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -306,7 +306,7 @@ def refresh_token(req: RefreshTokenRequest):
         )
 
     # 将旧 refresh token 加入黑名单（轮换：旧token作废）
-    add_token_to_blacklist(req.refresh_token)
+    add_token_to_blacklist(req.refresh_token, db=db)
 
     # 签发全新的 access + refresh token 对
     token_data = {"sub": username, "role": role}
@@ -343,7 +343,7 @@ def logout(
         )
 
     token = auth_header[7:]  # 去掉 "Bearer "
-    added = add_token_to_blacklist(token)
+    added = add_token_to_blacklist(token, db=db)
 
     return ApiResponse(
         code=200,

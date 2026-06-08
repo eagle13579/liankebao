@@ -32,6 +32,18 @@ async function request<T>(path: string, options?: RequestInit): Promise<ApiRespo
   }
 }
 
+/** 从 JWT 中提取当前登录用户 ID */
+export function getCurrentUserId(): string | null {
+  try {
+    const token = loadToken();
+    if (!token) return null;
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.user_id || payload.sub || null;
+  } catch {
+    return null;
+  }
+}
+
 export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body: any) => request<T>(path, {method:'POST', body: JSON.stringify(body)}),
@@ -40,14 +52,7 @@ export const api = {
   saveToken, loadToken, removeToken,
   // 埋点追踪辅助函数
   track: (eventType: string, data?: Record<string, any>) => {
-    const userId = (() => {
-      try {
-        const token = loadToken();
-        if (!token) return null;
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        return payload.user_id || payload.sub || null;
-      } catch { return null; }
-    })();
+    const userId = getCurrentUserId();
     const payload = { event_type: eventType, user_id: userId, ...data };
     // 异步 fire-and-forget
     request('/api/events/track', {method:'POST', body: JSON.stringify(payload)}).catch(() => {});

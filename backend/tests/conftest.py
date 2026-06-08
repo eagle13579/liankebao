@@ -319,13 +319,23 @@ def setup_test_database():
 # ============================================================
 @pytest.fixture(autouse=True)
 def clean_global_state():
-    """每次测试前清理登录频率限制、token 黑名单、支付配置、搜索引擎缓存和速率限制器"""
+    """每次测试前清理登录频率限制、token 黑名单（缓存+DB）、支付配置、搜索引擎缓存和速率限制器"""
     from app.routers.auth import _login_attempts
 
     _login_attempts.clear()
     from app.auth import _token_blacklist
 
     _token_blacklist.clear()
+    # 清理DB中的黑名单表
+    try:
+        db = TestSessionLocal()
+        from app.models import RevokedToken
+
+        db.query(RevokedToken).delete()
+        db.commit()
+        db.close()
+    except Exception:
+        pass
     from payment.config import _config_registry
 
     _config_registry.clear()

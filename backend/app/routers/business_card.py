@@ -361,6 +361,7 @@ async def get_card_detail(
         "created_at": card.created_at.isoformat() if card.created_at else "",
         "updated_at": card.updated_at.isoformat() if card.updated_at else "",
         "view_count": card.view_count,
+        "brochure_user_id": card.brochure_id or f"u_{card.user_id:08x}",
     }
 
     return JSONResponse(
@@ -420,6 +421,7 @@ async def get_card_by_token(
                 "created_at": card.created_at.isoformat() if card.created_at else "",
                 "updated_at": card.updated_at.isoformat() if card.updated_at else "",
                 "view_count": card.view_count,
+                "brochure_user_id": card.brochure_id or f"u_{card.user_id:08x}",
             },
         }
     )

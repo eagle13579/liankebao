@@ -77,7 +77,7 @@ def seed_chainke():
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        # ── 2. 用户 (5 个) ──
+        # ── 2. 用户 (8 个, 含六度人脉种子) ──
         users_data = [
             {
                 "username": "admin",
@@ -128,6 +128,37 @@ def seed_chainke():
                 "position": "演示专员",
                 "role": "buyer",
                 "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=demo",
+            },
+            # 六度人脉测试用户 (id=6~8)
+            {
+                "username": "liuliu",
+                "password": "liuliu123",
+                "name": "刘六",
+                "phone": "13800000005",
+                "company": "六合科技",
+                "position": "技术总监",
+                "role": "buyer",
+                "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=liuliu",
+            },
+            {
+                "username": "chenqi",
+                "password": "chenqi123",
+                "name": "陈七",
+                "phone": "13800000006",
+                "company": "七星数据",
+                "position": "CEO",
+                "role": "supplier",
+                "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=chenqi",
+            },
+            {
+                "username": "zhouba",
+                "password": "zhouba123",
+                "name": "周八",
+                "phone": "13800000007",
+                "company": "八方资源",
+                "position": "商务经理",
+                "role": "partner",
+                "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=zhouba",
             },
         ]
 
@@ -324,8 +355,62 @@ def seed_chainke():
                     role=role,
                 )
                 db.add(member)
-            db.flush()
+        db.flush()
             log_status("ORG", o["name"], "CREATED", f"id={org.id}")
+
+        # ── 5. 六度人脉 - 用户关系边 (UserRelation) ──
+        # 关系图 (双向):
+        #   管理员(1) ↔ 王供应(2), 李采购(3), 刘六(6), 陈七(7)
+        #   王供应(2) ↔ 赵合作(4), 刘六(6)
+        #   李采购(3) ↔ 演示账号(5), 陈七(7)
+        #   赵合作(4) ↔ 周八(8)
+        #   演示账号(5) ↔ 周八(8)
+        #   刘六(6)   ↔ 陈七(7)
+        # 共同好友示例:
+        #   1&2 → [6],  1&3 → [7],  2&3 → [1],  2&4 → [],  6&7 → [1],  4&5 → [8]
+        relation_pairs = [
+            ("admin", "supplier"),
+            ("admin", "buyer"),
+            ("admin", "liuliu"),
+            ("admin", "chenqi"),
+            ("supplier", "partner"),
+            ("supplier", "liuliu"),
+            ("buyer", "demo"),
+            ("buyer", "chenqi"),
+            ("partner", "zhouba"),
+            ("demo", "zhouba"),
+            ("liuliu", "chenqi"),
+        ]
+        # 导入 UserRelation 模型
+        from app.models.six_degrees import UserRelation
+        _relation_types = ["brochure", "invite", "contact", "coop", "refer"]
+        import random
+        for uname_a, uname_b in relation_pairs:
+            user_a = created_users.get(uname_a)
+            user_b = created_users.get(uname_b)
+            if not user_a or not user_b:
+                continue
+            # 检查是否已存在
+            existing_rel = db.query(UserRelation).filter(
+                UserRelation.from_user_id == user_a.id,
+                UserRelation.to_user_id == user_b.id,
+            ).first()
+            if existing_rel:
+                log_status("RELATION", f"{uname_a}↔{uname_b}", "SKIPPED", f"id={existing_rel.id}")
+                continue
+            rel = UserRelation(
+                from_user_id=user_a.id,
+                to_user_id=user_b.id,
+                relation_type=random.choice(_relation_types),
+                trust_score=round(random.uniform(0.3, 0.9), 2),
+                interaction_count=random.randint(1, 20),
+                bidirectional=True,
+                is_active=True,
+                source="brochure",
+            )
+            db.add(rel)
+            db.flush()
+            log_status("RELATION", f"{uname_a}↔{uname_b}", "CREATED", f"id={rel.id}")
 
         db.commit()
         logger.info(f"  ── chainke.db 种子数据填充完成 ──")

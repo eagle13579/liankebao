@@ -77,6 +77,13 @@ import app.routers.private_board as private_board_module
 import app.routers.recommend as recommend_module
 import app.routers.vector_search_router as vector_search_module
 import app.routers.membership as membership_module
+# ===== M2/M6/M7/F1-F9/X1-X10 心智模型注入模块 =====
+import app.routers.hypothesis_gate as hypothesis_gate_module
+import app.routers.unit_economics as unit_economics_module
+import app.routers.retention_insights as retention_insights_module
+import app.routers.retro_board as retro_board_module
+import app.routers.learning_center as learning_center_module
+import app.routers.features as features_module
 import invoice as invoice_module
 import matching_engine as matching_engine_module
 import recharge.callback as recharge_callback_module
@@ -363,6 +370,14 @@ router_modules = [
     enrichment_module,
     organization_module,
     growth_module,
+    # ===== P0心智模型注入 =====
+    hypothesis_gate_module,
+    unit_economics_module,
+    retention_insights_module,
+    retro_board_module,
+    learning_center_module,
+    # ===== 智能特性模块 (F1-F9) =====
+    features_module,
 ]
 
 # 第一轮：/api/v1/ 版本化路由
@@ -407,6 +422,16 @@ app.include_router(enrichment_module.router)
 app.include_router(organization_module.router)
 app.include_router(membership_module.router)
 app.include_router(growth_module.router)
+
+# ===== P0心智模型注入路由注册 =====
+app.include_router(hypothesis_gate_module.router)
+app.include_router(unit_economics_module.router)
+app.include_router(retention_insights_module.router)
+app.include_router(retro_board_module.router)
+app.include_router(learning_center_module.router)
+
+# ===== 智能特性模块路由注册 =====
+app.include_router(features_module.router)
 
 # ===== 启动时初始化增长引擎数据库 =====
 from app.routers.growth import init_growth_db
