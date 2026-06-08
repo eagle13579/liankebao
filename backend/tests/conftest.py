@@ -350,6 +350,11 @@ def clean_global_state():
 
     if _limiter is not None:
         _limiter._records.clear()
+    # 清理熔断器注册表（避免状态泄漏到下一个测试）
+    from app.circuit_breaker import _registry as _cb_registry
+
+    if _cb_registry is not None:
+        _cb_registry._breakers.clear()
     yield
 
 

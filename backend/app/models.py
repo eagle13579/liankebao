@@ -665,6 +665,26 @@ class RevokedToken(Base):
 
 
 # ============================================================
+# 熔断器状态持久化模型
+# ============================================================
+
+
+class CircuitBreakerState(Base):
+    """熔断器状态持久化（重启后恢复熔断状态，避免突发流量冲垮下游）"""
+
+    __tablename__ = "circuit_breaker_states"
+
+    name = Column(String(100), primary_key=True, index=True, comment="熔断器名称（唯一标识）")
+    state = Column(String(20), nullable=False, default="CLOSED", comment="熔断器状态: CLOSED/OPEN/HALF_OPEN")
+    failure_count = Column(Integer, nullable=False, default=0, comment="连续失败次数")
+    success_count = Column(Integer, nullable=False, default=0, comment="连续成功次数")
+    total_calls = Column(Integer, nullable=False, default=0, comment="总调用次数")
+    last_failure_at = Column(DateTime, nullable=True, comment="最后一次失败时间")
+    recent_results_json = Column(Text, nullable=True, comment="滑动窗口序列化JSON")
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="最后更新时间")
+
+
+# ============================================================
 # Banner 首页轮播图模型
 # ============================================================
 

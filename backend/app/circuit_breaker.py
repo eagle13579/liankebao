@@ -12,16 +12,21 @@ API: GET /api/circuit-breakers (管理员查看各 breaker 状态)
 
 import asyncio
 import functools
+import json
 import logging
 import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+
+from app.database import SessionLocal
+from app.models import CircuitBreakerState
 
 logger = logging.getLogger(__name__)
 
@@ -133,6 +138,45 @@ class CircuitBreakerRegistry:
         self._lock = threading.RLock()
         self._breakers: dict[str, CircuitBreakerInstance] = {}
 
+    def _save_state_to_db(self, cb: CircuitBreakerInstance) -> None:
+        """持久化熔断器状态到 SQLite（失败时静默回退到内存，不阻断调用）"""
+        try:
+            db = SessionLocal()
+            try:
+                state = db.query(CircuitBreakerState).filter(CircuitBreakerState.name == cb.name).first()
+                if state is None:
+                    state = CircuitBreakerState(name=cb.name)
+                    db.add(state)
+
+                state.state = cb.state.value
+                state.failure_count = cb.consecutive_failures
+                state.success_count = cb.consecutive_successes
+                state.total_calls = cb.total_requests
+                state.last_failure_at = (
+                    datetime.fromtimestamp(cb.last_failure_time) if cb.last_failure_time > 0.0 else None
+                )
+                state.recent_results_json = json.dumps(cb.recent_results)
+                state.updated_at = datetime.utcnow()
+                db.commit()
+            except Exception:
+                db.rollback()
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning(f"熔断器状态持久化失败（回退到内存）: {cb.name} - {e}")
+
+    def _load_state_from_db(self, name: str) -> CircuitBreakerState | None:
+        """从数据库加载熔断器持久化状态"""
+        try:
+            db = SessionLocal()
+            try:
+                return db.query(CircuitBreakerState).filter(CircuitBreakerState.name == name).first()
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning(f"熔断器状态加载失败（使用默认CLOSED）: {name} - {e}")
+            return None
+
     def get_or_create(
         self,
         name: str,
@@ -141,7 +185,7 @@ class CircuitBreakerRegistry:
         half_open_max: int = DEFAULT_HALF_OPEN_MAX,
         success_threshold: int = DEFAULT_SUCCESS_THRESHOLD,
     ) -> CircuitBreakerInstance:
-        """获取或创建熔断器实例"""
+        """获取或创建熔断器实例（新建时从DB恢复持久化状态）"""
         with self._lock:
             if name not in self._breakers:
                 cb = CircuitBreakerInstance(
@@ -152,8 +196,26 @@ class CircuitBreakerRegistry:
                     success_threshold=success_threshold,
                 )
                 cb.last_state_change_time = time.time()
+
+                # 尝试从数据库恢复持久化状态（重启后避免所有熔断器从 CLOSED 开始）
+                db_state = self._load_state_from_db(name)
+                if db_state is not None:
+                    cb.state = CircuitState(db_state.state)
+                    cb.consecutive_failures = db_state.failure_count
+                    cb.consecutive_successes = db_state.success_count
+                    cb.total_requests = db_state.total_calls
+                    if db_state.last_failure_at:
+                        cb.last_failure_time = db_state.last_failure_at.timestamp()
+                    if db_state.recent_results_json:
+                        try:
+                            cb.recent_results = json.loads(db_state.recent_results_json)
+                        except (json.JSONDecodeError, TypeError):
+                            cb.recent_results = []
+                    logger.info(f"熔断器状态已从数据库恢复: {name} -> {cb.state.value}")
+                else:
+                    logger.info(f"熔断器已创建: {name} (threshold={failure_threshold}, timeout={recovery_timeout}s)")
+
                 self._breakers[name] = cb
-                logger.info(f"熔断器已创建: {name} (threshold={failure_threshold}, timeout={recovery_timeout}s)")
             return self._breakers[name]
 
     def get(self, name: str) -> CircuitBreakerInstance | None:
@@ -175,27 +237,29 @@ class CircuitBreakerRegistry:
         return result
 
     def reset(self, name: str) -> bool:
-        """重置指定熔断器"""
+        """重置指定熔断器（同步持久化到DB）"""
         with self._lock:
             cb = self._breakers.get(name)
             if cb:
                 cb.reset()
+                self._save_state_to_db(cb)
                 logger.info(f"熔断器已手动重置: {name}")
                 return True
             return False
 
     def reset_all(self) -> int:
-        """重置所有熔断器"""
+        """重置所有熔断器（同步持久化到DB）"""
         count = 0
         with self._lock:
             for name, cb in self._breakers.items():
                 cb.reset()
+                self._save_state_to_db(cb)
                 count += 1
         logger.info(f"所有熔断器已重置 ({count}个)")
         return count
 
     def record_success(self, name: str) -> None:
-        """记录一次成功调用"""
+        """记录一次成功调用（同步持久化到DB）"""
         with self._lock:
             cb = self._breakers.get(name)
             if cb is None:
@@ -220,8 +284,11 @@ class CircuitBreakerRegistry:
                 cb.consecutive_successes += 1
                 cb.consecutive_failures = 0
 
+            # 持久化到数据库（失败不回退，仅日志警告）
+            self._save_state_to_db(cb)
+
     def record_failure(self, name: str) -> None:
-        """记录一次失败调用"""
+        """记录一次失败调用（同步持久化到DB）"""
         with self._lock:
             cb = self._breakers.get(name)
             if cb is None:
@@ -248,6 +315,9 @@ class CircuitBreakerRegistry:
                 cb.state = CircuitState.OPEN
                 cb.last_state_change_time = time.time()
 
+            # 持久化到数据库（失败不回退，仅日志警告）
+            self._save_state_to_db(cb)
+
     def should_allow(self, name: str) -> tuple[bool, str | None]:
         """判断请求是否应该被允许通过
 
@@ -271,6 +341,7 @@ class CircuitBreakerRegistry:
                     cb.consecutive_successes = 0
                     cb.consecutive_failures = 0
                     cb.last_state_change_time = time.time()
+                    self._save_state_to_db(cb)
                     return True, None
                 return False, f"circuit_breaker '{name}' is OPEN (retry after {cb.recovery_timeout - elapsed:.0f}s)"
 

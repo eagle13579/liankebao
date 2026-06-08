@@ -170,6 +170,7 @@ def get_db_for_tenant():
 def init_db():
     """初始化数据库：创建表并填充种子数据（如为空）"""
     from app.models import (
+        CircuitBreakerState,
         Order,
         Product,
         User,
