@@ -174,10 +174,6 @@ def init_db():
         Product,
         User,
         Withdrawal,
-        MatchCreditLog,
-        MembershipOrder,
-        OnlineMatchingEvent,
-        OnlineMatchingRegistration,
     )  # noqa
 
     # === 多租户：始终创建组织相关表（SQLite + PostgreSQL 均支持） ===
@@ -203,22 +199,13 @@ def init_db():
 
         print("正在填充种子数据...")
 
-        # 预计算密码哈希
-        pwhash_admin = bcrypt_hasher.hash("admin123")
+        # 注意：不再预创建默认admin账号
+        # 管理员账号应由系统所有者手动创建，避免默认密码安全风险
         pwhash_123456 = bcrypt_hasher.hash("123456")
 
-        # === 创建用户 ===
+        # === 创建用户（测试用） ===
+        # 注意：不创建默认admin账号，管理员应由所有者手动创建
         users = [
-            User(
-                username="admin",
-                password_hash=pwhash_admin,
-                name="管理员",
-                phone="13800000000",
-                company="链客宝科技",
-                position="系统管理员",
-                role="admin",
-                avatar="https://api.dicebear.com/7.x/avataaars/svg?seed=admin",
-            ),
             User(
                 username="buyer1",
                 password_hash=pwhash_123456,
