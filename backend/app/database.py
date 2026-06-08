@@ -179,6 +179,7 @@ def init_db():
         OnlineMatchingEvent,
         OnlineMatchingRegistration,
         RevokedToken,
+        Banner,
     )  # noqa
 
     # === 多租户：始终创建组织相关表（SQLite + PostgreSQL 均支持） ===
@@ -197,6 +198,10 @@ def init_db():
         existing_users = db.query(User).count()
         if existing_users > 0:
             print(f"数据库已有数据 ({existing_users}个用户)，跳过种子数据填充")
+            # Banner 数据独立检查（无论用户数据是否存在，Banner 表为空则填充）
+            existing_banners = db.query(Banner).count()
+            if existing_banners == 0:
+                _seed_default_banners(db)
             return
 
         print("正在填充种子数据...")
@@ -578,9 +583,46 @@ def init_db():
                 db.commit()
                 print(f"已将 {db.query(User).count()} 个用户关联到默认组织")
 
+        # === Banner 种子数据（Banner 表为空时填充） ===
+        existing_banners = db.query(Banner).count()
+        if existing_banners == 0:
+            _seed_default_banners(db)
+
     except Exception as e:
         db.rollback()
         print(f"种子数据填充失败: {e}")
         raise
     finally:
         db.close()
+
+
+def _seed_default_banners(db):
+    """填充默认 Banner 数据（Banner 表为空时调用）"""
+    from app.models import Banner
+
+    default_banners = [
+        Banner(
+            image="https://www.go-aiport.com/static/banners/banner1.svg",
+            title="链客宝 · AI企业家生态",
+            url="/pages/pool/index",
+            sort_order=1,
+            is_active=True,
+        ),
+        Banner(
+            image="https://www.go-aiport.com/static/banners/banner2.svg",
+            title="GEO诊断 · 精准获客",
+            url="/pages/pool/index?cat=geo",
+            sort_order=2,
+            is_active=True,
+        ),
+        Banner(
+            image="https://www.go-aiport.com/static/banners/banner3.svg",
+            title="数字分身 · 智能交互",
+            url="/pages/pool/index?cat=ai",
+            sort_order=3,
+            is_active=True,
+        ),
+    ]
+    db.add_all(default_banners)
+    db.commit()
+    print(f"已插入 {len(default_banners)} 条默认 Banner 数据")

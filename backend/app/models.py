@@ -662,3 +662,22 @@ class RevokedToken(Base):
     token_id = Column(String(64), unique=True, nullable=False, index=True, comment="JWT jti")
     revoked_at = Column(DateTime, default=datetime.utcnow, nullable=False, comment="撤销时间")
     user_id = Column(Integer, nullable=True, comment="撤销时的用户ID（冗余，便于审计）")
+
+
+# ============================================================
+# Banner 首页轮播图模型
+# ============================================================
+
+
+class Banner(Base):
+    """首页轮播图模型"""
+
+    __tablename__ = "banners"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    image = Column(String(500), nullable=False, comment="图片URL")
+    title = Column(String(200), nullable=False, comment="标题")
+    url = Column(String(500), nullable=False, comment="跳转链接")
+    sort_order = Column(Integer, nullable=False, default=0, comment="排序权重（从小到大）")
+    is_active = Column(Boolean, nullable=False, default=True, comment="是否启用")
+    created_at = Column(DateTime, default=datetime.utcnow)

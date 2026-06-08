@@ -99,7 +99,7 @@ import app.services.llm_service as llm_service_module
 # ===== 认证 =====
 from app.auth import get_current_user
 from app.database import get_db, init_db
-from app.models import User
+from app.models import Banner, User
 
 # ===== 通知系统 & WebSocket =====
 from app.notifications import NotificationManager
@@ -511,18 +511,39 @@ BANNERS = [
         "url": "/pages/pool/index?cat=ai",
     },
 ]
+# DEPRECATED: moved to DB — Banner 数据已迁移到 SQLite `banners` 表，后续删除此常量
 
 
 @app.get("/banners", summary="首页轮播图", description="获取小程序首页轮播图列表（无 /api 前缀）")
-def list_banners():
-    """获取首页轮播图列表"""
-    return {"code": 200, "message": "success", "data": BANNERS}
+def list_banners(db: Session = Depends(get_db)):
+    """获取首页轮播图列表（从 DB 读取）"""
+    banners = (
+        db.query(Banner)
+        .filter(Banner.is_active == True)
+        .order_by(Banner.sort_order.asc())
+        .all()
+    )
+    data = [
+        {"image": b.image, "title": b.title, "url": b.url}
+        for b in banners
+    ]
+    return {"code": 200, "message": "success", "data": data}
 
 
 @app.get("/api/banners", summary="首页轮播图（兼容）", description="获取小程序首页轮播图列表（带 /api 前缀的兼容版本）")
-def list_banners_api():
-    """获取首页轮播图列表（带 /api 前缀兼容）"""
-    return {"code": 200, "message": "success", "data": BANNERS}
+def list_banners_api(db: Session = Depends(get_db)):
+    """获取首页轮播图列表（带 /api 前缀兼容，从 DB 读取）"""
+    banners = (
+        db.query(Banner)
+        .filter(Banner.is_active == True)
+        .order_by(Banner.sort_order.asc())
+        .all()
+    )
+    data = [
+        {"image": b.image, "title": b.title, "url": b.url}
+        for b in banners
+    ]
+    return {"code": 200, "message": "success", "data": data}
 
 
 # ============================================================
