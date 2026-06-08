@@ -684,6 +684,18 @@ class CircuitBreakerState(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="最后更新时间")
 
 
+class RateLimitRecord(Base):
+    """速率限制滑动窗口持久化（重启后恢复限流状态）"""
+
+    __tablename__ = "rate_limit_records"
+
+    key = Column(String(255), primary_key=True, index=True, comment="限流标识（IP或用户ID）")
+    limit = Column(Integer, nullable=False, default=100, comment="速率上限")
+    window_sec = Column(Integer, nullable=False, default=60, comment="滑动窗口大小（秒）")
+    timestamps_json = Column(Text, nullable=False, default="[]", comment="滑动窗口时间戳JSON数组")
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="最后更新时间")
+
+
 # ============================================================
 # Banner 首页轮播图模型
 # ============================================================

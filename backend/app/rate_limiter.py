@@ -1,11 +1,14 @@
 """Rate Limiting 中间件 — 滑动窗口实现（零外部依赖）
 
 使用 Python 标准库 time + collections.deque 实现内存滑动窗口速率限制。
+增加 SQLite 持久化层，每 100 次 check 将活跃 key 的滑动窗口写入数据库，
+重启时自动恢复未过期的限流状态。DB 写入失败自动降级，不影响限流功能。
 
 可配置项:
     RATE_LIMIT_ENABLED: 环境变量，默认 "true" 开启
 """
 
+import json
 import logging
 import os
 import time
@@ -19,6 +22,11 @@ class MemoryRateLimiter:
 
     对每个唯一标识（IP 或 UserID）维护一个时间戳滑动窗口，
     窗口内的请求计数不能超过上限。窗口过期的记录会自动清理。
+
+    持久化:
+        每 _cleanup_interval (100) 次 check 调用时，将活跃的 key 及其
+        时间戳窗口序列化写入 rate_limit_records 表。启动时从 DB 恢复
+        未过期的限流状态。DB 异常自动降级，不影响限流核心功能。
     """
 
     def __init__(self, default_limit: int = 100, window_sec: int = 60):
@@ -34,6 +42,39 @@ class MemoryRateLimiter:
         # 每 N 次检查触发一次惰性清理
         self._check_counter = 0
         self._cleanup_interval = 100
+        # 尝试从 DB 恢复持久化的限流状态
+        self._load_from_db()
+
+    def _load_from_db(self):
+        """从数据库加载未过期的限流记录到内存（启动时调用）"""
+        try:
+            from app.database import SessionLocal
+            from app.models import RateLimitRecord
+
+            db = SessionLocal()
+            try:
+                now = time.time()
+                cutoff = now - self.window_sec
+                rows = db.query(RateLimitRecord).all()
+                loaded = 0
+                for rec in rows:
+                    try:
+                        timestamps = json.loads(rec.timestamps_json)
+                        # 过滤掉已经过期的时间戳
+                        valid_ts = [ts for ts in timestamps if ts >= cutoff]
+                        if valid_ts:
+                            self._records[rec.key] = (rec.limit, deque(valid_ts))
+                            loaded += 1
+                    except (json.JSONDecodeError, TypeError, ValueError):
+                        continue
+                if loaded:
+                    logger.info(
+                        "速率限制器从 DB 恢复 %d/%d 条活跃记录", loaded, len(rows)
+                    )
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning("限流状态 DB 恢复失败（降级运行）: %s", e)
 
     def _get_or_create(self, key: str, limit: int | None = None) -> tuple[int, deque]:
         """获取或创建指定 key 的记录"""
@@ -49,11 +90,64 @@ class MemoryRateLimiter:
             records.popleft()
 
     def _cleanup_stale_keys(self, now: float):
-        """清理已过期的 key（所有记录都已过期的条目）"""
+        """清理已过期的 key（所有记录都已过期的条目），并持久化活跃 key"""
         cutoff = now - self.window_sec
-        stale_keys = [k for k, (_, dq) in self._records.items() if not dq or dq[-1] < cutoff]
+        stale_keys = [
+            k
+            for k, (_, dq) in self._records.items()
+            if not dq or dq[-1] < cutoff
+        ]
         for k in stale_keys:
             del self._records[k]
+        # 将当前活跃的 key 写入 DB（惰性持久化，不阻塞 check 路径）
+        self._persist_active_keys(now)
+
+    def _persist_active_keys(self, now: float):
+        """将当前活跃的限流记录序列化写入数据库（失败自动降级）"""
+        if not self._records:
+            return
+        try:
+            from app.database import SessionLocal
+            from app.models import RateLimitRecord
+            from datetime import datetime
+
+            cutoff = now - self.window_sec
+            db = SessionLocal()
+            try:
+                for key, (limit, dq) in self._records.items():
+                    if not dq:
+                        continue
+                    # 只持久化窗口内有效的时间戳
+                    valid_ts = [ts for ts in dq if ts >= cutoff]
+                    if not valid_ts:
+                        continue
+                    timestamps_json = json.dumps(valid_ts)
+                    existing = (
+                        db.query(RateLimitRecord)
+                        .filter(RateLimitRecord.key == key)
+                        .first()
+                    )
+                    if existing:
+                        existing.timestamps_json = timestamps_json
+                        existing.limit = limit
+                        existing.window_sec = self.window_sec
+                        existing.updated_at = datetime.utcnow()
+                    else:
+                        rec = RateLimitRecord(
+                            key=key,
+                            limit=limit,
+                            window_sec=self.window_sec,
+                            timestamps_json=timestamps_json,
+                        )
+                        db.add(rec)
+                db.commit()
+            except Exception:
+                db.rollback()
+                raise
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning("限流记录 DB 持久化失败（降级运行）: %s", e)
 
     def check(self, key: str, limit: int | None = None) -> tuple[bool, int]:
         """检查是否允许请求
@@ -72,7 +166,7 @@ class MemoryRateLimiter:
         # 清理过期记录
         self._trim_expired(records, now)
 
-        # 周期性清理过期 key
+        # 周期性清理过期 key 并持久化到 DB
         self._check_counter += 1
         if self._check_counter >= self._cleanup_interval:
             self._check_counter = 0

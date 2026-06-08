@@ -173,6 +173,7 @@ def init_db():
         CircuitBreakerState,
         Order,
         Product,
+        RateLimitRecord,
         User,
         Withdrawal,
         MatchCreditLog,
