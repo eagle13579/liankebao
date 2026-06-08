@@ -8,11 +8,13 @@
 - check_db_health(): 数据库连接健康检查
 """
 
+import json
 import logging
 import os
 import threading
 import time
 from collections import defaultdict, deque
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +51,13 @@ class MetricsCollector:
         self._requests_by_path: dict = defaultdict(int)
         self._requests_by_status: dict = defaultdict(int)
         self._requests_by_method: dict = defaultdict(int)
+        self._request_counter = 0
+
+        # 启动时从DB恢复最近24小时内的历史指标
+        try:
+            self._restore_from_db()
+        except Exception as e:
+            logger.debug("指标恢复跳过（首次运行或DB不可用）", extra={"error": str(e)})
 
     def record_request(
         self,
@@ -58,6 +67,7 @@ class MetricsCollector:
         elapsed_sec: float,
     ) -> None:
         """记录一次请求的指标"""
+        should_persist = False
         with self._lock:
             self._total_requests += 1
             if status_code >= 500:
@@ -69,6 +79,13 @@ class MetricsCollector:
             self._requests_by_path[path] += 1
             self._requests_by_status[status_code] += 1
             self._requests_by_method[method] += 1
+            self._request_counter += 1
+            if self._request_counter % 100 == 0:
+                should_persist = True
+
+        # 每100次请求异步持久化快照到DB（不阻塞指标收集）
+        if should_persist:
+            self._persist_snapshot()
 
     def snapshot(self) -> dict:
         """获取当前指标快照"""
@@ -125,6 +142,110 @@ class MetricsCollector:
             self._requests_by_path.clear()
             self._requests_by_status.clear()
             self._requests_by_method.clear()
+            self._request_counter = 0
+
+    # ============================================================
+    # DB 持久化：跨重启保留历史指标
+    # ============================================================
+
+    def _persist_snapshot(self) -> None:
+        """将当前指标快照持久化到SQLite DB（优雅降级：失败仅记录日志）"""
+        try:
+            from app.database import SessionLocal
+            from app.models import MetricsSnapshot
+
+            # 在锁内捕获数据快照（最小化锁持有时间）
+            with self._lock:
+                times = list(self._response_times)
+                n = len(times)
+                total_requests = self._total_requests
+                total_errors = self._total_errors
+                total_5xx = self._total_5xx
+                data = {
+                    "requests_by_path": dict(self._requests_by_path),
+                    "requests_by_status": dict(self._requests_by_status),
+                    "requests_by_method": dict(self._requests_by_method),
+                }
+
+            if n == 0:
+                avg_ms = 0.0
+                p50_ms = 0.0
+                p95_ms = 0.0
+                p99_ms = 0.0
+            else:
+                avg_ms = round((sum(times) / n) * 1000, 2)
+                sorted_times = sorted(times)
+
+                def _pct(p: float) -> float:
+                    idx = int(n * p)
+                    return sorted_times[min(idx, n - 1)]
+
+                p50_ms = round(_pct(0.5) * 1000, 2)
+                p95_ms = round(_pct(0.95) * 1000, 2)
+                p99_ms = round(_pct(0.99) * 1000, 2)
+
+            db = SessionLocal()
+            try:
+                snapshot = MetricsSnapshot(
+                    total_requests=total_requests,
+                    total_errors=total_errors,
+                    total_5xx=total_5xx,
+                    avg_response_time_ms=avg_ms,
+                    p50_response_time_ms=p50_ms,
+                    p95_response_time_ms=p95_ms,
+                    p99_response_time_ms=p99_ms,
+                    data_json=json.dumps(data, ensure_ascii=False),
+                )
+                db.add(snapshot)
+                db.commit()
+            except Exception as e:
+                db.rollback()
+                logger.warning("指标快照持久化失败（不影响指标收集）", extra={"error": str(e)})
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning("指标快照持久化异常（不影响指标收集）", extra={"error": str(e)})
+
+    def _restore_from_db(self) -> None:
+        """从DB恢复最近24小时内的历史指标到内存"""
+        from app.database import SessionLocal
+        from app.models import MetricsSnapshot
+
+        cutoff = datetime.utcnow() - timedelta(hours=24)
+        db = SessionLocal()
+        try:
+            latest = (
+                db.query(MetricsSnapshot)
+                .filter(MetricsSnapshot.timestamp >= cutoff)
+                .order_by(MetricsSnapshot.id.desc())
+                .first()
+            )
+            if latest is None:
+                logger.debug("DB中无历史指标快照，使用全新指标")
+                return
+
+            with self._lock:
+                self._total_requests = latest.total_requests
+                self._total_errors = latest.total_errors
+                self._total_5xx = latest.total_5xx
+                if latest.data_json:
+                    data = json.loads(latest.data_json)
+                    self._requests_by_path.update(data.get("requests_by_path", {}))
+                    self._requests_by_status.update(data.get("requests_by_status", {}))
+                    self._requests_by_method.update(data.get("requests_by_method", {}))
+
+            logger.info(
+                "从DB恢复历史指标",
+                extra={
+                    "total_requests": latest.total_requests,
+                    "total_errors": latest.total_errors,
+                    "snapshot_at": latest.timestamp.isoformat() if latest.timestamp else None,
+                },
+            )
+        except Exception as e:
+            logger.warning("从DB恢复指标失败（使用全新指标）", extra={"error": str(e)})
+        finally:
+            db.close()
 
     def generate_prometheus_text(self) -> str:
         """生成 Prometheus 文本格式（exposition format）的指标输出"""

@@ -696,6 +696,23 @@ class RateLimitRecord(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="最后更新时间")
 
 
+class MetricsSnapshot(Base):
+    """指标快照持久化（重启后恢复历史指标）"""
+
+    __tablename__ = "metrics_snapshots"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    total_requests = Column(Integer, nullable=False, default=0)
+    total_errors = Column(Integer, nullable=False, default=0)
+    total_5xx = Column(Integer, nullable=False, default=0)
+    avg_response_time_ms = Column(Float, nullable=False, default=0.0)
+    p50_response_time_ms = Column(Float, nullable=False, default=0.0)
+    p95_response_time_ms = Column(Float, nullable=False, default=0.0)
+    p99_response_time_ms = Column(Float, nullable=False, default=0.0)
+    data_json = Column(Text, nullable=True, comment="按路径/状态码/方法的分布JSON")
+
+
 # ============================================================
 # Banner 首页轮播图模型
 # ============================================================
