@@ -664,3 +664,93 @@ class OnlineMatchingFeedback(Base):
     # 关系
     event = relationship("OnlineMatchingEvent", foreign_keys=[event_id])
     user = relationship("User", foreign_keys=[user_id])
+
+
+class RevokedToken(Base):
+    """已吊销JWT Token — DB持久化，防止重启后黑名单丢失"""
+    __tablename__ = "revoked_tokens"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    jti = Column(String(64), unique=True, nullable=False, index=True, comment="JWT Token ID")
+    revoked_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=True, comment="Token原始过期时间")
+
+    # 多租户
+    organization_id = _org_fk()
+
+
+# ============================================================
+# 创新引擎模型 (Innovation Engine)
+# ============================================================
+class BusinessHypothesis(Base):
+    """商业假设"""
+    __tablename__ = "business_hypotheses"
+
+    id = Column(String(50), primary_key=True, index=True)
+    title = Column(String(200), nullable=False)
+    description = Column(Text, nullable=True)
+    category = Column(String(30), nullable=False, default="growth")
+    evidence_level = Column(String(20), nullable=False, default="low")
+    risk_score = Column(Integer, nullable=False, default=0)
+    status = Column(String(20), nullable=False, default="pending")
+    gate_status = Column(String(20), nullable=True, default="open")
+    verify_metrics = Column(Text, nullable=True, default="{}")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class InnovationExperiment(Base):
+    """创新实验"""
+    __tablename__ = "innovation_experiments"
+
+    id = Column(String(50), primary_key=True, index=True)
+    hypothesis_id = Column(String(50), ForeignKey("business_hypotheses.id"), nullable=False, index=True)
+    method = Column(String(30), nullable=False, default="a_b_test")
+    sample_size = Column(Integer, nullable=True)
+    success_criteria = Column(Text, nullable=True)
+    control_group_desc = Column(Text, nullable=True)
+    experiment_group_desc = Column(Text, nullable=True)
+    status = Column(String(20), nullable=False, default="pending")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class InnovationOpportunity(Base):
+    """创新机会"""
+    __tablename__ = "innovation_opportunities"
+
+    id = Column(String(50), primary_key=True, index=True)
+    title = Column(String(200), nullable=False)
+    description = Column(Text, nullable=True)
+    overall_score = Column(Float, nullable=False, default=0.0)
+    confidence_score = Column(Float, nullable=False, default=0.0)
+    urgency_score = Column(Float, nullable=False, default=0.0)
+    business_value_score = Column(Float, nullable=False, default=0.0)
+    source_signals = Column(Text, nullable=True, default="[]")
+    source_insights = Column(Text, nullable=True, default="[]")
+    action_steps = Column(Text, nullable=True, default="[]")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ============================================================
+# 审美评估引擎模型 (Design Review Engine)
+# ============================================================
+class DesignReviewReport(Base):
+    """设计审查报告"""
+    __tablename__ = "design_review_reports"
+
+    id = Column(String(50), primary_key=True, index=True)
+    report_data = Column(Text, nullable=True, default="{}")
+    review_type = Column(String(30), nullable=True, default="full")
+    overall_score = Column(Float, nullable=False, default=0.0)
+    score_level = Column(String(20), nullable=True, default="fair")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AestheticScoreCardRecord(Base):
+    """审美评分卡记录"""
+    __tablename__ = "aesthetic_score_card_records"
+
+    id = Column(String(50), primary_key=True, index=True)
+    card_data = Column(Text, nullable=True, default="{}")
+    overall_score = Column(Float, nullable=False, default=0.0)
+    created_at = Column(DateTime, default=datetime.utcnow)
