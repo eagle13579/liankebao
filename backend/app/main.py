@@ -77,25 +77,17 @@ import app.routers.private_board as private_board_module
 import app.routers.recommend as recommend_module
 import app.routers.upload as upload_module
 import app.routers.vector_search_router as vector_search_module
-import app.routers.membership as membership_module
 import app.routers.hypothesis_gate as hypothesis_gate_module
 import app.routers.learning_center as learning_center_module
 import app.routers.retention_insights as retention_insights_module
 import app.routers.retro_board as retro_board_module
 import app.routers.sales_script as sales_script_module
 import app.routers.unit_economics as unit_economics_module
-import invoice as invoice_module
-import matching_engine as matching_engine_module
-import recharge.callback as recharge_callback_module
-import recharge.routes as recharge_module
-import reconciliation as reconciliation_module
-
 # ===== 搜索引擎（FTS5 / Memory 全文搜索） =====
 import app.search_index as search_index_module
 
 # ===== LLM 智能服务（DeepSeek API） =====
 import app.services.llm_service as llm_service_module
-import reconciliation as reconciliation_module
 
 # ===== 认证 =====
 from app.auth import get_current_user
