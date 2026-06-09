@@ -90,7 +90,7 @@ class RegisterRequest(BaseModel):
     company: str | None = None
     position: str | None = None
     role: str | None = "buyer"
-    pain_point: str | None = Field(None, pattern=r"^(low_acquisition_cost|lack_trust|distribution_pain)$")
+    pain_point: str | None = Field(None, pattern=r"^(low_acquisition_cost|lack_trust|distribution_pain|other)$")
 
     @field_validator("phone")
     @classmethod
