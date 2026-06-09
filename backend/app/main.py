@@ -65,7 +65,9 @@ import app.routers.enrichment as enrichment_module
 import app.routers.enterprise as enterprise_module
 import app.routers.events as events_module
 import app.routers.growth as growth_module
+import app.routers.hypothesis_gate as hypothesis_gate_module
 import app.routers.insights as insights_module
+import app.routers.learning_center as learning_center_module
 import app.routers.matching_events as matching_events_module
 import app.routers.membership as membership_module
 import app.routers.mission_control as mission_control_module
@@ -75,14 +77,13 @@ import app.routers.organization as organization_module
 import app.routers.payment as payment_module
 import app.routers.private_board as private_board_module
 import app.routers.recommend as recommend_module
-import app.routers.upload as upload_module
-import app.routers.vector_search_router as vector_search_module
-import app.routers.hypothesis_gate as hypothesis_gate_module
-import app.routers.learning_center as learning_center_module
 import app.routers.retention_insights as retention_insights_module
 import app.routers.retro_board as retro_board_module
 import app.routers.sales_script as sales_script_module
 import app.routers.unit_economics as unit_economics_module
+import app.routers.upload as upload_module
+import app.routers.vector_search_router as vector_search_module
+
 # ===== 搜索引擎（FTS5 / Memory 全文搜索） =====
 import app.search_index as search_index_module
 
