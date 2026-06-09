@@ -84,6 +84,17 @@ import app.routers.unit_economics as unit_economics_module
 import app.routers.upload as upload_module
 import app.routers.vector_search_router as vector_search_module
 
+# ===== 顶层模块（PYTHONPATH 级别导入） =====
+import invoice as invoice_module
+import matching_engine as matching_engine_module
+import recharge.callback as recharge_callback_module
+import recharge.routes as recharge_module
+import reconciliation as reconciliation_module
+
+# ===== 创新引擎 & 审美评估引擎（KFD Feature 模块） =====
+import innovation_engine as innovation_engine_module
+import design_review_engine as design_review_engine_module
+
 # ===== 搜索引擎（FTS5 / Memory 全文搜索） =====
 import app.search_index as search_index_module
 
@@ -371,6 +382,8 @@ router_modules = [
     retro_board_module,
     sales_script_module,
     unit_economics_module,
+    innovation_engine_module,
+    design_review_engine_module,
 ]
 
 # 第一轮：/api/v1/ 版本化路由
