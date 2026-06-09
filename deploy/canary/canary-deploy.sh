@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# 链客宝 金丝雀发布脚本 (Canary Deployment)
+# 链客宝AI 金丝雀发布脚本 (Canary Deployment)
 # 服务器: 阿里云 ECS (47.100.160.250)
 # 用途: 实现渐进式金丝雀发布 + 自动回滚 + 指标监控
 #
@@ -155,7 +155,7 @@ load_state() {
 
 save_state() {
     cat > "$STATE_FILE" << EOF
-# 链客宝金丝雀部署状态文件
+# 链客宝AI金丝雀部署状态文件
 # 由 canary-deploy.sh 自动管理
 PHASE="$PHASE"
 VERSION="$VERSION"
@@ -259,7 +259,7 @@ phase2_expand_to_half() {
     local nginx_canary_conf="/etc/nginx/conf.d/chainke-canary-backend.conf"
 
     # 创建金丝雀后端配置
-    echo "# 链客宝金丝雀发布 - 50% 流量" | sudo tee "$nginx_canary_conf" > /dev/null
+    echo "# 链客宝AI金丝雀发布 - 50% 流量" | sudo tee "$nginx_canary_conf" > /dev/null
     echo "# 由 canary-deploy.sh 自动管理" | sudo tee -a "$nginx_canary_conf" > /dev/null
     echo "server 127.0.0.1:18001 weight=1;" | sudo tee -a "$nginx_canary_conf" > /dev/null
     echo "server 127.0.0.1:18002 weight=1;" | sudo tee -a "$nginx_canary_conf" > /dev/null
@@ -321,7 +321,7 @@ phase3_full_deploy() {
         canary_port=18002
     fi
 
-    echo "# 链客宝全量发布 - 100% 流量到新版本" | sudo tee "$nginx_active_conf" > /dev/null
+    echo "# 链客宝AI全量发布 - 100% 流量到新版本" | sudo tee "$nginx_active_conf" > /dev/null
     echo "# 由 canary-deploy.sh 自动管理" | sudo tee -a "$nginx_active_conf" > /dev/null
     echo "server 127.0.0.1:$canary_port;" | sudo tee -a "$nginx_active_conf" > /dev/null
 
@@ -542,7 +542,7 @@ send_alert() {
             -d "{
                 \"msgtype\": \"text\",
                 \"text\": {
-                    \"content\": \"【链客宝金丝雀发布】[$level] $message\n时间: $(date '+%Y-%m-%d %H:%M:%S')\n版本: $VERSION\n阶段: $PHASE\"
+                    \"content\": \"【链客宝AI金丝雀发布】[$level] $message\n时间: $(date '+%Y-%m-%d %H:%M:%S')\n版本: $VERSION\n阶段: $PHASE\"
                 }
             }" > /dev/null 2>&1 || true
         log "  钉钉告警已发送"
@@ -596,7 +596,7 @@ show_status() {
 
     echo ""
     echo "========================================"
-    echo "  链客宝 金丝雀发布状态"
+    echo "  链客宝AI 金丝雀发布状态"
     echo "  $(date '+%Y-%m-%d %H:%M:%S')"
     echo "========================================"
     echo ""
@@ -640,7 +640,7 @@ show_status() {
 do_deploy() {
     echo ""
     echo "========================================"
-    echo "  链客宝 金丝雀发布"
+    echo "  链客宝AI 金丝雀发布"
     echo "  $(date '+%Y-%m-%d %H:%M:%S')"
     echo "========================================"
     echo ""

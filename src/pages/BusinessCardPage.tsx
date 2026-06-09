@@ -872,7 +872,7 @@ export default function BusinessCardPage() {
                 color: '#ffffff',
               }}
             >
-              Powered by 链客宝 AI
+              Powered by 链客宝AI AI
             </div>
           </div>
         );

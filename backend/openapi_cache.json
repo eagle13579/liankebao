@@ -1,10 +1,10 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "链客宝API",
-    "description": "链客宝后端API服务 — Premium Business Network and Entrepreneur Supply-Demand Matching Platform。\n\n提供认证、产品、订单、搜索、支付、充值、发票、对账、联系人管理、活动时间线、数据洞察、供需匹配、AI智能匹配引擎、推广员体系、管理后台、系统配置等完整业务能力。",
+    "title": "链客宝AIAPI",
+    "description": "链客宝AI后端API服务 — Premium Business Network and Entrepreneur Supply-Demand Matching Platform。\n\n提供认证、产品、订单、搜索、支付、充值、发票、对账、联系人管理、活动时间线、数据洞察、供需匹配、AI智能匹配引擎、推广员体系、管理后台、系统配置等完整业务能力。",
     "contact": {
-      "name": "链客宝团队",
+      "name": "链客宝AI团队",
       "url": "https://www.go-aiport.com/",
       "email": "support@go-aiport.com"
     },
@@ -4413,7 +4413,7 @@
     "/": {
       "get": {
         "summary": "服务根路径",
-        "description": "返回链客宝API服务基本信息（服务名、状态、版本）",
+        "description": "返回链客宝AIAPI服务基本信息（服务名、状态、版本）",
         "operationId": "root__get",
         "responses": {
           "200": {

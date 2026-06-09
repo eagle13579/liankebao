@@ -1,5 +1,5 @@
 """
-链客宝系统配置管理模块
+链客宝AI系统配置管理模块
 ======================
 
 功能:
@@ -14,19 +14,18 @@
     import admin_config as admin_config_module
     app.include_router(admin_config_module.router)
 """
-import json
+
 import logging
 from datetime import datetime
-from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text, desc
+from sqlalchemy import Column, DateTime, Integer, String, Text, desc
 from sqlalchemy.orm import Session
 
+from app.auth import get_current_admin
 from app.database import Base, get_db
 from app.models import User
-from app.auth import get_current_admin
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +34,10 @@ router = APIRouter(prefix="/api/admin/config", tags=["系统配置"])
 
 # ===== SQLAlchemy Model =====
 
+
 class ConfigItem(Base):
     """系统配置项"""
+
     __tablename__ = "admin_config"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
@@ -57,6 +58,7 @@ class ConfigItem(Base):
 
 class ConfigLog(Base):
     """配置变更操作日志"""
+
     __tablename__ = "admin_config_logs"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
@@ -79,6 +81,7 @@ class ConfigLog(Base):
 
 # ===== Pydantic Schemas =====
 
+
 class ConfigUpdateRequest(BaseModel):
     value: str = Field(..., description="新的配置值")
 
@@ -86,18 +89,18 @@ class ConfigUpdateRequest(BaseModel):
 class ConfigLogResponse(BaseModel):
     id: int
     key: str
-    old_value: Optional[str] = None
-    new_value: Optional[str] = None
-    operator: Optional[str] = None
-    created_at: Optional[str] = None
+    old_value: str | None = None
+    new_value: str | None = None
+    operator: str | None = None
+    created_at: str | None = None
 
 
 class ConfigItemResponse(BaseModel):
     id: int
     key: str
     value: str
-    description: Optional[str] = None
-    updated_at: Optional[str] = None
+    description: str | None = None
+    updated_at: str | None = None
 
 
 # ===== 预设配置项 =====
@@ -141,6 +144,7 @@ def ensure_preset_configs(db: Session):
 
 
 # ===== API Endpoints =====
+
 
 @router.get("")
 def list_configs(
@@ -200,7 +204,7 @@ def update_config(
 
 @router.get("/logs")
 def list_config_logs(
-    key: Optional[str] = Query(None, description="按配置键筛选"),
+    key: str | None = Query(None, description="按配置键筛选"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
@@ -212,12 +216,7 @@ def list_config_logs(
         query = query.filter(ConfigLog.key == key)
 
     total = query.count()
-    logs = (
-        query.order_by(desc(ConfigLog.created_at))
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-        .all()
-    )
+    logs = query.order_by(desc(ConfigLog.created_at)).offset((page - 1) * page_size).limit(page_size).all()
 
     return {
         "code": 200,

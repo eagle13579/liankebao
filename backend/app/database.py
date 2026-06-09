@@ -287,7 +287,7 @@ def init_db():
                 earn_per_share=80.00,
                 sale_price=499.00,
                 category="企业家服务",
-                brand="链客宝",
+                brand="链客宝AI",
                 stock=9999,
                 images=json.dumps(
                     [
@@ -545,10 +545,10 @@ def init_db():
             existing_orgs = db.query(Organization).count()
             if existing_orgs == 0:
                 default_org = Organization(
-                    name="链客宝科技有限公司",
+                    name="链客宝AI科技有限公司",
                     slug="liankebao",
                     plan="enterprise",
-                    settings={"display_name": "链客宝", "timezone": "Asia/Shanghai"},
+                    settings={"display_name": "链客宝AI", "timezone": "Asia/Shanghai"},
                 )
                 db.add(default_org)
                 db.flush()

@@ -1,6 +1,6 @@
 """
 觅迹 Mijü · 翻页图册 API 桥接路由
-映射到链客宝 CardProfile 模型
+映射到链客宝AI CardProfile 模型
 """
 
 import json
@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import CardProfile, DemandItem, SupplyItem, User
+from app.models import BusinessCard, CardProfile, DemandItem, SupplyItem, User, VisitorLog
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/brochure", tags=["觅迹·翻页图册"])
@@ -66,9 +66,22 @@ def get_brochure(user_id: int, db: Session = Depends(get_db)):
 
 @router.post("/{user_id}/visit")
 def record_visit(user_id: int, db: Session = Depends(get_db)):
+    card = db.query(BusinessCard).filter(BusinessCard.user_id == user_id, BusinessCard.is_deleted == False).first()
+    if not card:
+        return {"code": 404, "message": "名片不存在"}
+    card.view_count = (card.view_count or 0) + 1
+    log = VisitorLog(brochure_id=card.id, page="visit", interested=False)
+    db.add(log)
+    db.commit()
     return {"code": 200, "message": "已记录"}
 
 
 @router.post("/{user_id}/interest")
 def record_interest(user_id: int, db: Session = Depends(get_db)):
+    card = db.query(BusinessCard).filter(BusinessCard.user_id == user_id, BusinessCard.is_deleted == False).first()
+    if not card:
+        return {"code": 404, "message": "名片不存在"}
+    log = VisitorLog(brochure_id=card.id, page="interest", interested=True)
+    db.add(log)
+    db.commit()
     return {"code": 200, "message": "已收到意向，我们会尽快联系您"}

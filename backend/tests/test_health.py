@@ -14,7 +14,7 @@ class TestHealth:
         resp = client.get("/")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["service"] == "链客宝 API"
+        assert data["service"] == "链客宝AI API"
         assert data["status"] == "running"
 
     def test_health_endpoint(self, client: TestClient):

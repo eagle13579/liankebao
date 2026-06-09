@@ -124,7 +124,7 @@ Page({
     var type = e.currentTarget.dataset.type || 'user'
     wx.showModal({
       title: type === 'user' ? '用户协议' : '隐私政策',
-      content: '这里是链客宝用户协议/隐私政策的详细内容...',
+      content: '这里是链客宝AI用户协议/隐私政策的详细内容...',
       showCancel: false
     })
   }

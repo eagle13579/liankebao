@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-链客宝数据库自动备份脚本
+链客宝AI数据库自动备份脚本
 
 用法:
     python scripts/backup_db.py --type sqlite                  # SQLite 备份
@@ -10,10 +10,10 @@
 
 Cron 配置 (每天凌晨3点执行 SQLite 备份):
     # crontab -e
-    0 3 * * * cd /path/to/链客宝 && /usr/bin/python3 scripts/backup_db.py --type sqlite >> logs/backup_db.log 2>&1
+    0 3 * * * cd /path/to/链客宝AI && /usr/bin/python3 scripts/backup_db.py --type sqlite >> logs/backup_db.log 2>&1
 
 Windows 任务计划程序 (每天凌晨3点执行):
-    schtasks /create /tn "链客宝SQLite备份" /tr "python D:\\链客宝\\scripts\\backup_db.py --type sqlite" /sc daily /st 03:00
+    schtasks /create /tn "链客宝AISQLite备份" /tr "python D:\\链客宝AI\\scripts\\backup_db.py --type sqlite" /sc daily /st 03:00
 
 依赖:
     - Python 标准库 (无第三方依赖)
@@ -35,7 +35,7 @@ from datetime import datetime
 from pathlib import Path
 
 # ── 路径常量 ────────────────────────────────────────────────────────────────
-# 项目根目录 = 脚本所在目录的上一级 (scripts/ -> 链客宝/)
+# 项目根目录 = 脚本所在目录的上一级 (scripts/ -> 链客宝AI/)
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 
@@ -49,7 +49,7 @@ DEFAULT_ENV_FILE = PROJECT_ROOT / ".env"
 def parse_args() -> argparse.Namespace:
     """解析命令行参数"""
     parser = argparse.ArgumentParser(
-        description="链客宝数据库自动备份工具",
+        description="链客宝AI数据库自动备份工具",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
@@ -434,7 +434,7 @@ def print_summary(
     sep = "=" * 50
     print(f"\n{sep}")
     print(
-        f"{prefix}链客宝数据库备份报告 ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})"
+        f"{prefix}链客宝AI数据库备份报告 ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})"
     )
     print(
         f"{prefix}类型: {backup_type.upper()} | 状态: {status} | 保留: {retention_days} 天"

@@ -250,7 +250,7 @@ export default function PrivateBoardPage() {
             <span className="text-amber-400"> Private Board</span>
           </h1>
           <p className="text-gray-400 mt-4 text-lg max-w-xl mx-auto">
-            链客宝最高端企业家社群 — 限量{productInfo.quota}席，对话行业领袖，决胜商业未来
+            链客宝AI最高端企业家社群 — 限量{productInfo.quota}席，对话行业领袖，决胜商业未来
           </p>
 
           {/* 价格展示 */}
@@ -501,7 +501,7 @@ export default function PrivateBoardPage() {
             与{productInfo.quota}位顶尖企业家同行
           </h2>
           <p className="text-gray-400 mb-8">
-            链客宝私董会，不只是社群，更是您企业的战略智囊团
+            链客宝AI私董会，不只是社群，更是您企业的战略智囊团
           </p>
           {!isBoardMember && !hasPendingApp && !hasApprovedApp && (
             <button

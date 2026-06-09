@@ -1,4 +1,4 @@
-// 链客宝 AI数字名片 API 请求封装 v3.0
+// 链客宝AI AI数字名片 API 请求封装 v3.0
 // 对接后端 :8003
 
 var BASE_URL = 'https://liankebao.top'

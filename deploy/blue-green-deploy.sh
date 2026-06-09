@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# 链客宝 蓝绿部署脚本 (Blue-Green Deployment)
+# 链客宝AI 蓝绿部署脚本 (Blue-Green Deployment)
 # 服务器: 阿里云 ECS (47.100.160.250)
 # 用途: 实现零停机蓝绿部署，支持自动切换和回滚
 #
@@ -158,7 +158,7 @@ load_state() {
 # ---- 保存状态文件 ----
 save_state() {
     cat > "$STATE_FILE" << EOF
-# 链客宝蓝绿部署状态文件
+# 链客宝AI蓝绿部署状态文件
 # 由 blue-green-deploy.sh 自动管理
 ACTIVE=$ACTIVE
 PREVIOUS=$PREVIOUS
@@ -218,7 +218,7 @@ show_status() {
 
     echo ""
     echo "========================================"
-    echo "  链客宝 蓝绿部署状态"
+    echo "  链客宝AI 蓝绿部署状态"
     echo "  $(date '+%Y-%m-%d %H:%M:%S')"
     echo "========================================"
     echo ""
@@ -424,7 +424,7 @@ setup_systemd_service() {
     log "=== 配置 systemd 服务: $service_name ==="
 
     local service_content="[Unit]
-Description=链客宝 Backend - ${env_name^} Environment
+Description=链客宝AI Backend - ${env_name^} Environment
 Documentation=https://github.com/your-org/liankebao
 After=network.target
 
@@ -565,7 +565,7 @@ switch_nginx() {
     local nginx_conf_dir=$(dirname "$NGINX_ACTIVE_BACKEND_CONF")
     sudo mkdir -p "$nginx_conf_dir"
 
-    echo "# 链客宝蓝绿部署 - 活跃后端配置" | sudo tee "$NGINX_ACTIVE_BACKEND_CONF" > /dev/null
+    echo "# 链客宝AI蓝绿部署 - 活跃后端配置" | sudo tee "$NGINX_ACTIVE_BACKEND_CONF" > /dev/null
     echo "# 由 blue-green-deploy.sh 自动管理" | sudo tee -a "$NGINX_ACTIVE_BACKEND_CONF" > /dev/null
     echo "# 活跃环境: $env_name" | sudo tee -a "$NGINX_ACTIVE_BACKEND_CONF" > /dev/null
     echo "server 127.0.0.1:$target_port;" | sudo tee -a "$NGINX_ACTIVE_BACKEND_CONF" > /dev/null
@@ -623,7 +623,7 @@ send_alert() {
             -d "{
                 \"msgtype\": \"text\",
                 \"text\": {
-                    \"content\": \"【链客宝蓝绿部署】[$level] $message\n时间: $(date '+%Y-%m-%d %H:%M:%S')\n服务器: 链客宝 ECS\n环境: $ACTIVE -> $SWITCH_TARGET\"
+                    \"content\": \"【链客宝AI蓝绿部署】[$level] $message\n时间: $(date '+%Y-%m-%d %H:%M:%S')\n服务器: 链客宝AI ECS\n环境: $ACTIVE -> $SWITCH_TARGET\"
                 }
             }" > /dev/null 2>&1 || true
         log "  钉钉告警已发送"
@@ -829,7 +829,7 @@ pre_check() {
 main() {
     echo ""
     echo "======================================="
-    echo "   链客宝 蓝绿部署系统"
+    echo "   链客宝AI 蓝绿部署系统"
     echo "   $(date '+%Y-%m-%d %H:%M:%S')"
     echo "======================================="
     echo ""

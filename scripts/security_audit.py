@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-链客宝 安全审计脚本
+链客宝AI 安全审计脚本
 ====================
 自动扫描项目安全风险, 输出 JSON 报告。
 
@@ -769,7 +769,7 @@ def generate_report(
 
     return {
         "report": {
-            "project": "链客宝 (LianKeBao)",
+            "project": "链客宝AI (LianKeBao)",
             "scan_time": datetime.now(timezone.utc).isoformat(),
             "scan_duration_seconds": 0,  # 由调用者填写
             "security_score": score,
@@ -797,7 +797,7 @@ def print_summary(report: Dict[str, Any]) -> None:
     findings = report["findings"]
 
     print(f"\n{'=' * 60}")
-    print("  链客宝 安全审计报告")
+    print("  链客宝AI 安全审计报告")
     print(f"{'=' * 60}")
     print(f"  项目:     {rep['project']}")
     print(f"  时间:     {rep['scan_time']}")
@@ -843,7 +843,7 @@ def print_summary(report: Dict[str, Any]) -> None:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="链客宝安全审计脚本",
+        description="链客宝AI安全审计脚本",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
@@ -868,7 +868,7 @@ def main():
 
     start = time.time()
 
-    print("\n🔐 链客宝安全审计 — 开始扫描...")
+    print("\n🔐 链客宝AI安全审计 — 开始扫描...")
     print(f"   项目路径: {args.project_dir}")
     if args.quick:
         print("   模式: 快速 (跳过网络查询)")

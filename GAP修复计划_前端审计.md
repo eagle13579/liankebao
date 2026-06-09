@@ -1,4 +1,4 @@
-# 链客宝前端 GAP 修复计划（审计结果）
+# 链客宝AI前端 GAP 修复计划（审计结果）
 
 审计时间: 2026-05-27
 审计范围: liankebao-weapp/ (Taro), liankebao-miniapp/ (原生微信小程序)

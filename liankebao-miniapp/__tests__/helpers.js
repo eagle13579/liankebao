@@ -1,5 +1,5 @@
 /**
- * 链客宝原生微信小程序测试辅助工具
+ * 链客宝AI原生微信小程序测试辅助工具
  *
  * 提供 Page() 全局 polyfill，使 miniprogram-simulate 能加载页面文件
  * Page({...}) 的方法在顶层定义，jComponent 期望 methods 在 methods 键下，

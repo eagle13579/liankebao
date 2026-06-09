@@ -1,8 +1,8 @@
 {
-  "title": "链客宝 生产监控总览",
+  "title": "链客宝AI 生产监控总览",
   "uid": "chainke_overview",
   "version": 1,
-  "description": "链客宝生产环境监控仪表盘 — 服务健康、API性能、数据库状态、请求量总览",
+  "description": "链客宝AI生产环境监控仪表盘 — 服务健康、API性能、数据库状态、请求量总览",
   "tags": ["liankebao", "production", "monitoring"],
   "timezone": "asia/shanghai",
   "editable": true,
@@ -36,7 +36,7 @@
       "title": "服务在线状态",
       "type": "stat",
       "gridPos": { "h": 6, "w": 4, "x": 0, "y": 0 },
-      "description": "链客宝整体健康状态 (1=在线, 0=离线)",
+      "description": "链客宝AI整体健康状态 (1=在线, 0=离线)",
       "datasource": "Prometheus",
       "fieldConfig": {
         "defaults": {
@@ -537,7 +537,7 @@
       "datasource": "Prometheus",
       "options": {
         "mode": "html",
-        "content": "<div style=\"padding: 12px; background: #1b1b2f; border-radius: 4px;\">\n  <h3 style=\"margin-top: 0; color: #e0e0e0;\">📊 链客宝监控摘要</h3>\n  <table style=\"width: 100%; font-size: 13px; line-height: 1.8;\">\n    <tr><td style=\"color: #888;\">🔹 整体状态:</td><td id=\"overall-status\"><b>liankebao_up</b></td></tr>\n    <tr><td style=\"color: #888;\">🔹 后端 API:</td><td id=\"api-status\"><b>liankebao_api_up</b></td></tr>\n    <tr><td style=\"color: #888;\">🔹 数据库:</td><td id=\"db-status\"><b>liankebao_db_up</b></td></tr>\n    <tr><td style=\"color: #888;\">🕐 评估周期:</td><td>15秒</td></tr>\n    <tr><td style=\"color: #888;\">⏰ 告警延迟:</td><td>5分钟</td></tr>\n    <tr><td style=\"color: #888;\">📡 指标端点:</td><td>:9100/metrics</td></tr>\n    <tr><td style=\"color: #888;\">📋 告警规则:</td><td>alerts/liankebao_alerts.yml</td></tr>\n  </table>\n</div>"
+        "content": "<div style=\"padding: 12px; background: #1b1b2f; border-radius: 4px;\">\n  <h3 style=\"margin-top: 0; color: #e0e0e0;\">📊 链客宝AI监控摘要</h3>\n  <table style=\"width: 100%; font-size: 13px; line-height: 1.8;\">\n    <tr><td style=\"color: #888;\">🔹 整体状态:</td><td id=\"overall-status\"><b>liankebao_up</b></td></tr>\n    <tr><td style=\"color: #888;\">🔹 后端 API:</td><td id=\"api-status\"><b>liankebao_api_up</b></td></tr>\n    <tr><td style=\"color: #888;\">🔹 数据库:</td><td id=\"db-status\"><b>liankebao_db_up</b></td></tr>\n    <tr><td style=\"color: #888;\">🕐 评估周期:</td><td>15秒</td></tr>\n    <tr><td style=\"color: #888;\">⏰ 告警延迟:</td><td>5分钟</td></tr>\n    <tr><td style=\"color: #888;\">📡 指标端点:</td><td>:9100/metrics</td></tr>\n    <tr><td style=\"color: #888;\">📋 告警规则:</td><td>alerts/liankebao_alerts.yml</td></tr>\n  </table>\n</div>"
       },
       "pluginVersion": "11.4.0",
       "transparent": false

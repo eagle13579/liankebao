@@ -1,5 +1,4 @@
 """Fix login route - online User model has no username field"""
-import os
 
 path = "/opt/chainke/backend/app/routers/auth.py"
 with open(path, "r") as f:
@@ -40,7 +39,7 @@ def login(data: dict, db: Session = Depends(get_db)):
         user = User(
             wx_openid=openid,
             nickname=username,
-            company="链客宝",
+            company="链客宝AI",
             share_code=_generate_share_code(),
             roles=0,
         )
@@ -60,5 +59,6 @@ with open(path, "w") as f:
     f.write(content)
 
 import ast
+
 ast.parse(content)
 print("Syntax OK")

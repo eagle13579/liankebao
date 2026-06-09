@@ -1,5 +1,5 @@
 """
-链客宝 数据飞轮模块
+链客宝AI 数据飞轮模块
 ==================
 实现: exposure → click → feedback → feature update → model retrain → better match
 
@@ -15,7 +15,6 @@
 """
 
 import logging
-from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -167,8 +166,16 @@ class DataFlywheel:
             db.query(func.count(UserEvent.id))
             .filter(
                 UserEvent.created_at >= today_start,
-                UserEvent.event_type.in_(["product_view", "search", "recommend_exposure",
-                                           "recommend_click", "recommend_like", "recommend_dislike"]),
+                UserEvent.event_type.in_(
+                    [
+                        "product_view",
+                        "search",
+                        "recommend_exposure",
+                        "recommend_click",
+                        "recommend_like",
+                        "recommend_dislike",
+                    ]
+                ),
             )
             .scalar()
             or 0
@@ -414,6 +421,7 @@ class DataFlywheel:
         """
         try:
             from app.services.matching_client import MatchingClient
+
             client = MatchingClient()
         except ImportError:
             logger.error("matching_client 不可用，无法回灌反馈权重")
@@ -428,8 +436,7 @@ class DataFlywheel:
                 UserEvent.created_at >= thirty_days_ago,
                 UserEvent.target_type == "product",
                 UserEvent.target_id.isnot(None),
-                UserEvent.event_type.in_(["product_click", "recommend_click",
-                                           "recommend_like", "recommend_adopt"]),
+                UserEvent.event_type.in_(["product_click", "recommend_click", "recommend_like", "recommend_adopt"]),
             )
             .all()
         )
@@ -557,8 +564,11 @@ class DataFlywheel:
 # ============================================================
 
 
-@router.get("/stats", summary="获取数据飞轮报告",
-            description="返回完整的数据飞轮统计报告: 曝光/点击/转化漏斗、类目分布、策略对比、7天趋势、重训信号")
+@router.get(
+    "/stats",
+    summary="获取数据飞轮报告",
+    description="返回完整的数据飞轮统计报告: 曝光/点击/转化漏斗、类目分布、策略对比、7天趋势、重训信号",
+)
 def get_flywheel_stats(db: Session = Depends(get_db)) -> dict:
     """GET /api/flywheel/stats — 返回飞轮报告"""
     report = DataFlywheel.generate_report(db)
@@ -569,8 +579,11 @@ def get_flywheel_stats(db: Session = Depends(get_db)) -> dict:
     }
 
 
-@router.post("/backfill", summary="手动触发反馈回灌",
-             description="将 UserEvent 表中的历史反馈数据批量回灌到匹配引擎的 _feedback_weights")
+@router.post(
+    "/backfill",
+    summary="手动触发反馈回灌",
+    description="将 UserEvent 表中的历史反馈数据批量回灌到匹配引擎的 _feedback_weights",
+)
 def trigger_backfill(db: Session = Depends(get_db)) -> dict:
     """POST /api/flywheel/backfill — 手动触发 feedback 回灌"""
     status = DataFlywheel.backfill_feedback_weights(db)
@@ -581,8 +594,11 @@ def trigger_backfill(db: Session = Depends(get_db)) -> dict:
     }
 
 
-@router.post("/backfill/auto", summary="自动回灌（定时任务入口）",
-             description="内部端点: 供定时任务（如 APScheduler）每日调用。执行回灌 + 检查重训信号")
+@router.post(
+    "/backfill/auto",
+    summary="自动回灌（定时任务入口）",
+    description="内部端点: 供定时任务（如 APScheduler）每日调用。执行回灌 + 检查重训信号",
+)
 def auto_backfill_and_check(db: Session = Depends(get_db)) -> dict:
     """POST /api/flywheel/backfill/auto — 定时任务入口"""
     backfill_status = DataFlywheel.backfill_feedback_weights(db)

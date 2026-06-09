@@ -2,9 +2,9 @@
 import shutil
 import os
 
-for p in ["D:/链客宝/backend/.ruff_cache", "D:/链客宝/payment_sdk/.ruff_cache"]:
+for p in ["D:/链客宝AI/backend/.ruff_cache", "D:/链客宝AI/payment_sdk/.ruff_cache"]:
     if os.path.isdir(p):
         shutil.rmtree(p)
         print(f"Removed: {p}")
-os.remove("D:/链客宝/_finalize.py")
+os.remove("D:/链客宝AI/_finalize.py")
 print("Done.")

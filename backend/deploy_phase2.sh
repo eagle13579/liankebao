@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# 链客宝匹配引擎 Phase 2 部署脚本
+# 链客宝AI匹配引擎 Phase 2 部署脚本
 # 将企业知识图谱注入搜索/推荐/匹配逻辑
 # 用法: bash deploy_phase2.sh
 # ============================================================
@@ -8,11 +8,11 @@ set -e
 
 BACKEND_DIR="/opt/chainke/backend"
 TMP_DIR="/tmp/chainke_deploy_$(date +%Y%m%d_%H%M%S)"
-SRC_DIR="D:/链客宝/backend"
+SRC_DIR="D:/链客宝AI/backend"
 REMOTE_USER="root"
 REMOTE_HOST="47.100.160.250"
 
-echo "=== 链客宝 Phase 2 部署 ==="
+echo "=== 链客宝AI Phase 2 部署 ==="
 echo "源目录: $SRC_DIR"
 echo "目标: $REMOTE_USER@$REMOTE_HOST:$BACKEND_DIR"
 echo ""
@@ -47,12 +47,12 @@ tar xzf chainke_phase2.tar.gz
 for f in ${FILES_TO_DEPLOY[@]}; do
     target=\"$BACKEND_DIR/\$f\"
     backup=\"\$target.bak.\$(date +%Y%m%d_%H%M%S)\"
-    
+
     if [ -f \"\$target\" ]; then
         cp \"\$target\" \"\$backup\"
         echo \"  -> 已备份: \$backup\"
     fi
-    
+
     cp \"\$f\" \"\$target\"
     echo \"  -> 已更新: \$target\"
 done

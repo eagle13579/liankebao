@@ -1,5 +1,5 @@
 """
-链客宝工作流自动化引擎 (workflow_engine.py)
+链客宝AI工作流自动化引擎 (workflow_engine.py)
 
 轻量级工作流引擎，零外部依赖，纯 Python + SQLite 实现。
 
@@ -11,17 +11,18 @@
 
 架构:
   - 引擎使用自己的 SQLite 数据库 (workflow.db) 存储规则和执行记录
-  - 通过 SQLAlchemy 与现有链客宝数据模型集成 (Activity, Deal, Order, User 等)
+  - 通过 SQLAlchemy 与现有链客宝AI数据模型集成 (Activity, Deal, Order, User 等)
   - NotificationService 管理站内通知 (独立 SQLite)
 """
+
 import json
 import logging
 import os
 import sqlite3
 import threading
-import time
-from datetime import datetime, timedelta
-from typing import Any, Callable
+from collections.abc import Callable
+from datetime import datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -229,7 +230,7 @@ class WorkflowEngine:
                 continue
             fpath = os.path.join(self.rules_dir, fname)
             try:
-                with open(fpath, "r", encoding="utf-8") as f:
+                with open(fpath, encoding="utf-8") as f:
                     rule = yaml.safe_load(f)
                 if not rule or not isinstance(rule, dict):
                     logger.warning("跳过无效规则文件: %s", fname)
@@ -316,7 +317,9 @@ class WorkflowEngine:
         content = self._resolve_template(params.get("content", ""), context)
         ntype = params.get("notification_type", "info")
         ref_type = params.get("reference_type")
-        ref_id = self._resolve_template(str(params.get("reference_id", "")), context) if params.get("reference_id") else None
+        ref_id = (
+            self._resolve_template(str(params.get("reference_id", "")), context) if params.get("reference_id") else None
+        )
 
         if not user_id:
             return {"status": "error", "message": "缺少 user_id"}
@@ -377,10 +380,11 @@ class WorkflowEngine:
             activity_id = cursor.lastrowid
             conn.close()
             return {"status": "ok", "activity_id": activity_id}
-        except sqlite3.OperationalError as e:
+        except sqlite3.OperationalError:
             # 表可能不存在, 使用 SQLAlchemy 作为后备
             try:
                 from app.database import SessionLocal
+
                 db = SessionLocal()
                 try:
                     # 使用无关系版插入
@@ -388,13 +392,16 @@ class WorkflowEngine:
                         INSERT INTO activities (contact_id, action_type, summary, detail, owner_id, created_at)
                         VALUES (?, ?, ?, ?, ?, datetime('now'))
                     """
-                    db.execute(stmt, (
-                        int(contact_id) if contact_id and contact_id.isdigit() else 0,
-                        action_type,
-                        summary or "",
-                        detail or "",
-                        int(owner_id),
-                    ))
+                    db.execute(
+                        stmt,
+                        (
+                            int(contact_id) if contact_id and contact_id.isdigit() else 0,
+                            action_type,
+                            summary or "",
+                            detail or "",
+                            int(owner_id),
+                        ),
+                    )
                     db.commit()
                     return {"status": "ok", "activity_id": 0}
                 finally:
@@ -454,9 +461,15 @@ class WorkflowEngine:
 
     def _action_send_followup_reminder(self, params: dict, context: dict) -> dict:
         """发送跟进提醒 (创建通知 + 活动)"""
-        deal_title = self._resolve_template(params.get("deal_title", ""), context) or context.get("deal", {}).get("title", "未知")
-        owner_id = self._resolve_template(str(params.get("owner_id", "")), context) or str(context.get("deal", {}).get("owner_id", ""))
-        contact_id = self._resolve_template(str(params.get("contact_id", "")), context) or str(context.get("deal", {}).get("contact_id", ""))
+        deal_title = self._resolve_template(params.get("deal_title", ""), context) or context.get("deal", {}).get(
+            "title", "未知"
+        )
+        owner_id = self._resolve_template(str(params.get("owner_id", "")), context) or str(
+            context.get("deal", {}).get("owner_id", "")
+        )
+        contact_id = self._resolve_template(str(params.get("contact_id", "")), context) or str(
+            context.get("deal", {}).get("contact_id", "")
+        )
 
         if not owner_id:
             return {"status": "error", "message": "缺少 owner_id"}
@@ -514,7 +527,9 @@ class WorkflowEngine:
         title = self._resolve_template(params.get("title", ""), context)
         content = self._resolve_template(params.get("content", ""), context)
         ref_type = params.get("reference_type")
-        ref_id = self._resolve_template(str(params.get("reference_id", "")), context) if params.get("reference_id") else None
+        ref_id = (
+            self._resolve_template(str(params.get("reference_id", "")), context) if params.get("reference_id") else None
+        )
 
         if not title:
             return {"status": "error", "message": "缺少 title"}
@@ -531,9 +546,7 @@ class WorkflowEngine:
                 return {"status": "error", "message": f"数据库不存在: {db_path}"}
 
             conn = sqlite3.connect(db_path)
-            rows = conn.execute(
-                "SELECT id FROM users WHERE role='promoter' AND is_active=1"
-            ).fetchall()
+            rows = conn.execute("SELECT id FROM users WHERE role='promoter' AND is_active=1").fetchall()
             conn.close()
 
             promoter_ids = [r[0] for r in rows]
@@ -743,11 +756,13 @@ class WorkflowEngine:
                 result=action_results,
             )
 
-            results.append({
-                "rule": rule_name,
-                "trigger": event_type,
-                "actions": action_results,
-            })
+            results.append(
+                {
+                    "rule": rule_name,
+                    "trigger": event_type,
+                    "actions": action_results,
+                }
+            )
 
         return results
 
@@ -835,27 +850,33 @@ class WorkflowEngine:
 
             handler = self._action_handlers.get(action_type)
             if not handler:
-                results.append({
-                    "type": action_type,
-                    "status": "error",
-                    "message": f"未知动作类型: {action_type}",
-                })
+                results.append(
+                    {
+                        "type": action_type,
+                        "status": "error",
+                        "message": f"未知动作类型: {action_type}",
+                    }
+                )
                 continue
 
             try:
                 result = handler(params, context)
-                results.append({
-                    "type": action_type,
-                    "status": result.get("status", "ok"),
-                    "result": result,
-                })
+                results.append(
+                    {
+                        "type": action_type,
+                        "status": result.get("status", "ok"),
+                        "result": result,
+                    }
+                )
             except Exception as e:
                 logger.exception("动作执行失败: %s", action_type)
-                results.append({
-                    "type": action_type,
-                    "status": "error",
-                    "message": str(e),
-                })
+                results.append(
+                    {
+                        "type": action_type,
+                        "status": "error",
+                        "message": str(e),
+                    }
+                )
 
         return results
 
@@ -889,9 +910,7 @@ class WorkflowEngine:
 
     # ── 查询接口 ──────────────────────────────────────────────
 
-    def get_execution_history(
-        self, rule_name: str | None = None, limit: int = 50, offset: int = 0
-    ) -> list[dict]:
+    def get_execution_history(self, rule_name: str | None = None, limit: int = 50, offset: int = 0) -> list[dict]:
         """查询执行历史"""
         query = "SELECT * FROM workflow_executions"
         params: list[Any] = []
@@ -1055,9 +1074,7 @@ class WorkflowEngine:
                                         }
                                         context.update(deal_ctx)
 
-                                        action_results = self._execute_actions(
-                                            rule.get("actions", []), context
-                                        )
+                                        action_results = self._execute_actions(rule.get("actions", []), context)
                                         self._record_execution(
                                             rule_name=rule_name,
                                             trigger_type="condition",
@@ -1078,7 +1095,7 @@ class WorkflowEngine:
                                         self._conn.commit()
                         finally:
                             db.close()
-                    except Exception as e:
+                    except Exception:
                         logger.exception("条件触发器检查失败: %s", rule_name)
 
     # ── 种子数据 ──────────────────────────────────────────────
@@ -1201,6 +1218,7 @@ class WorkflowEngine:
             fpath = os.path.join(self.rules_dir, fname)
             if not os.path.exists(fpath):
                 import yaml
+
                 with open(fpath, "w", encoding="utf-8") as f:
                     yaml.dump(rule_data, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
                 logger.info("种子规则已创建: %s", fname)

@@ -3,12 +3,12 @@
 Transform digital_brochure_api.py to add P2 features:
 trace_id + RateLimiter + Sentry + Prometheus metrics + i18n
 """
-import re
+
 import sys
-import os
+
 
 def transform(filepath):
-    with open(filepath, 'r', encoding='utf-8') as f:
+    with open(filepath, encoding="utf-8") as f:
         content = f.read()
 
     original = content
@@ -181,13 +181,13 @@ class MetricsMiddleware(BaseHTTPMiddleware):
     # Replace current app = FastAPI(...) block
     old_app_block = """app = FastAPI(
     title="AI数字名片 v2.2",
-    description="AI数字名片 API — 画册管理、信任网络、供需匹配、链客宝生态融合",
+    description="AI数字名片 API — 画册管理、信任网络、供需匹配、链客宝AI生态融合",
     version="2.2.0",
 )"""
 
     new_app_block = """app = FastAPI(
     title="AI数字名片 v2.2",
-    description="AI数字名片 API — 画册管理、信任网络、供需匹配、链客宝生态融合",
+    description="AI数字名片 API — 画册管理、信任网络、供需匹配、链客宝AI生态融合",
     version="2.2.0",
 )"""
 
@@ -268,91 +268,166 @@ def metrics_endpoint():
 
     # ── 6. Replace Chinese strings with _() calls in all endpoints ──
     # This is the most tedious part - find all Chinese strings and i18n them
-    
+
     # List of Chinese string replacements in error messages
     # These appear in HTTPException detail strings and other places
-    
+
     # Pattern: detail="中文..."
     # We need to replace with _("中文...", lang) where lang is determined at runtime
-    
+
     # Since we can't know the runtime lang at compile time, we need to add lang detection
     # to each function, OR we can use a simpler approach: add a helper that gets lang
     # from request.state or detects from headers
-    
+
     # Let's replace all raise HTTPException(... detail=...) patterns
     # to use _() with lang detection from request
-    
+
     # First, let's add lang helper to functions that use HTTPException
     # Strategy: for functions that have 'request: Request' parameter, use request.state.lang
     # For functions without request param, add it or use detect_lang from headers
-    
+
     # Actually, the simpler approach for this massive file is to:
     # 1. Add a _l() helper that uses current request context
     # 2. Replace all detail strings
-    
+
     # Let's use a different approach - add a get_lang() helper that gets lang from request
-    
+
     # Actually, looking at the code more carefully, most functions don't have request param.
     # Let's add request param to functions that raise HTTPException with Chinese detail.
-    
-    # A simpler approach: replace all detail="中文..." with a JSONResponse pattern or 
+
+    # A simpler approach: replace all detail="中文..." with a JSONResponse pattern or
     # use request.state.lang. But many functions don't have request param.
-    
+
     # Best approach: Create a thread-local/contextvar for current lang, set in middleware.
     # Then _() can use that automatically.
-    
+
     # Let me restart the approach - modify the i18n module and the middleware
     # to support auto-detection via context var.
 
     # ...
-    
+
     # Actually, this is getting too complex. Let me take a simpler approach.
     # I'll add a _get_current_lang() function that reads from context var,
     # and modify the i18n _() function or create a wrapper.
 
     # Let me add a context var for lang in the middleware, and modify the approach
-    
+
     # For now, let me just do the replacements that are most important:
     # - Replace detail strings in HTTPException
     # - Replace the most common message strings
-    
+
     # Pattern to match: detail="CHINESE_TEXT"
     replacements = [
-        ('detail="该手机号已注册"', 'detail=_("该手机号已注册", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")'),
-        ('detail="注册失败，请稍后再试"', 'detail=_("注册失败，请稍后再试", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")'),
-        ('detail="创建 token 失败"', 'detail=_("创建 token 失败", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")'),
-        ('detail="手机号或密码错误"', 'detail=_("手机号或密码错误", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")'),
-        ('detail="缺少 Authorization 头，请先登录"', 'detail=_("缺少 Authorization 头，请先登录", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")'),
-        ('detail="Token 无效或已过期，请重新登录"', 'detail=_("Token 无效或已过期，请重新登录", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")'),
-        ('detail="画册不存在"', 'detail=_("画册不存在", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")'),
-        ('detail="无权修改此画册"', 'detail=_("无权修改此画册", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")'),
-        ('detail="无权删除此画册"', 'detail=_("无权删除此画册", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")'),
-        ('detail="该用户画册已存在"', 'detail=_("该用户画册已存在", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")'),
-        ('detail="不能为其他用户创建画册"', 'detail=_("不能为其他用户创建画册", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")'),
-        ('detail="无权操作其他用户的信任网络"', 'detail=_("无权操作其他用户的信任网络", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")'),
-        ('detail="被信任用户画册不存在"', 'detail=_("被信任用户画册不存在", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")'),
-        ('detail="添加信任关系失败"', 'detail=_("添加信任关系失败", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")'),
-        ('detail="移除信任关系失败"', 'detail=_("移除信任关系失败", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")'),
-        ('detail="源用户画册不存在"', 'detail=_("源用户画册不存在", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")'),
-        ('detail="用户不存在"', 'detail=_("用户不存在", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")'),
+        (
+            'detail="该手机号已注册"',
+            'detail=_("该手机号已注册", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")',
+        ),
+        (
+            'detail="注册失败，请稍后再试"',
+            'detail=_("注册失败，请稍后再试", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")',
+        ),
+        (
+            'detail="创建 token 失败"',
+            'detail=_("创建 token 失败", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")',
+        ),
+        (
+            'detail="手机号或密码错误"',
+            'detail=_("手机号或密码错误", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")',
+        ),
+        (
+            'detail="缺少 Authorization 头，请先登录"',
+            'detail=_("缺少 Authorization 头，请先登录", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")',
+        ),
+        (
+            'detail="Token 无效或已过期，请重新登录"',
+            'detail=_("Token 无效或已过期，请重新登录", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")',
+        ),
+        (
+            'detail="画册不存在"',
+            'detail=_("画册不存在", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")',
+        ),
+        (
+            'detail="无权修改此画册"',
+            'detail=_("无权修改此画册", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")',
+        ),
+        (
+            'detail="无权删除此画册"',
+            'detail=_("无权删除此画册", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")',
+        ),
+        (
+            'detail="该用户画册已存在"',
+            'detail=_("该用户画册已存在", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")',
+        ),
+        (
+            'detail="不能为其他用户创建画册"',
+            'detail=_("不能为其他用户创建画册", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")',
+        ),
+        (
+            'detail="无权操作其他用户的信任网络"',
+            'detail=_("无权操作其他用户的信任网络", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")',
+        ),
+        (
+            'detail="被信任用户画册不存在"',
+            'detail=_("被信任用户画册不存在", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")',
+        ),
+        (
+            'detail="添加信任关系失败"',
+            'detail=_("添加信任关系失败", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")',
+        ),
+        (
+            'detail="移除信任关系失败"',
+            'detail=_("移除信任关系失败", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")',
+        ),
+        (
+            'detail="源用户画册不存在"',
+            'detail=_("源用户画册不存在", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")',
+        ),
+        (
+            'detail="用户不存在"',
+            'detail=_("用户不存在", getattr(request.state, "lang", "zh") if hasattr(request, "state") else "zh")',
+        ),
         ('detail="导入列表不能为空"', 'detail=_("导入列表不能为空", "zh")'),
     ]
-    
+
     for old, new in replacements:
         content = content.replace(old, new)
 
     # Replace message strings in response dicts
     msg_replacements = [
-        ('"message": "画册创建成功"', '"message": _("画册创建成功", getattr(request.state, "lang", "zh") if "request" in dir() else "zh")'),
-        ('"message": "画册更新成功"', '"message": _("画册更新成功", getattr(request.state, "lang", "zh") if "request" in dir() else "zh")'),
-        ('"message": "画册已删除"', '"message": _("画册已删除", getattr(request.state, "lang", "zh") if "request" in dir() else "zh")'),
-        ('"message": "信任关系添加成功"', '"message": _("信任关系添加成功", getattr(request.state, "lang", "zh") if "request" in dir() else "zh")'),
-        ('"message": "信任关系已移除"', '"message": _("信任关系已移除", getattr(request.state, "lang", "zh") if "request" in dir() else "zh")'),
-        ('"message": "已退出登录"', '"message": _("已退出登录", getattr(request.state, "lang", "zh") if "request" in dir() else "zh")'),
-        ('"message": "同步完成"', '"message": _("同步完成", getattr(request.state, "lang", "zh") if "request" in dir() else "zh")'),
-        ('"message": "链客宝桥接模块未加载，同步跳过"', '"message": _("链客宝桥接模块未加载，同步跳过", getattr(request.state, "lang", "zh") if "request" in dir() else "zh")'),
+        (
+            '"message": "画册创建成功"',
+            '"message": _("画册创建成功", getattr(request.state, "lang", "zh") if "request" in dir() else "zh")',
+        ),
+        (
+            '"message": "画册更新成功"',
+            '"message": _("画册更新成功", getattr(request.state, "lang", "zh") if "request" in dir() else "zh")',
+        ),
+        (
+            '"message": "画册已删除"',
+            '"message": _("画册已删除", getattr(request.state, "lang", "zh") if "request" in dir() else "zh")',
+        ),
+        (
+            '"message": "信任关系添加成功"',
+            '"message": _("信任关系添加成功", getattr(request.state, "lang", "zh") if "request" in dir() else "zh")',
+        ),
+        (
+            '"message": "信任关系已移除"',
+            '"message": _("信任关系已移除", getattr(request.state, "lang", "zh") if "request" in dir() else "zh")',
+        ),
+        (
+            '"message": "已退出登录"',
+            '"message": _("已退出登录", getattr(request.state, "lang", "zh") if "request" in dir() else "zh")',
+        ),
+        (
+            '"message": "同步完成"',
+            '"message": _("同步完成", getattr(request.state, "lang", "zh") if "request" in dir() else "zh")',
+        ),
+        (
+            '"message": "链客宝AI桥接模块未加载，同步跳过"',
+            '"message": _("链客宝AI桥接模块未加载，同步跳过", getattr(request.state, "lang", "zh") if "request" in dir() else "zh")',
+        ),
     ]
-    
+
     for old, new in msg_replacements:
         content = content.replace(old, new)
 
@@ -376,7 +451,7 @@ def metrics_endpoint():
     # Find the fastapi imports and add Response
     content = content.replace(
         "from fastapi.responses import HTMLResponse, RedirectResponse",
-        "from fastapi.responses import HTMLResponse, RedirectResponse, Response"
+        "from fastapi.responses import HTMLResponse, RedirectResponse, Response",
     )
 
     # ── 9. Fix the exception handler - it's now catching Exception, but FastAPI has its own handler ──
@@ -385,18 +460,18 @@ def metrics_endpoint():
     # Actually, since we register @app.exception_handler(Exception), it catches everything.
     # But FastAPI's default HTTPException handler is specific, so it has priority.
     # We should register both handlers:
-    
+
     # Already done above with @app.exception_handler(Exception)
-    
+
     # Wait, there's a problem - the above handler catches ALL exceptions, but FastAPI
     # has default handlers for HTTPException. Let me add a specific handler for HTTPException too.
-    
+
     # The handler already checks isinstance(exc, HTTPException), so it works for both.
 
     # ── 10. Fix the batch import message ──
     content = content.replace(
         '"message": f"成功导入 {len(imported)} 个用户，失败 {len(errors)} 个"',
-        '"message": _("成功导入", "zh") + f" {len(imported)} " + _("个用户，失败", "zh") + f" {len(errors)} 个"'
+        '"message": _("成功导入", "zh") + f" {len(imported)} " + _("个用户，失败", "zh") + f" {len(errors)} 个"',
     )
 
     # ── 11. Update the version strings ──
@@ -404,11 +479,12 @@ def metrics_endpoint():
     content = content.replace('"AI数字名片 v2.2"', '"AI数字名片 v2.2"')
 
     # ── Write result ──
-    with open(filepath, 'w', encoding='utf-8') as f:
+    with open(filepath, "w", encoding="utf-8") as f:
         f.write(content)
 
     print(f"Transformed: {filepath}")
     print(f"Size: {len(content)} bytes ({len(content.splitlines())} lines)")
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:

@@ -7,6 +7,7 @@ from sqlalchemy.orm import relationship
 
 from app.database import DB_TYPE, Base
 
+
 # === Stub Membership for non-multi-tenant mode ===
 class _StubMembership:  # placeholder when IS_MULTI_TENANT=False
     __tablename__ = "memberships"
@@ -329,6 +330,24 @@ class BusinessCard(Base):
     user = relationship("User", foreign_keys=[user_id])
 
 
+class VisitorLog(Base):
+    """访客行为日志（名片浏览/感兴趣记录）"""
+
+    __tablename__ = "visitor_logs"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    brochure_id = Column(Integer, ForeignKey("business_cards.id"), nullable=False, index=True)
+    visitor_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    page = Column(String(50), nullable=True)
+    duration = Column(Integer, nullable=True)
+    interested = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    organization_id = _org_fk()
+
+    brochure = relationship("BusinessCard", foreign_keys=[brochure_id])
+    visitor = relationship("User", foreign_keys=[visitor_id])
+
+
 class UserEvent(Base):
     """用户行为事件埋点模型"""
 
@@ -492,7 +511,9 @@ class PrivateBoardOrder(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     amount = Column(Float, nullable=False, default=19999.00, comment="支付金额（元）")
     status = Column(
-        String(20), nullable=False, default="pending",
+        String(20),
+        nullable=False,
+        default="pending",
         comment="pending/approved/rejected/paid/cancelled",
     )
     # 申请信息

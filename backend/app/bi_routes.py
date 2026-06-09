@@ -1,5 +1,5 @@
 """
-链客宝自建BI看板 — 轻量统计聚合API
+链客宝AI自建BI看板 — 轻量统计聚合API
 ======================================
 所有统计数据从现有数据库表（users, products, orders, business_cards, business_needs）实时聚合，
 不依赖外部BI工具。

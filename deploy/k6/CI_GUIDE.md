@@ -1,4 +1,4 @@
-# 链客宝 — k6 CI 集成指南
+# 链客宝AI — k6 CI 集成指南
 
 ## 目录
 
@@ -75,7 +75,7 @@ jobs:
         with:
           payload: |
             {
-              "text": "⚠️ k6 压力测试阈值未通过\n项目: 链客宝\n分支: ${{ github.ref_name }}\n详情: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              "text": "⚠️ k6 压力测试阈值未通过\n项目: 链客宝AI\n分支: ${{ github.ref_name }}\n详情: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

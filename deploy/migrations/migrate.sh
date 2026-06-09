@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# 链客宝 数据库迁移脚本
+# 链客宝AI 数据库迁移脚本
 # 按版本号顺序执行 deploy/migrations/ 目录下的 SQL 文件
 # 支持 MySQL / MariaDB
 #
@@ -123,7 +123,7 @@ if [ -z "$MYSQL_CLIENT" ]; then
 fi
 
 print_msg "${BLUE}============================================${NC}"
-print_msg "${BLUE}  链客宝 数据库迁移工具${NC}"
+print_msg "${BLUE}  链客宝AI 数据库迁移工具${NC}"
 print_msg "${BLUE}============================================${NC}"
 print_msg "  主机:     ${MYSQL_HOST}:${MYSQL_PORT}"
 print_msg "  数据库:   ${MYSQL_DB}"

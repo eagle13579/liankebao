@@ -1,5 +1,5 @@
 """
-链客宝 AI 数字名片路由
+链客宝AI AI 数字名片路由
 ========================
 - POST /api/card/scan — 上传名片图片/PDF → AI提取字段
 - POST /api/card/generate — 接受字段JSON → 生成数字名片
@@ -16,7 +16,7 @@ import uuid
 from typing import Any
 
 import qrcode
-from fastapi import APIRouter, Depends, File, Header, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Header, Query, Request, UploadFile, status
 from fastapi.responses import JSONResponse, Response
 from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel
@@ -152,7 +152,7 @@ def _optional_current_user(
 _SIMULATED_CARD = {
     "name": "张三",
     "phone": "13800138000",
-    "company": "链客宝科技有限公司",
+    "company": "链客宝AI科技有限公司",
     "position": "产品经理",
     "email": "zhangsan@liankebao.com",
     "wechat": "zhangsan_wx",
@@ -650,7 +650,7 @@ async def get_card_qrcode(
     # 构建名片分享链接
     share_url = f"https://www.go-aiport.com/card/{card.share_token}"
 
-    # 生成QR码（带logo装饰 - 在QR码中心嵌入链客宝图标占位）
+    # 生成QR码（带logo装饰 - 在QR码中心嵌入链客宝AI图标占位）
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_H,
@@ -996,3 +996,204 @@ def _get_enterprise_related_items(
             deduped.append(item)
 
     return deduped[:top_k]
+
+
+# ============================================================
+# vCard 导出端点（公开分享，无需认证）
+# ============================================================
+
+
+@router.get(
+    "/{id}/vcard",
+    summary="导出vCard联系人文件",
+    description="根据名片ID生成vCard 3.0格式联系人文件下载，兼容所有手机通讯录和CRM",
+)
+async def get_card_vcard(
+    id: int,
+    db: Session = Depends(get_db),
+) -> Response:
+    """生成vCard 3.0格式联系人文件
+
+    标准vCard格式兼容iOS/Android通讯录、Google Contacts、Outlook等。
+    """
+    card = (
+        db.query(BusinessCard)
+        .filter(
+            BusinessCard.id == id,
+            BusinessCard.is_deleted == False,
+        )
+        .first()
+    )
+
+    if not card:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"code": 404, "message": "请求的资源不存在"},
+        )
+
+    fields = json.loads(card.fields) if isinstance(card.fields, str) else card.fields
+
+    name = fields.get("name", "")
+    company = fields.get("company", "")
+    position = fields.get("position", "")
+    phone = fields.get("phone", "")
+    email = fields.get("email", "")
+    wechat = fields.get("wechat", "")
+    address = fields.get("address", "")
+    website = fields.get("website", "")
+
+    vcard_lines = ["BEGIN:VCARD", "VERSION:3.0"]
+    if name:
+        vcard_lines.append(f"FN:{name}")
+        # Structured name: Last;First;Middle;Prefix;Suffix
+        vcard_lines.append(f"N:{name};;;")
+    if company:
+        vcard_lines.append(f"ORG:{company}")
+    if position:
+        vcard_lines.append(f"TITLE:{position}")
+    if phone:
+        vcard_lines.append(f"TEL;TYPE=CELL:{phone}")
+    if email:
+        vcard_lines.append(f"EMAIL:{email}")
+    if wechat:
+        vcard_lines.append(f"X-{wechat}")
+    if address:
+        vcard_lines.append(f"ADR;TYPE=WORK:{address}")
+    if website:
+        vcard_lines.append(f"URL:{website}")
+    vcard_lines.append("END:VCARD")
+
+    vcard_content = "\r\n".join(vcard_lines) + "\r\n"
+    filename = f"contact_{name or 'card'}.vcf"
+
+    return Response(
+        content=vcard_content,
+        media_type="text/vcard; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Type": "text/vcard; charset=utf-8",
+        },
+    )
+
+
+# ============================================================
+# 名片分享预览（Open Graph 元数据）
+# ============================================================
+
+
+@router.get(
+    "/{id}/share-preview",
+    summary="名片分享预览",
+    description="返回名片分享所需的Open Graph元数据(标题/描述/缩略图/URL)，用于微信/H5社交分享",
+)
+async def get_card_share_preview(
+    id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> JSONResponse:
+    """返回Open Graph格式的分享预览元数据"""
+    card = (
+        db.query(BusinessCard)
+        .filter(
+            BusinessCard.id == id,
+            BusinessCard.is_deleted == False,
+        )
+        .first()
+    )
+
+    if not card:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"code": 404, "message": "请求的资源不存在"},
+        )
+
+    fields = json.loads(card.fields) if isinstance(card.fields, str) else card.fields
+    name = fields.get("name", "")
+    position = fields.get("position", "")
+    company = fields.get("company", "")
+
+    # Build title
+    title = f"{name} 的AI数字名片 - 链客宝" if name else "AI数字名片 - 链客宝"
+    # Build description
+    desc_parts = [p for p in [position, company] if p]
+    description = f"{' · '.join(desc_parts)} · 扫码查看我的AI数字名片" if desc_parts else "扫码查看我的AI数字名片"
+
+    base_url = str(request.base_url).rstrip("/")
+    share_url = f"{base_url}/card/{card.share_token}"
+
+    return JSONResponse(
+        content={
+            "code": 200,
+            "data": {
+                "title": title,
+                "description": description,
+                "image": card.cover_image or "",
+                "url": share_url,
+                "type": "profile",
+            },
+        }
+    )
+
+
+# ============================================================
+# 邮件签名HTML生成
+# ============================================================
+
+
+@router.get(
+    "/{id}/email-signature",
+    summary="生成邮件签名HTML",
+    description="返回格式化HTML邮件签名，可直接粘贴到邮件客户端使用",
+)
+async def get_card_email_signature(
+    id: int,
+    db: Session = Depends(get_db),
+) -> Response:
+    """生成邮件签名HTML片段（标准商务邮件签名风格）"""
+    card = (
+        db.query(BusinessCard)
+        .filter(
+            BusinessCard.id == id,
+            BusinessCard.is_deleted == False,
+        )
+        .first()
+    )
+
+    if not card:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"code": 404, "message": "请求的资源不存在"},
+        )
+
+    fields = json.loads(card.fields) if isinstance(card.fields, str) else card.fields
+
+    rows = []
+    if fields.get("name"):
+        rows.append(
+            f"<tr><td style='padding:2px 8px 2px 0;color:#666;white-space:nowrap;'><b>{fields['name']}</b></td></tr>"
+        )
+    if fields.get("position") or fields.get("company"):
+        parts = [p for p in [fields.get("position"), fields.get("company")] if p]
+        rows.append(f"<tr><td style='padding:2px 8px 2px 0;color:#666;'>{' · '.join(parts)}</td></tr>")
+    if fields.get("phone"):
+        rows.append(
+            f"<tr><td style='padding:2px 8px 2px 0;color:#999;'>电话</td><td style='padding:2px 0;color:#333;'>{fields['phone']}</td></tr>"
+        )
+    if fields.get("email"):
+        rows.append(
+            f"<tr><td style='padding:2px 8px 2px 0;color:#999;'>邮箱</td><td style='padding:2px 0;'><a href='mailto:{fields['email']}' style='color:#1a73e8;text-decoration:none;'>{fields['email']}</a></td></tr>"
+        )
+    if fields.get("website"):
+        rows.append(
+            f"<tr><td style='padding:2px 8px 2px 0;color:#999;'>网站</td><td style='padding:2px 0;'><a href='{fields['website']}' target='_blank' style='color:#1a73e8;text-decoration:none;'>{fields['website']}</a></td></tr>"
+        )
+
+    html = f"""<table style="font:13px/1.6 Arial,sans-serif;border-collapse:collapse;margin:10px 0;">
+{chr(10).join(rows)}
+<tr><td colspan="2" style="padding:6px 0 0 0;border-top:1px solid #ddd;color:#999;font-size:11px;">Powered by 链客宝 AI数字名片</td></tr>
+</table>"""
+
+    return Response(
+        content=html,
+        media_type="text/html; charset=utf-8",
+    )

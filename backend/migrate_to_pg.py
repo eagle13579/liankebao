@@ -1,40 +1,54 @@
 #!/usr/bin/env python3
 """
-链客宝 SQLite → PostgreSQL 完整迁移脚本 v3
+链客宝AI SQLite → PostgreSQL 完整迁移脚本 v3
 - 处理 INTEGER DEFAULT '' (PG 不接受空字符串作整数默认值)
 - 处理 is_deleted/is_featured 等 bool 字段 (SQLite 存 0/1, PG Boolean 不兼容)
 - 幂等 DROP → CREATE
 """
 
 import os
-import sys
 import sqlite3
+import sys
 import warnings
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Any
 
 warnings.filterwarnings("ignore", message=".*SAWarning.*")
 warnings.filterwarnings("ignore", message=".*ForeignKey.*")
 warnings.filterwarnings("ignore", message=".*deprecated.*")
 warnings.filterwarnings("ignore", category=UserWarning)
 
+from sqlalchemy import JSON as SQLA_JSON
 from sqlalchemy import (
-    create_engine, MetaData, Table, Column, Integer, String, Text,
-    Float, Boolean, DateTime, Date, Time, LargeBinary, Numeric,
-    BigInteger, SmallInteger, text, JSON as SQLA_JSON,
-    UniqueConstraint, Index, ForeignKeyConstraint, inspect
+    BigInteger,
+    Column,
+    Date,
+    DateTime,
+    Float,
+    Index,
+    Integer,
+    LargeBinary,
+    MetaData,
+    Numeric,
+    SmallInteger,
+    Table,
+    Text,
+    Time,
+    create_engine,
+    inspect,
+    text,
 )
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
-SQLITE_DBS: Dict[str, str] = {
+SQLITE_DBS: dict[str, str] = {
     "main": os.path.join(DATA_DIR, "chainke.db"),
     "crm": os.path.join(DATA_DIR, "crm.db"),
     "growth": os.path.join(DATA_DIR, "growth.db"),
     "enrichment_cache": os.path.join(DATA_DIR, "enrichment_cache.db"),
 }
 
-PG_CONFIGS: Dict[str, Dict[str, str]] = {
+PG_CONFIGS: dict[str, dict[str, str]] = {
     "main": {
         "url": os.environ.get("DATABASE_URL", "postgresql://chainke:chainke_pg_2026@localhost:5432/chainke"),
         "db_name": "chainke",
@@ -44,11 +58,15 @@ PG_CONFIGS: Dict[str, Dict[str, str]] = {
         "db_name": "chainke_crm",
     },
     "growth": {
-        "url": os.environ.get("GROWTH_DATABASE_URL", "postgresql://chainke:chainke_pg_2026@localhost:5432/chainke_growth"),
+        "url": os.environ.get(
+            "GROWTH_DATABASE_URL", "postgresql://chainke:chainke_pg_2026@localhost:5432/chainke_growth"
+        ),
         "db_name": "chainke_growth",
     },
     "enrichment_cache": {
-        "url": os.environ.get("ENRICHMENT_CACHE_DATABASE_URL", "postgresql://chainke:chainke_pg_2026@localhost:5432/chainke"),
+        "url": os.environ.get(
+            "ENRICHMENT_CACHE_DATABASE_URL", "postgresql://chainke:chainke_pg_2026@localhost:5432/chainke"
+        ),
         "db_name": "chainke",
     },
 }
@@ -100,7 +118,7 @@ def map_sqlite_type_to_pg(sqlite_type: str, col_name: str = "") -> Any:
     return Text
 
 
-def get_sqlite_schema(db_path: str, db_name: str) -> Optional[Dict]:
+def get_sqlite_schema(db_path: str, db_name: str) -> dict | None:
     """从 SQLite 数据库读取完整 schema"""
     if not os.path.exists(db_path):
         print(f"  [!] {db_name}: {db_path} 不存在，跳过")
@@ -114,7 +132,7 @@ def get_sqlite_schema(db_path: str, db_name: str) -> Optional[Dict]:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    tables_info: Dict[str, Dict] = {}
+    tables_info: dict[str, dict] = {}
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
     for row in cursor.fetchall():
         table_name = row["name"]
@@ -124,32 +142,38 @@ def get_sqlite_schema(db_path: str, db_name: str) -> Optional[Dict]:
             cursor.execute(f'PRAGMA table_info("{table_name}")')
             columns = []
             for col in cursor.fetchall():
-                columns.append({
-                    "name": col["name"],
-                    "type": col["type"],
-                    "nullable": not col["notnull"],
-                    "default": col["dflt_value"],
-                    "primary_key": bool(col["pk"]),
-                })
+                columns.append(
+                    {
+                        "name": col["name"],
+                        "type": col["type"],
+                        "nullable": not col["notnull"],
+                        "default": col["dflt_value"],
+                        "primary_key": bool(col["pk"]),
+                    }
+                )
             cursor.execute(f'PRAGMA index_list("{table_name}")')
             indexes = []
             for idx in cursor.fetchall():
                 idx_name = idx["name"]
                 cursor.execute(f'PRAGMA index_info("{idx_name}")')
                 idx_cols = [c["name"] for c in cursor.fetchall()]
-                indexes.append({
-                    "name": idx_name,
-                    "unique": bool(idx["unique"]),
-                    "columns": idx_cols,
-                })
+                indexes.append(
+                    {
+                        "name": idx_name,
+                        "unique": bool(idx["unique"]),
+                        "columns": idx_cols,
+                    }
+                )
             cursor.execute(f'PRAGMA foreign_key_list("{table_name}")')
             foreign_keys = []
             for fk in cursor.fetchall():
-                foreign_keys.append({
-                    "column": fk["from"],
-                    "ref_table": fk["table"],
-                    "ref_column": fk["to"],
-                })
+                foreign_keys.append(
+                    {
+                        "column": fk["from"],
+                        "ref_table": fk["table"],
+                        "ref_column": fk["to"],
+                    }
+                )
             tables_info[table_name] = {
                 "columns": columns,
                 "indexes": indexes,
@@ -162,10 +186,10 @@ def get_sqlite_schema(db_path: str, db_name: str) -> Optional[Dict]:
     return tables_info
 
 
-def create_pg_tables(engine, table_name: str, table_info: Dict) -> bool:
+def create_pg_tables(engine, table_name: str, table_info: dict) -> bool:
     """在 PostgreSQL 中创建表"""
     try:
-        columns: List[Column] = []
+        columns: list[Column] = []
         for col in table_info["columns"]:
             col_type = map_sqlite_type_to_pg(col["type"], col["name"])
             col_kwargs = {
@@ -233,7 +257,7 @@ def create_pg_tables(engine, table_name: str, table_info: Dict) -> bool:
         return False
 
 
-def migrate_data(sqlite_path: str, pg_engine, tables_info: Dict) -> int:
+def migrate_data(sqlite_path: str, pg_engine, tables_info: dict) -> int:
     """将数据从 SQLite 批量迁移到 PostgreSQL"""
     conn = sqlite3.connect(sqlite_path)
     conn.row_factory = sqlite3.Row
@@ -252,7 +276,7 @@ def migrate_data(sqlite_path: str, pg_engine, tables_info: Dict) -> int:
             col_types = {col["name"]: map_sqlite_type_to_pg(col["type"], col["name"]) for col in info["columns"]}
 
             batch_size = 500
-            batches = [rows[i:i + batch_size] for i in range(0, len(rows), batch_size)]
+            batches = [rows[i : i + batch_size] for i in range(0, len(rows), batch_size)]
 
             with pg_engine.begin() as pg_conn:
                 for batch in batches:
@@ -271,7 +295,7 @@ def migrate_data(sqlite_path: str, pg_engine, tables_info: Dict) -> int:
 
                     col_names = ", ".join(f'"{c}"' for c in columns)
                     placeholders = ", ".join(f":{c}" for c in columns)
-                    insert_sql = text(f"INSERT INTO \"{table_name}\" ({col_names}) VALUES ({placeholders})")
+                    insert_sql = text(f'INSERT INTO "{table_name}" ({col_names}) VALUES ({placeholders})')
                     pg_conn.execute(insert_sql, records)
 
             print(f"  [>] {table_name}: {len(rows)} 行")
@@ -283,9 +307,9 @@ def migrate_data(sqlite_path: str, pg_engine, tables_info: Dict) -> int:
     return total_rows
 
 
-def verify_migration(pg_engine, tables_info: Dict) -> Dict[str, int]:
+def verify_migration(pg_engine, tables_info: dict) -> dict[str, int]:
     """验证 PostgreSQL 中各表数据量"""
-    result: Dict[str, int] = {}
+    result: dict[str, int] = {}
     with pg_engine.connect() as conn:
         for table_name in tables_info:
             try:
@@ -299,44 +323,44 @@ def verify_migration(pg_engine, tables_info: Dict) -> Dict[str, int]:
 
 def main():
     print("=" * 60)
-    print("  链客宝 SQLite → PostgreSQL 完整迁移 v3")
+    print("  链客宝AI SQLite → PostgreSQL 完整迁移 v3")
     print(f"  时间: {datetime.now().isoformat()}")
     print(f"  数据目录: {DATA_DIR}")
     print("=" * 60)
 
-    results: Dict[str, Dict] = {}
+    results: dict[str, dict] = {}
     for db_key in ["main", "crm", "growth", "enrichment_cache"]:
         sqlite_path = SQLITE_DBS[db_key]
         pg_url = PG_CONFIGS[db_key]["url"]
         pg_db_name = PG_CONFIGS[db_key]["db_name"]
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"  数据库: [{db_key}]  SQLite→PG:{pg_db_name}")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         # 1. Schema
-        print(f"\n  步骤 1: 读取 SQLite schema...")
+        print("\n  步骤 1: 读取 SQLite schema...")
         tables_info = get_sqlite_schema(sqlite_path, db_key)
         if tables_info is None or len(tables_info) == 0:
-            print(f"  → 跳过")
+            print("  → 跳过")
             results[db_key] = {"status": "skipped", "reason": "无有效表"}
             continue
         print(f"  发现 {len(tables_info)} 个表")
 
         # 2. Connect PG
-        print(f"\n  步骤 2: 连接 PostgreSQL...")
+        print("\n  步骤 2: 连接 PostgreSQL...")
         try:
             pg_engine = create_engine(pg_url, pool_pre_ping=True, pool_size=2)
             with pg_engine.connect() as c:
                 c.execute(text("SELECT 1"))
-            print(f"  ✓ 连接成功")
+            print("  ✓ 连接成功")
         except Exception as e:
             print(f"  ✗ 连接失败: {e}")
             results[db_key] = {"status": "failed", "error": str(e)}
             continue
 
         # 3. Create + Migrate
-        print(f"\n  步骤 3: 建表+迁移数据...")
+        print("\n  步骤 3: 建表+迁移数据...")
         created = 0
         for table_name in tables_info:
             if create_pg_tables(pg_engine, table_name, tables_info[table_name]):
@@ -347,7 +371,7 @@ def main():
         print(f"  ✓ 迁移 {total_rows} 行")
 
         # 4. Verify
-        print(f"\n  步骤 4: 验证...")
+        print("\n  步骤 4: 验证...")
         counts = verify_migration(pg_engine, tables_info)
         pg_total = sum(v for v in counts.values() if v >= 0)
         mismatches = [t for t, c in counts.items() if c < 0]
@@ -364,9 +388,9 @@ def main():
         }
 
     # Summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("  迁移总结")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     grand_total = 0
     for db_key, res in results.items():
         status = res.get("status", "unknown")

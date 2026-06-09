@@ -1,5 +1,5 @@
 """
-链客宝 LightGBM 匹配模型
+链客宝AI LightGBM 匹配模型
 ========================
 可学习的匹配模型，替代规则权重。
 
@@ -20,8 +20,6 @@
 import logging
 import os
 import pickle
-import time
-from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -244,11 +242,7 @@ def load_training_data(db_session) -> tuple[np.ndarray, np.ndarray, list[int]]:
 
     for evt in events:
         # 尝试找到产品
-        product = (
-            db_session.query(Product)
-            .filter(Product.id == evt.target_id)
-            .first()
-        )
+        product = db_session.query(Product).filter(Product.id == evt.target_id).first()
         if not product:
             continue
 
@@ -413,9 +407,7 @@ class MatchingModel:
         # 确保特征数匹配
         if X.shape[1] != self._feature_count:
             logger.warning(
-                f"MatchingModel.predict: 特征数不匹配 "
-                f"(期望 {self._feature_count}, 收到 {X.shape[1]}), "
-                f"截断/填充处理"
+                f"MatchingModel.predict: 特征数不匹配 (期望 {self._feature_count}, 收到 {X.shape[1]}), 截断/填充处理"
             )
             if X.shape[1] > self._feature_count:
                 X = X[:, : self._feature_count]

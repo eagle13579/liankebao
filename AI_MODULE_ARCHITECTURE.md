@@ -1,4 +1,4 @@
-# 链客宝 AI 模块技术架构与集成方案
+# 链客宝AI AI 模块技术架构与集成方案
 > 技术总监视角 · 2026-06-01
 
 ---
@@ -13,7 +13,7 @@
        │                                │
        ▼                                ▼
 ┌──────────────────────┐    ┌──────────────────────────────┐
-│ 链客宝后端 (:8001)     │    │ AI 数字名片独立服务 (:8003)   │
+│ 链客宝AI后端 (:8001)     │    │ AI 数字名片独立服务 (:8003)   │
 │ main.py (1002行)      │    │ digital_brochure_api.py    │
 │                       │    │ (59KB, 28+ 路由)            │
 │ AI 模块:              │    │                              │
@@ -80,7 +80,7 @@
 | `/api/brochure/*` | brochure_bridge.py: 桥接 | 数字名片主服务(28+路由) | → 转发到 8003 |
 | `/api/brochures/` | 无 | 有 (前端用了s复数) | 重写 → /api/brochure/ |
 
-**核心问题:** 
+**核心问题:**
 - 网关(gateway.py L43) 把 `/api/match/*` 全部转发到 :8003，导致 8001 的 matching_engine 路由 (`/api/matching/needs/{id}/products`, `/api/matching/products/{id}/needs`, `/api/matching/refresh`) **永远不会被外部访问到**。
 - brochure_bridge.py (8001) 的 `/api/brochure/{user_id}` 路由因为网关同样转发到 8003，也处于"被覆盖"状态。
 - 8001 内部的 brochure_bridge 路由虽然在 main.py 中注册，但通过网关访问时永远命中不了。
@@ -105,7 +105,7 @@
 class MatchRecord(Base):
     """AI供需匹配记录"""
     __tablename__ = "match_records"
-    
+
     id = Column(Integer, primary_key=True)
     need_id = Column(Integer, ForeignKey("business_needs.id"), nullable=True)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
@@ -121,7 +121,7 @@ class MatchRecord(Base):
 class MatchFeedback(Base):
     """匹配结果用户反馈（用于质量监控）"""
     __tablename__ = "match_feedback"
-    
+
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     match_record_id = Column(Integer, ForeignKey("match_records.id"), nullable=True)
@@ -136,7 +136,7 @@ class MatchFeedback(Base):
 class TrustScore(Base):
     """用户信任评分（用于匹配权重）"""
     __tablename__ = "trust_scores"
-    
+
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
     score = Column(Float, default=0.5)          # 0~1
@@ -238,7 +238,7 @@ ProfilePage
 - 网关当前指向 8003，8001 的 bridge 被完全忽略
 
 ### 风险 5: 前端目录不存在
-- `D:/链客宝/frontend/src/screens/` 未找到
+- `D:/链客宝AI/frontend/src/screens/` 未找到
 - 前端可能位于其他路径或尚未完成迁移
 
 ---

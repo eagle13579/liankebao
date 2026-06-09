@@ -1,8 +1,8 @@
-# 链客宝 微信小程序 — 提审前必做清单
+# 链客宝AI 微信小程序 — 提审前必做清单
 
-> 链客宝 v1.0.0 · appid: wxb4f6d89904200fd2 · 交易类小程序
+> 链客宝AI v1.0.0 · appid: wxb4f6d89904200fd2 · 交易类小程序
 > 生成时间: 2026-05-16 13:50
-> [D:\链客宝\scripts\miniapp_review_helper.py]
+> [D:\链客宝AI\scripts\miniapp_review_helper.py]
 
 ---
 
@@ -90,4 +90,4 @@
 
 ---
 
-生成工具: D:\链客宝\scripts\miniapp_review_helper.py
+生成工具: D:\链客宝AI\scripts\miniapp_review_helper.py

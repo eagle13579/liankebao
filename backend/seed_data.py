@@ -1,8 +1,8 @@
 """
-链客宝种子数据填充脚本
+链客宝AI种子数据填充脚本
 ========================
 功能: 向 chainke.db, crm.db, growth.db 填充初始数据
-运行: cd D:/链客宝/backend && python seed_data.py
+运行: cd D:/链客宝AI/backend && python seed_data.py
 
 数据分类:
   - 10 个产品 (覆盖5个分类)
@@ -18,7 +18,7 @@ import os
 import secrets
 import sqlite3
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 # ── 将 backend 加入 Python 路径 ──
 _BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -61,6 +61,7 @@ def log_status(entity_type: str, name: str, status: str, detail: str = ""):
 #  1. 主数据库 (chainke.db) — 用户 / 产品 / 组织
 # ====================================================================
 
+
 def seed_chainke():
     """填充 chainke.db: 用户, 产品, 组织"""
     engine = create_engine(
@@ -71,8 +72,8 @@ def seed_chainke():
 
     # 导入模型确保表已创建
     from app.database import Base
-    from app.models import User, Product  # noqa
-    from app.models.organization import Organization, OrganizationMember, Invite  # noqa
+    from app.models import Product, User  # noqa
+    from app.models.organization import Invite, Organization, OrganizationMember  # noqa
 
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
@@ -84,7 +85,7 @@ def seed_chainke():
                 "password": "admin123",
                 "name": "管理员",
                 "phone": "13800000000",
-                "company": "链客宝科技",
+                "company": "链客宝AI科技",
                 "position": "系统管理员",
                 "role": "admin",
                 "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=admin",
@@ -124,7 +125,7 @@ def seed_chainke():
                 "password": "demo123",
                 "name": "演示账号",
                 "phone": "13800000004",
-                "company": "链客宝演示",
+                "company": "链客宝AI演示",
                 "position": "演示专员",
                 "role": "buyer",
                 "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=demo",
@@ -235,10 +236,14 @@ def seed_chainke():
         ]
 
         for p in products_data:
-            existing = db.query(Product).filter(
-                Product.name == p["name"],
-                Product.owner_id == owner_id,
-            ).first()
+            existing = (
+                db.query(Product)
+                .filter(
+                    Product.name == p["name"],
+                    Product.owner_id == owner_id,
+                )
+                .first()
+            )
             if existing:
                 log_status("PRODUCT", p["name"], "SKIPPED", f"id={existing.id}")
                 continue
@@ -249,7 +254,7 @@ def seed_chainke():
                 earn_per_share=round(p["price"] * 0.2, 2),
                 sale_price=round(p["price"] * 1.2, 2),
                 category=p["category"],
-                brand="链客宝",
+                brand="链客宝AI",
                 stock=999,
                 images=json.dumps([p["image_url"]]),
                 specs=json.dumps({"规格": "标准版", "产地": "中国"}),
@@ -297,9 +302,7 @@ def seed_chainke():
         ]
 
         for o in orgs_data:
-            existing_org = db.query(Organization).filter(
-                Organization.slug == o["slug"]
-            ).first()
+            existing_org = db.query(Organization).filter(Organization.slug == o["slug"]).first()
             if existing_org:
                 log_status("ORG", o["name"], "SKIPPED", f"id={existing_org.id}")
                 continue
@@ -312,10 +315,14 @@ def seed_chainke():
             # 添加成员
             for username, role in o["members"]:
                 user = created_users[username]
-                existing_member = db.query(OrganizationMember).filter(
-                    OrganizationMember.org_id == org.id,
-                    OrganizationMember.user_id == user.id,
-                ).first()
+                existing_member = (
+                    db.query(OrganizationMember)
+                    .filter(
+                        OrganizationMember.org_id == org.id,
+                        OrganizationMember.user_id == user.id,
+                    )
+                    .first()
+                )
                 if existing_member:
                     continue
                 member = OrganizationMember(
@@ -328,7 +335,7 @@ def seed_chainke():
             log_status("ORG", o["name"], "CREATED", f"id={org.id}")
 
         db.commit()
-        logger.info(f"  ── chainke.db 种子数据填充完成 ──")
+        logger.info("  ── chainke.db 种子数据填充完成 ──")
     except Exception as e:
         db.rollback()
         logger.error(f"chainke.db 失败: {e}")
@@ -342,12 +349,12 @@ def seed_chainke():
 # ====================================================================
 
 CRM_STAGES = [
-    "new_lead",      # 新线索
-    "contacted",     # 已联系
-    "negotiating",   # 洽谈中
-    "quotation",     # 报价中
-    "closed_won",    # 已成交
-    "closed_lost",   # 已流失
+    "new_lead",  # 新线索
+    "contacted",  # 已联系
+    "negotiating",  # 洽谈中
+    "quotation",  # 报价中
+    "closed_won",  # 已成交
+    "closed_lost",  # 已流失
 ]
 
 STAGE_LABELS = {
@@ -402,7 +409,7 @@ def seed_crm():
     try:
         _init_crm_db(conn)
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         # 检查是否已有数据
         existing = conn.execute("SELECT COUNT(*) as cnt FROM leads").fetchone()
@@ -571,7 +578,7 @@ def seed_crm():
         ]
 
         for lead in leads_data:
-            now_ts = datetime.now(timezone.utc).isoformat()
+            now_ts = datetime.now(UTC).isoformat()
             cursor = conn.execute(
                 """INSERT INTO leads
                    (name, company, phone, source, stage, assigned_to, assigned_name,
@@ -596,14 +603,20 @@ def seed_crm():
             conn.execute(
                 """INSERT INTO lead_notes (lead_id, user_id, user_name, content, created_at)
                    VALUES (?, ?, ?, ?, ?)""",
-                (lead_id, lead["assigned_to"], lead["assigned_name"],
-                 f"✅ 种子数据创建，初始阶段: {stage_label}", now_ts),
+                (
+                    lead_id,
+                    lead["assigned_to"],
+                    lead["assigned_name"],
+                    f"✅ 种子数据创建，初始阶段: {stage_label}",
+                    now_ts,
+                ),
             )
-            log_status("CRM LEAD", f"{lead['name']}({lead['company']})", "CREATED",
-                       f"stage={lead['stage']}, id={lead_id}")
+            log_status(
+                "CRM LEAD", f"{lead['name']}({lead['company']})", "CREATED", f"stage={lead['stage']}, id={lead_id}"
+            )
 
         conn.commit()
-        logger.info(f"  ── crm.db 种子数据填充完成 ──")
+        logger.info("  ── crm.db 种子数据填充完成 ──")
     except Exception as e:
         conn.rollback()
         logger.error(f"crm.db 失败: {e}")
@@ -615,6 +628,7 @@ def seed_crm():
 # ====================================================================
 #  3. 增长引擎数据库 (growth.db) — 邀请记录 + 积分奖励
 # ====================================================================
+
 
 def _init_growth_db(conn: sqlite3.Connection):
     """初始化 growth.db 表结构"""
@@ -667,12 +681,12 @@ def seed_growth():
             logger.info(f"  ⏭️  [INVITE] growth.db 已有 {existing['cnt']} 条邀请，跳过")
             return
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         expires = (now + timedelta(days=30)).isoformat()
 
         # ── 5 条邀请记录 ──
         invites_data = [
-            {"inviter_id": 1, "inviter_name": "管理员", "message": "欢迎加入链客宝！一起探索商业机会！"},
+            {"inviter_id": 1, "inviter_name": "管理员", "message": "欢迎加入链客宝AI！一起探索商业机会！"},
             {"inviter_id": 2, "inviter_name": "王供应", "message": "邀请您成为供应链合作伙伴"},
             {"inviter_id": 3, "inviter_name": "李采购", "message": "一起采购更优惠！"},
             {"inviter_id": 1, "inviter_name": "管理员", "message": "加入我们，获取最新产品信息"},
@@ -695,14 +709,23 @@ def seed_growth():
                    (code, inviter_id, inviter_name, message, accepted,
                     accepted_by, accepted_name, accepted_at, reward_earned, created_at, expires_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (code, inv["inviter_id"], inv["inviter_name"], inv["message"],
-                 accepted, accepted_by, accepted_name, accepted_at,
-                 reward_earned, now.isoformat(), expires),
+                (
+                    code,
+                    inv["inviter_id"],
+                    inv["inviter_name"],
+                    inv["message"],
+                    accepted,
+                    accepted_by,
+                    accepted_name,
+                    accepted_at,
+                    reward_earned,
+                    now.isoformat(),
+                    expires,
+                ),
             )
 
             status_str = "ACCEPTED" if accepted else "PENDING"
-            log_status("INVITE", code, "CREATED",
-                       f"inviter={inv['inviter_name']}, {status_str}")
+            log_status("INVITE", code, "CREATED", f"inviter={inv['inviter_name']}, {status_str}")
 
         # ── 5 条积分奖励 (前3条来自邀请接受, 后2条手工) ──
         rewards_data = [
@@ -721,11 +744,10 @@ def seed_growth():
                    VALUES (?, ?, ?, ?, ?)""",
                 (r["user_id"], r["points"], r["source"], r["source_code"], now.isoformat()),
             )
-            log_status("REWARD", f"user={r['user_id']},+{r['points']}pts", "CREATED",
-                       f"source={r['source']}")
+            log_status("REWARD", f"user={r['user_id']},+{r['points']}pts", "CREATED", f"source={r['source']}")
 
         conn.commit()
-        logger.info(f"  ── growth.db 种子数据填充完成 ──")
+        logger.info("  ── growth.db 种子数据填充完成 ──")
     except Exception as e:
         conn.rollback()
         logger.error(f"growth.db 失败: {e}")
@@ -738,10 +760,11 @@ def seed_growth():
 #  4. seed_all — 统一入口
 # ====================================================================
 
+
 def seed_all():
     """执行全部种子数据填充 (幂等)"""
     print("=" * 60)
-    print("  链客宝 种子数据填充")
+    print("  链客宝AI 种子数据填充")
     print("=" * 60)
     print()
 

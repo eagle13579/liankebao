@@ -1,5 +1,5 @@
 /**
- * 链客宝前端示例测试
+ * 链客宝AI前端示例测试
  *
  * 验证 Jest 测试框架基础设施正常工作
  */
@@ -16,6 +16,6 @@ describe('测试框架', () => {
 
   it('支持 TypeScript', () => {
     const greet = (name: string): string => `Hello, ${name}!`;
-    expect(greet('链客宝')).toBe('Hello, 链客宝!');
+    expect(greet('链客宝AI')).toBe('Hello, 链客宝AI!');
   });
 });

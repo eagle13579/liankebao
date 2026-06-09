@@ -52,7 +52,7 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
               返回首页
             </button>
           </div>
-          <p className="mt-8 text-[10px] text-text-muted">链客宝 - 一站式AI营销增长引擎</p>
+          <p className="mt-8 text-[10px] text-text-muted">链客宝AI - 一站式AI营销增长引擎</p>
         </div>
       );
     }

@@ -167,8 +167,8 @@ Page({
           wx.navigateTo({ url: '/pages/card-editor/index' })
         } else if (res.tapIndex === 1) {
           wx.showModal({
-            title: '关于链客宝',
-            content: '链客宝 - AI数字名片\n用AI连接每一个商业机会\n版本 1.0.0',
+            title: '关于链客宝AI',
+            content: '链客宝AI - AI数字名片\n用AI连接每一个商业机会\n版本 1.0.0',
             showCancel: false
           })
         } else if (res.tapIndex === 2) {

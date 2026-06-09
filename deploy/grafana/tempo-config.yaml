@@ -1,4 +1,4 @@
-# Tempo 配置 — 链客宝分布式追踪后端
+# Tempo 配置 — 链客宝AI分布式追踪后端
 # 接收 OTLP gRPC + HTTP 协议数据
 server:
   http_listen_port: 3200

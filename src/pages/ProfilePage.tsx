@@ -329,7 +329,7 @@ export default function ProfilePage() {
             {[
               { icon: Shield, label: '账户安全', path: null },
               { icon: HelpCircle, label: '帮助与反馈', path: null },
-              { icon: FileText, label: '关于链客宝', path: null },
+              { icon: FileText, label: '关于链客宝AI', path: null },
             ].map((item, i) => {
               const Icon = item.icon;
               return (

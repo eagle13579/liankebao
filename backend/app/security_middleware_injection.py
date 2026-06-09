@@ -2,7 +2,7 @@
 """
 安全中间件注入文件 (Security Middleware Injection)
 ===================================================
-为链客宝后端 FastAPI 应用注入可选的数据安全中间件。
+为链客宝AI后端 FastAPI 应用注入可选的数据安全中间件。
 
 功能:
   - 拦截所有写入 core schema 的 HTTP 请求 (POST/PUT/PATCH/DELETE)

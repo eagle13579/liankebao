@@ -1,5 +1,5 @@
 """
-链客宝 — 供需种子数据填充脚本
+链客宝AI — 供需种子数据填充脚本
 ============================
 直接SQLite写入（避免ORM跨模块依赖问题）
 用法: python seed_needs.py
@@ -12,7 +12,7 @@ from datetime import datetime
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
-DB_PATH = "D:/链客宝/backend/data/chainke.db"
+DB_PATH = "D:/链客宝AI/backend/data/chainke.db"
 
 # ============================================================
 # 种子数据 — 15条需求，覆盖不同品类和多个buyer用户

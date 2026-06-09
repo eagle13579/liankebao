@@ -1,9 +1,10 @@
 """
 Deal/商机模型 - 工作流引擎专用
 
-链客宝现有的 BusinessNeed 模型偏向"需求发布"场景，
+链客宝AI现有的 BusinessNeed 模型偏向"需求发布"场景，
 Deal 模型更贴近 CRM 销售漏斗管道的概念，包含阶段(stage)流转。
 """
+
 from datetime import datetime
 
 from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text

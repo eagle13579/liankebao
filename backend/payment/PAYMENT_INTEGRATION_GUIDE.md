@@ -1,6 +1,6 @@
 # 统一支付集成指南 (Payment Integration Guide)
 
-> 让军团内所有产品复用链客宝 payment/ 模块，5 行代码完成支付接入。
+> 让军团内所有产品复用链客宝AI payment/ 模块，5 行代码完成支付接入。
 > 版本: v1.0 | 日期: 2026-05-23
 
 ---
@@ -88,7 +88,7 @@ fastapi>=0.100.0       # 可选，仅用于 payment_platform_middleware
 **步骤 1：复制模块**
 
 ```bash
-cp -r D:\链客宝\backend\payment\ <你的项目>/backend/payment/
+cp -r D:\链客宝AI\backend\payment\ <你的项目>/backend/payment/
 ```
 
 目录结构只需保留：
@@ -497,7 +497,7 @@ def create_app():
 
 ## 3. 收费定价方案建议
 
-> 基于链客宝 [PRICING.md](../PRICING.md) 和 [GO_TO_MARKET.md](../GO_TO_MARKET.md) 提炼的通用定价模型。
+> 基于链客宝AI [PRICING.md](../PRICING.md) 和 [GO_TO_MARKET.md](../GO_TO_MARKET.md) 提炼的通用定价模型。
 
 ### 3.1 三层定价体系
 
@@ -590,7 +590,7 @@ SLA                  99.9%           99.9%           99.99%
 
 | 产品 | 支付模块版本 | 状态 | 集成方式 |
 |------|------------|------|---------|
-| **链客宝** (Liankebao) | v1.0 (本模块) | **线上运行** | 原生集成 `payment/` 目录 |
+| **链客宝AI** (Liankebao) | v1.0 (本模块) | **线上运行** | 原生集成 `payment/` 目录 |
 
 ### 4.2 待接入 ⏳
 

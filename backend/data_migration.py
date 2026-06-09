@@ -318,10 +318,10 @@ def import_to_postgres(data: dict, truncate_first: bool = False) -> dict:
                 VALUES (%s, %s, %s, %s)
             """,
                 (
-                    "链客宝科技有限公司",
+                    "链客宝AI科技有限公司",
                     "liankebao",
                     "enterprise",
-                    json.dumps({"display_name": "链客宝", "timezone": "Asia/Shanghai"}),
+                    json.dumps({"display_name": "链客宝AI", "timezone": "Asia/Shanghai"}),
                 ),
             )
             conn.commit()

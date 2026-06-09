@@ -1,7 +1,7 @@
 """
 OpenTelemetry 全链路追踪模块
 =============================
-链客宝 APM 可观测性核心 — 符合 OpenTelemetry 规范
+链客宝AI APM 可观测性核心 — 符合 OpenTelemetry 规范
 
 功能:
 - FastAPI 自动请求追踪 (FastAPIInstrumentor)

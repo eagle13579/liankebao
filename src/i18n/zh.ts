@@ -1,4 +1,4 @@
-// 链客宝中文语言包
+// 链客宝AI中文语言包
 const zh: Record<string, string> = {
   // ===== 导航 =====
   'nav.home': '首页',
@@ -32,7 +32,7 @@ const zh: Record<string, string> = {
   'auth.logout': '退出登录',
   'auth.username': '账号',
   'auth.password': '密码',
-  'auth.loginTitle': '链客宝',
+  'auth.loginTitle': '链客宝AI',
   'auth.loginSubtitle': '企业信任关系网络 — 每一次对接，都建立在已验证的信任之上',
   'auth.wechatLogin': '微信一键登录',
   'auth.otherWays': '其他方式',
@@ -48,7 +48,7 @@ const zh: Record<string, string> = {
   'auth.trustEncryptionDesc': 'SSL/TLS 安全通道',
   'auth.trustService': '平台服务保障',
   'auth.trustServiceDesc': '信任护航 · 安心对接',
-  'auth.copyright': '企业信任关系网络 © 2025 链客宝 · 版权所有',
+  'auth.copyright': '企业信任关系网络 © 2025 链客宝AI · 版权所有',
   'auth.registerTitle': '完善资料',
   'auth.uploadAvatar': '点击上传头像',
   'auth.usernamePlaceholder': '登录用户名',

@@ -1,4 +1,4 @@
-"""链客宝 → AI匹配引擎 HTTP调用适配层
+"""链客宝AI → AI匹配引擎 HTTP调用适配层
 
 替换: from matching_engine import MatchEngine
 改用: requests.post("http://localhost:5090/api/v1/match", ...)
@@ -8,13 +8,15 @@
     client = MatchingClient()
     results = client.match(product_data, need_data, user_id=123)
 """
-import os, json, logging
-from typing import Optional
+
+import logging
+import os
 
 logger = logging.getLogger(__name__)
 
 try:
     import requests
+
     HAS_REQUESTS = True
 except ImportError:
     HAS_REQUESTS = False
@@ -24,17 +26,13 @@ except ImportError:
 class MatchingClient:
     """AI匹配引擎HTTP客户端"""
 
-    def __init__(self, base_url: Optional[str] = None, api_key: Optional[str] = None):
-        self.base_url = base_url or os.environ.get(
-            "MATCHING_ENGINE_URL", "http://localhost:5090"
-        )
-        self.api_key = api_key or os.environ.get(
-            "MATCHING_ENGINE_API_KEY", "dev-key-change-in-production"
-        )
+    def __init__(self, base_url: str | None = None, api_key: str | None = None):
+        self.base_url = base_url or os.environ.get("MATCHING_ENGINE_URL", "http://localhost:5090")
+        self.api_key = api_key or os.environ.get("MATCHING_ENGINE_API_KEY", "dev-key-change-in-production")
         self._headers = {"X-API-Key": self.api_key, "Content-Type": "application/json"}
         self._timeout = int(os.environ.get("MATCHING_ENGINE_TIMEOUT", "5"))
 
-    def match(self, product: dict, need: dict, top_k: int = 10, user_id: Optional[int] = None) -> list:
+    def match(self, product: dict, need: dict, top_k: int = 10, user_id: int | None = None) -> list:
         """调用匹配引擎"""
         if not HAS_REQUESTS:
             logger.error("requests not installed, cannot call matching engine")
@@ -67,7 +65,7 @@ class MatchingClient:
             logger.error(f"Match API failed: {e}")
             return []
 
-    def feedback(self, product_id: int, action: str, user_id: Optional[int] = None) -> bool:
+    def feedback(self, product_id: int, action: str, user_id: int | None = None) -> bool:
         """记录反馈"""
         if not HAS_REQUESTS:
             return False

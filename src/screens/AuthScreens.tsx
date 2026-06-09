@@ -48,7 +48,7 @@ export function LoginPage() {
             <Handshake className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="font-manrope text-xl font-extrabold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent leading-tight">链客宝</h1>
+            <h1 className="font-manrope text-xl font-extrabold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent leading-tight">链客宝AI</h1>
             <p className="text-[10px] text-slate-400 font-medium tracking-wider -mt-0.5">企业信任关系网，对接更快更准</p>
           </div>
         </div>
@@ -68,7 +68,7 @@ export function LoginPage() {
           </div>
           <h1 className="text-3xl font-extrabold font-manrope mb-2">
             <span className="bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              链客宝
+              链客宝AI
             </span>
           </h1>
           <p className="text-slate-500 text-sm tracking-wide">企业信任关系网络 — 每一次对接，都建立在已验证的信任之上</p>
@@ -222,7 +222,7 @@ export function LoginPage() {
           </button>
         </p>
         <p className="text-[9px] text-slate-400 tracking-wider font-medium">
-              企业信任关系网络 © 2025 链客宝 · 版权所有
+              企业信任关系网络 © 2025 链客宝AI · 版权所有
             </p>
             <p className="text-[9px] text-slate-400 mt-1">
               <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer" className="hover:text-slate-500 transition-colors">
@@ -326,7 +326,7 @@ export function UserRegistration() {
         setRegisterSuccess(true);
         setTimeout(() => {
           navigate('/', { state: { transition: 'push' } });
-        }, 1500);
+        }, 5000);
       } else {
         setError(res.message || '注册失败');
       }
@@ -447,9 +447,16 @@ export function UserRegistration() {
 
       <footer className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-slate-100">
         {registerSuccess ? (
-          <div className="w-full h-13 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-center gap-2 text-emerald-700 font-bold text-sm">
-            <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-            <span>注册成功，请返回登录</span>
+          <div className="w-full bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-2">
+            <div className="flex items-center gap-2 text-emerald-700 font-bold text-sm">
+              <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+              <span>注册成功 🎉</span>
+            </div>
+            <div className="bg-white/60 rounded-lg p-3 text-sm">
+              <p className="text-slate-500 text-xs mb-1">您的账号为：</p>
+              <p className="text-slate-800 font-bold text-base tracking-wide">{phone}</p>
+              <p className="text-slate-400 text-xs mt-1">请使用此手机号和密码登录</p>
+            </div>
           </div>
         ) : (
           <button

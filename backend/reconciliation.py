@@ -1,5 +1,5 @@
 """
-链客宝对账系统模块
+链客宝AI对账系统模块
 ==================
 
 功能:
@@ -17,21 +17,20 @@ API:
     import reconciliation as reconciliation_module
     app.include_router(reconciliation_module.router)
 """
+
+import json
 import logging
 import random
-import json
-from datetime import datetime, date, timedelta
-from decimal import Decimal
-from typing import Optional, List
+from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text, desc, func
+from sqlalchemy import Column, DateTime, Float, Integer, String, Text, desc, func
 from sqlalchemy.orm import Session
 
+from app.auth import get_current_admin
 from app.database import Base, get_db
-from app.models import User, Order
-from app.auth import get_current_user, get_current_admin
+from app.models import Order, User
 
 logger = logging.getLogger(__name__)
 
@@ -44,11 +43,11 @@ router = APIRouter(prefix="/api/reconciliation", tags=["对账"])
 
 class ReconciliationReport(Base):
     """对账报表"""
+
     __tablename__ = "reconciliation_reports"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    report_date = Column(String(10), nullable=False, index=True, unique=True,
-                         comment="报表日期，格式 YYYY-MM-DD")
+    report_date = Column(String(10), nullable=False, index=True, unique=True, comment="报表日期，格式 YYYY-MM-DD")
     total_orders = Column(Integer, nullable=False, default=0, comment="订单总数")
     total_amount = Column(Float, nullable=False, default=0.0, comment="订单总金额")
     total_refunds = Column(Integer, nullable=False, default=0, comment="退款单数")
@@ -58,8 +57,12 @@ class ReconciliationReport(Base):
     promoter_commission = Column(Float, nullable=False, default=0.0, comment="推广员分润")
     diff_count = Column(Integer, nullable=False, default=0, comment="差异笔数")
     diff_details = Column(Text, nullable=True, comment="差异详情（JSON）")
-    status = Column(String(20), nullable=False, default="generated",
-                    comment="状态: generated(已生成)/verified(已核对)/mismatch(有差异)")
+    status = Column(
+        String(20),
+        nullable=False,
+        default="generated",
+        comment="状态: generated(已生成)/verified(已核对)/mismatch(有差异)",
+    )
     created_at = Column(DateTime, default=datetime.utcnow, comment="生成时间")
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
 
@@ -71,6 +74,7 @@ class ReconciliationReport(Base):
 
 class ReportItem(BaseModel):
     """对账报表条目"""
+
     id: int
     report_date: str
     total_orders: int
@@ -81,9 +85,9 @@ class ReportItem(BaseModel):
     platform_fee: float
     promoter_commission: float
     diff_count: int
-    diff_details: Optional[str] = None
+    diff_details: str | None = None
     status: str
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
 
     class Config:
         from_attributes = True
@@ -91,16 +95,18 @@ class ReportItem(BaseModel):
 
 class ReportDetail(BaseModel):
     """对账详情"""
+
     report: ReportItem
-    order_items: List[dict] = Field(default_factory=list, description="当日订单明细")
-    diff_items: List[dict] = Field(default_factory=list, description="差异明细")
+    order_items: list[dict] = Field(default_factory=list, description="当日订单明细")
+    diff_items: list[dict] = Field(default_factory=list, description="差异明细")
 
 
 # ============================================================
 # Mock 生成随机差异
 # ============================================================
 
-def _maybe_generate_mock_diff(order_total: float) -> Optional[dict]:
+
+def _maybe_generate_mock_diff(order_total: float) -> dict | None:
     """
     随机模拟对账差异（Mock — 不依赖真实微信支付账单）。
     约 5% 概率生成一个差异项。
@@ -229,9 +235,7 @@ def get_or_generate_daily_report(
     返回: 对账报表详情
     """
     # 先查询是否已有
-    existing = db.query(ReconciliationReport).filter(
-        ReconciliationReport.report_date == report_date
-    ).first()
+    existing = db.query(ReconciliationReport).filter(ReconciliationReport.report_date == report_date).first()
 
     if existing and not force_regenerate:
         # 返回已有报表
@@ -261,8 +265,11 @@ def get_or_generate_daily_report(
 
     logger.info(
         "对账日报生成: date=%s, orders=%d, amount=%.2f, refunds=%d, diff=%d",
-        report_date, report.total_orders, report.total_amount,
-        report.total_refunds, report.diff_count,
+        report_date,
+        report.total_orders,
+        report.total_amount,
+        report.total_refunds,
+        report.diff_count,
     )
 
     return {
@@ -276,9 +283,9 @@ def get_or_generate_daily_report(
 def list_reconciliation_reports(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页条数"),
-    status_filter: Optional[str] = Query(None, description="按状态筛选: generated/verified/mismatch"),
-    date_from: Optional[str] = Query(None, description="开始日期 YYYY-MM-DD"),
-    date_to: Optional[str] = Query(None, description="结束日期 YYYY-MM-DD"),
+    status_filter: str | None = Query(None, description="按状态筛选: generated/verified/mismatch"),
+    date_from: str | None = Query(None, description="开始日期 YYYY-MM-DD"),
+    date_to: str | None = Query(None, description="结束日期 YYYY-MM-DD"),
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin),
 ):
@@ -295,12 +302,7 @@ def list_reconciliation_reports(
         query = query.filter(ReconciliationReport.report_date <= date_to)
 
     total = query.count()
-    items = (
-        query.order_by(desc(ReconciliationReport.report_date))
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-        .all()
-    )
+    items = query.order_by(desc(ReconciliationReport.report_date)).offset((page - 1) * page_size).limit(page_size).all()
 
     return {
         "code": 200,
@@ -330,9 +332,7 @@ def get_reconciliation_detail(
       - order_items: 当日订单明细（分页）
       - diff_items: 差异明细
     """
-    report = db.query(ReconciliationReport).filter(
-        ReconciliationReport.id == report_id
-    ).first()
+    report = db.query(ReconciliationReport).filter(ReconciliationReport.id == report_id).first()
 
     if not report:
         raise HTTPException(status_code=404, detail="对账报表不存在")
@@ -345,18 +345,17 @@ def get_reconciliation_detail(
 
     day_end = dt + timedelta(days=1)
 
-    orders_query = db.query(Order).filter(
-        Order.created_at >= dt,
-        Order.created_at < day_end,
-    ).order_by(Order.id.desc())
+    orders_query = (
+        db.query(Order)
+        .filter(
+            Order.created_at >= dt,
+            Order.created_at < day_end,
+        )
+        .order_by(Order.id.desc())
+    )
 
     total_orders = orders_query.count()
-    order_items = (
-        orders_query
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-        .all()
-    )
+    order_items = orders_query.offset((page - 1) * page_size).limit(page_size).all()
 
     # 解析差异详情
     diff_items = []
@@ -406,9 +405,7 @@ def verify_reconciliation_report(
     仅当 diff_count == 0 时可标记为 verified。
     有差异的报表需要先处理差异。
     """
-    report = db.query(ReconciliationReport).filter(
-        ReconciliationReport.id == report_id
-    ).first()
+    report = db.query(ReconciliationReport).filter(ReconciliationReport.id == report_id).first()
 
     if not report:
         raise HTTPException(status_code=404, detail="对账报表不存在")

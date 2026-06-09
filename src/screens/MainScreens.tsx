@@ -173,7 +173,7 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
             </div>
             <div>
               <h1 className="font-manrope text-xl font-extrabold bg-gradient-to-r from-sky-400 to-blue-400 bg-clip-text text-transparent leading-tight">
-                链客宝
+                链客宝AI
               </h1>
               <p className="text-[10px] text-dark-muted font-medium tracking-wider -mt-0.5">企业信任关系网</p>
             </div>
@@ -849,7 +849,7 @@ export function PromotionCenter() {
                   <Image className="w-5 h-5" />
                   <span className="text-xs font-bold text-white/80">电子画册</span>
                 </div>
-                <h3 className="text-lg font-extrabold">链客宝精选产品画册</h3>
+                <h3 className="text-lg font-extrabold">链客宝AI精选产品画册</h3>
                 <p className="text-xs text-white/70 mt-1">2024 企业供需优选指南</p>
               </div>
 

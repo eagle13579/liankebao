@@ -1,5 +1,5 @@
 /**
- * 链客宝 — k6 压力测试 (Stress / Load Test)
+ * 链客宝AI — k6 压力测试 (Stress / Load Test)
  *
  * 目的: 评估系统在高并发下的性能表现，发现瓶颈
  * 场景: 阶梯式加压 10 → 50 → 100 → 200 并发用户，持续 2 分钟
@@ -237,7 +237,7 @@ export function handleSummary(data) {
 
   // 控制台输出摘要
   console.log('='.repeat(60));
-  console.log('  链客宝 压力测试结果摘要');
+  console.log('  链客宝AI 压力测试结果摘要');
   console.log('='.repeat(60));
   console.log(`  测试时长:       ${stats.duration_sec}s`);
   console.log(`  总请求数:       ${stats.total_requests}`);

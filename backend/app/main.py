@@ -1,4 +1,4 @@
-"""链客宝后端 API 服务 - 主入口"""
+"""链客宝AI后端 API 服务 - 主入口"""
 
 import logging
 import os
@@ -67,8 +67,8 @@ import app.routers.events as events_module
 import app.routers.growth as growth_module
 import app.routers.insights as insights_module
 import app.routers.matching_events as matching_events_module
-import app.routers.mission_control as mission_control_module
 import app.routers.membership as membership_module
+import app.routers.mission_control as mission_control_module
 import app.routers.needs as needs_module
 import app.routers.onboarding as onboarding_module
 import app.routers.organization as organization_module
@@ -77,18 +77,17 @@ import app.routers.private_board as private_board_module
 import app.routers.recommend as recommend_module
 import app.routers.upload as upload_module
 import app.routers.vector_search_router as vector_search_module
-import app.routers.membership as membership_module
-import invoice as invoice_module
-import matching_engine as matching_engine_module
-import recharge.callback as recharge_callback_module
-import recharge.routes as recharge_module
-import reconciliation as reconciliation_module
 
 # ===== 搜索引擎（FTS5 / Memory 全文搜索） =====
 import app.search_index as search_index_module
 
 # ===== LLM 智能服务（DeepSeek API） =====
 import app.services.llm_service as llm_service_module
+import invoice as invoice_module
+import matching_engine as matching_engine_module
+import recharge.callback as recharge_callback_module
+import recharge.routes as recharge_module
+import reconciliation as reconciliation_module
 
 # ===== 认证 =====
 from app.auth import get_current_user
@@ -103,15 +102,15 @@ from app.routers import imports as import_router
 from app.websocket_manager import ws_manager
 
 app = FastAPI(
-    title="链客宝API",
-    description="链客宝后端API服务 — Premium Business Network and Entrepreneur Supply-Demand Matching Platform。\n\n"
+    title="链客宝AIAPI",
+    description="链客宝AI后端API服务 — Premium Business Network and Entrepreneur Supply-Demand Matching Platform。\n\n"
     "提供认证、产品、订单、搜索、支付、充值、发票、对账、联系人管理、活动时间线、数据洞察、"
     "供需匹配、AI智能匹配引擎、推广员体系、管理后台、系统配置等完整业务能力。",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
     contact={
-        "name": "链客宝团队",
+        "name": "链客宝AI团队",
         "url": "https://www.go-aiport.com",
         "email": "support@go-aiport.com",
     },
@@ -475,7 +474,7 @@ def get_user_brief(user_id: int, db: Session = Depends(get_db)):
 BANNERS = [
     {
         "image": "https://www.go-aiport.com/static/banners/banner1.svg",
-        "title": "链客宝 · AI企业家生态",
+        "title": "链客宝AI · AI企业家生态",
         "url": "/pages/pool/index",
     },
     {
@@ -844,10 +843,10 @@ def on_shutdown():
         logger.info("服务关闭")
 
 
-@app.get("/", summary="服务根路径", description="返回链客宝API服务基本信息（服务名、状态、版本）")
+@app.get("/", summary="服务根路径", description="返回链客宝AIAPI服务基本信息（服务名、状态、版本）")
 def root():
     return {
-        "service": "链客宝 API",
+        "service": "链客宝AI API",
         "status": "running",
         "version": "1.0.0",
     }
@@ -964,12 +963,13 @@ app = wrap_with_sentry(app)
 
 # ===== 直接启动入口 =====
 from modules.workflow.routes import router as workflow_router
+
 app.include_router(workflow_router)
 if __name__ == "__main__":
     import uvicorn
 
     port = int(os.environ.get("PORT", "8000"))
-    print(f"🚀 链客宝后端 API :{port}")
+    print(f"🚀 链客宝AI后端 API :{port}")
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",

@@ -1,9 +1,9 @@
 #!/bin/bash
 # ============================================================
-# 链客宝 Metabase 自动部署脚本
+# 链客宝AI Metabase 自动部署脚本
 # ============================================================
 # 用途: 使用 Docker 部署 Metabase 数据分析平台
-#       自动连接链客宝 PostgreSQL 数据库
+#       自动连接链客宝AI PostgreSQL 数据库
 #       预置 5 个常用分析问题
 #
 # 前置条件:
@@ -178,7 +178,7 @@ start_metabase() {
 
     # 保存数据库连接信息到提示文件
     cat > "$METABASE_DATA_DIR/README.txt" << EOF
-链客宝 Metabase 部署信息
+链客宝AI Metabase 部署信息
 =========================
 访问地址: http://localhost:${METABASE_PORT}
 首次使用: 浏览器打开后创建管理员账号
@@ -200,7 +200,7 @@ EOF
 show_info() {
     echo ""
     info "=========================================="
-    info "  链客宝 Metabase 部署完成！"
+    info "  链客宝AI Metabase 部署完成！"
     info "=========================================="
     echo ""
     echo -e "  ${GREEN}访问地址:${NC}     http://localhost:${METABASE_PORT}"
@@ -208,7 +208,7 @@ show_info() {
     echo -e "  ${CYAN}首次使用:${NC}"
     echo "    1. 浏览器打开上述地址"
     echo "    2. 设置管理员账号密码"
-    echo "    3. 在 Metabase 中添加链客宝数据库源:"
+    echo "    3. 在 Metabase 中添加链客宝AI数据库源:"
     echo "       - 类型: PostgreSQL"
     echo "       - 主机: ${PG_HOST:-localhost}"
     echo "       - 端口: ${PG_PORT:-5432}"
@@ -267,7 +267,7 @@ show_logs() {
 # ---- 查看状态 ----
 show_status() {
     echo ""
-    info "====== 链客宝 Metabase 状态 ======"
+    info "====== 链客宝AI Metabase 状态 ======"
     echo ""
 
     if docker ps --format '{{.Names}}' | grep -q "^${METABASE_CONTAINER}$"; then
@@ -342,7 +342,7 @@ main() {
             show_status
             ;;
         --help|-help|help)
-            echo "链客宝 Metabase 自动部署脚本"
+            echo "链客宝AI Metabase 自动部署脚本"
             echo ""
             echo "用法:"
             echo "  bash $0              # 部署 Metabase"

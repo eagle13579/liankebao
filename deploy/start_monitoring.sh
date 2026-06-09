@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# 链客宝 监控栈启动脚本
+# 链客宝AI 监控栈启动脚本
 # ============================================================
 # 一键启动 Prometheus + Grafana + Alertmanager + cAdvisor
 #
@@ -28,7 +28,7 @@ COMPOSE_FILE="${SCRIPT_DIR}/docker-compose.monitoring.yml"
 PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 echo -e "${BLUE}============================================================${NC}"
-echo -e "${BLUE}  链客宝 生产级监控栈 启动脚本${NC}"
+echo -e "${BLUE}  链客宝AI 生产级监控栈 启动脚本${NC}"
 echo -e "${BLUE}============================================================${NC}"
 echo ""
 
@@ -131,9 +131,9 @@ if [ ! -f "$DASHBOARDS_YAML" ]; then
 apiVersion: 1
 
 providers:
-  - name: "链客宝仪表盘"
+  - name: "链客宝AI仪表盘"
     orgId: 1
-    folder: "链客宝"
+    folder: "链客宝AI"
     type: file
     disableDeletion: false
     updateIntervalSeconds: 10
@@ -157,7 +157,7 @@ docker compose -f "$COMPOSE_FILE" up -d
 
 echo ""
 echo -e "${GREEN}============================================================${NC}"
-echo -e "${GREEN}  链客宝 监控栈启动完成!${NC}"
+echo -e "${GREEN}  链客宝AI 监控栈启动完成!${NC}"
 echo -e "${GREEN}============================================================${NC}"
 echo ""
 echo -e "  ${BLUE}Prometheus:${NC}       http://localhost:9090"

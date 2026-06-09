@@ -2,7 +2,7 @@ export type Lang = "zh" | "en";
 
 export const translations: Record<Lang, Record<string, string>> = {
   zh: {
-    "app.name": "链客宝",
+    "app.name": "链客宝AI",
     "nav.business_card": "AI名片",
     "business_card.title": "AI名片扫描",
     "business_card.upload": "上传名片图片",

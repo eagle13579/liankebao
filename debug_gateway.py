@@ -1,11 +1,14 @@
 """Debug gateway response for /"""
+
 import urllib.request
 import os
 
-DIST = r'D:\向海容的知识库\wiki\wiki\记忆宫殿\L5孵化室\产品开发\战略合作\链客宝\linkbao\frontend\dist'
-index_path = os.path.join(DIST, 'index.html')
+DIST = r"D:\向海容的知识库\wiki\wiki\记忆宫殿\L5孵化室\产品开发\战略合作\链客宝AI\linkbao\frontend\dist"
+index_path = os.path.join(DIST, "index.html")
 print(f"index.html exists: {os.path.isfile(index_path)}")
-print(f"file size: {os.path.getsize(index_path) if os.path.isfile(index_path) else 'N/A'}")
+print(
+    f"file size: {os.path.getsize(index_path) if os.path.isfile(index_path) else 'N/A'}"
+)
 
 try:
     r = urllib.request.urlopen("http://localhost:5136/", timeout=5)

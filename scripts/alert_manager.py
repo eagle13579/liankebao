@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""链客宝告警管理器 — scripts/ 入口包装器"""
+"""链客宝AI告警管理器 — scripts/ 入口包装器"""
 
 import sys
 from pathlib import Path

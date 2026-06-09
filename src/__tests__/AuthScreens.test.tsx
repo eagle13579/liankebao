@@ -189,7 +189,7 @@ describe('AuthScreens - UserRegistration', () => {
 describe('LoginPage - Additional Smoke Tests', () => {
   it('renders the brand name in header', () => {
     renderWithRouter(<LoginPage />);
-    const brandElements = screen.getAllByText('链客宝');
+    const brandElements = screen.getAllByText('链客宝AI');
     expect(brandElements.length).toBeGreaterThanOrEqual(1);
   });
 
@@ -230,7 +230,7 @@ describe('LoginPage - Additional Smoke Tests', () => {
     renderWithRouter(<LoginPage />);
     expect(screen.getByText('还没有账号？')).toBeInTheDocument();
     expect(screen.getByText('去注册')).toBeInTheDocument();
-    expect(screen.getByText(/企业信任关系网络 © 2025 链客宝/)).toBeInTheDocument();
+    expect(screen.getByText(/企业信任关系网络 © 2025 链客宝AI/)).toBeInTheDocument();
   });
 
   it('shows trust badges with descriptions', () => {

@@ -1,4 +1,4 @@
-# 链客宝微信支付商户号注册 + 证书配置操作指南
+# 链客宝AI微信支付商户号注册 + 证书配置操作指南
 
 > **目标**: 从 mock 模式切换到真实微信支付
 > **前提**: 小程序已注册（AppID: wxb4f6d89904200fd2），后端代码已统一（P0-1完成）
@@ -48,7 +48,7 @@ https://pay.weixin.qq.com/
 
 | 字段 | 填写值 |
 |:-----|:-------|
-| 商户简称 | 链客宝 |
+| 商户简称 | 链客宝AI |
 | 经营类目 | 综合电商/电子商务平台（费率 0.6%） |
 | 经营场景 | 小程序 |
 | 结算周期 | T+1 |
@@ -147,7 +147,7 @@ print(certs)
 
 ```bash
 # 本地开发环境
-mkdir -p /d/链客宝/backend/certs/
+mkdir -p /d/链客宝AI/backend/certs/
 ```
 
 ### 3.2 复制证书文件
@@ -156,11 +156,11 @@ mkdir -p /d/链客宝/backend/certs/
 
 ```bash
 # 从解压后的目录复制
-cp /path/to/apiclient_key.pem    /d/链客宝/backend/certs/
-cp /path/to/apiclient_cert.pem   /d/链客宝/backend/certs/
+cp /path/to/apiclient_key.pem    /d/链客宝AI/backend/certs/
+cp /path/to/apiclient_cert.pem   /d/链客宝AI/backend/certs/
 
 # 如果有平台证书，也复制过来
-cp /path/to/platform_cert.pem    /d/链客宝/backend/certs/
+cp /path/to/platform_cert.pem    /d/链客宝AI/backend/certs/
 ```
 
 最终 `certs/` 目录结构：
@@ -177,8 +177,8 @@ backend/certs/
 
 ```bash
 # 检查 .gitignore 是否包含
-echo "certs/apiclient_key.pem" >> /d/链客宝/.gitignore
-echo "certs/*.pem" >> /d/链客宝/.gitignore
+echo "certs/apiclient_key.pem" >> /d/链客宝AI/.gitignore
+echo "certs/*.pem" >> /d/链客宝AI/.gitignore
 ```
 
 ### 3.4 生产环境部署
@@ -187,9 +187,9 @@ echo "certs/*.pem" >> /d/链客宝/.gitignore
 
 ```bash
 # 通过 scp 上传到生产服务器
-scp /d/链客宝/backend/certs/apiclient_key.pem     user@your-server:/opt/liankebao/certs/
-scp /d/链客宝/backend/certs/apiclient_cert.pem    user@your-server:/opt/liankebao/certs/
-scp /d/链客宝/backend/certs/platform_cert.pem     user@your-server:/opt/liankebao/certs/
+scp /d/链客宝AI/backend/certs/apiclient_key.pem     user@your-server:/opt/liankebao/certs/
+scp /d/链客宝AI/backend/certs/apiclient_cert.pem    user@your-server:/opt/liankebao/certs/
+scp /d/链客宝AI/backend/certs/platform_cert.pem     user@your-server:/opt/liankebao/certs/
 
 # 设置文件权限（安全考虑）
 ssh user@your-server "chmod 600 /opt/liankebao/certs/apiclient_key.pem"
@@ -204,7 +204,7 @@ ssh user@your-server "chmod 644 /opt/liankebao/certs/*.pem"
 
 ```bash
 # 编辑本地 .env
-vim /d/链客宝/.env
+vim /d/链客宝AI/.env
 ```
 
 ### 4.2 填写以下配置项
@@ -268,7 +268,7 @@ WECHAT_APP_SECRET=你的小程序AppSecret
 ### 5.1 启动后端服务
 
 ```bash
-cd /d/链客宝/backend
+cd /d/链客宝AI/backend
 
 # 激活虚拟环境并启动
 source venv_new/Scripts/activate  # Windows git-bash
@@ -433,7 +433,7 @@ curl -v -X POST https://www.go-aiport.com/api/recharge/callback/wxpay \
 
 ### Q5: 生产环境需要 HTTPS 吗？
 
-答：**必须**。微信支付回调通知只接受 HTTPS 地址。链客宝生产域名 `www.go-aiport.com` 已配置 HTTPS。
+答：**必须**。微信支付回调通知只接受 HTTPS 地址。链客宝AI生产域名 `www.go-aiport.com` 已配置 HTTPS。
 
 ### Q6: 调试日志怎么看？
 
@@ -452,5 +452,5 @@ curl -X PUT "http://localhost:8001/api/system/log-level?level=DEBUG" \
 - [微信支付商户平台](https://pay.weixin.qq.com/)
 - [微信支付 V3 API 文档](https://pay.weixin.qq.com/wiki/doc/apiv3/wxpay/pages/JSAPI.shtml)
 - [微信公众平台](https://mp.weixin.qq.com/)
-- [链客宝支付实现代码](backend/payment/) — 代码见 `payment/` 目录
+- [链客宝AI支付实现代码](backend/payment/) — 代码见 `payment/` 目录
 - [微信支付商户号注册SOP](微信支付商户号注册SOP.md) — 更详细的注册步骤

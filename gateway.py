@@ -1,10 +1,10 @@
 """
-链客宝统一API网关 v4
+链客宝AI统一API网关 v4
 ======================
-统一路由：链客宝前端(:5133) → 3个后端服务
+统一路由：链客宝AI前端(:5133) → 3个后端服务
 
 路由表：
-  /lkapi/*              → 链客宝后端  :8001   (strip /lkapi → /api)
+  /lkapi/*              → 链客宝AI后端  :8001   (strip /lkapi → /api)
   /api/brochure/*       → AI数字名片  :8003   (直通)
   /api/tag/*            → AI数字名片  :8003   (直通)
   /api/match/*          → AI数字名片  :8003   (直通)
@@ -14,9 +14,9 @@
   /api/geo/diagnosis/report/* → GEO诊断 :5061  (直通 /api/report/*)
   /api/geo/positioning  → GEO定位     :5062   (直通 /api/position/*)
   /api/geo/content-plan → GEO内容     :5063   (直通 /api/content-plan/*)
-  /*                    → 链客宝前端静态文件
+  /*                    → 链客宝AI前端静态文件
 
-网页端访问 :5133，小程序通过 /lkapi/ 调用链客宝后端API，
+网页端访问 :5133，小程序通过 /lkapi/ 调用链客宝AI后端API，
 通过其余 `/api/` 路径调用数字名片和GEO。
 """
 
@@ -24,34 +24,61 @@ import http.server
 import urllib.request
 import os
 import json
-import re
 
 # ── 配置 ──────────────────────────────────────────────────
-DIST = r'D:\链客宝\dist'
-BROCHURE_H5 = r'D:\向海容的知识库\wiki\wiki\记忆宫殿\L5孵化室\产品开发\AI数字名片\code\frontend\h5'
+DIST = r"D:\链客宝AI\dist"
+BROCHURE_H5 = r"D:\向海容的知识库\wiki\wiki\记忆宫殿\L5孵化室\产品开发\AI数字名片\code\frontend\h5"
 PORT = 5136
 
 ROUTES = [
     # (前缀, 目标基础URL, 路径重写函数或None)
-    ("/lkapi/",           "http://localhost:8001",  lambda p: p[6:]),
-    ("/lkapi",            "http://localhost:8001",  lambda p: p[6:] if len(p) > 6 else "/"),
-    ("/api/orders",       "http://localhost:8001",  lambda p: "/api/orders" + ("?" + p.split("?")[1] if "?" in p else "")),
-    ("/api/orders/",      "http://localhost:8001",  None),
-    ("/api/brochures/",   "http://localhost:8003",  lambda p: "/api/brochure/" + p.split("/api/brochures/", 1)[1]),
-    ("/api/brochure/",    "http://localhost:8003",  None),
-    ("/api/tag/",         "http://localhost:8003",  None),
-    ("/api/match/",       "http://localhost:8003",  None),
-    ("/api/external/",    "http://localhost:8003",  None),
-    ("/api/digital-brochure/auth/", "http://localhost:8003",  lambda p: "/api/auth/" + p.split("/api/digital-brochure/auth/", 1)[1]),
-    ("/api/geo/diagnose", "http://localhost:5061",  None),
-    ("/api/geo/diagnosis/", "http://localhost:5061", lambda p: "/" + p.split("/api/geo/diagnosis/", 1)[1]),
-    ("/api/geo/positioning/", "http://localhost:5062", lambda p: "/" + p.split("/api/geo/positioning/", 1)[1]),
-    ("/api/geo/content/",    "http://localhost:5063", lambda p: "/" + p.split("/api/geo/content/", 1)[1]),
-    ("/geo-diagnosis/report/", "http://localhost:5061",  lambda p: "/report/" + p.split("/geo-diagnosis/report/", 1)[1]),
-    ("/geo-diagnosis",      "http://localhost:5061",  lambda p: "/"),
-    ("/geo-diagnosis/",     "http://localhost:5061",  lambda p: "/"),
-    ("/static/",            "http://localhost:5061",  lambda p: p),  # 转发GEO静态文件
-    ("/health",           "http://localhost:8001",  lambda p: "/health"),
+    ("/lkapi/", "http://localhost:8001", lambda p: p[6:]),
+    ("/lkapi", "http://localhost:8001", lambda p: p[6:] if len(p) > 6 else "/"),
+    (
+        "/api/orders",
+        "http://localhost:8001",
+        lambda p: "/api/orders" + ("?" + p.split("?")[1] if "?" in p else ""),
+    ),
+    ("/api/orders/", "http://localhost:8001", None),
+    (
+        "/api/brochures/",
+        "http://localhost:8003",
+        lambda p: "/api/brochure/" + p.split("/api/brochures/", 1)[1],
+    ),
+    ("/api/brochure/", "http://localhost:8003", None),
+    ("/api/tag/", "http://localhost:8003", None),
+    ("/api/match/", "http://localhost:8003", None),
+    ("/api/external/", "http://localhost:8003", None),
+    (
+        "/api/digital-brochure/auth/",
+        "http://localhost:8003",
+        lambda p: "/api/auth/" + p.split("/api/digital-brochure/auth/", 1)[1],
+    ),
+    ("/api/geo/diagnose", "http://localhost:5061", None),
+    (
+        "/api/geo/diagnosis/",
+        "http://localhost:5061",
+        lambda p: "/" + p.split("/api/geo/diagnosis/", 1)[1],
+    ),
+    (
+        "/api/geo/positioning/",
+        "http://localhost:5062",
+        lambda p: "/" + p.split("/api/geo/positioning/", 1)[1],
+    ),
+    (
+        "/api/geo/content/",
+        "http://localhost:5063",
+        lambda p: "/" + p.split("/api/geo/content/", 1)[1],
+    ),
+    (
+        "/geo-diagnosis/report/",
+        "http://localhost:5061",
+        lambda p: "/report/" + p.split("/geo-diagnosis/report/", 1)[1],
+    ),
+    ("/geo-diagnosis", "http://localhost:5061", lambda p: "/"),
+    ("/geo-diagnosis/", "http://localhost:5061", lambda p: "/"),
+    ("/static/", "http://localhost:5061", lambda p: p),  # 转发GEO静态文件
+    ("/health", "http://localhost:8001", lambda p: "/health"),
 ]
 
 
@@ -121,7 +148,9 @@ class GatewayHandler(http.server.SimpleHTTPRequestHandler):
         """提供静态文件（自动判断 MIME type）"""
         # 安全检查：防止目录穿越
         clean_path = path.split("?")[0]
-        file_path = os.path.normpath(os.path.join(self.directory, clean_path.lstrip("/")))
+        file_path = os.path.normpath(
+            os.path.join(self.directory, clean_path.lstrip("/"))
+        )
         if not file_path.startswith(os.path.normpath(self.directory)):
             self.send_response(403)
             self.end_headers()
@@ -167,10 +196,10 @@ class GatewayHandler(http.server.SimpleHTTPRequestHandler):
         # 调试日志
         with open(r"D:\chainke_gw_debug.log", "a") as df:
             df.write(f"PATH: method={method} path={path} self.path={self.path}\n")
-        
+
         # AI数字名片 H5 静态文件
         if path.startswith("/digital-brochure/"):
-            relative = path[len("/digital-brochure/"):]
+            relative = path[len("/digital-brochure/") :]
             if relative == "" or relative == "/":
                 relative = "index.html"
             # 安全检查：禁止跳出目录
@@ -207,13 +236,13 @@ class GatewayHandler(http.server.SimpleHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(b"File not found")
             return
-        
+
         target_url, is_api = _match_route(path)
         if is_api:
             print(f"  → {method} {path} → {target_url}")
             self._proxy(method, target_url)
         elif path.startswith("/api/"):
-            # 未匹配的 /api/* 路径默认走链客宝后端
+            # 未匹配的 /api/* 路径默认走链客宝AI后端
             target = f"http://localhost:8001{path}"
             print(f"  → {method} {path} → {target} (默认)")
             self._proxy(method, target)
@@ -246,7 +275,9 @@ class GatewayHandler(http.server.SimpleHTTPRequestHandler):
         """CORS preflight"""
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+        self.send_header(
+            "Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS"
+        )
         self.send_header("Access-Control-Allow-Headers", "*")
         self.end_headers()
 
@@ -267,11 +298,11 @@ class GatewayHandler(http.server.SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    print(f"🚀 链客宝统一API网关 :{PORT}")
+    print(f"🚀 链客宝AI统一API网关 :{PORT}")
     print(f"   📦 静态文件: {DIST}")
-    print(f"   🔗 链客宝  → :8001")
-    print(f"   🔗 数字名片 → :8003")
-    print(f"   🔗 GEO诊断  → :5061")
-    print(f"   🔗 GEO定位  → :5062")
-    print(f"   🔗 GEO内容  → :5063")
+    print("   🔗 链客宝AI  → :8001")
+    print("   🔗 数字名片 → :8003")
+    print("   🔗 GEO诊断  → :5061")
+    print("   🔗 GEO定位  → :5062")
+    print("   🔗 GEO内容  → :5063")
     http.server.HTTPServer(("0.0.0.0", PORT), GatewayHandler).serve_forever()

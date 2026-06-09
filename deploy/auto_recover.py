@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-链客宝自动恢复脚本 — Auto Recovery
+链客宝AI自动恢复脚本 — Auto Recovery
 ====================================
 自动检测服务异常并执行恢复操作。
 
@@ -538,7 +538,7 @@ def daemonize():
 # Main
 # ============================================================
 def main():
-    parser = argparse.ArgumentParser(description="链客宝自动恢复脚本")
+    parser = argparse.ArgumentParser(description="链客宝AI自动恢复脚本")
     parser.add_argument("--daemon", action="store_true", help="以守护进程模式运行")
     parser.add_argument("--stop", action="store_true", help="停止运行中的自动恢复")
     parser.add_argument("--status", action="store_true", help="查看运行状态")
@@ -591,7 +591,7 @@ def main():
         atexit.register(remove_pid)
 
     logger.info("=" * 50)
-    logger.info("链客宝自动恢复监控启动")
+    logger.info("链客宝AI自动恢复监控启动")
     logger.info(f"检测目标: {BACKEND_HOST}:{BACKEND_PORT}")
     logger.info(f"Docker服务: {DOCKER_SERVICE_NAME}")
     logger.info(f"内存阈值: {MEMORY_THRESHOLD}%")

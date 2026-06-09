@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# 链客宝 SSL 证书自动续签脚本
+# 链客宝AI SSL 证书自动续签脚本
 # 服务器: 阿里云 ECS (47.100.160.250)
 # 域名: liankebao.top / www.liankebao.top
 # 支持: certbot 和 acme.sh 两种客户端
@@ -186,19 +186,19 @@ send_notification() {
     if [[ -n "$endpoint" ]]; then
         curl -s -X POST "$endpoint" \
             -H "Content-Type: application/json" \
-            -d "{\"project\":\"链客宝\",\"ssl_renewal\":\"$status\",\"message\":\"$message\"}" >/dev/null 2>&1 || true
+            -d "{\"project\":\"链客宝AI\",\"ssl_renewal\":\"$status\",\"message\":\"$message\"}" >/dev/null 2>&1 || true
         log "通知已发送到 webhook"
     fi
 
     # 如果安装了 mail/mailx，可以发送邮件通知
     if command -v mail &>/dev/null && [[ -n "$ADMIN_EMAIL" ]]; then
-        echo "链客宝 SSL 证书续签状态: $status
+        echo "链客宝AI SSL 证书续签状态: $status
 
 $message
 
 服务器: 47.100.160.250
 域名: $DOMAINS
-时间: $(date)" | mail -s "[链客宝] SSL 证书续签: $status" "$ADMIN_EMAIL" 2>/dev/null || true
+时间: $(date)" | mail -s "[链客宝AI] SSL 证书续签: $status" "$ADMIN_EMAIL" 2>/dev/null || true
         log "邮件通知已发送到 $ADMIN_EMAIL"
     fi
 }
@@ -207,7 +207,7 @@ $message
 main() {
     echo ""
     echo "======================================="
-    echo "   链客宝 SSL 证书自动续签"
+    echo "   链客宝AI SSL 证书自动续签"
     echo "   $(date '+%Y-%m-%d %H:%M:%S')"
     echo "======================================="
     echo ""

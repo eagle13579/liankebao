@@ -1,4 +1,4 @@
-// 链客宝英文语言包
+// 链客宝AI英文语言包
 const en: Record<string, string> = {
   // ===== Navigation =====
   'nav.home': 'Home',
