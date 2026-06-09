@@ -91,9 +91,22 @@ import recharge.callback as recharge_callback_module
 import recharge.routes as recharge_module
 import reconciliation as reconciliation_module
 
-# ===== 创新引擎 & 审美评估引擎（KFD Feature 模块） =====
-import innovation_engine as innovation_engine_module
-import design_review_engine as design_review_engine_module
+# ===== 创新引擎 & 审美评估引擎（KFD Feature 模块 - 可选加载） =====
+try:
+    import innovation_engine as innovation_engine_module
+    _HAS_INNOVATION = True
+except ImportError as e:
+    innovation_engine_module = None
+    _HAS_INNOVATION = False
+    logging.warning(f"创新引擎模块未加载: {e}")
+
+try:
+    import design_review_engine as design_review_engine_module
+    _HAS_DESIGN_REVIEW = True
+except ImportError as e:
+    design_review_engine_module = None
+    _HAS_DESIGN_REVIEW = False
+    logging.warning(f"审美评估引擎模块未加载: {e}")
 
 # ===== 搜索引擎（FTS5 / Memory 全文搜索） =====
 import app.search_index as search_index_module
@@ -382,9 +395,13 @@ router_modules = [
     retro_board_module,
     sales_script_module,
     unit_economics_module,
-    innovation_engine_module,
-    design_review_engine_module,
 ]
+
+# 可选模块追加
+if _HAS_INNOVATION and innovation_engine_module:
+    router_modules.append(innovation_engine_module)
+if _HAS_DESIGN_REVIEW and design_review_engine_module:
+    router_modules.append(design_review_engine_module)
 
 # 第一轮：/api/v1/ 版本化路由
 for mod in router_modules:
