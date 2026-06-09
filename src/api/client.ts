@@ -15,10 +15,23 @@ async function request<T>(path: string, options?: RequestInit): Promise<ApiRespo
   const isFormData = options?.body instanceof FormData;
   const headers: Record<string,string> = isFormData ? {} : {'Content-Type': 'application/json'};
   if (t) headers['Authorization'] = 'Bearer ' + t;
-  try {
+    try {
     const res = await fetch(API_BASE + path, {...options, headers});
     if (!res.ok) {
-      return { code: res.status, message: `HTTP ${res.status}: ${res.statusText}` };
+      // 尝试读取后端的错误详情，用人话显示
+      try {
+        const errBody = await res.json();
+        const detail = errBody?.detail || errBody?.message || '';
+        if (Array.isArray(detail)) {
+          // FastAPI 422 验证错误格式
+          const msgs = detail.map((d: any) => d.msg).filter(Boolean);
+          return { code: res.status, message: msgs.join('；') || `请求数据有误` };
+        }
+        if (typeof detail === 'string' && detail) {
+          return { code: res.status, message: detail };
+        }
+      } catch {}
+      return { code: res.status, message: `操作失败，请检查输入是否正确` };
     }
     const json = await res.json();
     // 兼容两种后端响应格式：

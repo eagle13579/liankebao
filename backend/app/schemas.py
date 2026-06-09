@@ -75,7 +75,7 @@ _PHONE_RE = re.compile(r"^1[3-9]\d{9}$")
 
 class LoginRequest(BaseModel):
     username: str = Field(..., min_length=1, max_length=50)
-    password: str = Field(..., min_length=8, max_length=128)
+    password: str = Field(..., min_length=6, max_length=128)
 
 
 class WechatLoginRequest(BaseModel):
@@ -84,7 +84,7 @@ class WechatLoginRequest(BaseModel):
 
 class RegisterRequest(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
-    password: str = Field(..., min_length=8, max_length=128)
+    password: str = Field(..., min_length=6, max_length=128)
     name: str = Field(..., min_length=1, max_length=100)
     phone: str | None = None
     company: str | None = None
@@ -130,7 +130,7 @@ class ResetPasswordRequest(BaseModel):
     """重置密码请求"""
 
     token: str = Field(..., min_length=1, description="重置令牌")
-    password: str = Field(..., min_length=8, max_length=128, description="新密码")
+    password: str = Field(..., min_length=6, max_length=128, description="新密码")
 
 
 class TokenResponse(BaseModel):
