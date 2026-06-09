@@ -77,16 +77,24 @@ import app.routers.private_board as private_board_module
 import app.routers.recommend as recommend_module
 import app.routers.upload as upload_module
 import app.routers.vector_search_router as vector_search_module
+import app.routers.membership as membership_module
+import app.routers.hypothesis_gate as hypothesis_gate_module
+import app.routers.learning_center as learning_center_module
+import app.routers.retention_insights as retention_insights_module
+import app.routers.retro_board as retro_board_module
+import app.routers.sales_script as sales_script_module
+import app.routers.unit_economics as unit_economics_module
+import invoice as invoice_module
+import matching_engine as matching_engine_module
+import recharge.callback as recharge_callback_module
+import recharge.routes as recharge_module
+import reconciliation as reconciliation_module
 
 # ===== 搜索引擎（FTS5 / Memory 全文搜索） =====
 import app.search_index as search_index_module
 
 # ===== LLM 智能服务（DeepSeek API） =====
 import app.services.llm_service as llm_service_module
-import invoice as invoice_module
-import matching_engine as matching_engine_module
-import recharge.callback as recharge_callback_module
-import recharge.routes as recharge_module
 import reconciliation as reconciliation_module
 
 # ===== 认证 =====
@@ -364,6 +372,12 @@ router_modules = [
     enrichment_module,
     organization_module,
     growth_module,
+    hypothesis_gate_module,
+    learning_center_module,
+    retention_insights_module,
+    retro_board_module,
+    sales_script_module,
+    unit_economics_module,
 ]
 
 # 第一轮：/api/v1/ 版本化路由
@@ -409,6 +423,12 @@ app.include_router(enrichment_module.router)
 app.include_router(organization_module.router)
 app.include_router(membership_module.router)
 app.include_router(growth_module.router)
+app.include_router(hypothesis_gate_module.router)
+app.include_router(learning_center_module.router)
+app.include_router(retention_insights_module.router)
+app.include_router(retro_board_module.router)
+app.include_router(sales_script_module.router)
+app.include_router(unit_economics_module.router)
 
 # ===== 启动时初始化增长引擎数据库 =====
 from app.routers.growth import init_growth_db
