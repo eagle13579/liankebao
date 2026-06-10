@@ -1,0 +1,120 @@
+<!-- 链客宝AI数字名片 - 自助创建页面 -->
+<view class="create-card-container">
+
+  <!-- ===== 顶栏 ===== -->
+  <view class="header-bar">
+    <view class="back-btn" bindtap="handleRetry">
+      <text class="back-icon">‹</text>
+    </view>
+    <text class="header-title">创建AI数字名片</text>
+    <view class="header-right"></view>
+  </view>
+
+  <!-- ===== 步骤1: 用户信息授权 ===== -->
+  <block wx:if="{{authStep === 'profile'}}">
+    <view class="step-card">
+      <view class="step-icon-wrap">
+        <image class="step-icon-img" src="/assets/images/avatar-default.png" mode="aspectFill" />
+      </view>
+      <text class="step-title">授权获取您的微信信息</text>
+      <text class="step-desc">用于自动填充头像和昵称，打造专属名片</text>
+      <button
+        class="primary-btn"
+        type="primary"
+        open-type="getUserProfile"
+        bindgetuserprofile="handleGetUserProfile"
+        loading="{{loading}}"
+        disabled="{{loading}}"
+      >
+        微信授权登录
+      </button>
+      <text wx:if="{{errorMsg}}" class="error-text">{{errorMsg}}</text>
+    </view>
+  </block>
+
+  <!-- ===== 步骤2: 手机号授权 ===== -->
+  <block wx:elif="{{authStep === 'phone'}}">
+    <view class="step-card">
+      <view class="user-preview">
+        <image class="preview-avatar" src="{{avatarUrl || '/assets/images/avatar-default.png'}}" mode="aspectFill" />
+        <text class="preview-name">{{nickName || '微信用户'}}</text>
+      </view>
+      <text class="step-title">授权获取手机号码</text>
+      <text class="step-desc">用于客户联系，仅展示在您的名片上</text>
+      <button
+        class="primary-btn"
+        type="primary"
+        open-type="getPhoneNumber"
+        bindgetphonenumber="handleGetPhoneNumber"
+        loading="{{loading}}"
+        disabled="{{loading}}"
+      >
+        获取手机号码
+      </button>
+      <text wx:if="{{errorMsg}}" class="error-text">{{errorMsg}}</text>
+    </view>
+  </block>
+
+  <!-- ===== 步骤3: 补充信息 ===== -->
+  <block wx:elif="{{authStep === 'form'}}">
+    <view class="step-card">
+      <view class="user-preview">
+        <image class="preview-avatar" src="{{avatarUrl || '/assets/images/avatar-default.png'}}" mode="aspectFill" />
+        <text class="preview-name">{{nickName || '微信用户'}}</text>
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">公司名称</text>
+        <input
+          class="form-input"
+          type="text"
+          placeholder="请输入公司名称"
+          placeholder-class="form-placeholder"
+          value="{{company}}"
+          bindinput="onCompanyInput"
+          maxlength="50"
+        />
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">职位</text>
+        <input
+          class="form-input"
+          type="text"
+          placeholder="请输入您的职位"
+          placeholder-class="form-placeholder"
+          value="{{position}}"
+          bindinput="onPositionInput"
+          maxlength="30"
+        />
+      </view>
+
+      <button
+        class="primary-btn"
+        type="primary"
+        bindtap="handleSubmit"
+        loading="{{loading}}"
+        disabled="{{loading || !company.trim() || !position.trim()}}"
+      >
+        立即创建名片
+      </button>
+      <text wx:if="{{errorMsg}}" class="error-text">{{errorMsg}}</text>
+    </view>
+  </block>
+
+  <!-- ===== 步骤4: 创建成功，跳转预览 ===== -->
+  <block wx:elif="{{authStep === 'done'}}">
+    <view class="step-card">
+      <view class="success-icon">✓</view>
+      <text class="step-title">名片创建成功！</text>
+      <text class="step-desc">正在跳转到预览页面...</text>
+    </view>
+  </block>
+
+  <!-- ===== 底部隐私说明 ===== -->
+  <view class="privacy-notice">
+    <text>您的信息仅用于制作AI数字名片</text>
+    <text>链客宝承诺严格保护您的隐私数据</text>
+  </view>
+
+</view>
