@@ -1,7 +1,8 @@
 """Directly test what happens when we serve / via the gateway logic"""
+
 import os
 
-DIST = r'D:\向海容的知识库\wiki\wiki\记忆宫殿\L5孵化室\产品开发\战略合作\链客宝\linkbao\frontend\dist'
+DIST = r"D:\向海容的知识库\wiki\wiki\记忆宫殿\L5孵化室\产品开发\战略合作\链客宝AI\linkbao\frontend\dist"
 
 # Simulate _serve_static for path "/"
 clean_path = "/".split("?")[0]

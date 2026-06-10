@@ -35,7 +35,7 @@ beforeEach(() => {
         code: 200,
         data: [
           { id: 1, title: '订单通知', content: '您的订单已发货', is_read: false, created_at: new Date().toISOString(), type: 'order' },
-          { id: 2, title: '系统消息', content: '欢迎使用链客宝', is_read: true, created_at: new Date(Date.now() - 86400000).toISOString(), type: 'system' },
+          { id: 2, title: '系统消息', content: '欢迎使用链客宝AI', is_read: true, created_at: new Date(Date.now() - 86400000).toISOString(), type: 'system' },
           { id: 3, title: '推广通知', content: '您有新的分润到账', is_read: false, created_at: new Date(Date.now() - 3600000).toISOString(), type: 'promotion' },
         ],
       });

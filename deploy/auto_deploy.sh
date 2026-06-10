@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# 链客宝 自动部署脚本（增强版）
+# 链客宝AI 自动部署脚本（增强版）
 # 服务器: 阿里云 ECS (47.100.160.250)
 # 用途: 从 Git 拉取最新代码 → 构建 → 部署 → 健康检查 → 回滚保障
 # 支持: crontab 定时 / GitHub Actions 远程执行 / 手动
@@ -249,7 +249,7 @@ health_check() {
             health_ok=true
             echo "  ✓ 健康检查通过 (HTTP $http_code, 尝试 $i/$HEALTH_RETRIES)"
             echo "    响应: $response_body"
-            
+
             # 验证响应内容
             if echo "$response_body" | grep -q '"status"[[:space:]]*:[[:space:]]*"ok"'; then
                 echo "  ✓ 响应内容验证通过"
@@ -290,7 +290,7 @@ health_check() {
     local disk_usage=$(df -h / | awk 'NR==2 {print $5}' | sed 's/%//')
     local mem_usage=$(free | awk '/Mem:/ {printf "%.0f", $3/$2 * 100}')
     local load=$(uptime | awk -F'load average:' '{print $2}' | xargs)
-    
+
     if [[ "$disk_usage" -gt 85 ]]; then
         echo "  ⚠ 磁盘使用率 ${disk_usage}% — 超过 85%"
     else
@@ -346,7 +346,7 @@ rollback() {
 
     # 回滚后健康检查
     health_check || warn "回滚后健康检查有警告"
-    
+
     log "✓ 回滚完成"
 }
 
@@ -369,7 +369,7 @@ send_notification() {
             -d "{
                 \"msgtype\": \"text\",
                 \"text\": {
-                    \"content\": \"【链客宝部署】$status\n$message\n时间: $(date '+%Y-%m-%d %H:%M:%S')\n服务器: 47.100.160.250\"
+                    \"content\": \"【链客宝AI部署】$status\n$message\n时间: $(date '+%Y-%m-%d %H:%M:%S')\n服务器: 47.100.160.250\"
                 }
             }" > /dev/null 2>&1 || true
         log "  钉钉通知已发送"
@@ -380,7 +380,7 @@ send_notification() {
 main() {
     echo ""
     echo "======================================="
-    echo "   链客宝 自动部署 (Auto Deploy)"
+    echo "   链客宝AI 自动部署 (Auto Deploy)"
     echo "   $(date '+%Y-%m-%d %H:%M:%S')"
     echo "   分支: $GIT_BRANCH"
     echo "   端口: $BACKEND_PORT"
@@ -415,7 +415,7 @@ main() {
     if ! run_deploy; then
         error "部署失败"
         send_notification "部署失败" "构建或部署步骤返回错误"
-        
+
         # 自动回滚
         if [[ "$ROLLBACK_ENABLED" = true ]] && [[ -n "$backup_dir" ]]; then
             warn "触发自动回滚..."
@@ -430,7 +430,7 @@ main() {
     if ! health_check; then
         error "健康检查失败"
         send_notification "健康检查失败" "服务已部署但健康检查未通过"
-        
+
         if [[ "$ROLLBACK_ENABLED" = true ]] && [[ -n "$backup_dir" ]]; then
             warn "触发自动回滚（健康检查失败）..."
             ROLLBACK_MODE=true

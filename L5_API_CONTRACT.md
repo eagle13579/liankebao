@@ -1,4 +1,4 @@
-# 链客宝 API 契约文档（L5 基础设施）
+# 链客宝AI API 契约文档（L5 基础设施）
 
 > **版本**: 1.0.0
 > **基地址**: `https://www.go-aiport.com` | `http://localhost:7800`

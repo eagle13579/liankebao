@@ -1,0 +1,64 @@
+/* ===== AI数字名片 品牌变量 ===== */
+/* 主色 */
+$primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+$primary-start: #667eea;
+$primary-end: #764ba2;
+$primary-light: #8b7ed7;
+$primary-dark: #5a3d8a;
+
+/* 深空背景 */
+$bg-dark: #0f0c29;
+$bg-mid: #302b63;
+$bg-light: #24243e;
+$bg-gradient: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+
+/* 辅色 */
+$accent-pink: #f5576c;
+$accent-green: #07c160;
+$accent-orange: #f59e0b;
+
+/* 文字 */
+$text-primary: #ffffff;
+$text-secondary: rgba(255, 255, 255, 0.8);
+$text-tertiary: rgba(255, 255, 255, 0.5);
+$text-dark: #1a1a2e;
+
+/* 毛玻璃 */
+$glass-bg: rgba(255, 255, 255, 0.08);
+$glass-border: rgba(255, 255, 255, 0.12);
+$glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+$glass-blur: blur(16px);
+$glass-dark-bg: rgba(15, 12, 41, 0.6);
+
+/* 圆角 */
+$radius-sm: 8px;
+$radius-md: 12px;
+$radius-lg: 16px;
+$radius-xl: 20px;
+$radius-full: 50%;
+
+/* 间距 */
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 12px;
+$spacing-lg: 16px;
+$spacing-xl: 24px;
+
+/* TabBar */
+$tab-bg: #0f172a;
+$tab-color: #94a3b8;
+$tab-active: #667eea;
+
+/* 安全区 */
+$safe-top: env(safe-area-inset-top, 44px);
+$safe-bottom: env(safe-area-inset-bottom, 0px);
+$nav-height: 44px;
+
+/* 动画 */
+$transition-fast: 0.2s ease;
+$transition-normal: 0.3s ease;
+
+/* Z-index */
+$z-nav: 100;
+$z-modal: 1000;
+$z-toast: 2000;

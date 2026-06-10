@@ -132,14 +132,28 @@ export const ProductDetailPage = memo(function ProductDetailPage() {
 });
 export const MyProducts = memo(function MyProducts() {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState(0);
+
+  // 根据 tab 映射对应的 status 参数
+  const tabStatusMap: Record<number, string | null> = {
+    0: 'approved',   // 已上架
+    1: 'pending',    // 审核中
+    2: null,         // 已下架 → 查用户所有产品（无 status 过滤）
+    3: 'rejected',   // 审核驳回
+  };
 
   const { data: products, status, error, refetch } = useApi(
     () => {
       const currentUser = api.loadToken();
       if (!currentUser) return Promise.resolve([]);
-      return api.get<{items: ProductItem[]}>('/api/products').then(r => r.data?.items || []);
+      const statusParam = tabStatusMap[activeTab];
+      let url = '/api/products?mine=true';
+      if (statusParam) {
+        url += `&status=${statusParam}`;
+      }
+      return api.get<{items: ProductItem[]}>(url).then(r => r.data?.items || []);
     },
-    []
+    [activeTab]
   );
 
   return (
@@ -159,7 +173,11 @@ export const MyProducts = memo(function MyProducts() {
 
       <nav className="flex bg-white border-b border-border-light sticky top-14 z-40 overflow-x-auto no-scrollbar">
         {['已上架', '审核中', '已下架', '审核驳回'].map((tab, i) => (
-          <button key={i} className={`flex-1 py-3 text-sm font-bold ${i === 0 ? 'text-primary-container border-b-2 border-primary-container' : 'text-text-muted'}`}>{tab}</button>
+          <button
+            key={i}
+            onClick={() => setActiveTab(i)}
+            className={`flex-1 py-3 text-sm font-bold transition-colors ${i === activeTab ? 'text-primary-container border-b-2 border-primary-container' : 'text-text-muted hover:text-on-surface'}`}
+          >{tab}</button>
         ))}
       </nav>
 
@@ -205,6 +223,8 @@ export const AddProduct = memo(function AddProduct() {
   const [newSpecName, setNewSpecName] = useState('');
   const [newSpecPrice, setNewSpecPrice] = useState('');
   const [images, setImages] = useState<string[]>([]);
+  const [toast, setToast] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error'>('success');
 
   const handleAddSpecification = () => {
     const nameTrimmed = newSpecName.trim();
@@ -215,6 +235,8 @@ export const AddProduct = memo(function AddProduct() {
       alert(`规格"${nameTrimmed}"已存在，请勿重复添加`);
       return;
     }
+    // price 含义：相对基础售价的加价金额（元）。
+    // 例如基础价格 298 元，某规格加价 50 元，则该规格售价为 348 元。
     setSpecifications(prev => [...prev, { name: nameTrimmed, price: newSpecPrice || price || '0' }]);
     setNewSpecName('');
     setNewSpecPrice('');
@@ -255,10 +277,21 @@ export const AddProduct = memo(function AddProduct() {
         images: images.length > 0 ? images : undefined
       });
       if (res.code === 200) {
-        navigate('/my-products', { state: { transition: 'push_back' } });
+        setToastType('success');
+        setToast('✅ 产品提交成功，等待审核');
+        setTimeout(() => {
+          navigate('/my-products', { state: { transition: 'push_back' } });
+        }, 1000);
+      } else {
+        setToastType('error');
+        setToast(`❌ 提交失败: ${res.message || '请稍后重试'}`);
+        setTimeout(() => setToast(''), 3000);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      setToastType('error');
+      setToast(`❌ 提交失败: ${e?.message || '网络错误'}`);
+      setTimeout(() => setToast(''), 3000);
     } finally {
       setLoading(false);
     }
@@ -301,7 +334,10 @@ export const AddProduct = memo(function AddProduct() {
           ))}
           <div className="flex gap-2 items-center">
             <input value={newSpecName} onChange={e => setNewSpecName(e.target.value)} placeholder="规格名称" className="flex-1 h-10 px-3 bg-neutral-bg/50 border border-border-light rounded-lg text-sm outline-none focus:border-primary-container" />
-            <input value={newSpecPrice} onChange={e => setNewSpecPrice(e.target.value)} placeholder="价格" type="number" className="w-24 h-10 px-3 bg-neutral-bg/50 border border-border-light rounded-lg text-sm outline-none focus:border-primary-container" />
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="text-[10px] text-text-muted font-medium whitespace-nowrap">规格加价(元)</span>
+              <input value={newSpecPrice} onChange={e => setNewSpecPrice(e.target.value)} placeholder="加价金额" type="number" className="w-24 h-10 px-3 bg-neutral-bg/50 border border-border-light rounded-lg text-sm outline-none focus:border-primary-container" />
+            </div>
             <button onClick={handleAddSpecification} className="h-10 px-4 bg-primary-container text-white rounded-lg font-bold text-sm whitespace-nowrap">添加</button>
           </div>
         </section>
@@ -355,6 +391,17 @@ export const AddProduct = memo(function AddProduct() {
           {loading ? '提交中...' : '提交上架'}
         </button>
       </footer>
+
+      {/* Toast 提示 */}
+      {toast && (
+        <div
+          className={`fixed top-20 left-1/2 -translate-x-1/2 z-[60] text-sm font-bold px-5 py-3 rounded-full shadow-lg animate-[fadeIn_0.2s_ease-out] ${
+            toastType === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+          }`}
+        >
+          {toast}
+        </div>
+      )}
     </div>
   );
 });

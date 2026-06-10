@@ -1,4 +1,4 @@
-# 链客宝微信小程序上线 Checklist
+# 链客宝AI微信小程序上线 Checklist
 
 ## 1. 微信公众平台准备
 
@@ -8,7 +8,7 @@
 - 如未认证/续费，请登录 https://mp.weixin.qq.com/ 进行认证
 
 ### 小程序类目审核
-- 根据链客宝"企业家供需匹配平台"定位，建议选择类目：
+- 根据链客宝AI"企业家供需匹配平台"定位，建议选择类目：
   - 工具 > 企业管理
   - 商业服务 > 企业服务
 - 确保营业执照等相关资质已上传
@@ -45,12 +45,12 @@
 ## 3. 代码修改清单（上线前必须完成）
 
 ### 3.1 API地址改为域名
-**文件**: `/mnt/d/链客宝/liankebao-miniapp/utils/api.js`
+**文件**: `/mnt/d/链客宝AI/liankebao-miniapp/utils/api.js`
 - 当前：`var API_BASE = 'https://47.100.160.250/api'`
 - 改为：`var API_BASE = 'https://www.go-aiport.com/api'`
 
 ### 3.2 project.config.json 上线设置
-**文件**: `/mnt/d/链客宝/liankebao-miniapp/project.config.json`
+**文件**: `/mnt/d/链客宝AI/liankebao-miniapp/project.config.json`
 - `"urlCheck": true` (保持true，上线时校验域名)
 - `"minified": true` (建议改为true，压缩代码)
 - `"es6": true` (建议改为true，启用ES6转ES5)
@@ -129,7 +129,7 @@ liankebao-miniapp/
 
 ### 5.1 上传代码
 1. 打开微信开发者工具
-2. 选择项目：`D:\链客宝\liankebao-miniapp`
+2. 选择项目：`D:\链客宝AI\liankebao-miniapp`
 3. 点击工具右上角 **"上传"** 按钮
 4. 填写版本号（建议：`1.0.0`）
 5. 填写更新说明（如："初始版本，包含产品展示、购买、订单管理功能"）

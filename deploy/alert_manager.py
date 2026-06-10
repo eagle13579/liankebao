@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-链客宝告警管理器 — Alert Manager
+链客宝AI告警管理器 — Alert Manager
 ==================================
 监控服务健康、业务指标异常，通过多渠道发送告警通知。
 
@@ -410,13 +410,13 @@ class DingTalkNotifier:
                 "markdown": {
                     "title": f"[{level}] {title}",
                     "text": (
-                        f"### 🔔 链客宝告警\n"
+                        f"### 🔔 链客宝AI告警\n"
                         f'> **级别**: <font color="{color}">{level}</font>\n'
                         f"> **标题**: {title}\n"
                         f"> **时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
                         f"{message}\n\n"
                         f"---\n"
-                        f"链客宝告警管理系统"
+                        f"链客宝AI告警管理系统"
                     ),
                 },
             }
@@ -467,7 +467,7 @@ class FeishuNotifier:
                         {
                             "tag": "note",
                             "elements": [
-                                {"tag": "plain_text", "content": "链客宝告警管理系统"}
+                                {"tag": "plain_text", "content": "链客宝AI告警管理系统"}
                             ],
                         },
                     ],
@@ -505,12 +505,12 @@ class EmailNotifier:
                 f"<h2>[{level}] {title}</h2>"
                 f"<p><b>时间:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>"
                 f"<hr><pre>{message}</pre>"
-                f"<hr><p><small>链客宝告警管理系统</small></p>"
+                f"<hr><p><small>链客宝AI告警管理系统</small></p>"
                 f"</body></html>",
                 "html",
                 "utf-8",
             )
-            msg["Subject"] = f"[{level}] 链客宝告警 - {title}"
+            msg["Subject"] = f"[{level}] 链客宝AI告警 - {title}"
             msg["From"] = self.user
             msg["To"] = self.to_addr
 
@@ -945,7 +945,7 @@ def _show_maintenance_status():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="链客宝告警管理器")
+    parser = argparse.ArgumentParser(description="链客宝AI告警管理器")
     parser.add_argument("--daemon", action="store_true", help="以守护进程模式运行")
     parser.add_argument("--stop", action="store_true", help="停止运行中的告警管理器")
     parser.add_argument("--status", action="store_true", help="查看运行状态")
@@ -1035,7 +1035,7 @@ def main():
         atexit.register(remove_pid)
 
     logger.info("=" * 50)
-    logger.info("链客宝告警管理器启动")
+    logger.info("链客宝AI告警管理器启动")
     logger.info(f"健康检查: {HEALTH_CHECK_URL}")
     logger.info(f"钉钉Webhook: {'已配置' if DINGTALK_WEBHOOK else '未配置'}")
     logger.info(f"飞书Webhook: {'已配置' if FEISHU_WEBHOOK else '未配置'}")

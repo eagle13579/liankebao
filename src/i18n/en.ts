@@ -1,4 +1,4 @@
-// 链客宝英文语言包
+// 链客宝AI英文语言包
 const en: Record<string, string> = {
   // ===== Navigation =====
   'nav.home': 'Home',
@@ -219,6 +219,20 @@ const en: Record<string, string> = {
   'home.recentOrders': 'Recent Orders',
   'home.recentContacts': 'Recent Contacts',
   'home.moreFeatures': 'More Features',
+  // ===== AI Business Card =====
+  'business_card.title': 'AI Business Card Scanner',
+  'business_card.upload': 'Upload Card Image',
+  'business_card.scanning': 'Scanning...',
+  'business_card.name': 'Name',
+  'business_card.phone': 'Phone',
+  'business_card.email': 'Email',
+  'business_card.company': 'Company',
+  'business_card.position': 'Position',
+  'business_card.drop_hint': 'Drop image here or click to upload',
+  'business_card.supported_formats': 'Supports JPG / PNG / WEBP',
+  'business_card.scan_success': 'Scan complete',
+  'business_card.scan_fail': 'Recognition failed, please retry',
+
 };
 
 export default en;

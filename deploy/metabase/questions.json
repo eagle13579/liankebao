@@ -1,18 +1,18 @@
 {
-  "description": "链客宝 Metabase 预置分析问题 — 导入到 Metabase 后可直接使用",
+  "description": "链客宝AI Metabase 预置分析问题 — 导入到 Metabase 后可直接使用",
   "version": "1.0",
   "questions": [
     {
       "name": "每日活跃用户趋势",
       "description": "统计每天有过页面访问的用户数（基于PostHog page_view事件或本地订单/名片活动）",
-      "collection": "链客宝运营分析",
+      "collection": "链客宝AI运营分析",
       "visualization": {
         "type": "line",
         "dimensions": ["day"],
         "metrics": ["active_users"]
       },
       "query": {
-        "database": "链客宝数据库",
+        "database": "链客宝AI数据库",
         "type": "native",
         "native": {
           "query": "SELECT\n    DATE(u.created_at) AS day,\n    COUNT(DISTINCT u.id) AS active_users\nFROM users u\nWHERE u.is_deleted = false\n  AND u.created_at >= CURRENT_DATE - INTERVAL '30 days'\nGROUP BY DATE(u.created_at)\nORDER BY day ASC",
@@ -28,14 +28,14 @@
     {
       "name": "名片生成量按天",
       "description": "统计每天AI数字名片的生成数量趋势",
-      "collection": "链客宝运营分析",
+      "collection": "链客宝AI运营分析",
       "visualization": {
         "type": "bar",
         "dimensions": ["day"],
         "metrics": ["cards_generated"]
       },
       "query": {
-        "database": "链客宝数据库",
+        "database": "链客宝AI数据库",
         "type": "native",
         "native": {
           "query": "SELECT\n    DATE(bc.created_at) AS day,\n    COUNT(bc.id) AS cards_generated\nFROM business_cards bc\nWHERE bc.is_deleted = false\n  AND bc.created_at >= CURRENT_DATE - INTERVAL '30 days'\nGROUP BY DATE(bc.created_at)\nORDER BY day ASC",
@@ -51,14 +51,14 @@
     {
       "name": "供需匹配成功率",
       "description": "统计发布需求的用户中，有多少最终转化为订单（供需匹配效率）",
-      "collection": "链客宝业务分析",
+      "collection": "链客宝AI业务分析",
       "visualization": {
         "type": "funnel",
         "dimensions": ["stage"],
         "metrics": ["user_count"]
       },
       "query": {
-        "database": "链客宝数据库",
+        "database": "链客宝AI数据库",
         "type": "native",
         "native": {
           "query": "WITH need_users AS (\n    SELECT DISTINCT user_id\n    FROM business_needs\n    WHERE is_deleted = false\n      AND created_at >= CURRENT_DATE - INTERVAL '90 days'\n),\norder_users AS (\n    SELECT DISTINCT user_id\n    FROM orders\n    WHERE is_deleted = false\n      AND status IN ('paid', 'shipped', 'received')\n      AND created_at >= CURRENT_DATE - INTERVAL '90 days'\n),\ncard_users AS (\n    SELECT DISTINCT user_id\n    FROM business_cards\n    WHERE is_deleted = false\n      AND created_at >= CURRENT_DATE - INTERVAL '90 days'\n)\nSELECT '注册用户' AS stage, COUNT(DISTINCT u.id) AS user_count\nFROM users u\nWHERE u.is_deleted = false\n  AND u.created_at >= CURRENT_DATE - INTERVAL '90 days'\nUNION ALL\nSELECT '已创建名片' AS stage, COUNT(*) AS user_count FROM card_users\nUNION ALL\nSELECT '已发布需求' AS stage, COUNT(*) AS user_count FROM need_users\nUNION ALL\nSELECT '已完成订单' AS stage, COUNT(*) AS user_count FROM order_users",
@@ -74,14 +74,14 @@
     {
       "name": "付费转化率",
       "description": "计算整体付费转化率：注册用户中有多少比例完成了支付",
-      "collection": "链客宝业务分析",
+      "collection": "链客宝AI业务分析",
       "visualization": {
         "type": "number",
         "dimensions": [],
         "metrics": ["conversion_rate"]
       },
       "query": {
-        "database": "链客宝数据库",
+        "database": "链客宝AI数据库",
         "type": "native",
         "native": {
           "query": "WITH stats AS (\n    SELECT\n        COUNT(DISTINCT u.id) AS total_users,\n        COUNT(DISTINCT o.user_id) AS paying_users\n    FROM users u\n    LEFT JOIN orders o ON o.user_id = u.id\n        AND o.is_deleted = false\n        AND o.status IN ('paid', 'shipped', 'received')\n    WHERE u.is_deleted = false\n)\nSELECT\n    total_users,\n    paying_users,\n    ROUND(paying_users::numeric / NULLIF(total_users, 0) * 100, 2) AS conversion_rate\nFROM stats",
@@ -97,14 +97,14 @@
     {
       "name": "用户来源渠道分布",
       "description": "统计用户按角色和来源的分布情况",
-      "collection": "链客宝用户分析",
+      "collection": "链客宝AI用户分析",
       "visualization": {
         "type": "pie",
         "dimensions": ["role"],
         "metrics": ["user_count"]
       },
       "query": {
-        "database": "链客宝数据库",
+        "database": "链客宝AI数据库",
         "type": "native",
         "native": {
           "query": "SELECT\n    COALESCE(NULLIF(role, ''), '未知') AS role,\n    COUNT(id) AS user_count\nFROM users\nWHERE is_deleted = false\nGROUP BY role\nORDER BY user_count DESC",
@@ -120,7 +120,7 @@
   ],
   "dashboards": [
     {
-      "name": "链客宝运营总览",
+      "name": "链客宝AI运营总览",
       "description": "核心运营指标看板，包含用户增长、转化漏斗、收入趋势",
       "cards": [
         {"question": "每日活跃用户趋势", "row": 0, "col": 0, "sizeX": 6, "sizeY": 4},

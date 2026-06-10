@@ -359,9 +359,9 @@ def recommend_personalized(
 ):
     """个性化推荐 — 使用 matching_engine 做协同过滤 + LLM 生成匹配理由"""
     try:
-        from matching_engine import MatchEngine
+        from app.services.matching_client import MatchingClient
 
-        engine = MatchEngine(db)
+        client = MatchingClient()
         # 获取用户发布的需求（如果有），反向匹配产品
         user_needs = (
             db.query(UserEvent)
@@ -381,7 +381,6 @@ def recommend_personalized(
 
         if need_ids:
             for nid in need_ids[:3]:  # 最多取3个需求做匹配
-                matches = engine.match_needs_to_products(nid)
                 # 获取原始需求数据用于 LLM
                 need_data = None
                 try:
@@ -397,43 +396,71 @@ def recommend_personalized(
                 except Exception:
                     pass
 
+                if not need_data:
+                    continue
+
+                # 通过 HTTP 匹配引擎获取候选产品匹配结果
+                from app.models import Product
+
+                candidates = (
+                    db.query(Product)
+                    .filter(
+                        Product.is_deleted == False,
+                        Product.status == "approved",
+                    )
+                    .limit(50)
+                    .all()
+                )
+
+                matches = []
+                for prod in candidates:
+                    product_data = {
+                        "name": getattr(prod, "name", "") or getattr(prod, "title", ""),
+                        "description": getattr(prod, "description", ""),
+                        "category": getattr(prod, "category", ""),
+                        "tags": getattr(prod, "tags", ""),
+                        "price": getattr(prod, "price", 0),
+                    }
+                    result = client.match(product_data, need_data, top_k=1)
+                    if result:
+                        for r in result:
+                            r["id"] = prod.id  # 使用真实产品ID
+                        matches.extend(result)
+
+                # 按 match_score 降序排列
+                matches.sort(key=lambda x: x.get("match_score", 0), reverse=True)
+
                 for m in matches:
-                    if m.id not in seen_ids:
+                    mid = m.get("id")
+                    if mid not in seen_ids:
                         # 尝试用 LLM 生成匹配理由（优先走缓存）
                         llm_reason = None
-                        if need_data and hasattr(m, "title"):
+                        if need_data and m.get("title"):
                             # 1) 查缓存
-                            llm_reason = _get_cached_reason(m.id, nid)
+                            llm_reason = _get_cached_reason(mid, nid)
                             if llm_reason is None:
                                 # 2) 缓存未命中 => 调用 LLM
                                 try:
                                     from app.services.llm_service import generate_matching_reason
 
-                                    product_data = {
-                                        "name": getattr(m, "title", "") or getattr(m, "name", ""),
-                                        "description": getattr(m, "description", ""),
-                                        "category": getattr(m, "category", ""),
-                                        "tags": getattr(m, "tags", ""),
-                                        "price": getattr(m, "price", 0),
-                                    }
-                                    llm_reason = generate_matching_reason(product_data, need_data)
+                                    llm_reason = generate_matching_reason(m, need_data)
                                     if llm_reason:
                                         # 3) 写入缓存
-                                        _set_cached_reason(m.id, nid, llm_reason)
+                                        _set_cached_reason(mid, nid, llm_reason)
                                 except Exception:
                                     logger.debug("LLM 匹配理由生成失败，使用规则引擎理由")
 
                         all_items.append(
                             {
-                                "id": m.id,
-                                "title": m.title,
-                                "match_score": m.match_score,
-                                "match_reasons": m.match_reasons,
+                                "id": mid,
+                                "title": m.get("title", ""),
+                                "match_score": m.get("match_score", 0),
+                                "match_reasons": m.get("match_reasons", []),
                                 "llm_reason": llm_reason,  # AI 生成的理由（缓存或实时）
-                                "strategy": m.strategy,
+                                "strategy": m.get("strategy"),
                             }
                         )
-                        seen_ids.add(m.id)
+                        seen_ids.add(mid)
 
         if not all_items:
             # 兜底：热门产品
@@ -514,9 +541,10 @@ def record_feedback(
 
     # 高价值反馈同步到匹配引擎，影响后续匹配评分
     try:
-        from matching_engine import MatchEngine
+        from app.services.matching_client import MatchingClient
 
-        MatchEngine.record_feedback(feedback.product_id, feedback.action)
+        client = MatchingClient()
+        client.feedback(feedback.product_id, feedback.action)
         logger.debug(
             "feedback_synced_to_matching_engine",
             extra={
@@ -525,7 +553,7 @@ def record_feedback(
             },
         )
     except ImportError:
-        logger.warning("matching_engine 不可用，反馈仅记录到 UserEvent")
+        logger.warning("matching_client 不可用，反馈仅记录到 UserEvent")
     except Exception as e:
         logger.error(f"同步反馈到匹配引擎失败: {e}")
 

@@ -1,6 +1,6 @@
 """liankebao-payment-sdk — 支付模块独立SDK
 
-基于链客宝 backend/payment/ 核心逻辑提取，封装为独立 pip 包。
+基于链客宝AI backend/payment/ 核心逻辑提取，封装为独立 pip 包。
 遵循 ADR-002 方案C：支付模块独立 SDK 化。
 
 设计原则:

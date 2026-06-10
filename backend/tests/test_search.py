@@ -640,7 +640,7 @@ class TestEnterpriseSearch:
 
     def test_enterprise_search_by_name(self, client):
         """按企业名称搜索"""
-        resp = client.get("/api/search/enterprises", params={"q": "链客宝"})
+        resp = client.get("/api/search/enterprises", params={"q": "链客宝AI"})
         assert resp.status_code == 200
         data = resp.json()
         assert data["code"] == 200

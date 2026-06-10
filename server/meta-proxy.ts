@@ -1,5 +1,5 @@
 /**
- * 链客宝 SEO Meta 代理服务器
+ * 链客宝AI SEO Meta 代理服务器
  * =============================
  * 轻量级 Express 服务，仅在 /app/card/:token 路由上注入 SEO meta 标签。
  * 不做 React SSR，仅做字符串级别的 HTML 模板修改。
@@ -93,8 +93,8 @@ function escapeHtml(str: string): string {
     .replace(/'/g, '&#039;');
 }
 
-const DEFAULT_TITLE = '链客宝 - 数字名片';
-const DEFAULT_DESC = '链客宝 — 一站式AI营销增长引擎，企业家的AI营销朋友圈。';
+const DEFAULT_TITLE = '链客宝AI - 数字名片';
+const DEFAULT_DESC = '链客宝AI — 一站式AI营销增长引擎，企业家的AI营销朋友圈。';
 const DEFAULT_IMAGE = `${SITE_URL}/app/og-image.png`;
 
 function buildMetaTags(cardData: CardData | null, token: string): { title: string; metaHtml: string } {
@@ -107,7 +107,7 @@ function buildMetaTags(cardData: CardData | null, token: string): { title: strin
     <meta property="og:image" content="${escapeHtml(DEFAULT_IMAGE)}" />
     <meta property="og:url" content="${escapeHtml(SITE_URL)}/app/card/${escapeHtml(token)}" />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="链客宝" />
+    <meta property="og:site_name" content="链客宝AI" />
     <meta property="og:locale" content="zh_CN" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${escapeHtml(DEFAULT_TITLE)}" />
@@ -119,7 +119,7 @@ function buildMetaTags(cardData: CardData | null, token: string): { title: strin
   }
 
   const name = cardData.name || '数字名片';
-  const title = `${name} 的数字名片 | 链客宝`;
+  const title = `${name} 的数字名片 | 链客宝AI`;
   const fields = cardData.fields || {};
   const company = fields.company || '';
   const position = fields.position || '';
@@ -133,7 +133,7 @@ function buildMetaTags(cardData: CardData | null, token: string): { title: strin
     <meta property="og:image" content="${escapeHtml(image)}" />
     <meta property="og:url" content="${escapeHtml(url)}" />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="链客宝" />
+    <meta property="og:site_name" content="链客宝AI" />
     <meta property="og:locale" content="zh_CN" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${escapeHtml(title)}" />
@@ -253,7 +253,7 @@ async function startServer() {
 
   // ---- 启动 ----
   app.listen(PORT, HOST, () => {
-    console.log(`\n  🔖 链客宝 SEO Meta Proxy 启动`);
+    console.log(`\n  🔖 链客宝AI SEO Meta Proxy 启动`);
     console.log(`  🌐 地址: http://${HOST}:${PORT}`);
     console.log(`  📇 路由: /app/card/:token (SEO meta 注入)`);
     console.log(`  ⚡ API 后端: ${API_BASE}`);

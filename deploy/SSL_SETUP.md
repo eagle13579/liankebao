@@ -1,4 +1,4 @@
-# 链客宝 SSL/域名部署指南
+# 链客宝AI SSL/域名部署指南
 
 > 域名: `www.liankebao.top` / `liankebao.top`
 > 服务器: 阿里云 ECS, IP 47.100.160.250

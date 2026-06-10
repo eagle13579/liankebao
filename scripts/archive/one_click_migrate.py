@@ -1,5 +1,5 @@
 """
-链客宝 一键数据库迁移工具
+链客宝AI 一键数据库迁移工具
 支持: SQLite → MySQL / SQLite → PostgreSQL
 
 用法:
@@ -230,7 +230,7 @@ def run_postgres_migration(args) -> bool:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="链客宝 一键数据库迁移工具",
+        description="链客宝AI 一键数据库迁移工具",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 环境变量说明:
@@ -282,7 +282,7 @@ def main():
     args = parser.parse_args()
 
     # 显示配置
-    print_banner(f"链客宝 一键迁移工具 — SQLite → {args.to.upper()}")
+    print_banner(f"链客宝AI 一键迁移工具 — SQLite → {args.to.upper()}")
     print(f"  目标数据库: {args.to}")
     if args.verify_only:
         print("  模式:       仅校验")

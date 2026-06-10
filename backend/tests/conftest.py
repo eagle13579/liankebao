@@ -107,7 +107,7 @@ _TEST_USERS = [
         password_hash=_TEST_PWHASH,
         name="管理员",
         phone="13800000000",
-        company="链客宝科技",
+        company="链客宝AI科技",
         position="系统管理员",
         role="admin",
         avatar="https://api.dicebear.com/7.x/avataaars/svg?seed=admin",

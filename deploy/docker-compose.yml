@@ -1,5 +1,5 @@
 # ============================================================
-# 链客宝 Docker Compose — 生产环境部署
+# 链客宝AI Docker Compose — 生产环境部署
 # ============================================================
 # 构建: docker compose build
 # 启动: docker compose up -d
@@ -135,3 +135,14 @@ services:
       - SETGID
       - SETUID
       - CHOWN
+  user-service:
+    build: ../user-service
+    container_name: liankebao-user-service
+    ports:
+      - "8002:8002"
+    environment:
+      - DB_TYPE=postgres
+      - DATABASE_URL=postgresql://chainke:***@host.docker.internal:5432/chainke
+    restart: always
+    networks:
+      - chainke_net

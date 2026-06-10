@@ -1,4 +1,5 @@
-"""启动链客宝后端"""
+"""启动链客宝AI后端"""
+
 import uvicorn
 
 if __name__ == "__main__":

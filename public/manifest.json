@@ -1,6 +1,6 @@
 {
-  "name": "链客宝 | AI数字名片",
-  "short_name": "链客宝",
+  "name": "链客宝AI | AI数字名片",
+  "short_name": "链客宝AI",
   "description": "企业家的AI营销朋友圈 — 连接企业主、推广员与产品方，实现精准供需匹配",
   "start_url": "/app/",
   "display": "standalone",

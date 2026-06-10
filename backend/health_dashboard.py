@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-链客宝 健康看板
+链客宝AI 健康看板
 ====================
 零依赖纯Python HTTP 服务 (BaseHTTPRequestHandler)
 - 端口: 9100
@@ -116,7 +116,7 @@ def _build_health() -> dict:
 def _prometheus_metrics(health: dict) -> str:
     """将健康状态转换为 Prometheus 文本格式"""
     lines = []
-    lines.append("# HELP liankebao_up 链客宝整体健康状态 (1=ok, 0=degraded/down)")
+    lines.append("# HELP liankebao_up 链客宝AI整体健康状态 (1=ok, 0=degraded/down)")
     lines.append("# TYPE liankebao_up gauge")
     lines.append(f"liankebao_up{ {'ok': 1, 'degraded': 0}.get(health['status'], 0) }")
 
@@ -180,7 +180,7 @@ class HealthHandler(BaseHTTPRequestHandler):
 def main():
     server = HTTPServer(("0.0.0.0", HEALTH_PORT), HealthHandler)
     print(
-        f"[链客宝健康看板] 启动于 http://0.0.0.0:{HEALTH_PORT}"
+        f"[链客宝AI健康看板] 启动于 http://0.0.0.0:{HEALTH_PORT}"
         f"  ├─ /health   → JSON 健康状态"
         f"  ├─ /metrics  → Prometheus 指标"
         f"  └─ /         → JSON 健康状态"
@@ -192,7 +192,7 @@ def main():
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\n[链客宝健康看板] 关闭服务", flush=True)
+        print("\n[链客宝AI健康看板] 关闭服务", flush=True)
         server.server_close()
 
 

@@ -212,7 +212,7 @@ def cmd_verify(args):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="链客宝 SQLite → PostgreSQL 数据迁移工具",
+        description="链客宝AI SQLite → PostgreSQL 数据迁移工具",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:

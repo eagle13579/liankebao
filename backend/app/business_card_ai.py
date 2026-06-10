@@ -1,5 +1,5 @@
 """
-链客宝 AI 名片引擎模块
+链客宝AI AI 名片引擎模块
 =======================
 管线: 上传扫描 → AI字段提取 → 生成数字名片 → 供需匹配
 
@@ -561,7 +561,7 @@ def generate_digital_card(fields: dict[str, Any]) -> dict[str, Any]:
             "page": 4,
             "type": "qrcode",
             "title": "扫码交换名片",
-            "subtitle": "打开链客宝APP扫码，一键保存联系人",
+            "subtitle": "打开链客宝AIAPP扫码，一键保存联系人",
             "style": {
                 "background": "#ffffff",
                 "textColor": "#1e293b",
@@ -649,7 +649,7 @@ def match_supply_demand(
         return []
 
     try:
-        return _run_matching(search_text, fields, top_k, db_session)
+        return _run_matching_v2(search_text, fields, top_k, db_session)
     except Exception as e:
         logger.error(f"供需匹配失败: {e}", exc_info=True)
         return []
@@ -672,31 +672,18 @@ def _lookup_enterprise(company_name: str, db_session) -> dict | None:
 
     try:
         # Step 1: 精确匹配
-        ent = (
-            db_session.query(Enterprise)
-            .filter(Enterprise.name == company_name.strip())
-            .first()
-        )
+        ent = db_session.query(Enterprise).filter(Enterprise.name == company_name.strip()).first()
         if ent:
             return _build_enterprise_profile(ent, db_session)
 
         # Step 2: 模糊匹配（名称包含）
         keyword = f"%{company_name.strip()}%"
-        ent = (
-            db_session.query(Enterprise)
-            .filter(Enterprise.name.ilike(keyword))
-            .first()
-        )
+        ent = db_session.query(Enterprise).filter(Enterprise.name.ilike(keyword)).first()
         if ent:
             return _build_enterprise_profile(ent, db_session)
 
         # Step 3: ILIKE 反向匹配（企业名包含搜索词）
-        ents = (
-            db_session.query(Enterprise)
-            .filter(Enterprise.short_name.ilike(keyword))
-            .limit(1)
-            .all()
-        )
+        ents = db_session.query(Enterprise).filter(Enterprise.short_name.ilike(keyword)).limit(1).all()
         if ents:
             return _build_enterprise_profile(ents[0], db_session)
 
@@ -728,16 +715,8 @@ def _build_enterprise_profile(ent, db_session) -> dict:
 
     relations_out = []
     try:
-        for rel in (
-            db_session.query(EnterpriseRelation)
-            .filter(EnterpriseRelation.source_id == ent.id)
-            .all()
-        ):
-            target = (
-                db_session.query(Enterprise)
-                .filter(Enterprise.id == rel.target_id)
-                .first()
-            )
+        for rel in db_session.query(EnterpriseRelation).filter(EnterpriseRelation.source_id == ent.id).all():
+            target = db_session.query(Enterprise).filter(Enterprise.id == rel.target_id).first()
             if target:
                 relations_out.append(
                     {
@@ -759,16 +738,8 @@ def _build_enterprise_profile(ent, db_session) -> dict:
 
     relations_in = []
     try:
-        for rel in (
-            db_session.query(EnterpriseRelation)
-            .filter(EnterpriseRelation.target_id == ent.id)
-            .all()
-        ):
-            source = (
-                db_session.query(Enterprise)
-                .filter(Enterprise.id == rel.source_id)
-                .first()
-            )
+        for rel in db_session.query(EnterpriseRelation).filter(EnterpriseRelation.target_id == ent.id).all():
+            source = db_session.query(Enterprise).filter(Enterprise.id == rel.source_id).first()
             if source:
                 relations_in.append(
                     {
@@ -808,9 +779,6 @@ def _run_matching(
         close_session = True
 
     try:
-        from matching_engine import MatchEngine
-
-        engine = MatchEngine(db_session)
         results: list[dict[str, Any]] = []
 
         # ===== 企业知识图谱增强 =====
@@ -831,12 +799,8 @@ def _run_matching(
                 biz_extras.append(enterprise_profile["region"])
 
             if biz_extras:
-                enterprise_search_text = (
-                    f"{search_text} {' '.join(biz_extras)}"
-                ).strip()
-                logger.info(
-                    f"企业知识图谱增强匹配: {company} → 注入 {len(biz_extras)} 个维度"
-                )
+                enterprise_search_text = (f"{search_text} {' '.join(biz_extras)}").strip()
+                logger.info(f"企业知识图谱增强匹配: {company} → 注入 {len(biz_extras)} 个维度")
 
         # --- 匹配需求（名片 → BusinessNeed）---
         try:
@@ -959,8 +923,7 @@ def _run_matching(
         results = results[:top_k]
 
         logger.info(
-            f"供需匹配完成: {len(results)} 个匹配项"
-            + (f" (企业画像: {company})" if enterprise_profile else "")
+            f"供需匹配完成: {len(results)} 个匹配项" + (f" (企业画像: {company})" if enterprise_profile else "")
         )
 
         # 将企业画像注入到返回结果中（非破坏性扩展）
@@ -1092,3 +1055,173 @@ def validate_card_fields(fields: dict[str, Any]) -> tuple[bool, list[str]]:
         errors.append("邮箱格式不正确")
 
     return (len(errors) == 0, errors)
+
+
+# ============================================================
+# 匹配引擎升级 v2: MatchEngine 集成（保留企业知识图谱增强）
+# ============================================================
+
+
+def _run_matching_v2(
+    search_text: str,
+    fields: dict[str, Any],
+    top_k: int,
+    db_session=None,
+) -> dict[str, Any] | list[dict[str, Any]]:
+    """升级版匹配：保留企业知识图谱查询，但匹配逻辑委托给MatchEngine
+
+    MatchEngine v2.1 特性:
+      - jieba分词 + TF-IDF余弦相似度
+      - 冷启动加权（新用户/新商品加权）
+      - MMR多样性重排序
+      - A/B测试框架
+    """
+    close_session = False
+    if db_session is None:
+        from app.database import SessionLocal
+
+        db_session = SessionLocal()
+        close_session = True
+
+    try:
+        results: list[dict[str, Any]] = []
+
+        # ===== 企业知识图谱增强（保留 =====
+        company = fields.get("company", "")
+        enterprise_profile = _lookup_enterprise(company, db_session)
+        enterprise_search_text = search_text
+
+        if enterprise_profile:
+            biz_extras = []
+            if enterprise_profile.get("industry"):
+                biz_extras.append(enterprise_profile["industry"])
+            if enterprise_profile.get("tags"):
+                biz_extras.append(enterprise_profile["tags"])
+            if enterprise_profile.get("business_scope"):
+                biz_extras.append(enterprise_profile["business_scope"][:200])
+            if enterprise_profile.get("region"):
+                biz_extras.append(enterprise_profile["region"])
+            if biz_extras:
+                enterprise_search_text = (f"{search_text} {' '.join(biz_extras)}").strip()
+
+        # ===== 使用 MatchEngine（如果可用）=====
+        try:
+            from matching_engine import MatchEngine
+
+            engine = MatchEngine(db_session=db_session)
+
+            # 匹配需求
+            from app.models import BusinessNeed
+
+            needs = (
+                db_session.query(BusinessNeed)
+                .filter(BusinessNeed.is_deleted == False, BusinessNeed.status == "open")
+                .limit(50)
+                .all()
+            )
+
+            need_scores = []
+            for need in needs:
+                need_text = f"{need.title} {need.description or ''} {need.category or ''}"
+                # 使用MatchEngine的TF-IDF相似度
+                tfidf_score = engine._compute_tfidf_similarity(enterprise_search_text, need_text)
+                cat_score = engine._match_category(enterprise_search_text, need.category or "")
+                score = tfidf_score * 0.7 + (cat_score / 100) * 0.3
+
+                # 企业画像加分
+                bonus = 0.0
+                if enterprise_profile:
+                    if enterprise_profile.get("industry") and need.category:
+                        if any(kw in (need.category or "") for kw in enterprise_profile["industry"].split()):
+                            bonus += 0.15
+                    if enterprise_profile.get("region") and need.region:
+                        if enterprise_profile["region"] in need.region or need.region in enterprise_profile["region"]:
+                            bonus += 0.10
+
+                score = min(score + bonus, 1.0)
+                if score > 0.1:
+                    reasons = [f"TF-IDF匹配度 {int(tfidf_score * 100)}%"]
+                    if cat_score > 20:
+                        reasons.append(f"类目匹配 {int(cat_score)}%")
+                    if bonus > 0:
+                        reasons.append(f"企业画像增强 (+{int(bonus * 100)}%)")
+                    need_scores.append(
+                        {
+                            "type": "need",
+                            "id": need.id,
+                            "title": need.title,
+                            "category": need.category,
+                            "score": round(score, 2),
+                            "reasons": reasons,
+                        }
+                    )
+
+            need_scores.sort(key=lambda x: x["score"], reverse=True)
+            results.extend(need_scores[:top_k])
+        except Exception as e:
+            logger.debug(f"MatchEngine需求匹配跳过: {e}")
+
+        # ===== 匹配产品 =====
+        try:
+            from matching_engine import MatchEngine
+
+            engine = MatchEngine(db_session=db_session)
+
+            from app.models import Product
+
+            products = (
+                db_session.query(Product)
+                .filter(Product.is_deleted == False, Product.status == "approved")
+                .limit(50)
+                .all()
+            )
+
+            prod_scores = []
+            for prod in products:
+                prod_text = f"{prod.name or ''} {prod.description or ''} {prod.category or ''} {prod.tags or ''}"
+                tfidf_score = engine._compute_tfidf_similarity(enterprise_search_text, prod_text)
+                cat_score = engine._match_category(enterprise_search_text, prod.category or "")
+                score = tfidf_score * 0.7 + (cat_score / 100) * 0.3
+
+                bonus = 0.0
+                if enterprise_profile:
+                    if enterprise_profile.get("industry") and prod.category:
+                        if any(kw in (prod.category or "") for kw in enterprise_profile["industry"].split()):
+                            bonus += 0.15
+
+                score = min(score + bonus, 1.0)
+                if score > 0.1:
+                    reasons = [f"TF-IDF匹配度 {int(tfidf_score * 100)}%"]
+                    if bonus > 0:
+                        reasons.append(f"企业画像增强 (+{int(bonus * 100)}%)")
+                    prod_scores.append(
+                        {
+                            "type": "product",
+                            "id": prod.id,
+                            "title": prod.name,
+                            "category": prod.category,
+                            "score": round(score, 2),
+                            "reasons": reasons,
+                        }
+                    )
+
+            prod_scores.sort(key=lambda x: x["score"], reverse=True)
+            results.extend(prod_scores[:top_k])
+        except Exception as e:
+            logger.debug(f"MatchEngine产品匹配跳过: {e}")
+
+        # 综合排序
+        results.sort(key=lambda x: x["score"], reverse=True)
+        results = results[:top_k]
+
+        logger.info(f"MatchEngine v2供需匹配完成: {len(results)} 个匹配项")
+
+        enhanced_result = {
+            "enterprise_profile": enterprise_profile,
+            "items": results,
+        }
+        return enhanced_result
+
+    finally:
+        if close_session:
+            db_session.close()

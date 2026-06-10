@@ -1,10 +1,10 @@
-# 链客宝 部署说明文档
+# 链客宝AI 部署说明文档
 
 ## 项目信息
 
 | 项目 | 值 |
 |------|-----|
-| 项目名称 | 链客宝 (LianKeBao) |
+| 项目名称 | 链客宝AI (LianKeBao) |
 | 域名 | liankebao.top / www.liankebao.top |
 | 服务器 | 阿里云 ECS (47.100.160.250) |
 | 前端 | Vite + React (SPA) |
@@ -405,7 +405,7 @@ sudo bash /opt/liankebao/deploy/auto_deploy.sh --rollback
 
 ### 概述
 
-链客宝支持完整的 Docker 容器化部署方案，包含以下组件：
+链客宝AI支持完整的 Docker 容器化部署方案，包含以下组件：
 
 | 服务 | 镜像/基础 | 端口 | 说明 |
 |------|-----------|------|------|
@@ -551,7 +551,7 @@ docker compose -f docker-compose.yml up -d
 # 设置开机自启（通过 systemd）
 sudo tee /etc/systemd/system/liankebao-docker.service <<'EOF'
 [Unit]
-Description=链客宝 Docker Compose
+Description=链客宝AI Docker Compose
 Requires=docker.service
 After=docker.service
 

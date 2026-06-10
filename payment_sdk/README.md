@@ -1,12 +1,12 @@
 # liankebao-payment-sdk
 
-**链客宝支付模块独立 SDK** — 微信支付 V2/V3、支付宝（预留）
+**链客宝AI支付模块独立 SDK** — 微信支付 V2/V3、支付宝（预留）
 
 ---
 
 ## 概述
 
-`liankebao-payment-sdk` 是链客宝支付模块的独立 pip 包，从 `backend/payment/` 核心逻辑提取。
+`liankebao-payment-sdk` 是链客宝AI支付模块的独立 pip 包，从 `backend/payment/` 核心逻辑提取。
 
 遵循 **ADR-002 方案C**，实现支付模块独立 SDK 化。
 
@@ -24,10 +24,10 @@
 
 ```bash
 # 从本地安装
-pip install D:/链客宝/payment_sdk/
+pip install D:/链客宝AI/payment_sdk/
 
 # 开发模式安装
-pip install -e D:/链客宝/payment_sdk/
+pip install -e D:/链客宝AI/payment_sdk/
 
 # 仅在虚拟环境中依赖
 pip install httpx cryptography
@@ -198,7 +198,7 @@ payment_sdk/
 pip install -e .[dev]
 
 # 运行所有测试
-cd D:/链客宝/payment_sdk/
+cd D:/链客宝AI/payment_sdk/
 python -m pytest tests/ -v
 
 # 指定测试文件
@@ -214,4 +214,4 @@ python -m pytest tests/ --cov=payment_sdk -v
 
 ## 许可证
 
-Proprietary — 链客宝团队
+Proprietary — 链客宝AI团队

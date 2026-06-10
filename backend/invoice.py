@@ -1,5 +1,5 @@
 """
-链客宝发票系统模块
+链客宝AI发票系统模块
 ===================
 
 功能:
@@ -14,19 +14,18 @@
     import invoice as invoice_module
     app.include_router(invoice_module.router)
 """
+
 import logging
 from datetime import datetime
-from decimal import Decimal
-from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text, desc
+from sqlalchemy import Column, DateTime, Float, Integer, String, Text, desc
 from sqlalchemy.orm import Session
 
+from app.auth import get_current_admin, get_current_user
 from app.database import Base, get_db
-from app.models import User, Order
-from app.auth import get_current_user, get_current_admin
+from app.models import Order, User
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +38,7 @@ router = APIRouter(prefix="/api/invoice", tags=["发票"])
 
 class InvoiceRequest(Base):
     """发票申请表"""
+
     __tablename__ = "invoice_requests"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
@@ -48,8 +48,12 @@ class InvoiceRequest(Base):
     title = Column(String(200), nullable=False, comment="发票抬头")
     tax_id = Column(String(50), nullable=True, comment="税号（企业发票必填）")
     email = Column(String(200), nullable=True, comment="接收电子发票的邮箱")
-    status = Column(String(20), nullable=False, default="pending",
-                    comment="状态: pending(待审核)/approved(已通过)/rejected(已拒绝)/issued(已开票)")
+    status = Column(
+        String(20),
+        nullable=False,
+        default="pending",
+        comment="状态: pending(待审核)/approved(已通过)/rejected(已拒绝)/issued(已开票)",
+    )
     remark = Column(Text, nullable=True, comment="备注/审核意见")
     created_at = Column(DateTime, default=datetime.utcnow, comment="申请时间")
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
@@ -62,32 +66,35 @@ class InvoiceRequest(Base):
 
 class InvoiceApplyRequest(BaseModel):
     """申请发票请求"""
+
     order_id: int = Field(..., description="订单ID")
     title: str = Field(..., min_length=1, max_length=200, description="发票抬头")
-    tax_id: Optional[str] = Field(None, max_length=50, description="税号")
-    email: Optional[str] = Field(None, max_length=200, description="电子邮箱")
-    remark: Optional[str] = Field(None, max_length=500, description="备注")
+    tax_id: str | None = Field(None, max_length=50, description="税号")
+    email: str | None = Field(None, max_length=200, description="电子邮箱")
+    remark: str | None = Field(None, max_length=500, description="备注")
 
 
 class InvoiceReviewRequest(BaseModel):
     """审核发票请求（管理员）"""
+
     action: str = Field(..., pattern=r"^(approved|rejected)$", description="操作: approved(通过) / rejected(拒绝)")
-    remark: Optional[str] = Field(None, max_length=500, description="审核意见")
+    remark: str | None = Field(None, max_length=500, description="审核意见")
 
 
 class InvoiceItem(BaseModel):
     """发票申请条目"""
+
     id: int
     user_id: int
     order_id: int
     amount: float
     title: str
-    tax_id: Optional[str] = None
-    email: Optional[str] = None
+    tax_id: str | None = None
+    email: str | None = None
     status: str
-    remark: Optional[str] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    remark: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     class Config:
         from_attributes = True
@@ -139,10 +146,14 @@ def apply_invoice(
         )
 
     # 2. 检查是否已申请过发票
-    existing = db.query(InvoiceRequest).filter(
-        InvoiceRequest.order_id == req.order_id,
-        InvoiceRequest.user_id == current_user.id,
-    ).first()
+    existing = (
+        db.query(InvoiceRequest)
+        .filter(
+            InvoiceRequest.order_id == req.order_id,
+            InvoiceRequest.user_id == current_user.id,
+        )
+        .first()
+    )
     if existing:
         status_cn = _INVOICE_STATUS_MAP.get(existing.status, existing.status)
         raise HTTPException(
@@ -167,7 +178,10 @@ def apply_invoice(
 
     logger.info(
         "发票申请已提交: user=%d, order=%d, amount=%.2f, title=%s",
-        current_user.id, req.order_id, order.total_price, req.title,
+        current_user.id,
+        req.order_id,
+        order.total_price,
+        req.title,
     )
 
     return {
@@ -181,7 +195,7 @@ def apply_invoice(
 def list_invoices(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页条数"),
-    status_filter: Optional[str] = Query(None, description="按状态筛选: pending/approved/rejected/issued"),
+    status_filter: str | None = Query(None, description="按状态筛选: pending/approved/rejected/issued"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -200,12 +214,7 @@ def list_invoices(
         query = query.filter(InvoiceRequest.status == status_filter)
 
     total = query.count()
-    items = (
-        query.order_by(desc(InvoiceRequest.created_at))
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-        .all()
-    )
+    items = query.order_by(desc(InvoiceRequest.created_at)).offset((page - 1) * page_size).limit(page_size).all()
 
     return {
         "code": 200,
@@ -248,7 +257,7 @@ def review_invoice(
         raise HTTPException(
             status_code=400,
             detail=f"状态不允许变更: {_INVOICE_STATUS_MAP.get(old_status, old_status)} "
-                   f"→ {_INVOICE_STATUS_MAP.get(new_status, new_status)}",
+            f"→ {_INVOICE_STATUS_MAP.get(new_status, new_status)}",
         )
 
     invoice.status = new_status
@@ -260,13 +269,17 @@ def review_invoice(
 
     logger.info(
         "发票审核完成: id=%d, order=%d, status: %s → %s (admin=%d)",
-        invoice_id, invoice.order_id, old_status, new_status, current_admin.id,
+        invoice_id,
+        invoice.order_id,
+        old_status,
+        new_status,
+        current_admin.id,
     )
 
     return {
         "code": 200,
         "message": f"发票状态已更新: {_INVOICE_STATUS_MAP.get(old_status, old_status)} "
-                   f"→ {_INVOICE_STATUS_MAP.get(new_status, new_status)}",
+        f"→ {_INVOICE_STATUS_MAP.get(new_status, new_status)}",
         "data": InvoiceItem.model_validate(invoice).model_dump(),
     }
 
@@ -302,6 +315,7 @@ def invoice_stats(
 # 嵌入前端：订单详情返回额外字段
 # ============================================================
 
+
 def get_order_invoice_info(order_id: int, db: Session) -> dict:
     """
     获取订单的发票信息，供订单详情 API 返回时嵌入。
@@ -314,9 +328,7 @@ def get_order_invoice_info(order_id: int, db: Session) -> dict:
             "invoice_id": int|None,         # 发票申请ID（如有）
         }
     """
-    invoice = db.query(InvoiceRequest).filter(
-        InvoiceRequest.order_id == order_id
-    ).first()
+    invoice = db.query(InvoiceRequest).filter(InvoiceRequest.order_id == order_id).first()
 
     if invoice:
         return {
@@ -326,7 +338,7 @@ def get_order_invoice_info(order_id: int, db: Session) -> dict:
         }
     else:
         return {
-            "invoice_eligible": True,   # 未申请过，可以申请
+            "invoice_eligible": True,  # 未申请过，可以申请
             "invoice_status": None,
             "invoice_id": None,
         }

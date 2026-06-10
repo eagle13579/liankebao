@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# 链客宝 本地一键部署脚本
+# 链客宝AI 本地一键部署脚本
 # 用途: git push → SSH → Docker Compose 全自动部署
 # 服务器: 阿里云 ECS (47.100.160.250)
 # 分支: develop (测试) / main (生产)
@@ -69,7 +69,7 @@ fail() { echo -e "  ${RED}✗${NC} $1"; exit 1; }
 # ============================================================
 usage() {
     echo ""
-    echo "链客宝 一键部署脚本"
+    echo "链客宝AI 一键部署脚本"
     echo "===================="
     echo ""
     echo "用法: bash deploy/deploy_local.sh [选项]"
@@ -141,7 +141,7 @@ done
 pre_check() {
     echo ""
     echo "=========================================="
-    echo "  链客宝 一键部署"
+    echo "  链客宝AI 一键部署"
     echo "  主机: ${REMOTE_HOST}"
     echo "  分支: ${BRANCH}"
     echo "  认证: $([ "$USE_PASSWORD" = true ] && echo '密码' || echo '密钥')"
@@ -155,7 +155,7 @@ pre_check() {
 
     # 检查本地 Git 仓库
     if [ ! -d ".git" ]; then
-        fail "当前目录不是 Git 仓库，请到链客宝项目根目录执行"
+        fail "当前目录不是 Git 仓库，请到链客宝AI项目根目录执行"
     fi
 
     # 检查 SSH 命令
@@ -268,7 +268,7 @@ ssh_deploy() {
     REMOTE_SCRIPT=$(cat << 'EOSCRIPT'
 set -e
 
-echo "[$(date '+%H:%M:%S')] ====== 链客宝 远程部署 ======"
+echo "[$(date '+%H:%M:%S')] ====== 链客宝AI 远程部署 ======"
 echo "  分支: BRANCH_PLACEHOLDER"
 echo "  目录: DIR_PLACEHOLDER"
 
@@ -393,7 +393,7 @@ verify_deploy() {
     log "=== Step 3/3: 部署验证 ==="
 
     echo ""
-    info "========== 链客宝部署状态 =========="
+    info "========== 链客宝AI部署状态 =========="
     echo ""
 
     echo "  服务器:  ${CYAN}${REMOTE_HOST}${NC}"
@@ -440,7 +440,7 @@ verify_deploy() {
 
     # 最终判断
     if [ "$health" = "200" ]; then
-        log "✅ 部署成功！链客宝已上线！"
+        log "✅ 部署成功！链客宝AI已上线！"
         echo ""
         echo "  访问地址:"
         echo "    前端: http://${REMOTE_HOST}"
@@ -458,7 +458,7 @@ verify_deploy() {
 # ============================================================
 echo ""
 echo "╔══════════════════════════════════════════════╗"
-echo "║     链客宝 一键部署工具                       ║"
+echo "║     链客宝AI 一键部署工具                       ║"
 echo "║     LianKeBao One-Click Deploy Tool           ║"
 echo "╚══════════════════════════════════════════════╝"
 echo ""

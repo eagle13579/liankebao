@@ -1,4 +1,5 @@
-"""链客宝首页「任务控制」路由 - 返回3个核心功能状态"""
+"""链客宝AI首页「任务控制」路由 - 返回3个核心功能状态"""
+
 import logging
 from datetime import datetime
 
@@ -8,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import Order, Product, User, UserEvent
+from app.models import Order, Product, User
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,8 @@ def mission_control(
             Product.owner_id == user_id,
             ~Product.is_deleted.is_(True),
         )
-        .scalar() or 0
+        .scalar()
+        or 0
     )
 
     # 2. 邀请伙伴状态：该用户推荐的下级数量
@@ -50,7 +52,8 @@ def mission_control(
         .filter(
             User.referred_by == user_id,
         )
-        .scalar() or 0
+        .scalar()
+        or 0
     )
 
     # 3. 追踪分账状态：待结算订单数 + 累计收益
@@ -60,7 +63,8 @@ def mission_control(
             Order.promoter_id == user_id,
             Order.status.in_(["paid", "shipped", "delivered"]),
         )
-        .scalar() or 0
+        .scalar()
+        or 0
     )
 
     total_earnings_result = (

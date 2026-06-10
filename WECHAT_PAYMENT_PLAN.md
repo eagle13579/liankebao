@@ -1,4 +1,4 @@
-# 链客宝微信支付对接方案
+# 链客宝AI微信支付对接方案
 
 > 路线：微信小程序JSAPI支付（微信支付最成熟的小程序支付方式）
 > 当前状态：订单系统已建、微信登录已对接、小程序AppID已注册（wxb4f6d89904200fd2）、域名已上线（www.go-aiport.com）
@@ -33,7 +33,7 @@
   - `apiclient_cert.pem`（公钥）
 - 将 `apiclient_key.pem` 和 `apiclient_cert.pem` 放入后端项目：
   ```
-  /mnt/d/链客宝/backend/certs/
+  /mnt/d/链客宝AI/backend/certs/
   ├── apiclient_key.pem
   └── apiclient_cert.pem
   ```
@@ -73,24 +73,24 @@
 ```python
 class Order(Base):
     # ... 现有字段保持不变 ...
-    
+
     # === 新增：微信支付相关字段 ===
-    payment_status = Column(String(20), nullable=False, default="pending")  
+    payment_status = Column(String(20), nullable=False, default="pending")
     # pending/paid/refunded/closed
-    
-    transaction_id = Column(String(64), nullable=True, index=True)  
+
+    transaction_id = Column(String(64), nullable=True, index=True)
     # 微信支付系统生成的订单号（transaction_id）
-    
-    prepay_id = Column(String(64), nullable=True)  
+
+    prepay_id = Column(String(64), nullable=True)
     # 预支付ID（用于小程序调起支付）
-    
-    paid_at = Column(DateTime, nullable=True)  
+
+    paid_at = Column(DateTime, nullable=True)
     # 支付完成时间
-    
-    refund_id = Column(String(64), nullable=True)  
+
+    refund_id = Column(String(64), nullable=True)
     # 退款单号（微信侧）
-    
-    refunded_at = Column(DateTime, nullable=True)  
+
+    refunded_at = Column(DateTime, nullable=True)
     # 退款完成时间
 ```
 

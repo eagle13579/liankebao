@@ -1,24 +1,24 @@
 # ============================================================================
-# 链客宝模块 (ChainKe) 数据契约
+# 链客宝AI模块 (ChainKe) 数据契约
 # 模块名: chainke
 # 版本: 1.0
 # 契约 Schema: 2.0
 # ============================================================================
-# 链客宝 — 跨境供应链协同平台
-# 本契约涵盖链客宝模块在 core schema 和自身 schema 中的所有表。
+# 链客宝AI — 跨境供应链协同平台
+# 本契约涵盖链客宝AI模块在 core schema 和自身 schema 中的所有表。
 # ============================================================================
 
 module: chainke
 version: "1.0"
 contract_schema: "2.0"
-description: "链客宝模块数据契约 —— 跨境供应链协同，涵盖商品库、订单、物流、关务、金融、商家管理"
+description: "链客宝AI模块数据契约 —— 跨境供应链协同，涵盖商品库、订单、物流、关务、金融、商家管理"
 
 tables:
   # --------------------------------------------------------------------------
   # users — 核心用户表 (core schema)
   # --------------------------------------------------------------------------
   - name: users
-    description: "核心用户表 — 链客宝可读写的用户字段子集"
+    description: "核心用户表 — 链客宝AI可读写的用户字段子集"
     allowed_fields:
       - id
       - uuid
@@ -82,7 +82,7 @@ tables:
   # organizations — 组织表 (core schema)
   # --------------------------------------------------------------------------
   - name: organizations
-    description: "组织表 — 链客宝商家/供应商/采购商的组织信息"
+    description: "组织表 — 链客宝AI商家/供应商/采购商的组织信息"
     allowed_fields:
       - id
       - uuid
@@ -172,7 +172,7 @@ tables:
   # members — 成员表 (core schema)
   # --------------------------------------------------------------------------
   - name: members
-    description: "组织成员表 — 链客宝商家成员管理"
+    description: "组织成员表 — 链客宝AI商家成员管理"
     allowed_fields:
       - id
       - uuid
@@ -223,7 +223,7 @@ tables:
   # products — 产品表 (core schema)
   # --------------------------------------------------------------------------
   - name: products
-    description: "产品表 — 链客宝商品库产品信息"
+    description: "产品表 — 链客宝AI商品库产品信息"
     allowed_fields:
       - id
       - uuid
@@ -290,7 +290,7 @@ tables:
   # tags — 标签表 (core schema)
   # --------------------------------------------------------------------------
   - name: tags
-    description: "标签表 — 链客宝商品/商家标签"
+    description: "标签表 — 链客宝AI商品/商家标签"
     allowed_fields:
       - id
       - uuid
@@ -333,7 +333,7 @@ tables:
   # user_tags — 用户标签关联表 (core schema)
   # --------------------------------------------------------------------------
   - name: user_tags
-    description: "用户标签关联 — 链客宝商家/用户标签"
+    description: "用户标签关联 — 链客宝AI商家/用户标签"
     allowed_fields:
       - id
       - user_id
@@ -365,7 +365,7 @@ tables:
   # events — 事件日志表 (core schema)
   # --------------------------------------------------------------------------
   - name: events
-    description: "事件日志表 — 链客宝操作事件记录"
+    description: "事件日志表 — 链客宝AI操作事件记录"
     allowed_fields:
       - id
       - uuid
@@ -420,7 +420,7 @@ tables:
   # chainke_merchants — 商家表 (module_chainke schema)
   # --------------------------------------------------------------------------
   - name: chainke_merchants
-    description: "链客宝商家 — 平台入驻商家的详细信息"
+    description: "链客宝AI商家 — 平台入驻商家的详细信息"
     allowed_fields:
       - id
       - uuid
@@ -546,10 +546,10 @@ tables:
       - internal_risk_score_detail
 
   # --------------------------------------------------------------------------
-  # chainke_products — 链客宝商品库 (module_chainke schema)
+  # chainke_products — 链客宝AI商品库 (module_chainke schema)
   # --------------------------------------------------------------------------
   - name: chainke_products
-    description: "链客宝商品库 — 商家上架商品的详细信息与SKU管理"
+    description: "链客宝AI商品库 — 商家上架商品的详细信息与SKU管理"
     allowed_fields:
       - id
       - uuid
@@ -701,7 +701,7 @@ tables:
   # chainke_orders — 订单表 (module_chainke schema)
   # --------------------------------------------------------------------------
   - name: chainke_orders
-    description: "链客宝订单 — 跨境采购订单信息"
+    description: "链客宝AI订单 — 跨境采购订单信息"
     allowed_fields:
       - id
       - uuid
@@ -831,7 +831,7 @@ tables:
   # chainke_logistics — 物流信息表 (module_chainke schema)
   # --------------------------------------------------------------------------
   - name: chainke_logistics
-    description: "链客宝物流 — 跨境物流追踪与关务信息"
+    description: "链客宝AI物流 — 跨境物流追踪与关务信息"
     allowed_fields:
       - id
       - uuid
@@ -929,7 +929,7 @@ tables:
   # chainke_inquiries — 询盘表 (module_chainke schema)
   # --------------------------------------------------------------------------
   - name: chainke_inquiries
-    description: "链客宝询盘 — 买家的采购意向与询价记录"
+    description: "链客宝AI询盘 — 买家的采购意向与询价记录"
     allowed_fields:
       - id
       - uuid
@@ -1010,7 +1010,7 @@ tables:
   # chainke_finance — 财务记录表 (module_chainke schema)
   # --------------------------------------------------------------------------
   - name: chainke_finance
-    description: "链客宝财务 — 交易结算与资金流记录"
+    description: "链客宝AI财务 — 交易结算与资金流记录"
     allowed_fields:
       - id
       - uuid
@@ -1099,7 +1099,7 @@ tables:
   # chainke_contracts — 合同表 (module_chainke schema)
   # --------------------------------------------------------------------------
   - name: chainke_contracts
-    description: "链客宝合同 — 商家间采购/合作协议"
+    description: "链客宝AI合同 — 商家间采购/合作协议"
     allowed_fields:
       - id
       - uuid

@@ -1,5 +1,5 @@
 /**
- * 链客宝自建BI看板
+ * 链客宝AI自建BI看板
  * ===================
  * 使用 Chart.js CDN 绘制趋势图表
  * 后端接口: /api/bi/*
@@ -1049,7 +1049,7 @@ export default function BIPage() {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#111827' }}>📊 链客宝 BI 看板</h1>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#111827' }}>📊 链客宝AI BI 看板</h1>
             <p style={{ margin: '4px 0 0', fontSize: 13, color: '#6B7280' }}>
               实时数据聚合 · 自建轻量仪表盘
             </p>

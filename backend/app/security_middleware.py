@@ -1,5 +1,5 @@
 """
-链客宝 – 安全中间件
+链客宝AI – 安全中间件
 
 提供基于内存令牌桶的速率限制器 RateLimiter 以及
 基于 Starlette / FastAPI ASGI 的 SecurityHeadersMiddleware。
@@ -7,8 +7,8 @@
 零外部依赖，仅使用 Python 标准库。
 """
 
-import time
 import ast
+import time
 import typing as t
 
 
@@ -49,7 +49,7 @@ class RateLimiter:
         self._window = window
 
         # key -> (tokens, last_refill_timestamp)
-        self._buckets: t.Dict[str, t.Tuple[float, float]] = {}
+        self._buckets: dict[str, tuple[float, float]] = {}
 
         self._check_counter = 0
         self._cleanup_interval = 100  # 每 100 次检查清理一次
@@ -100,11 +100,7 @@ class RateLimiter:
         self._check_counter = 0
 
         cutoff = now - self._window
-        stale_keys = [
-            k
-            for k, (_, last_refill) in self._buckets.items()
-            if last_refill < cutoff
-        ]
+        stale_keys = [k for k, (_, last_refill) in self._buckets.items() if last_refill < cutoff]
         for k in stale_keys:
             del self._buckets[k]
 
@@ -114,8 +110,7 @@ class RateLimiter:
 
     def __repr__(self) -> str:
         return (
-            f"<RateLimiter rate={self._rate} burst={self._burst} "
-            f"window={self._window}s buckets={len(self._buckets)}>"
+            f"<RateLimiter rate={self._rate} burst={self._burst} window={self._window}s buckets={len(self._buckets)}>"
         )
 
 
@@ -151,7 +146,7 @@ class SecurityHeadersMiddleware:
         )
     """
 
-    DEFAULT_HEADERS: t.Dict[str, str] = {
+    DEFAULT_HEADERS: dict[str, str] = {
         "X-Content-Type-Options": "nosniff",
         "X-Frame-Options": "DENY",
         "X-XSS-Protection": "1; mode=block",
@@ -165,8 +160,8 @@ class SecurityHeadersMiddleware:
     def __init__(
         self,
         app: t.Any,
-        cors_origins: t.Optional[t.List[str]] = None,
-        extra_headers: t.Optional[t.Dict[str, str]] = None,
+        cors_origins: list[str] | None = None,
+        extra_headers: dict[str, str] | None = None,
     ) -> None:
         """
 
@@ -182,9 +177,9 @@ class SecurityHeadersMiddleware:
 
     async def __call__(
         self,
-        scope: t.Dict[str, t.Any],
-        receive: t.Callable[[], t.Awaitable[t.Dict[str, t.Any]]],
-        send: t.Callable[[t.Dict[str, t.Any]], t.Awaitable[None]],
+        scope: dict[str, t.Any],
+        receive: t.Callable[[], t.Awaitable[dict[str, t.Any]]],
+        send: t.Callable[[dict[str, t.Any]], t.Awaitable[None]],
     ) -> None:
         """ASGI 调用入口。"""
 
@@ -196,37 +191,26 @@ class SecurityHeadersMiddleware:
         requested_method: str = ""
         if self.cors_origins is not None:
             headers_dict = dict(scope.get("headers", []))
-            requested_method = headers_dict.get(
-                b"access-control-request-method", b""
-            ).decode("ascii", errors="ignore")
+            requested_method = headers_dict.get(b"access-control-request-method", b"").decode("ascii", errors="ignore")
 
-        is_preflight = (
-            scope.get("method", "").upper() == "OPTIONS"
-            and requested_method
-        )
+        is_preflight = scope.get("method", "").upper() == "OPTIONS" and requested_method
 
-        async def send_with_headers(message: t.Dict[str, t.Any]) -> None:
+        async def send_with_headers(message: dict[str, t.Any]) -> None:
             """拦截 send 事件，在响应头中添加安全头。"""
             if message["type"] == "http.response.start":
                 headers = list(message.get("headers", []))
 
                 # 添加默认安全头
                 for name, value in self.DEFAULT_HEADERS.items():
-                    headers.append(
-                        (name.encode("latin-1"), value.encode("latin-1"))
-                    )
+                    headers.append((name.encode("latin-1"), value.encode("latin-1")))
 
                 # 添加自定义额外头
                 for name, value in self.extra_headers.items():
-                    headers.append(
-                        (name.encode("latin-1"), value.encode("latin-1"))
-                    )
+                    headers.append((name.encode("latin-1"), value.encode("latin-1")))
 
                 # 对预检请求注入 CORS 头
                 if is_preflight:
-                    cors_headers = self._build_cors_headers(
-                        scope.get("headers", [])
-                    )
+                    cors_headers = self._build_cors_headers(scope.get("headers", []))
                     headers.extend(cors_headers)
 
                 message["headers"] = headers
@@ -241,10 +225,10 @@ class SecurityHeadersMiddleware:
 
     def _build_cors_headers(
         self,
-        raw_headers: t.List[t.Tuple[bytes, bytes]],
-    ) -> t.List[t.Tuple[bytes, bytes]]:
+        raw_headers: list[tuple[bytes, bytes]],
+    ) -> list[tuple[bytes, bytes]]:
         """根据请求来源构建 CORS 响应头。"""
-        headers: t.List[t.Tuple[bytes, bytes]] = []
+        headers: list[tuple[bytes, bytes]] = []
 
         # 解析 Origin
         origin = ""
@@ -265,7 +249,7 @@ class SecurityHeadersMiddleware:
 
         return headers
 
-    def _resolve_cors_origin(self, origin: str) -> t.Optional[str]:
+    def _resolve_cors_origin(self, origin: str) -> str | None:
         """检查 origin 是否在白名单中，返回允许的 origin 值。"""
         if not origin or self.cors_origins is None:
             return None
@@ -282,7 +266,7 @@ class SecurityHeadersMiddleware:
 
 if __name__ == "__main__":
     # 1. ast.parse 验证语法
-    with open(__file__, "r", encoding="utf-8") as fh:
+    with open(__file__, encoding="utf-8") as fh:
         source = fh.read()
     tree = ast.parse(source, filename=__file__)
     print(f"[OK] ast.parse 通过 — AST 包含 {len(tree.body)} 个顶级节点")

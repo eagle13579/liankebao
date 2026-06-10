@@ -15,10 +15,37 @@ async function request<T>(path: string, options?: RequestInit): Promise<ApiRespo
   const isFormData = options?.body instanceof FormData;
   const headers: Record<string,string> = isFormData ? {} : {'Content-Type': 'application/json'};
   if (t) headers['Authorization'] = 'Bearer ' + t;
-  try {
+    try {
     const res = await fetch(API_BASE + path, {...options, headers});
     if (!res.ok) {
-      return { code: res.status, message: `HTTP ${res.status}: ${res.statusText}` };
+      // 尝试读取后端的错误详情，用人话显示
+      try {
+        const errBody = await res.json();
+        const detail = errBody?.detail || errBody?.message || '';
+        if (Array.isArray(detail)) {
+          // FastAPI 422 验证错误格式 → 翻译成中文
+          const i18n: Record<string, string> = {
+            'String should have at least 1 character': '此项不能为空',
+            'String should have at least 6 characters': '密码长度不能少于6位',
+            'String should have at least 8 characters': '密码长度不能少于8位',
+            'field required': '此项为必填项',
+            'value is not a valid email': '邮箱格式不正确',
+            'value is not a valid phone number': '手机号格式不正确',
+            'ensure this value has at least 1 characters': '此项不能为空',
+            'ensure this value has at least 6 characters': '密码长度不能少于6位',
+            'field required': '请填写此项',
+          };
+          const msgs = detail.map((d: any) => {
+            const raw = d.msg || '';
+            return i18n[raw] || raw;
+          }).filter(Boolean);
+          return { code: res.status, message: msgs.join('；') || '请求数据有误' };
+        }
+        if (typeof detail === 'string' && detail) {
+          return { code: res.status, message: detail };
+        }
+      } catch {}
+      return { code: res.status, message: `操作失败，请检查输入是否正确` };
     }
     const json = await res.json();
     // 兼容两种后端响应格式：

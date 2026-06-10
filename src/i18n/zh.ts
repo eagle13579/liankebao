@@ -1,4 +1,4 @@
-// 链客宝中文语言包
+// 链客宝AI中文语言包
 const zh: Record<string, string> = {
   // ===== 导航 =====
   'nav.home': '首页',
@@ -32,7 +32,7 @@ const zh: Record<string, string> = {
   'auth.logout': '退出登录',
   'auth.username': '账号',
   'auth.password': '密码',
-  'auth.loginTitle': '链客宝',
+  'auth.loginTitle': '链客宝AI',
   'auth.loginSubtitle': '企业信任关系网络 — 每一次对接，都建立在已验证的信任之上',
   'auth.wechatLogin': '微信一键登录',
   'auth.otherWays': '其他方式',
@@ -48,7 +48,7 @@ const zh: Record<string, string> = {
   'auth.trustEncryptionDesc': 'SSL/TLS 安全通道',
   'auth.trustService': '平台服务保障',
   'auth.trustServiceDesc': '信任护航 · 安心对接',
-  'auth.copyright': '企业信任关系网络 © 2025 链客宝 · 版权所有',
+  'auth.copyright': '企业信任关系网络 © 2025 链客宝AI · 版权所有',
   'auth.registerTitle': '完善资料',
   'auth.uploadAvatar': '点击上传头像',
   'auth.usernamePlaceholder': '登录用户名',
@@ -219,6 +219,34 @@ const zh: Record<string, string> = {
   'home.recentOrders': '最近订单',
   'home.recentContacts': '最近联系人',
   'home.moreFeatures': '更多功能',
+  // ===== AI名片扫描 =====
+  'business_card.title': 'AI名片扫描',
+  'business_card.upload': '上传名片图片',
+  'business_card.scanning': '正在识别...',
+  'business_card.name': '姓名',
+  'business_card.phone': '电话',
+  'business_card.email': '邮箱',
+  'business_card.company': '公司',
+  'business_card.position': '职位',
+  'business_card.drop_hint': '拖拽图片到此处，或点击上传',
+  'business_card.supported_formats': '支持 JPG / PNG / WEBP 格式',
+  'business_card.scan_success': '扫描完成',
+  'business_card.scan_fail': '识别失败，请重试',
+
+  // ===== AI名片扫描 =====
+  'business_card.title': 'AI名片扫描',
+  'business_card.upload': '上传名片图片',
+  'business_card.scanning': '正在识别...',
+  'business_card.result': '识别结果',
+  'business_card.name': '姓名',
+  'business_card.phone': '电话',
+  'business_card.email': '邮箱',
+  'business_card.company': '公司',
+  'business_card.position': '职位',
+  'business_card.drop_hint': '拖拽图片到此处，或点击上传',
+  'business_card.supported_formats': '支持 JPG / PNG / WEBP 格式',
+  'business_card.scan_success': '扫描完成',
+  'business_card.scan_fail': '识别失败，请重试',
 };
 
 export default zh;

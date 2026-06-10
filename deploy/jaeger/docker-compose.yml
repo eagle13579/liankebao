@@ -1,5 +1,5 @@
 # ============================================================
-# Jaeger AllInOne — 链客宝本地分布式追踪
+# Jaeger AllInOne — 链客宝AI本地分布式追踪
 # ============================================================
 # 一键启动:
 #   docker compose -f deploy/jaeger/docker-compose.yml up -d

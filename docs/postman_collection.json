@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "链客宝 API",
-    "description": "链客宝后端 API 集合 — Premium Business Network and Entrepreneur Supply-Demand Matching Platform\n\n环境变量:\n- {{base_url}}: API 基础地址 (默认: https://www.go-aiport.com)\n- {{token}}: Bearer 令牌 (登录后自动获取)",
+    "name": "链客宝AI API",
+    "description": "链客宝AI后端 API 集合 — Premium Business Network and Entrepreneur Supply-Demand Matching Platform\n\n环境变量:\n- {{base_url}}: API 基础地址 (默认: https://www.go-aiport.com)\n- {{token}}: Bearer 令牌 (登录后自动获取)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "liankebao"
   },
@@ -733,7 +733,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"message\": \"来链客宝一起做生意！\"\n}"
+              "raw": "{\n  \"message\": \"来链客宝AI一起做生意！\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/growth/invite",

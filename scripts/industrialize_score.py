@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-链客宝 工业化全景扫描与评分工具
+链客宝AI 工业化全景扫描与评分工具
 ===============================
 自动扫描项目代码并输出10维度工业化评分。
 用法: python scripts/industrialize_score.py
@@ -22,7 +22,6 @@ import json
 import os
 import subprocess
 import sys
-from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -46,8 +45,16 @@ def sh(cmd: str, capture: bool = True) -> str:
 def _find_count(pattern: str, path: str = ".", exclude_patterns: list = None) -> int:
     """Cross-platform file counting excluding venv/node_modules etc."""
     if exclude_patterns is None:
-        exclude_patterns = ["venv", "venv_new", "node_modules", "dist",
-                            "dist-ssr", ".git", ".ruff_cache", "__pycache__"]
+        exclude_patterns = [
+            "venv",
+            "venv_new",
+            "node_modules",
+            "dist",
+            "dist-ssr",
+            ".git",
+            ".ruff_cache",
+            "__pycache__",
+        ]
     cmd = f'find "{path}" -type f -name "{pattern}"'
     for ep in exclude_patterns:
         cmd += f' -not -path "*/{ep}/*"'
@@ -65,14 +72,25 @@ def scan_file_counts() -> dict:
         "py_files": _find_count("*.py"),
         "ts_files": _find_count("*.ts") + _find_count("*.tsx"),
         "css_files": _find_count("*.css"),
-        "test_files_py": int(sh("find backend/tests -type f -name '*.py' | wc -l") or 0),
+        "test_files_py": int(
+            sh("find backend/tests -type f -name '*.py' | wc -l") or 0
+        ),
         "test_files_ts": int(sh("find src/__tests__ -type f | wc -l") or 0),
     }
 
 
 def scan_loc() -> dict:
     """Count lines of code excluding generated/vendor code."""
-    exclude_dirs = ["venv", "venv_new", "node_modules", "dist", "dist-ssr", ".git", ".ruff_cache", "__pycache__"]
+    exclude_dirs = [
+        "venv",
+        "venv_new",
+        "node_modules",
+        "dist",
+        "dist-ssr",
+        ".git",
+        ".ruff_cache",
+        "__pycache__",
+    ]
     py_loc = 0
     for f in Path(".").rglob("*.py"):
         skip = False
@@ -82,14 +100,18 @@ def scan_loc() -> dict:
                 break
         if not skip:
             try:
-                py_loc += len(f.read_text(encoding="utf-8", errors="ignore").splitlines())
+                py_loc += len(
+                    f.read_text(encoding="utf-8", errors="ignore").splitlines()
+                )
             except Exception:
                 pass
     ts_loc = 0
     for ext in ["*.ts", "*.tsx", "*.jsx"]:
         for f in Path("src").rglob(ext):
             try:
-                ts_loc += len(f.read_text(encoding="utf-8", errors="ignore").splitlines())
+                ts_loc += len(
+                    f.read_text(encoding="utf-8", errors="ignore").splitlines()
+                )
             except Exception:
                 pass
     return {"py_loc": py_loc, "ts_loc": ts_loc}
@@ -102,9 +124,14 @@ def scan_api_endpoints() -> list:
         if rf.name == "__init__.py":
             continue
         text = rf.read_text(encoding="utf-8")
-        n = sum(1 for line in text.splitlines() if any(
-            f".{method}(" in line for method in ["get", "post", "put", "delete", "patch"]
-        ))
+        n = sum(
+            1
+            for line in text.splitlines()
+            if any(
+                f".{method}(" in line
+                for method in ["get", "post", "put", "delete", "patch"]
+            )
+        )
         if n > 0:
             counts[rf.stem] = n
     return counts
@@ -115,10 +142,12 @@ def scan_security() -> dict:
     issues = {
         "env_perms": sh("stat -c '%a' .env 2>/dev/null").strip(),
         "env_in_gitignore": ".env" in sh("grep -E '^\\.env$' .gitignore 2>/dev/null"),
-        "csp_configured": "Content-Security-Policy" in sh("grep -rl 'Content-Security-Policy' backend/app/ 2>/dev/null"),
+        "csp_configured": "Content-Security-Policy"
+        in sh("grep -rl 'Content-Security-Policy' backend/app/ 2>/dev/null"),
         "rate_limiting": Path("backend/app/middleware/rate_limit.py").exists(),
         "rbac": Path("backend/app/rbac.py").exists(),
-        "sentry": "sentry_sdk" in sh("grep -r 'sentry_sdk' backend/app/sentry_config.py 2>/dev/null"),
+        "sentry": "sentry_sdk"
+        in sh("grep -r 'sentry_sdk' backend/app/sentry_config.py 2>/dev/null"),
     }
     return issues
 
@@ -174,7 +203,9 @@ def score_architecture(endpoints: dict, has_gateway: bool, has_alembic: bool) ->
     }
 
 
-def score_code_quality(n_tests: int, coverage: float, has_lint: bool, has_precommit: bool) -> dict:
+def score_code_quality(
+    n_tests: int, coverage: float, has_lint: bool, has_precommit: bool
+) -> dict:
     """Score dimension 2: Code Quality."""
     score = 55
     # Test quantity
@@ -210,17 +241,23 @@ def score_security(sec: dict) -> dict:
     total_checks = 6
 
     if sec["env_in_gitignore"]:
-        score += 5; checks_passed += 1
+        score += 5
+        checks_passed += 1
     if sec["csp_configured"]:
-        score += 5; checks_passed += 1
+        score += 5
+        checks_passed += 1
     if sec["rate_limiting"]:
-        score += 5; checks_passed += 1
+        score += 5
+        checks_passed += 1
     if sec["rbac"]:
-        score += 5; checks_passed += 1
+        score += 5
+        checks_passed += 1
     if sec["sentry"]:
-        score += 3; checks_passed += 1
+        score += 3
+        checks_passed += 1
     if Path("backend/app/security_hardening.py").exists():
-        score += 7; checks_passed += 1
+        score += 7
+        checks_passed += 1
 
     # Check security audit report
     if Path("security_audit_report.json").exists():
@@ -239,21 +276,29 @@ def score_ai() -> dict:
     details = []
 
     if Path("backend/app/business_card_ai.py").exists():
-        score += 10; details.append("business_card_ai")
+        score += 10
+        details.append("business_card_ai")
     if Path("backend/matching_engine.py").exists():
-        score += 10; details.append("matching_engine")
+        score += 10
+        details.append("matching_engine")
     if Path("backend/app/vector_search.py").exists():
-        score += 10; details.append("vector_search")
+        score += 10
+        details.append("vector_search")
     if Path("backend/app/services/llm_service.py").exists():
-        score += 8; details.append("llm_service")
+        score += 8
+        details.append("llm_service")
     if Path("backend/app/enterprise_crawler.py").exists():
-        score += 5; details.append("enterprise_crawler")
+        score += 5
+        details.append("enterprise_crawler")
     if Path("backend/app/services/enrichment_providers.py").exists():
-        score += 5; details.append("enrichment_providers")
+        score += 5
+        details.append("enrichment_providers")
     if Path("backend/app/search_index.py").exists():
-        score += 5; details.append("search_index")
+        score += 5
+        details.append("search_index")
     if Path("backend/llm_cost_controller.py").exists():
-        score += 2; details.append("llm_cost_controller")
+        score += 2
+        details.append("llm_cost_controller")
 
     return {
         "score": min(score, 100),
@@ -268,25 +313,35 @@ def score_devops() -> dict:
     items = []
 
     if Path("docker-compose.yml").exists():
-        score += 5; items.append("docker-compose")
+        score += 5
+        items.append("docker-compose")
     if Path("Dockerfile").exists():
-        score += 5; items.append("Dockerfile")
+        score += 5
+        items.append("Dockerfile")
     if Path(".github/workflows/ci.yml").exists():
-        score += 5; items.append("ci_workflow")
+        score += 5
+        items.append("ci_workflow")
     if Path(".github/workflows/deploy.yml").exists():
-        score += 5; items.append("deploy_workflow")
+        score += 5
+        items.append("deploy_workflow")
     if Path("deploy/").exists() and list(Path("deploy/").iterdir()):
-        score += 5; items.append("deploy_scripts")
+        score += 5
+        items.append("deploy_scripts")
     if Path("Makefile").exists():
-        score += 3; items.append("Makefile")
+        score += 3
+        items.append("Makefile")
     if Path("backend/app/observability.py").exists():
-        score += 3; items.append("observability")
+        score += 3
+        items.append("observability")
     if Path("backend/app/telemetry.py").exists():
-        score += 3; items.append("telemetry")
+        score += 3
+        items.append("telemetry")
     if Path("backend/health_dashboard.py").exists():
-        score += 3; items.append("health_dashboard")
+        score += 3
+        items.append("health_dashboard")
     if Path("scripts/security-check.sh").exists():
-        score += 3; items.append("security_check")
+        score += 3
+        items.append("security_check")
 
     return {
         "score": min(score, 100),
@@ -301,26 +356,39 @@ def score_data_architecture() -> dict:
     items = []
 
     if Path("backend/app/database.py").exists():
-        score += 5; items.append("database_module")
+        score += 5
+        items.append("database_module")
     if Path("backend/app/database_postgres.py").exists():
-        score += 5; items.append("pg_support")
-    if Path("backend/alembic/").exists() and list(Path("backend/alembic/versions/").iterdir()):
-        score += 8; items.append("alembic_migrations")
+        score += 5
+        items.append("pg_support")
+    if Path("backend/alembic/").exists() and list(
+        Path("backend/alembic/versions/").iterdir()
+    ):
+        score += 8
+        items.append("alembic_migrations")
     if Path("backend/app/models.py").exists():
-        score += 5; items.append("orm_models")
+        score += 5
+        items.append("orm_models")
     if Path("backend/app/optimistic_lock.py").exists():
-        score += 5; items.append("optimistic_lock")
+        score += 5
+        items.append("optimistic_lock")
     if Path("backend/reconciliation.py").exists():
-        score += 5; items.append("reconciliation")
+        score += 5
+        items.append("reconciliation")
     if Path("backend/app/tenant.py").exists():
-        score += 5; items.append("multi_tenant")
+        score += 5
+        items.append("multi_tenant")
     if Path("backend/app/tenant_middleware.py").exists():
-        score += 4; items.append("tenant_middleware")
+        score += 4
+        items.append("tenant_middleware")
 
     # Check for soft delete
-    grep_out = sh("grep -rn is_deleted backend/app/models.py 2>/dev/null; grep -rn deleted_at backend/app/models.py 2>/dev/null")
+    grep_out = sh(
+        "grep -rn is_deleted backend/app/models.py 2>/dev/null; grep -rn deleted_at backend/app/models.py 2>/dev/null"
+    )
     if grep_out.strip():
-        score += 3; items.append("soft_delete")
+        score += 3
+        items.append("soft_delete")
 
     return {
         "score": min(score, 100),
@@ -335,25 +403,37 @@ def score_frontend() -> dict:
     items = []
 
     if Path("vite.config.ts").exists():
-        score += 5; items.append("vite")
+        score += 5
+        items.append("vite")
     if Path("tsconfig.json").exists():
-        score += 5; items.append("typescript")
+        score += 5
+        items.append("typescript")
     if Path("src/__tests__/").exists() and list(Path("src/__tests__/").iterdir()):
-        score += 8; items.append("frontend_tests")
+        score += 8
+        items.append("frontend_tests")
     if Path("src/api/client.ts").exists():
-        score += 5; items.append("api_client")
+        score += 5
+        items.append("api_client")
     if Path("src/components/").exists():
-        score += 5; items.append("components")
+        score += 5
+        items.append("components")
     if Path("server/ssr.ts").exists():
-        score += 5; items.append("ssr")
+        score += 5
+        items.append("ssr")
     if Path("src/pwa.tsx").exists():
-        score += 3; items.append("pwa")
+        score += 3
+        items.append("pwa")
     if Path("src/i18n/").exists():
-        score += 3; items.append("i18n")
+        score += 3
+        items.append("i18n")
     if Path("src/main.tsx").exists():
-        score += 3; items.append("main_tsx")
-    if Path("tailwind.config.js").exists() or "tailwindcss" in sh("grep -o 'tailwindcss' package.json 2>/dev/null"):
-        score += 3; items.append("tailwind")
+        score += 3
+        items.append("main_tsx")
+    if Path("tailwind.config.js").exists() or "tailwindcss" in sh(
+        "grep -o 'tailwindcss' package.json 2>/dev/null"
+    ):
+        score += 3
+        items.append("tailwind")
 
     return {
         "score": min(score, 100),
@@ -367,21 +447,37 @@ def score_documentation() -> dict:
     score = 50
     items = []
 
-    docs = ["ARCHITECTURE.md", "AI_MODULE_ARCHITECTURE.md", "L5_API_CONTRACT.md",
-            "DEVELOPMENT_BEST_PRACTICE.md", "README.md", "README-小程序.md",
-            "PRICING.md", "GO_TO_MARKET.md", "GITHUB_SECRETS_SOP.md",
-            "docker-compose.yml", "security_audit_report.json"]
+    docs = [
+        "ARCHITECTURE.md",
+        "AI_MODULE_ARCHITECTURE.md",
+        "L5_API_CONTRACT.md",
+        "DEVELOPMENT_BEST_PRACTICE.md",
+        "README.md",
+        "README-小程序.md",
+        "PRICING.md",
+        "GO_TO_MARKET.md",
+        "GITHUB_SECRETS_SOP.md",
+        "docker-compose.yml",
+        "security_audit_report.json",
+    ]
 
     for d in docs:
         if Path(d).exists():
-            score += 3; items.append(d)
+            score += 3
+            items.append(d)
 
     if Path("docs/").exists():
-        score += 3; items.append("docs_dir")
-    if Path("backend/app/main.py").exists() and "docs_url" in Path("backend/app/main.py").read_text():
-        score += 5; items.append("openapi_docs")
+        score += 3
+        items.append("docs_dir")
+    if (
+        Path("backend/app/main.py").exists()
+        and "docs_url" in Path("backend/app/main.py").read_text()
+    ):
+        score += 5
+        items.append("openapi_docs")
     if Path("backend/app/schemas.py").exists():
-        score += 3; items.append("pydantic_schemas")
+        score += 3
+        items.append("pydantic_schemas")
 
     return {
         "score": min(score, 100),
@@ -396,27 +492,38 @@ def score_collaboration() -> dict:
     items = []
 
     if Path(".pre-commit-config.yaml").exists():
-        score += 5; items.append("pre_commit")
+        score += 5
+        items.append("pre_commit")
     if Path(".github/workflows/ci.yml").exists():
-        score += 5; items.append("ci")
+        score += 5
+        items.append("ci")
     if Path(".github/workflows/lint.yml").exists():
-        score += 3; items.append("lint_workflow")
+        score += 3
+        items.append("lint_workflow")
     if Path("Makefile").exists():
-        score += 5; items.append("makefile")
+        score += 5
+        items.append("makefile")
     if Path(".flake8").exists():
-        score += 3; items.append("flake8")
+        score += 3
+        items.append("flake8")
     if Path(".gitignore").exists():
-        score += 3; items.append("gitignore")
+        score += 3
+        items.append("gitignore")
     if Path("pyproject.toml").exists():
-        score += 3; items.append("pyproject")
+        score += 3
+        items.append("pyproject")
     if Path("CONTRIBUTING.md").exists():
-        score += 3; items.append("contributing")
+        score += 3
+        items.append("contributing")
     if Path("CODE_OF_CONDUCT.md").exists():
-        score += 2; items.append("code_of_conduct")
+        score += 2
+        items.append("code_of_conduct")
     if Path("LICENSE").exists():
-        score += 3; items.append("license")
+        score += 3
+        items.append("license")
     if Path("CHANGELOG.md").exists():
-        score += 5; items.append("changelog")
+        score += 5
+        items.append("changelog")
 
     return {
         "score": min(score, 100),
@@ -432,28 +539,36 @@ def score_business() -> dict:
 
     # Pricing & market docs
     if Path("PRICING.md").exists():
-        score += 5; items.append("pricing_doc")
+        score += 5
+        items.append("pricing_doc")
     if Path("GO_TO_MARKET.md").exists():
-        score += 5; items.append("gtm_doc")
+        score += 5
+        items.append("gtm_doc")
     if Path("payment_sdk/").exists():
-        score += 5; items.append("payment_sdk")
+        score += 5
+        items.append("payment_sdk")
 
     # Payment config
     env_text = Path(".env").read_text() if Path(".env").exists() else ""
     if "WXPAY_MCHID" in env_text:
-        score += 5; items.append("wxpay_config")
+        score += 5
+        items.append("wxpay_config")
     if "WECHAT_PAYMENT_PLAN.md" in sh("ls *.md 2>/dev/null"):
-        score += 5; items.append("payment_plan")
+        score += 5
+        items.append("payment_plan")
 
     # Check for wechat mini program
     if Path("liankebao-weapp/").exists() or Path("liankebao-miniapp/").exists():
-        score += 5; items.append("miniapp")
+        score += 5
+        items.append("miniapp")
 
     # Domain/deployment
     if Path("docker-compose.yml").exists():
-        score += 3; items.append("docker_deploy")
+        score += 3
+        items.append("docker_deploy")
     if Path("deploy/").exists():
-        score += 3; items.append("deploy_dir")
+        score += 3
+        items.append("deploy_dir")
 
     return {
         "score": min(score, 100),
@@ -464,7 +579,7 @@ def score_business() -> dict:
 
 def main():
     print("=" * 60)
-    print("  链客宝 工业化全景扫描与评分 v2.0")
+    print("  链客宝AI 工业化全景扫描与评分 v2.0")
     print("=" * 60)
     print()
 
@@ -481,15 +596,26 @@ def main():
     print(f"   Python LOC: {loc['py_loc']}")
     print(f"   TypeScript LOC: {loc['ts_loc']}")
     print(f"   API 端点: {sum(endpoints.values())} (分布在 {len(endpoints)} 个路由)")
-    print(f"   测试文件: {files['test_files_py']} pytest + {files['test_files_ts']} vitest")
+    print(
+        f"   测试文件: {files['test_files_py']} pytest + {files['test_files_ts']} vitest"
+    )
     print(f"   估算覆盖率: {coverage}%")
     print()
 
     # Phase 2: Score
     print("📊 Phase 2: 10维度评分...")
     results = {
-        "① 架构成熟度": score_architecture(endpoints, Path("gateway.py").exists(), Path("backend/alembic/versions").exists()),
-        "② 代码质量": score_code_quality(files['test_files_py'] + files['test_files_ts'], coverage, Path(".flake8").exists(), Path(".pre-commit-config.yaml").exists()),
+        "① 架构成熟度": score_architecture(
+            endpoints,
+            Path("gateway.py").exists(),
+            Path("backend/alembic/versions").exists(),
+        ),
+        "② 代码质量": score_code_quality(
+            files["test_files_py"] + files["test_files_ts"],
+            coverage,
+            Path(".flake8").exists(),
+            Path(".pre-commit-config.yaml").exists(),
+        ),
         "③ 安全合规": score_security(security),
         "④ AI能力": score_ai(),
         "⑤ 部署运维": score_devops(),

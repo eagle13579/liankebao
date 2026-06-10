@@ -1,5 +1,5 @@
 """
-链客宝 Circuit Breaker 熔断器
+链客宝AI Circuit Breaker 熔断器
 
 三态熔断器实现:
   - CLOSED: 正常状态，请求通过

@@ -368,7 +368,7 @@ def verify_migration(sqlite_engine, mysql_engine) -> dict:
 
 def cmd_migrate(args):
     """执行完整迁移流程"""
-    print_banner("链客宝 SQLite → MySQL 数据迁移")
+    print_banner("链客宝AI SQLite → MySQL 数据迁移")
 
     # 1. 检查环境变量
     db_type = os.environ.get("DB_TYPE", "")
@@ -448,7 +448,7 @@ def cmd_migrate(args):
 
 def cmd_verify(args):
     """仅执行数据校验"""
-    print_banner("链客宝 数据一致性校验")
+    print_banner("链客宝AI 数据一致性校验")
 
     mysql_url = os.environ.get("DATABASE_URL", "")
     if not mysql_url:
@@ -467,7 +467,7 @@ def cmd_verify(args):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="链客宝 SQLite → MySQL 数据迁移工具（增强版）",
+        description="链客宝AI SQLite → MySQL 数据迁移工具（增强版）",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:

@@ -26,7 +26,7 @@ router = APIRouter(prefix="/api/board", tags=["私董会"])
 # ============================================================
 BOARD_PRODUCT_INFO = {
     "name": "私董会 Private Board",
-    "subtitle": "链客宝最高端企业家社群 · 限量50席",
+    "subtitle": "链客宝AI最高端企业家社群 · 限量50席",
     "price": 19999.00,
     "quota": 50,
     "duration_days": 365,
@@ -208,11 +208,7 @@ def get_board_status(
     ):
         is_expired = True
 
-    expires_at = (
-        current_user.membership_expires_at.isoformat()
-        if current_user.membership_expires_at
-        else None
-    )
+    expires_at = current_user.membership_expires_at.isoformat() if current_user.membership_expires_at else None
 
     # 当前获批会员数量统计
     active_member_count = (
@@ -275,9 +271,7 @@ def upgrade_private_board(
 
     # 更新用户的会员等级为 board
     current_user.membership_tier = "board"
-    current_user.membership_expires_at = datetime.utcnow() + timedelta(
-        days=BOARD_PRODUCT_INFO["duration_days"]
-    )
+    current_user.membership_expires_at = datetime.utcnow() + timedelta(days=BOARD_PRODUCT_INFO["duration_days"])
     order.expires_at = current_user.membership_expires_at
 
     db.commit()

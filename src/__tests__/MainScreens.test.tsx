@@ -61,7 +61,7 @@ describe('LiankebaoHomepage - Smoke Tests', () => {
     renderWithRouter(<LiankebaoHomepage />);
 
     await waitFor(() => {
-      expect(screen.getByText('链客宝')).toBeInTheDocument();
+      expect(screen.getByText('链客宝AI')).toBeInTheDocument();
     });
   });
 

@@ -1,5 +1,5 @@
 /**
- * 链客宝 SSR 服务端入口
+ * 链客宝AI SSR 服务端入口
  *
  * 用于 Express SSR 服务器渲染名片分享页面。
  * 仅对 /card/:token 路由生效，其他路由保持 CSR。
@@ -90,7 +90,7 @@ function SSRCoverPage(page: AlbumPage) {
           className="ssr-badge"
           style={{ backgroundColor: page.style.accentColor }}
         >
-          Powered by 链客宝 AI
+          Powered by 链客宝AI AI
         </div>
       </div>
     </div>
@@ -282,13 +282,13 @@ export interface SSRRenderResult {
   image: string;
 }
 
-const DEFAULT_TITLE = '链客宝 - 数字名片';
-const DEFAULT_DESC = '链客宝 — 一站式AI营销增长引擎，企业家的AI营销朋友圈。';
+const DEFAULT_TITLE = '链客宝AI - 数字名片';
+const DEFAULT_DESC = '链客宝AI — 一站式AI营销增长引擎，企业家的AI营销朋友圈。';
 const DEFAULT_IMAGE = '/app/og-image.png';
 
 export function renderCardPage(cardData: CardData | null): SSRRenderResult {
   const name = cardData?.name || '数字名片';
-  const title = `${name} 的数字名片 | 链客宝`;
+  const title = `${name} 的数字名片 | 链客宝AI`;
   const fields = cardData?.fields || {};
   const company = fields.company || '';
   const position = fields.position || '';
@@ -324,7 +324,7 @@ export function buildHTML(
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="${escapeHtml(result.description)}" />
-    <meta name="keywords" content="链客宝, 数字名片, AI名片, ${escapeHtml(result.title)}" />
+    <meta name="keywords" content="链客宝AI, 数字名片, AI名片, ${escapeHtml(result.title)}" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤝</text></svg>" />
 
     <!-- Open Graph / 社交分享 -->
@@ -333,7 +333,7 @@ export function buildHTML(
     <meta property="og:description" content="${escapeHtml(result.description)}" />
     <meta property="og:image" content="${escapeHtml(result.image)}" />
     <meta property="og:url" content="https://liankebao.top" />
-    <meta property="og:site_name" content="链客宝" />
+    <meta property="og:site_name" content="链客宝AI" />
     <meta property="og:locale" content="zh_CN" />
 
     <!-- Twitter Card -->
@@ -346,7 +346,7 @@ export function buildHTML(
     <link rel="manifest" href="/app/manifest.json" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="链客宝" />
+    <meta name="apple-mobile-web-app-title" content="链客宝AI" />
 
     <title>${escapeHtml(result.title)}</title>
 

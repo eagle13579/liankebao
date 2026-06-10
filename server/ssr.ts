@@ -1,5 +1,5 @@
 /**
- * 链客宝 SSR 服务器
+ * 链客宝AI SSR 服务器
  *
  * Express + Vite SSR 服务器，仅对 /app/card/:token 路由进行服务端渲染，
  * 其他路由保持 CSR（返回 SPA index.html）。
@@ -263,7 +263,7 @@ async function startServer() {
 
   // ---- 启动 ----
   app.listen(PORT, HOST, () => {
-    console.log(`\n  🚀 链客宝 SSR 服务器启动`);
+    console.log(`\n  🚀 链客宝AI SSR 服务器启动`);
     console.log(`  📡 模式: ${PROD ? 'PRODUCTION' : 'DEVELOPMENT'}`);
     console.log(`  🌐 地址: http://${HOST}:${PORT}`);
     console.log(`  📇 SSR 路由: /app/card/:token`);

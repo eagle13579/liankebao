@@ -1,5 +1,5 @@
 """
-链客宝 AI 供需匹配引擎模块 (v2.1 - 增强版)
+链客宝AI AI 供需匹配引擎模块 (v2.1 - 增强版)
 =============================================
 
 GAP 补齐:
@@ -329,19 +329,19 @@ STOP_WORDS: set = {
 
 # ===== COLD_START 冷启动 (P1-2) =====
 
-COLD_START_DAYS = 7          # 新用户/新商品的定义天数
-COLD_START_BOOST = 1.2       # 冷启动加权系数
+COLD_START_DAYS = 7  # 新用户/新商品的定义天数
+COLD_START_BOOST = 1.2  # 冷启动加权系数
 MIN_MATCHES_FOR_HOT_FALLBACK = 3  # 不足此数量时补充热门
-HOT_FALLBACK_COUNT = 5       # 补充的热门数量
+HOT_FALLBACK_COUNT = 5  # 补充的热门数量
 
 # ===== DIVERSITY 多样性重排序 (P2-1) =====
 
-DIVERSITY_ALPHA = 0.3        # MMR 多样性系数（0=纯相关, 1=纯多样）
-EXPLORE_EPSILON = 0.05       # epsilon-greedy 探索概率
+DIVERSITY_ALPHA = 0.3  # MMR 多样性系数（0=纯相关, 1=纯多样）
+EXPLORE_EPSILON = 0.05  # epsilon-greedy 探索概率
 
 # ===== FEATURE 特征集成 =====
 
-FEATURE_WEIGHT = 0.10        # 特征相似度在最终分数中的权重
+FEATURE_WEIGHT = 0.10  # 特征相似度在最终分数中的权重
 
 
 # ===== 匹配引擎 (GAP 8: A/B 测试框架) =====
@@ -764,13 +764,16 @@ class MatchEngine:
         age_days = (time.time() - created_at.timestamp()) / 86400.0
         return age_days < COLD_START_DAYS
 
-    def _get_hot_fallback_products(self, top_k: int = HOT_FALLBACK_COUNT, exclude_ids: set[int] | None = None) -> list[Product]:
+    def _get_hot_fallback_products(
+        self, top_k: int = HOT_FALLBACK_COUNT, exclude_ids: set[int] | None = None
+    ) -> list[Product]:
         """获取热门产品作为冷启动补充
 
         热门定义：按 interaction_count/views 排序，无则按创建时间降序
         """
         try:
             products = self._get_all_approved_products()
+
             # 按热度排序（interaction_count > created_at 降序）
             def hotness_key(p: Product) -> float:
                 interactions = getattr(p, "interaction_count", None) or getattr(p, "views", None) or 0
@@ -784,10 +787,13 @@ class MatchEngine:
             logger.warning(f"获取热门产品失败: {e}")
             return []
 
-    def _get_hot_fallback_needs(self, top_k: int = HOT_FALLBACK_COUNT, exclude_ids: set[int] | None = None) -> list[BusinessNeed]:
+    def _get_hot_fallback_needs(
+        self, top_k: int = HOT_FALLBACK_COUNT, exclude_ids: set[int] | None = None
+    ) -> list[BusinessNeed]:
         """获取热门需求作为冷启动补充"""
         try:
             needs = self._get_all_open_needs()
+
             def hotness_key(n: BusinessNeed) -> float:
                 interactions = getattr(n, "interaction_count", None) or getattr(n, "views", None) or 0
                 return float(interactions)
@@ -863,6 +869,7 @@ class MatchEngine:
                 return 1.0
             # 基于字符串相似度
             from difflib import SequenceMatcher
+
             return SequenceMatcher(None, cat_a, cat_b).ratio()
         return 0.0
 
@@ -956,6 +963,7 @@ class MatchEngine:
         if self.strategy == "v2":
             try:
                 from app import feature_pipeline
+
                 prod_feat = feature_pipeline.extract_product_features(product)
                 need_feat = feature_pipeline.extract_need_features(need)
                 feature_sim = feature_pipeline.compute_similarity(prod_feat, need_feat)

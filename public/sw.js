@@ -1,10 +1,10 @@
 /* ============================================================
-   链客宝 Service Worker (最小实现)
+   链客宝AI Service Worker (最小实现)
    ============================================================
    策略: 网络优先, 离线时 fallback 到缓存
    ============================================================ */
 
-const CACHE_NAME = 'liankebao-v1';
+const CACHE_NAME = 'liankebao-v2';
 const PRECACHE_URLS = [
   '/app/',
   '/app/index.html',

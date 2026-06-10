@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-链客宝 API SDK 生成器
+链客宝AI API SDK 生成器
 ================================
 从 FastAPI OpenAPI Schema 自动生成 TypeScript SDK。
 
@@ -406,7 +406,7 @@ def generate_ts_sdk(schema: Dict) -> str:
     # ===== 构建 SDK 源码 =====
     lines: List[str] = [
         "// ============================================================",
-        "// 链客宝 API SDK — 由 scripts/generate_api_sdk.py 自动生成",
+        "// 链客宝AI API SDK — 由 scripts/generate_api_sdk.py 自动生成",
         "// 生成时间: " + __import__("datetime").datetime.now().isoformat(),
         "// ============================================================",
         "",
@@ -707,7 +707,7 @@ def validate_ts_syntax(output_path: str) -> bool:
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(description="链客宝 API SDK 生成器")
+    parser = argparse.ArgumentParser(description="链客宝AI API SDK 生成器")
     parser.add_argument(
         "--url",
         default=None,

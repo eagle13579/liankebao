@@ -8,10 +8,10 @@ from setuptools import find_packages, setup
 setup(
     name="liankebao-payment-sdk",
     version="0.1.0",
-    description="链客宝支付模块独立SDK — 微信支付V2/V3、支付宝（预留）",
+    description="链客宝AI支付模块独立SDK — 微信支付V2/V3、支付宝（预留）",
     long_description=open("README.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
-    author="链客宝团队",
+    author="链客宝AI团队",
     author_email="support@go-aiport.com",
     license="Proprietary",
     python_requires=">=3.11",

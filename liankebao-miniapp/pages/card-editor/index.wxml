@@ -1,0 +1,223 @@
+<!-- pages/card-editor/index.wxml -->
+<view class="editor-page">
+  <!-- 导航栏 -->
+  <view class="editor-nav">
+    <view class="nav-back" bindtap="prevStep" wx:if="{{step > 1}}">‹ 返回</view>
+    <view class="nav-back" bindtap="goBack" wx:else>‹ 返回</view>
+    <text class="nav-step">步骤 {{step}}/{{maxSteps}}</text>
+    <view class="nav-placeholder"></view>
+  </view>
+
+  <!-- 步骤指示器 -->
+  <view class="step-indicator">
+    <view class="step-dot {{step >= 1 ? 'active' : ''}}">1</view>
+    <view class="step-line {{step >= 2 ? 'active' : ''}}"></view>
+    <view class="step-dot {{step >= 2 ? 'active' : ''}}">2</view>
+    <view class="step-line {{step >= 3 ? 'active' : ''}}"></view>
+    <view class="step-dot {{step >= 3 ? 'active' : ''}}">3</view>
+    <view class="step-line {{step >= 4 ? 'active' : ''}}"></view>
+    <view class="step-dot {{step >= 4 ? 'active' : ''}}">4</view>
+  </view>
+  <text class="step-label">{{stepLabels[step-1]}}</text>
+
+  <!-- ===== Step 1: 上传名片 + 选择用途 ===== -->
+  <block wx:if="{{step === 1}}">
+    <view class="step-content fade-in">
+      <!-- 上传区 -->
+      <view class="upload-section">
+        <view class="upload-zone {{uploadedImage ? 'has-image' : ''}}" bindtap="uploadImage">
+          <image wx:if="{{uploadedImage}}" class="upload-preview" src="{{uploadedImage}}" mode="aspectFill" />
+          <block wx:else>
+            <text class="upload-icon">📇</text>
+            <text class="upload-text">点击上传名片图片</text>
+            <text class="upload-hint">支持 JPG / PNG</text>
+          </block>
+        </view>
+        <text class="upload-status" wx:if="{{uploadedImage}}">✅ 已上传</text>
+      </view>
+
+      <!-- 用途选择 -->
+      <view class="purpose-section">
+        <text class="section-title">选择名片用途</text>
+        <view class="purpose-grid">
+          <view class="purpose-card {{purpose === item.value ? 'active' : ''}}"
+            wx:for="{{purposeOptions}}" wx:key="value"
+            data-value="{{item.value}}" bindtap="selectPurpose">
+            <text class="purpose-icon">{{item.icon}}</text>
+            <text class="purpose-label">{{item.label}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="step-actions">
+        <button class="btn-primary" bindtap="nextStep">
+          {{uploadedImage ? '下一步 →' : '跳过，手动填写 →'}}
+        </button>
+      </view>
+    </view>
+  </block>
+
+  <!-- ===== Step 2: 填写信息 + 供需信息 ===== -->
+  <block wx:elif="{{step === 2}}">
+    <view class="step-content fade-in">
+      <view class="ai-hint">
+        <text>⭐ AI已提取以下字段，请核对修改</text>
+      </view>
+
+      <!-- 基本信息 -->
+      <view class="form-section glass">
+        <text class="form-section-title">基本信息</text>
+        <view class="form-group">
+          <text class="form-label">姓名</text>
+          <input class="input-field" placeholder="请输入姓名" value="{{form.name}}" data-field="name" bindinput="onInput" />
+        </view>
+        <view class="form-group">
+          <text class="form-label">手机</text>
+          <input class="input-field" type="number" placeholder="请输入手机号" value="{{form.phone}}" data-field="phone" bindinput="onInput" />
+        </view>
+        <view class="form-group">
+          <text class="form-label">邮箱</text>
+          <input class="input-field" placeholder="请输入邮箱" value="{{form.email}}" data-field="email" bindinput="onInput" />
+        </view>
+        <view class="form-group">
+          <text class="form-label">微信</text>
+          <input class="input-field" placeholder="请输入微信号" value="{{form.wechat}}" data-field="wechat" bindinput="onInput" />
+        </view>
+        <view class="form-group">
+          <text class="form-label">公司</text>
+          <input class="input-field" placeholder="请输入公司名称" value="{{form.company}}" data-field="company" bindinput="onInput" />
+        </view>
+        <view class="form-group">
+          <text class="form-label">职位</text>
+          <input class="input-field" placeholder="请输入职位" value="{{form.position}}" data-field="position" bindinput="onInput" />
+        </view>
+        <view class="form-group">
+          <text class="form-label">个人简介</text>
+          <textarea class="input-field textarea" placeholder="简单介绍自己，最多200字" value="{{form.bio}}" data-field="bio" bindinput="onInput" maxlength="200"></textarea>
+        </view>
+      </view>
+
+      <!-- 供需信息 -->
+      <view class="form-section glass">
+        <text class="form-section-title">供需信息</text>
+        <view class="form-group">
+          <text class="form-label">我能提供/资源</text>
+          <textarea class="input-field textarea" placeholder="例如：AI开发、云计算、SaaS产品设计&#10;多个标签请用逗号分隔" value="{{form.provide}}" data-field="provide" bindinput="onInput"></textarea>
+        </view>
+        <view class="form-group">
+          <text class="form-label">我需要/需求</text>
+          <textarea class="input-field textarea" placeholder="例如：市场渠道拓展、投资人对接&#10;多个标签请用逗号分隔" value="{{form.need}}" data-field="need" bindinput="onInput"></textarea>
+        </view>
+      </view>
+
+      <!-- 图片上传 -->
+      <view class="form-section glass">
+        <text class="form-section-title">产品展示图片</text>
+        <view class="image-picker">
+          <view class="image-item" wx:for="{{form.images}}" wx:key="*this">
+            <image class="image-thumb" src="{{item}}" mode="aspectFill" />
+            <view class="image-remove" data-index="{{index}}" bindtap="removeImage">✕</view>
+          </view>
+          <view class="image-add" wx:if="{{form.images.length < 9}}" bindtap="chooseImages">
+            <text class="add-icon">+</text>
+            <text class="add-text">添加图片</text>
+          </view>
+        </view>
+        <text class="image-hint">最多上传9张，支持 JPG / PNG</text>
+      </view>
+
+      <view class="step-actions">
+        <button class="btn-secondary" bindtap="prevStep">← 上一步</button>
+        <button class="btn-primary" bindtap="nextStep">预览画册 →</button>
+      </view>
+    </view>
+  </block>
+
+  <!-- ===== Step 3: 预览 ===== -->
+  <block wx:elif="{{step === 3}}">
+    <view class="step-content fade-in">
+      <view class="preview-header">
+        <text class="preview-name">{{form.name || '您的姓名'}} 的数字名片</text>
+        <text class="preview-purpose" wx:if="{{purpose}}">{{purpose}}</text>
+      </view>
+
+      <view class="preview-card glass">
+        <!-- 头像 -->
+        <view class="preview-avatar">
+          <text class="preview-avatar-text">{{form.name ? form.name[0] : '?'}}</text>
+        </view>
+        <text class="preview-user-name">{{form.name || '未填写'}}</text>
+        <text class="preview-company">{{form.company}}{{form.position ? ' · ' + form.position : ''}}</text>
+        <text class="preview-bio" wx:if="{{form.bio}}">{{form.bio}}</text>
+
+        <!-- 供需标签 -->
+        <view class="preview-tags">
+          <view class="preview-tag-group" wx:if="{{form.provide}}">
+            <text class="tag-label">我能提供:</text>
+            <view class="tags">
+              <text class="tag tag-provide" wx:for="{{provideTags}}" wx:key="*this" wx:if="{{item}}">{{item}}</text>
+            </view>
+          </view>
+          <view class="preview-tag-group" wx:if="{{form.need}}">
+            <text class="tag-label">我需要:</text>
+            <view class="tags">
+              <text class="tag tag-need" wx:for="{{needTags}}" wx:key="*this" wx:if="{{item}}">{{item}}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 联系方式 -->
+        <view class="preview-contact">
+          <text class="contact-title">📞 联系方式</text>
+          <text wx:if="{{form.phone}}">📞 {{form.phone}}</text>
+          <text wx:if="{{form.email}}">✉️ {{form.email}}</text>
+          <text wx:if="{{form.wechat}}">💬 {{form.wechat}}</text>
+        </view>
+
+        <!-- 产品图片 -->
+        <view class="preview-images" wx:if="{{form.images && form.images.length > 0}}">
+          <image class="preview-image" wx:for="{{form.images}}" wx:key="*this" src="{{item}}" mode="aspectFill" />
+        </view>
+      </view>
+
+      <view class="step-actions">
+        <button class="btn-secondary" bindtap="prevStep">← 返回编辑</button>
+        <button class="btn-primary" bindtap="goPreview">📱 翻页预览</button>
+      </view>
+    </view>
+  </block>
+
+  <!-- ===== Step 4: 发布 ===== -->
+  <block wx:elif="{{step === 4}}">
+    <view class="step-content fade-in step4">
+      <view class="publish-section">
+        <text class="publish-icon">🎉</text>
+        <text class="publish-title">一切就绪！</text>
+        <text class="publish-desc">发布后将自动启动AI匹配引擎，为您推荐合适的合作伙伴</text>
+
+        <view class="publish-summary glass">
+          <view class="summary-row">
+            <text class="summary-label">姓名</text>
+            <text class="summary-value">{{form.name || '未填写'}}</text>
+          </view>
+          <view class="summary-row">
+            <text class="summary-label">用途</text>
+            <text class="summary-value">{{purpose || '未选择'}}</text>
+          </view>
+          <view class="summary-row">
+            <text class="summary-label">提供标签</text>
+            <text class="summary-value">{{form.provide || '无'}}</text>
+          </view>
+          <view class="summary-row">
+            <text class="summary-label">需求标签</text>
+            <text class="summary-value">{{form.need || '无'}}</text>
+          </view>
+        </view>
+
+        <button class="btn-primary publish-btn" bindtap="publish" disabled="{{submitting}}">
+          {{submitting ? '发布中...' : '🚀 发布画册'}}
+        </button>
+      </view>
+    </view>
+  </block>
+</view>

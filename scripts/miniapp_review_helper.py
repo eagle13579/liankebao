@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-链客宝小程序提审辅助工具 v1.0
+链客宝AI小程序提审辅助工具 v1.0
 分形架构设计：框架层(F) + 原子层(A) + 产品层(P)
 
 用法:
@@ -14,14 +14,18 @@
   python miniapp_review_helper.py --output json      # JSON输出
 """
 
-import os, sys, json, re, textwrap
+import os
+import sys
+import json
+import re
+import textwrap
 
 # ═══════════════════════════════════════════════════════════
-# P层: 产品配置 (Product Layer — 链客宝特定)
+# P层: 产品配置 (Product Layer — 链客宝AI特定)
 # ═══════════════════════════════════════════════════════════
 
 PRODUCT = {
-    "name": "链客宝",
+    "name": "链客宝AI",
     "english_name": "LianKeBao",
     "appid": "wxb4f6d89904200fd2",
     "version": "1.0.0",
@@ -29,21 +33,41 @@ PRODUCT = {
     "api_base": "https://www.go-aiport.com/lkapi",
     "order_path": "pages/orders/index",
     "pages": [
-        "pages/index/index",        # 首页
-        "pages/login/index",        # 登录
-        "pages/register/index",     # 注册
-        "pages/product/index",      # 产品详情
-        "pages/pool/index",         # 产品池
-        "pages/orders/index",       # 订单中心
-        "pages/promotion/index",    # 推广
-        "pages/manage-products/index", # 产品管理
-        "pages/mine/index",         # 个人中心
+        "pages/index/index",  # 首页
+        "pages/login/index",  # 登录
+        "pages/register/index",  # 注册
+        "pages/product/index",  # 产品详情
+        "pages/pool/index",  # 产品池
+        "pages/orders/index",  # 订单中心
+        "pages/promotion/index",  # 推广
+        "pages/manage-products/index",  # 产品管理
+        "pages/mine/index",  # 个人中心
     ],
     "test_accounts": [
-        {"role": "管理员", "username": "admin",    "password": "admin123", "desc": "管理后台：产品审核/订单/结算"},
-        {"role": "采购方", "username": "buyer1",   "password": "123456",   "desc": "浏览/下单/查看订单"},
-        {"role": "推广员", "username": "promoter1","password": "123456",   "desc": "生成推广链接/佣金管理"},
-        {"role": "供应商", "username": "supplier1","password": "123456",   "desc": "上架产品/库存管理"},
+        {
+            "role": "管理员",
+            "username": "admin",
+            "password": "admin123",
+            "desc": "管理后台：产品审核/订单/结算",
+        },
+        {
+            "role": "采购方",
+            "username": "buyer1",
+            "password": "123456",
+            "desc": "浏览/下单/查看订单",
+        },
+        {
+            "role": "推广员",
+            "username": "promoter1",
+            "password": "123456",
+            "desc": "生成推广链接/佣金管理",
+        },
+        {
+            "role": "供应商",
+            "username": "supplier1",
+            "password": "123456",
+            "desc": "上架产品/库存管理",
+        },
     ],
     "features": [
         "企业家供需匹配平台MVP上线",
@@ -58,6 +82,7 @@ PRODUCT = {
 # ═══════════════════════════════════════════════════════════
 # A层: 原子层 (Atomic Layer — 可复用函数)
 # ═══════════════════════════════════════════════════════════
+
 
 def word_wrap(text: str, width: int = 70) -> str:
     """折行工具"""
@@ -76,7 +101,7 @@ def build_version_description(p: dict) -> str:
     ]
     en = "\n".join([f"- {f}" for f in en_items])
 
-    result = f"""{p['name']} v{p['version']} — 版本描述
+    result = f"""{p["name"]} v{p["version"]} — 版本描述
 
 中文:
 {cn}
@@ -91,12 +116,14 @@ def build_test_accounts(p: dict) -> str:
     """A2: 生成测试账号文档"""
     lines = [
         f"# {p['name']} 微信小程序 — 测试账号信息\n",
-        f"## 测试账号\n",
+        "## 测试账号\n",
         "| 角色 | 用户名 | 密码 | 说明 |",
         "|------|--------|------|------|",
     ]
     for a in p["test_accounts"]:
-        lines.append(f"| {a['role']} | {a['username']} | {a['password']} | {a['desc']} |")
+        lines.append(
+            f"| {a['role']} | {a['username']} | {a['password']} | {a['desc']} |"
+        )
 
     lines += [
         "",
@@ -115,10 +142,10 @@ def build_test_accounts(p: dict) -> str:
 
 def build_checklist(p: dict) -> str:
     """A3: 生成提审检查清单"""
-    return f"""# {p['name']} 微信小程序 — 提审前必做清单
+    return f"""# {p["name"]} 微信小程序 — 提审前必做清单
 
-> {p['name']} v{p['version']} · appid: {p['appid']} · {p['type']}
-> 生成时间: {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M')}
+> {p["name"]} v{p["version"]} · appid: {p["appid"]} · {p["type"]}
+> 生成时间: {__import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M")}
 > [{__file__}]
 
 ---
@@ -127,12 +154,12 @@ def build_checklist(p: dict) -> str:
 
 ### □ 1.1 填写订单中心 path
 - 登录 [微信公众平台](https://mp.weixin.qq.com) → 功能 → 小程序订单中心
-- 填写: `{p['order_path']}`
+- 填写: `{p["order_path"]}`
 - **交易类小程序必填，缺了审核不通过**
 
 ### □ 1.2 配置服务器域名
 - 开发管理 → 服务器域名 → request 合法域名
-- 必填: `{p['api_base'].rstrip('/lkapi')}` 或 `{p['api_base']}`
+- 必填: `{p["api_base"].rstrip("/lkapi")}` 或 `{p["api_base"]}`
 - 如用 go-aiport.com: 必须先加 nginx /lkapi/ 路由
 
 ### □ 1.3 用户隐私保护指引
@@ -158,12 +185,12 @@ def build_checklist(p: dict) -> str:
 
 ### □ 2.1 隐私弹窗
 - 检查：登录/注册页是否有 wx.getPrivacySetting / 隐私授权弹窗
-- 当前状态: {'✅ 有用户服务协议弹窗' if True else '❌ 缺失'}
+- 当前状态: {"✅ 有用户服务协议弹窗" if True else "❌ 缺失"}
 - 建议：为微信隐私新规添加 onNeedPrivacyAuthorization 回调
 
 ### □ 2.2 小程序代码审查
-- 当前共 {len(p['pages'])} 个页面
-- 页面清单: {', '.join(p['pages'])}
+- 当前共 {len(p["pages"])} 个页面
+- 页面清单: {", ".join(p["pages"])}
 - 全部页面均已注册到 app.json
 
 ---
@@ -213,14 +240,18 @@ def build_checklist(p: dict) -> str:
 
 def compliance_scan(p: dict) -> dict:
     """A4: 扫描代码检查合规问题（纯静态分析）"""
-    import glob as g
 
     base = os.path.join(p["project_root"], "liankebao-miniapp")
     findings = []
 
     # 扫描隐私相关
-    privacy_refs = ["wx.getPrivacySetting", "onNeedPrivacyAuthorization",
-                    "privacy", "隐私政策", "隐私"]
+    privacy_refs = [
+        "wx.getPrivacySetting",
+        "onNeedPrivacyAuthorization",
+        "privacy",
+        "隐私政策",
+        "隐私",
+    ]
     has_privacy = False
     for root, _, files in os.walk(base):
         for fn in files:
@@ -231,13 +262,16 @@ def compliance_scan(p: dict) -> dict:
                     for kw in privacy_refs:
                         if kw in content:
                             has_privacy = True
-                except: pass
+                except:
+                    pass
 
-    findings.append({
-        "check": "隐私保护指引",
-        "status": "⚠️ 建议添加" if not has_privacy else "✅ 已集成",
-        "detail": "微信2023年起要求小程序通过wx.getPrivacySetting展示隐私弹窗"
-    })
+    findings.append(
+        {
+            "check": "隐私保护指引",
+            "status": "⚠️ 建议添加" if not has_privacy else "✅ 已集成",
+            "detail": "微信2023年起要求小程序通过wx.getPrivacySetting展示隐私弹窗",
+        }
+    )
 
     # 扫描API_BASE
     api_base_found = None
@@ -247,24 +281,29 @@ def compliance_scan(p: dict) -> dict:
                 try:
                     with open(os.path.join(root, fn), "rb") as f:
                         c = f.read().decode("utf-8", errors="replace")
-                    m = re.search(r'API_BASE\s*=\s*[\'\"]([^\'\"]+)[\'\"]', c)
+                    m = re.search(r"API_BASE\s*=\s*[\'\"]([^\'\"]+)[\'\"]", c)
                     if m:
                         api_base_found = m.group(1)
-                except: pass
+                except:
+                    pass
 
-    findings.append({
-        "check": "API_BASE 配置",
-        "status": f"当前指向: {api_base_found or '未找到'}",
-        "detail": f"建议确认 {p['api_base']} 可达"
-    })
+    findings.append(
+        {
+            "check": "API_BASE 配置",
+            "status": f"当前指向: {api_base_found or '未找到'}",
+            "detail": f"建议确认 {p['api_base']} 可达",
+        }
+    )
 
     # 扫描订单中心path
     has_orders = "pages/orders/index" in p["pages"]
-    findings.append({
-        "check": "订单中心 path",
-        "status": "✅ 页面存在" if has_orders else "❌ 缺失页面",
-        "detail": f"填 {p['order_path']}"
-    })
+    findings.append(
+        {
+            "check": "订单中心 path",
+            "status": "✅ 页面存在" if has_orders else "❌ 缺失页面",
+            "detail": f"填 {p['order_path']}",
+        }
+    )
 
     # 统计代码量
     total_lines = 0
@@ -276,13 +315,16 @@ def compliance_scan(p: dict) -> dict:
                     fp = os.path.join(root, fn)
                     total_lines += len(open(fp, "rb").read().split(b"\n"))
                     file_count += 1
-                except: pass
+                except:
+                    pass
 
-    findings.append({
-        "check": "代码统计",
-        "status": f"{file_count} 个文件, {total_lines} 行",
-        "detail": "小程序代码完整"
-    })
+    findings.append(
+        {
+            "check": "代码统计",
+            "status": f"{file_count} 个文件, {total_lines} 行",
+            "detail": "小程序代码完整",
+        }
+    )
 
     return {"product": p["name"], "findings": findings, "total_checks": len(findings)}
 
@@ -291,12 +333,13 @@ def compliance_scan(p: dict) -> dict:
 # F层: 框架层 (Framework Layer — 编排器)
 # ═══════════════════════════════════════════════════════════
 
+
 def render_markdown(sections: dict) -> str:
     """F1: Markdown 渲染器"""
     buf = []
     for title, body in sections.items():
         if body:
-            buf.append(f"\n{'='*60}\n{title}\n{'='*60}\n")
+            buf.append(f"\n{'=' * 60}\n{title}\n{'=' * 60}\n")
             buf.append(body)
     return "\n".join(buf)
 
@@ -326,6 +369,7 @@ def dry_run(p: dict, output: str = "md") -> str:
     """F4: 预览全部审核材料"""
     try:
         from collections import OrderedDict
+
         sections = OrderedDict()
     except ImportError:
         sections = {}
@@ -342,14 +386,20 @@ def dry_run(p: dict, output: str = "md") -> str:
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="链客宝小程序提审辅助工具 v1.0")
-    parser.add_argument("--mode", choices=["version", "accounts", "checklist",
-                                           "all", "verify", "dry-run"],
-                        default="all", help="生成模式")
-    parser.add_argument("--output", choices=["md", "json"], default="md",
-                        help="输出格式")
-    parser.add_argument("--outdir", default=None,
-                        help="输出目录 (默认: 链客宝项目根目录)")
+
+    parser = argparse.ArgumentParser(description="链客宝AI小程序提审辅助工具 v1.0")
+    parser.add_argument(
+        "--mode",
+        choices=["version", "accounts", "checklist", "all", "verify", "dry-run"],
+        default="all",
+        help="生成模式",
+    )
+    parser.add_argument(
+        "--output", choices=["md", "json"], default="md", help="输出格式"
+    )
+    parser.add_argument(
+        "--outdir", default=None, help="输出目录 (默认: 链客宝AI项目根目录)"
+    )
     args = parser.parse_args()
 
     p = PRODUCT
@@ -358,10 +408,10 @@ def main():
 
     # 模式分发（延迟计算：mode_map不包含dry-run，单独处理）
     mode_map = {
-        "version":  ("version_description.txt", build_version_description(p)),
+        "version": ("version_description.txt", build_version_description(p)),
         "accounts": ("test_account_info.md", build_test_accounts(p)),
-        "checklist":("submission_checklist.md", build_checklist(p)),
-        "verify":   ("compliance_report.md", run_checks(p, output)),
+        "checklist": ("submission_checklist.md", build_checklist(p)),
+        "verify": ("compliance_report.md", run_checks(p, output)),
     }
 
     if args.mode == "all":

@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crm-service
+  namespace: chainke
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: crm-service
+  template:
+    metadata:
+      labels:
+        app: crm-service
+    spec:
+      containers:
+      - name: crm-service
+        image: liankebao/crm-service:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DB_TYPE
+          value: "sqlite"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: crm-service
+  namespace: chainke
+spec:
+  selector:
+    app: crm-service
+  ports:
+  - port: 8000
+    targetPort: 8000

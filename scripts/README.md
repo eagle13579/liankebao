@@ -1,4 +1,4 @@
-# 链客宝小程序提审辅助工具
+# 链客宝AI小程序提审辅助工具
 
 ## 快速开始
 
@@ -30,7 +30,7 @@ python scripts/miniapp_review_helper.py --mode dry-run
 |:-----|:------|
 | `--output md` | Markdown 输出（默认） |
 | `--output json` | JSON 输出（CI集成用） |
-| `--outdir PATH` | 输出目录（默认：链客宝根目录） |
+| `--outdir PATH` | 输出目录（默认：链客宝AI根目录） |
 
 ## 分形架构
 
@@ -47,7 +47,7 @@ A层 — 原子层: 可复用函数
   ├── build_checklist()
   └── compliance_scan()
 
-P层 — 产品层: 链客宝配置
+P层 — 产品层: 链客宝AI配置
   └── PRODUCT dict (appid/域名/密码/页面列表)
 ```
 

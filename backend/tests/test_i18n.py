@@ -1,6 +1,6 @@
 """国际化 / 本地化测试 —— 验证API响应中文消息完整性
 
-链客宝是中文平台，所有 API 响应 message 字段应当包含中文而非纯英文。
+链客宝AI是中文平台，所有 API 响应 message 字段应当包含中文而非纯英文。
 验证关键路由的中文本地化一致性。
 """
 
@@ -49,7 +49,7 @@ class TestI18nMessages:
         resp = client.get("/")
         data = resp.json()
         # 服务名是中文
-        assert data["service"] == "链客宝 API"
+        assert data["service"] == "链客宝AI API"
         assert data["status"] == "running"
 
 

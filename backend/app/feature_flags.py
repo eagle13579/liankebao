@@ -1,5 +1,5 @@
 """
-链客宝 Feature Flags 灰度发布系统
+链客宝AI Feature Flags 灰度发布系统
 
 功能:
   1. 基于 JSON 配置热加载的 Feature Flags 管理

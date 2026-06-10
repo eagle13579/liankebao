@@ -1,5 +1,5 @@
 /**
- * 链客宝数据仪表盘
+ * 链客宝AI数据仪表盘
  * =================
  * 使用 ECharts CDN 渲染图表
  *
@@ -567,7 +567,7 @@ export default function DashboardPage() {
       {/* 页面头部 */}
       <div className="mb-6">
         <h1 className="text-xl font-bold text-on-surface dark:text-dark-text">📊 数据仪表盘</h1>
-        <p className="text-xs text-text-muted dark:text-dark-muted mt-1">链客宝全平台数据可视化看板</p>
+        <p className="text-xs text-text-muted dark:text-dark-muted mt-1">链客宝AI全平台数据可视化看板</p>
       </div>
 
       {/* KPI 卡片 */}

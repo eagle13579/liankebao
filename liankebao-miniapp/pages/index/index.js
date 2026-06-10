@@ -1,96 +1,159 @@
+// pages/index/index.js
+// 首页 - AI数字名片翻页画册展示
 var api = require('../../utils/api')
-
-function safeGetImage(images) {
-  try {
-    var arr = JSON.parse(images || '[]')
-    return arr[0] || ''
-  } catch (e) {
-    return ''
-  }
-}
+var util = require('../../utils/util')
+var auth = require('../../utils/auth')
 
 Page({
   data: {
-    products: [],
-    recommendProducts: [],
-    banners: [
-      { image: 'https://via.placeholder.com/750x300/0ea5e9/ffffff?text=链客宝+AI名片' },
-      { image: 'https://via.placeholder.com/750x300/0284c7/ffffff?text=GEO+诊断+精准获客' },
-      { image: 'https://via.placeholder.com/750x300/0ea5e9/ffffff?text=数字分身+智能交互' }
+    loading: true,
+    error: null,
+    hasBrochure: false,
+    // 翻页相关
+    currentPage: 0,
+    totalPages: 4,
+    pages: [
+      { type: 'cover', title: '个人封面' },
+      { type: 'contact', title: '联系方式' },
+      { type: 'company', title: '企业信息' },
+      { type: 'qrcode', title: '二维码' }
     ],
-    loading: true
+    touchStartX: 0,
+    touchStartY: 0,
+    isSwiping: false,
+    // 名片数据
+    brochure: null,
+    // 底部统计
+    viewCount: 0
   },
-  onLoad: function() {
-    this.loadData()
+
+  onLoad: function(options) {
+    // 检查登录
+    if (!auth.checkLogin()) {
+      wx.reLaunch({ url: '/pages/login/index' })
+      return
+    }
+    this.loadBrochure()
   },
+
   onShow: function() {
-    this.loadData()
+    if (auth.checkLogin()) {
+      this.loadBrochure()
+    }
   },
-  onPullDownRefresh: function() {
-    var self = this
-    self.loadData()
-    wx.stopPullDownRefresh()
-  },
-  loadData: function() {
+
+  loadBrochure: function() {
     var self = this
     self.setData({ loading: true })
 
-    // 从API获取banner
-    api.get('/banners').then(function(res) {
-      if (res && res.code === 200 && res.data && res.data.length > 0) {
-        var bannerList = []
-        for (var i = 0; i < res.data.length; i++) {
-          var b = res.data[i]
-          bannerList.push({
-            image: b.image || '',
-            title: b.title || '',
-            url: b.url || ''
-          })
-        }
-        self.setData({ banners: bannerList })
+    api.getMyBrochures().then(function(res) {
+      var brochures = []
+      if (res && res.data) {
+        brochures = Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : [])
+      } else if (Array.isArray(res)) {
+        brochures = res
       }
-      // API返回空或失败，保持现有placeholder降级
-    }).catch(function() {
-      // 静默降级，保留已有placeholder
-    })
 
-    api.get('/products?pageSize=10&sort=recommend').then(function(res) {
-      var raw = (res.data && res.data.items) || []
-      var items = []
-      for (var i = 0; i < raw.length; i++) {
-        var p = raw[i]
-        items.push({
-          id: p.id,
-          name: p.name,
-          price: p.price,
-          description: p.description || '',
-          earn_per_share: p.earn_per_share,
-          images: p.images,
-          firstImage: safeGetImage(p.images)
+      if (brochures.length > 0) {
+        var brochure = brochures[0]
+        self.setData({
+          brochure: brochure,
+          hasBrochure: true,
+          viewCount: brochure.view_count || brochure.stats?.views || 0,
+          loading: false
         })
+      } else {
+        self.setData({ loading: false, hasBrochure: false })
       }
-      self.setData({ recommendProducts: items, products: items, loading: false })
-    }).catch(function() {
-      self.setData({ loading: false })
+    }).catch(function(e) {
+      // 如果接口报错，尝试从本地storage读取
+      var user = wx.getStorageSync('user')
+      if (user && user.name) {
+        self.setData({
+          loading: false,
+          hasBrochure: true,
+          brochure: {
+            name: user.name,
+            company: user.company || '',
+            position: user.position || '',
+            bio: user.bio || '',
+            avatar: user.avatar || '',
+            phone: user.phone || '',
+            email: user.email || '',
+            wechat: user.wechat || '',
+            purpose: user.purpose || '',
+            provide_tags: user.provide_tags || [],
+            need_tags: user.need_tags || []
+          }
+        })
+      } else {
+        self.setData({ loading: false, hasBrochure: false, error: '暂无名片数据' })
+      }
     })
   },
-  goDetail: function(e) {
-    wx.navigateTo({ url: '/pages/product/index?id=' + e.currentTarget.dataset.id })
+
+  // === 翻页手势 ===
+  onTouchStart: function(e) {
+    this.setData({
+      touchStartX: e.touches[0].clientX,
+      touchStartY: e.touches[0].clientY,
+      isSwiping: true
+    })
   },
-  goPool: function() {
-    wx.switchTab({ url: '/pages/pool/index' })
+
+  onTouchEnd: function(e) {
+    if (!this.data.isSwiping) return
+    var dx = e.changedTouches[0].clientX - this.data.touchStartX
+    var dy = e.changedTouches[0].clientY - this.data.touchStartY
+    // 水平滑动阈值 50rpx，要求水平移动大于垂直移动
+    if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      if (dx < 0 && this.data.currentPage < this.data.totalPages - 1) {
+        this.nextPage()
+      } else if (dx > 0 && this.data.currentPage > 0) {
+        this.prevPage()
+      }
+    }
+    this.setData({ isSwiping: false })
   },
-  goPoolWithCat: function(e) {
-    var cat = e.currentTarget.dataset.cat
-    try {
-      wx.setStorageSync('pool_category', cat)
-    } catch (e) {}
-    wx.switchTab({ url: '/pages/pool/index' })
+
+  nextPage: function() {
+    var cp = this.data.currentPage
+    if (cp < this.data.totalPages - 1) {
+      this.setData({ currentPage: cp + 1 })
+    }
   },
-  goAIDiagnosis: function() {
-    wx.navigateTo({ url: '/pages/webview/index?url=' + encodeURIComponent('https://www.go-aiport.com/ai-diagnosis') })
+
+  prevPage: function() {
+    var cp = this.data.currentPage
+    if (cp > 0) {
+      this.setData({ currentPage: cp - 1 })
+    }
   },
-  goAICard: function() {
-    wx.navigateTo({ url: '/pages/webview/index?url=' + encodeURIComponent('https://www.go-aiport.com/ai-card') })
+
+  // === 页面操作 ===
+  goEdit: function() {
+    wx.navigateTo({ url: '/pages/card-editor/index' })
+  },
+
+  goPreview: function() {
+    wx.navigateTo({ url: '/pages/brochure-preview/index' })
+  },
+
+  // 分享（微信使用 onShareAppMessage 生命周期，非 wx.shareAppMessage）
+  onShareAppMessage: function() {
+    var brochure = this.data.brochure || {}
+    return {
+      title: brochure.name ? (brochure.name + '的数字名片') : 'AI数字名片',
+      path: '/pages/index/index'
+    }
+  },
+
+  handleContact: function() {
+    // 触发匹配流程
+    wx.switchTab({ url: '/pages/match/index' })
+  },
+
+  onCreateNew: function() {
+    wx.navigateTo({ url: '/pages/card-editor/index' })
   }
 })

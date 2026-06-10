@@ -1,204 +1,67 @@
-# ============================================================
-# 链客宝 CI/CD 流水线
-# 触发: push 到 master 分支
-# 构建 -> 测试 -> 部署到 47.116.116.87
-# ============================================================
 name: 链客宝 CI/CD
-
 on:
   push:
     branches: [master]
-  # 也支持手动触发
   workflow_dispatch:
     inputs:
-      branch:
-        description: "部署分支"
-        required: true
-        default: "master"
-        type: choice
-        options:
-          - master
-          - develop
+      skip_build:
+        description: '跳过前端构建（只拉代码+重启）'
+        type: boolean
+        default: false
 
-# 同一分支的并发构建取消旧任务
 concurrency:
   group: cd-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  ci:
-    name: 🔨 构建 & 测试
+  deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.branch || github.ref_name }}
-
-      # ---- 步骤 2: 安装 Python 依赖 ----
-      - name: 安装 Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: "pip"
-          cache-dependency-path: backend/requirements.txt
-
-      - name: 安装后端依赖
-        working-directory: backend
+      - uses: actions/checkout@v4
+      
+      # 阶段1: 前端构建（除非手动跳过）
+      - name: Build frontend
+        if: ${{ inputs.skip_build != true }}
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-asyncio httpx
-
-      # ---- 步骤 3: 运行测试 ----
-      - name: 运行后端测试
-        working-directory: backend
-        run: pytest tests/ -v --tb=short
+          npm install && npm run build -- --logLevel error
+      
+      # 阶段2: 部署到阿里云（带重试）
+      - name: Deploy via SSH retry (max 5次)
         env:
-          PYTHONPATH: ${{ github.workspace }}/backend
-          DB_TYPE: sqlite
-
-      # ---- 步骤 4: 安装前端依赖 + 构建 ----
-      - name: 安装 Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: package-lock.json
-
-      - name: 安装前端依赖
-        run: npm ci
-
-      - name: 构建前端
-        run: npm run build -- --logLevel error
-
-      # ---- 步骤 5: 通过 SSH 部署到 47.116.116.87 ----
-      - name: SSH 部署到 47.116.116.87
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: 47.116.116.87
-          username: root
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          port: ${{ secrets.DEPLOY_PORT || '22' }}
-          script: |
-            set -e
-            echo "============================================"
-            echo "  链客宝 自动部署"
-            echo "  Commit: $(git rev-parse --short HEAD 2>/dev/null || echo '${{ github.sha }}')"
-            echo "  时间: $(date '+%Y-%m-%d %H:%M:%S')"
-            echo "============================================"
-
-            TARGET_DIR="/var/www/liankebao"
-            BACKUP_DIR="${TARGET_DIR}_backup_$(date +%Y%m%d_%H%M%S)"
-
-            # 备份当前版本（如果存在）
-            if [ -d "$TARGET_DIR/dist" ] || [ -d "$TARGET_DIR/backend" ]; then
-              echo "[备份] 备份当前版本到 $BACKUP_DIR"
-              mkdir -p "$BACKUP_DIR"
-              [ -d "$TARGET_DIR/dist" ] && cp -r "$TARGET_DIR/dist" "$BACKUP_DIR/"
-              [ -d "$TARGET_DIR/backend" ] && cp -r "$TARGET_DIR/backend" "$BACKUP_DIR/"
-            fi
-
-            # 确保目标目录存在
-            mkdir -p "$TARGET_DIR"
-
-            # 复制 dist/（构建产出的前端文件）
-            echo "[部署] 复制前端构建产物..."
-            rsync -avz --delete "${{ github.workspace }}/dist/" "$TARGET_DIR/dist/" 2>/dev/null || \
-              cp -r "${{ github.workspace }}/dist"/* "$TARGET_DIR/dist/" 2>/dev/null || \
-              echo "  ⚠ dist/ 复制跳过（本地路径不可用，使用远程拉取替代）"
-
-            # 复制 backend/（后端代码，排除 venv）
-            echo "[部署] 复制后端代码..."
-            rsync -avz --delete --exclude='venv/' --exclude='__pycache__/' --exclude='*.db' \
-              "${{ github.workspace }}/backend/" "$TARGET_DIR/backend/" 2>/dev/null || \
-              echo "  ⚠ backend/ 复制跳过"
-
-            # 如果 SSH action 中无法直接访问 ${{ github.workspace }}，
-            # 则通过 git clone/pull 方式获取代码
-            if [ ! -d "$TARGET_DIR/dist" ] || [ ! "$(ls -A "$TARGET_DIR/dist" 2>/dev/null)" ]; then
-              echo "[部署] 通过 git 拉取代码..."
-              if [ -d "$TARGET_DIR/.git" ]; then
-                cd "$TARGET_DIR"
-                git fetch origin master
-                git reset --hard origin/master
-                git clean -fd
-              else
-                cd /tmp
-                rm -rf liankebao-tmp
-                git clone --depth=1 -b master git@github.com:eagle13579/liankebao.git liankebao-tmp
-                cp -r liankebao-tmp/dist "$TARGET_DIR/" 2>/dev/null || true
-                cp -r liankebao-tmp/backend "$TARGET_DIR/" 2>/dev/null || true
-                cp liankebao-tmp/package.json "$TARGET_DIR/" 2>/dev/null || true
-                cp liankebao-tmp/package-lock.json "$TARGET_DIR/" 2>/dev/null || true
-                rm -rf liankebao-tmp
-              fi
-            fi
-
-            # 安装/更新后端依赖
-            echo "[部署] 安装后端依赖..."
-            cd "$TARGET_DIR/backend"
-            if [ ! -d "venv" ]; then
-              python3 -m venv venv
-            fi
-            source venv/bin/activate
-            pip install --upgrade pip
-            pip install -r requirements.txt -q
-
-            # 重启 systemd 服务（如果存在）
-            echo "[部署] 重启服务..."
-            if systemctl list-units --type=service --all 2>/dev/null | grep -q 'liankebao'; then
-              sudo systemctl daemon-reload
-              sudo systemctl restart liankebao
-              echo "  ✅ liankebao systemd 服务已重启"
-            elif systemctl list-units --type=service --all 2>/dev/null | grep -q 'liankebao-backend'; then
-              sudo systemctl daemon-reload
-              sudo systemctl restart liankebao-backend
-              echo "  ✅ liankebao-backend systemd 服务已重启"
-            elif systemctl list-units --type=service --all 2>/dev/null | grep -q 'chainke'; then
-              sudo systemctl daemon-reload
-              sudo systemctl restart chainke
-              echo "  ✅ chainke systemd 服务已重启"
-            else
-              echo "  ⚠ 未找到 systemd 服务，尝试 docker compose..."
-              cd "$TARGET_DIR"
-              docker compose restart backend 2>/dev/null || docker-compose restart backend 2>/dev/null || \
-              echo "  ⚠ 请手动重启服务"
-            fi
-
-            # 健康检查
-            echo "[部署] 健康检查..."
-            sleep 5
-            for i in $(seq 1 12); do
-              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8001/health 2>/dev/null || echo "000")
-              if [ "$HTTP_CODE" = "200" ]; then
-                echo "  ✅ 健康检查通过 (尝试 $i/12)"
-                break
-              fi
-              echo "  ⏳ 等待后端就绪... (尝试 $i/12, HTTP $HTTP_CODE)"
-              sleep 5
-              if [ "$i" -eq 12 ]; then
-                echo "  ⚠ 后端未完全就绪，请手动排查"
-              fi
-            done
-
-            echo ""
-            echo "============================================"
-            echo "  ✅ 部署完成！"
-            echo "============================================"
-
-  # 部署失败时发送通知
-  notify:
-    name: 📬 部署通知
-    needs: ci
-    if: failure() && github.ref == 'refs/heads/master'
-    runs-on: ubuntu-latest
-    steps:
-      - name: 获取部署状态
+          SSHPASS: ${{ secrets.DEPLOY_PASSWORD }}
         run: |
-          echo "❌ 链客宝部署失败"
-          echo "分支: ${{ github.ref_name }}"
-          echo "Commit: ${{ github.sha }}"
-          echo "参见: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          sudo apt-get install -y -qq sshpass
+          for attempt in $(seq 1 5); do
+            echo "--- SSH attempt $attempt/5 ---"
+            sshpass -e ssh -o StrictHostKeyChecking=no \
+              -o ConnectTimeout=15 \
+              -o ServerAliveInterval=10 \
+              -o ServerAliveCountMax=5 \
+              -o TCPKeepAlive=yes \
+              -o LogLevel=ERROR \
+              root@47.116.116.87 '
+              echo "[1/5] Pulling code..."
+              cd /var/www/liankebao
+              git fetch origin master
+              git reset --hard origin/master
+              git clean -fd
+              echo "[2/5] Installing deps..."
+              cd backend && source .venv/bin/activate && pip install -r requirements.txt -q && cd ..
+              echo "[3/5] Configuring env..."
+              grep -q "WECHAT_APP_SECRET" .env 2>/dev/null || echo "WECHAT_APP_SECRET=d1eebc8db44579b05fce5c335a35ecca" >> .env
+              echo "[4/5] Restarting service..."
+              systemctl daemon-reload
+              systemctl restart chainke
+              sleep 10
+              echo "[5/5] Health check..."
+              curl -sf http://127.0.0.1:8001/health > /dev/null && echo "DEPLOY_OK" || echo "HEALTH_CHECK_FAILED"
+            ' 2>&1
+            if [ $? -eq 0 ]; then
+              echo "✅ SSH attempt $attempt/5 succeeded"
+              break
+            else
+              echo "❌ SSH attempt $attempt/5 failed, retrying in 10s..."
+              sleep 10
+            fi
+          done

@@ -1,5 +1,5 @@
 """
-链客宝支付底层模块
+链客宝AI支付底层模块
 基于 IJPay 设计思想封装 (Python 版)
 
 模块结构:
@@ -10,62 +10,70 @@
     alipay      — 支付宝模块 (框架)
 """
 
+from payment.alipay import AliPayApi, AliPayCore
 from payment.config import (
-    WxPayConfig,
+    PAYMENT_MODE_MOCK,
+    PAYMENT_MODE_REAL,
+    PLATFORM_ALIPAY,
+    PLATFORM_WXPAY,
     AliPayConfig,
-    register,
+    WxPayConfig,
     get_config,
-    set_current_platform,
     get_current_platform,
     has_config,
-    list_platforms,
-    remove_config,
     init_default_config,
-    PLATFORM_WXPAY,
-    PLATFORM_ALIPAY,
     is_real_mode,
-    PAYMENT_MODE_REAL,
-    PAYMENT_MODE_MOCK,
+    list_platforms,
+    register,
+    remove_config,
+    set_current_platform,
 )
+from payment.http_delegate import HttpDelegate, HttpResponse
 from payment.sign import (
+    aes_gcm_decrypt,
+    build_v2_sign,
+    build_v3_sign_str,
     generate_nonce,
-    md5,
     hmac_sha256,
+    md5,
     rsa_sign,
     rsa_verify,
     rsa_verify_with_key,
-    build_v3_sign_str,
-    build_v2_sign,
     verify_v2_sign,
-    aes_gcm_decrypt,
 )
-from payment.http_delegate import HttpDelegate, HttpResponse
 from payment.wxpay import WxPayApi, WxPayAuth, WxPayCallback
-from payment.alipay import AliPayApi, AliPayCore
 
 # 向后兼容名称
-ApiConfigKit = type("ApiConfigKit", (), {
-    "register": staticmethod(register),
-    "get_config": staticmethod(get_config),
-    "set_current_platform": staticmethod(set_current_platform),
-    "get_current_platform": staticmethod(get_current_platform),
-    "init_default_config": staticmethod(init_default_config),
-    "has_config": staticmethod(has_config),
-    "list_platforms": staticmethod(list_platforms),
-    "remove_config": staticmethod(remove_config),
-})
+ApiConfigKit = type(
+    "ApiConfigKit",
+    (),
+    {
+        "register": staticmethod(register),
+        "get_config": staticmethod(get_config),
+        "set_current_platform": staticmethod(set_current_platform),
+        "get_current_platform": staticmethod(get_current_platform),
+        "init_default_config": staticmethod(init_default_config),
+        "has_config": staticmethod(has_config),
+        "list_platforms": staticmethod(list_platforms),
+        "remove_config": staticmethod(remove_config),
+    },
+)
 
-PayKit = type("PayKit", (), {
-    "generate_nonce": staticmethod(generate_nonce),
-    "md5": staticmethod(md5),
-    "hmac_sha256": staticmethod(hmac_sha256),
-    "rsa_sign": staticmethod(rsa_sign),
-    "rsa_verify": staticmethod(rsa_verify),
-    "build_v3_sign_str": staticmethod(build_v3_sign_str),
-    "build_v2_sign": staticmethod(build_v2_sign),
-    "verify_v2_sign": staticmethod(verify_v2_sign),
-    "aes_gcm_decrypt": staticmethod(aes_gcm_decrypt),
-})
+PayKit = type(
+    "PayKit",
+    (),
+    {
+        "generate_nonce": staticmethod(generate_nonce),
+        "md5": staticmethod(md5),
+        "hmac_sha256": staticmethod(hmac_sha256),
+        "rsa_sign": staticmethod(rsa_sign),
+        "rsa_verify": staticmethod(rsa_verify),
+        "build_v3_sign_str": staticmethod(build_v3_sign_str),
+        "build_v2_sign": staticmethod(build_v2_sign),
+        "verify_v2_sign": staticmethod(verify_v2_sign),
+        "aes_gcm_decrypt": staticmethod(aes_gcm_decrypt),
+    },
+)
 
 __all__ = [
     # Config

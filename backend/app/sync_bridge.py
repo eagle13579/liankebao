@@ -15,13 +15,19 @@ flask, pyyaml (纯Python标准库)
 ## 启动
 python sync_bridge.py [port]
 """
-import os, json, sys, datetime, yaml
-from flask import Flask, request, jsonify
+
+import datetime
+import os
+import sys
+
+import yaml
+from flask import Flask, jsonify, request
 
 HERMES = r"D:\向海容的知识库\wiki\wiki\记忆宫殿"
-SYNC_FILE = os.path.join(HERMES, "L5孵化室", "产品开发", "链客宝", "feishu_sync.yaml")
+SYNC_FILE = os.path.join(HERMES, "L5孵化室", "产品开发", "链客宝AI", "feishu_sync.yaml")
 
 app = Flask(__name__)
+
 
 @app.route("/sync", methods=["POST"])
 def sync_receive():
@@ -32,35 +38,39 @@ def sync_receive():
         "id": data.get("id", f"ms-{int(datetime.datetime.now().timestamp())}"),
         "milestone": data.get("milestone", ""),
         "status": data.get("status", "done"),
-        "detail": data.get("detail", "")[:200]
+        "detail": data.get("detail", "")[:200],
     }
     if not milestone["milestone"]:
         return jsonify({"error": "milestone is required"}), 400
-    
+
     if os.path.exists(SYNC_FILE):
-        with open(SYNC_FILE, "r", encoding="utf-8") as f:
+        with open(SYNC_FILE, encoding="utf-8") as f:
             content = f.read()
     else:
         content = "# sync\nmilestones:\n"
-    
-    new_entry = (f"\n  - date: \"{milestone['date']}\"\n"
-                 f"    id: \"{milestone['id']}\"\n"
-                 f"    milestone: \"{milestone['milestone']}\"\n"
-                 f"    status: {milestone['status']}\n"
-                 f"    detail: \"{milestone['detail']}\"")
+
+    new_entry = (
+        f'\n  - date: "{milestone["date"]}"\n'
+        f'    id: "{milestone["id"]}"\n'
+        f'    milestone: "{milestone["milestone"]}"\n'
+        f"    status: {milestone['status']}\n"
+        f'    detail: "{milestone["detail"]}"'
+    )
     content += new_entry
     with open(SYNC_FILE, "w", encoding="utf-8") as f:
         f.write(content)
     return jsonify({"ok": True, "milestone": milestone})
 
+
 @app.route("/status")
 def status():
     """飞书AI查看本地进度"""
-    prog = os.path.join(HERMES, "L5孵化室", "产品开发", "链客宝", "local_progress.yaml")
+    prog = os.path.join(HERMES, "L5孵化室", "产品开发", "链客宝AI", "local_progress.yaml")
     if os.path.exists(prog):
-        with open(prog, "r", encoding="utf-8") as f:
+        with open(prog, encoding="utf-8") as f:
             return jsonify(yaml.safe_load(f))
     return jsonify({"error": "no progress"})
+
 
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 5055

@@ -1,8 +1,8 @@
-# 链客宝 GitHub Secrets 配置 SOP
+# 链客宝AI GitHub Secrets 配置 SOP
 
-> 适用场景：链客宝 CI/CD 流水线需要 GitHub Secrets 才能运行
+> 适用场景：链客宝AI CI/CD 流水线需要 GitHub Secrets 才能运行
 > 目标仓库：`https://github.com/{你的用户名}/liankebao`
-> 前置条件：已将链客宝代码推送到 GitHub 仓库
+> 前置条件：已将链客宝AI代码推送到 GitHub 仓库
 
 ---
 

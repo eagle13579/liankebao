@@ -1,7 +1,7 @@
 {
   "name": "liankebao-miniapp",
   "version": "1.0.0",
-  "description": "链客宝原生微信小程序",
+  "description": "链客宝AI原生微信小程序",
   "private": true,
   "scripts": {
     "test": "jest",

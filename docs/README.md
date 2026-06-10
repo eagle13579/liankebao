@@ -1,6 +1,6 @@
-# 链客宝 API 文档门户
+# 链客宝AI API 文档门户
 
-> 本项目是链客宝后端的**独立 API 文档门户**，提供无需依赖后台服务的静态文档页面、Postman 集合和说明文档。
+> 本项目是链客宝AI后端的**独立 API 文档门户**，提供无需依赖后台服务的静态文档页面、Postman 集合和说明文档。
 
 ## 📂 目录结构
 
@@ -26,7 +26,7 @@ docs/
 
 ### 特点
 
-- 暗色主题，与链客宝品牌风格一致
+- 暗色主题，与链客宝AI品牌风格一致
 - 11 个模块导航：认证、产品、搜索、供需匹配、推荐、CRM、企业数据、数据丰富、多租户组织、增长引擎、系统
 - 每个端点标注 HTTP 方法、路径、说明和认证要求
 - 点击卡片可展开查看请求/响应示例
@@ -90,7 +90,7 @@ docs/
 
 ## 🔗 在线 API 文档
 
-链客宝后端基于 FastAPI 构建，运行后自动提供交互式 API 文档：
+链客宝AI后端基于 FastAPI 构建，运行后自动提供交互式 API 文档：
 
 - **Swagger UI**: [https://www.go-aiport.com/docs](https://www.go-aiport.com/docs) — 可在页面内直接测试接口
 - **ReDoc**: [https://www.go-aiport.com/redoc](https://www.go-aiport.com/redoc) — 另一种风格的可视化文档

@@ -1,4 +1,4 @@
-# 链客宝小程序 API 路由修复方案
+# 链客宝AI小程序 API 路由修复方案
 
 ---
 
@@ -11,13 +11,13 @@
 | 小程序 API_BASE | `https://www.go-aiport.com/lkapi` | 硬编码 |
 | go-aiport.com Nginx | 无 `/lkapi/` location | 返回 404 |
 | 后端 FastAPI | `localhost:8001` | 正常运行 |
-| 链客宝 Nginx | 绑定了 `liankebao.top`，API 路由为 `/api/` | DNS 未解析，不可用 |
+| 链客宝AI Nginx | 绑定了 `liankebao.top`，API 路由为 `/api/` | DNS 未解析，不可用 |
 
 ### 1.2 根因
 
 - 微信小程序 `api.js` 中 API 基础地址写死为 `https://www.go-aiport.com/lkapi`
 - 域名 `go-aiport.com` 的 Nginx 配置中没有为 `/lkapi/` 配置反向代理
-- 链客宝专属域名 `liankebao.top` DNS 未指向阿里云 ECS（47.100.160.250），因此链客宝原有的 Nginx 配置虽然正确但 **无法生效**
+- 链客宝AI专属域名 `liankebao.top` DNS 未指向阿里云 ECS（47.100.160.250），因此链客宝AI原有的 Nginx 配置虽然正确但 **无法生效**
 - 后端 FastAPI 实际运行在 `127.0.0.1:8001`，API 端点以 `/api/` 为前缀
 
 ---
@@ -179,7 +179,7 @@ curl -s https://www.go-aiport.com/lkapi/user/login
 
 ## 4. 其他备选方案
 
-### 4.1 方案 B：修复 liankebao.top DNS + 使用链客宝独立 Nginx
+### 4.1 方案 B：修复 liankebao.top DNS + 使用链客宝AI独立 Nginx
 
 如果希望用独立域名访问，操作如下：
 
@@ -191,11 +191,11 @@ curl -s https://www.go-aiport.com/lkapi/user/login
 dig liankebao.top +short
 # 预期: 47.100.160.250
 
-# 3. 链客宝 Nginx 已配好（/opt/liankebao/deploy/nginx.conf），含：
+# 3. 链客宝AI Nginx 已配好（/opt/liankebao/deploy/nginx.conf），含：
 #    location /api/ { proxy_pass http://127.0.0.1:8001/; }
 #    但注意路径是 /api/ 而不是 /lkapi/
 
-# 4. 也可在链客宝 Nginx 中增加 /lkapi/ 重写
+# 4. 也可在链客宝AI Nginx 中增加 /lkapi/ 重写
 #    参考 3.5 节相同配置
 
 # 5. 申请 SSL 证书
@@ -255,6 +255,6 @@ nginx -t && nginx -s reload
 | **修改文件** | go-aiport.com 的 Nginx server 配置 |
 | **新增内容** | `location /lkapi/` 块，重写路径 `/lkapi → /api` |
 | **需修改配置的服务器** | 47.100.160.250 (go-aiport.com Nginx) |
-| **无需修改** | 小程序代码、后端 FastAPI、链客宝 Nginx |
+| **无需修改** | 小程序代码、后端 FastAPI、链客宝AI Nginx |
 | **风险等级** | 低。仅新增 Nginx location，不影响现有路由 |
 | **预计耗时** | 5-10 分钟 |

@@ -1,18 +1,17 @@
 """Fix login response format - add access_token and user data"""
-import os
 
 path = "/opt/chainke/backend/app/routers/auth.py"
 with open(path, "r") as f:
     content = f.read()
 
 # Update login return to match frontend expectations
-old = '''    user = db.query(User).filter(User.wx_openid == openid).first()
+old = """    user = db.query(User).filter(User.wx_openid == openid).first()
     if not user:
         # Create user if not exists
         user = User(
             wx_openid=openid,
             nickname=username,
-            company="链客宝",
+            company="链客宝AI",
             share_code=_generate_share_code(),
             roles=0,
         )
@@ -24,15 +23,15 @@ old = '''    user = db.query(User).filter(User.wx_openid == openid).first()
         raise HTTPException(status_code=401, detail="密码错误")
 
     token = create_access_token(data={"sub": str(user.id), "user_id": user.id})
-    return WxLoginResponse(token=token, is_new_user=False, user_id=user.id)'''
+    return WxLoginResponse(token=token, is_new_user=False, user_id=user.id)"""
 
-new = '''    user = db.query(User).filter(User.wx_openid == openid).first()
+new = """    user = db.query(User).filter(User.wx_openid == openid).first()
     if not user:
         # Create user if not exists
         user = User(
             wx_openid=openid,
             nickname=username,
-            company="链客宝",
+            company="链客宝AI",
             share_code=_generate_share_code(),
             roles=0,
         )
@@ -59,19 +58,17 @@ new = '''    user = db.query(User).filter(User.wx_openid == openid).first()
             "company": user.company or "",
             "position": user.position or "",
         }
-    }'''
+    }"""
 
 content = content.replace(old, new)
 
 # Also change the return type annotation
-content = content.replace(
-    'response_model=WxLoginResponse',
-    'response_model=None'
-)
+content = content.replace("response_model=WxLoginResponse", "response_model=None")
 
 with open(path, "w") as f:
     f.write(content)
 
 import ast
+
 ast.parse(content)
 print("Syntax OK")
