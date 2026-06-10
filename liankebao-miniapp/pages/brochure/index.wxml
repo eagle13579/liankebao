@@ -6,7 +6,7 @@
     <view class="error-state"><text class="error-icon">!</text><text class="error-text">{{error}}</text><button class="retry-btn" bindtap="onLoad">重试</button></view>
   </block>
   <block wx:else>
-    <view class="profile-card"><view class="avatar-ring"><image class="avatar" src="{{userInfo.avatar || '/images/default-avatar.png'}}" /></view>
+    <view class="profile-card"><view class="avatar-ring"><image class="avatar" src="{{userInfo.avatar || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 fill=%22%23e5e7eb%22 rx=%2250%22/%3E%3Ctext x=%2250%22 y=%2265%22 text-anchor=%22middle%22 font-size=%2242%22 fill=%22%239ca3af%22%3E👤%3C/text%3E%3C/svg%3E'}}" /></view>
       <text class="name">{{userInfo.name}}</text><text class="company">{{userInfo.company}} · {{userInfo.position}}</text>
       <text class="bio">{{userInfo.bio}}</text>
     </view>
