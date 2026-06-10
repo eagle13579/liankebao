@@ -4,7 +4,7 @@
    策略: 网络优先, 离线时 fallback 到缓存
    ============================================================ */
 
-const CACHE_NAME = 'liankebao-v1';
+const CACHE_NAME = 'liankebao-v2';
 const PRECACHE_URLS = [
   '/app/',
   '/app/index.html',
