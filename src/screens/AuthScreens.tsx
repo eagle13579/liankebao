@@ -15,6 +15,24 @@ export function LoginPage() {
   const handleWechatLogin = async () => {
     setLoading(true);
     setError('');
+
+    // 前端校验：空字段直接提示中文，不让请求发到后端
+    if (!username.trim()) {
+      setError('请输入账号');
+      setLoading(false);
+      return;
+    }
+    if (!password.trim()) {
+      setError('请输入密码');
+      setLoading(false);
+      return;
+    }
+    if (password.length < 6) {
+      setError('密码长度不能少于6位');
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await api.post<{token: string; access_token: string; user: any}>('/api/auth/login', { username, password });
       const token = res.data?.token || res.data?.access_token;

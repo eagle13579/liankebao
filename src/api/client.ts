@@ -23,9 +23,23 @@ async function request<T>(path: string, options?: RequestInit): Promise<ApiRespo
         const errBody = await res.json();
         const detail = errBody?.detail || errBody?.message || '';
         if (Array.isArray(detail)) {
-          // FastAPI 422 验证错误格式
-          const msgs = detail.map((d: any) => d.msg).filter(Boolean);
-          return { code: res.status, message: msgs.join('；') || `请求数据有误` };
+          // FastAPI 422 验证错误格式 → 翻译成中文
+          const i18n: Record<string, string> = {
+            'String should have at least 1 character': '此项不能为空',
+            'String should have at least 6 characters': '密码长度不能少于6位',
+            'String should have at least 8 characters': '密码长度不能少于8位',
+            'field required': '此项为必填项',
+            'value is not a valid email': '邮箱格式不正确',
+            'value is not a valid phone number': '手机号格式不正确',
+            'ensure this value has at least 1 characters': '此项不能为空',
+            'ensure this value has at least 6 characters': '密码长度不能少于6位',
+            'field required': '请填写此项',
+          };
+          const msgs = detail.map((d: any) => {
+            const raw = d.msg || '';
+            return i18n[raw] || raw;
+          }).filter(Boolean);
+          return { code: res.status, message: msgs.join('；') || '请求数据有误' };
         }
         if (typeof detail === 'string' && detail) {
           return { code: res.status, message: detail };
