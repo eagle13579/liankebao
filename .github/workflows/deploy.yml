@@ -3,6 +3,11 @@ on:
   push:
     branches: [master]
   workflow_dispatch:
+    inputs:
+      skip_build:
+        description: '跳过前端构建（只拉代码+重启）'
+        type: boolean
+        default: false
 
 concurrency:
   group: cd-${{ github.ref }}
@@ -14,58 +19,47 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-      # FIXED: Use npm install instead of npm ci to avoid lockfile mismatch
-      # (package.json motion@^12.40.0 vs package-lock.json motion@^12.23.24)
-      - run: npm install && npm run build
-
-      - name: Deploy via SSH with password (retry)
+      
+      # 阶段1: 前端构建（除非手动跳过）
+      - name: Build frontend
+        if: ${{ inputs.skip_build != true }}
+        run: |
+          npm install && npm run build -- --logLevel error
+      
+      # 阶段2: 部署到阿里云（带重试）
+      - name: Deploy via SSH retry (max 5次)
         env:
           SSHPASS: ${{ secrets.DEPLOY_PASSWORD }}
         run: |
           sudo apt-get install -y -qq sshpass
-          for attempt in 1 2 3; do
-            echo "--- SSH attempt $attempt/3 ---"
-            sshpass -e ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -o ServerAliveInterval=10 root@47.116.116.87 '
-            cd /var/www/liankebao
-            git fetch origin master
-            git reset --hard origin/master
-            git clean -fd
-            VITE_API_BASE="" npm run build -- --logLevel error
-            cd backend && source .venv/bin/activate && pip install -r requirements.txt -q
-            systemctl daemon-reload && systemctl restart chainke-backend
-            sleep 10
-            curl -sf http://127.0.0.1:8001/health > /dev/null && echo "DEPLOY_OK" || echo "HEALTH_CHECK_FAILED"
-          '
-          if [ $? -eq 0 ]; then
-            echo "✅ SSH attempt $attempt/3 succeeded"
-            break
-          else
-            echo "❌ SSH attempt $attempt/3 failed, retrying in 5s..."
-            sleep 5
-          fi
+          for attempt in $(seq 1 5); do
+            echo "--- SSH attempt $attempt/5 ---"
+            sshpass -e ssh -o StrictHostKeyChecking=no \
+              -o ConnectTimeout=15 \
+              -o ServerAliveInterval=10 \
+              -o ServerAliveCountMax=5 \
+              -o TCPKeepAlive=yes \
+              -o LogLevel=ERROR \
+              root@47.116.116.87 '
+              echo "[1/4] Pulling code..."
+              cd /var/www/liankebao
+              git fetch origin master
+              git reset --hard origin/master
+              git clean -fd
+              echo "[2/4] Installing deps..."
+              cd backend && source .venv/bin/activate && pip install -r requirements.txt -q && cd ..
+              echo "[3/4] Restarting service..."
+              systemctl daemon-reload
+              systemctl restart chainke
+              sleep 10
+              echo "[4/4] Health check..."
+              curl -sf http://127.0.0.1:8001/health > /dev/null && echo "DEPLOY_OK" || echo "HEALTH_CHECK_FAILED"
+            ' 2>&1
+            if [ $? -eq 0 ]; then
+              echo "✅ SSH attempt $attempt/5 succeeded"
+              break
+            else
+              echo "❌ SSH attempt $attempt/5 failed, retrying in 10s..."
+              sleep 10
+            fi
           done
-          # Start user-service
-          echo "[4/5] Starting user-service..."
-          cd /var/www/liankebao/user-service
-          fuser -k 8002/tcp 2>/dev/null || true
-          nohup /var/www/liankebao/backend/.venv/bin/python standalone_auth.py > user-service.log 2>&1 &
-          sleep 3
-
-          echo "[5/5] Health check..."
-          sleep 10
-          # FIXED: Use single % for http_code, removed undefined $NOTIF/$SEARCH vars
-          for i in 1 2 3 4 5 6 7 8; do
-            MAIN=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8001/health 2>/dev/null || echo "000")
-            USER=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8002/health 2>/dev/null || echo "000")
-            PAY=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8006/health 2>/dev/null || echo "000")
-            CRM=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8005/health 2>/dev/null || echo "000")
-            MATCH=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8004/health 2>/dev/null || echo "000")
-            echo "  Attempt $i/8: main=$MAIN user=$USER pay=$PAY crm=$CRM match=$MATCH"
-            [ "$MAIN" = "200" ] && [ "$USER" = "200" ] && [ "$PAY" = "200" ] && [ "$CRM" = "200" ] && [ "$MATCH" = "200" ] && echo '✅ All OK' && exit 0
-            sleep 5
-          done
-          echo '⚠️ Timeout'
