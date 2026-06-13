@@ -72,6 +72,7 @@ import app.routers.matching_events as matching_events_module
 import app.routers.membership as membership_module
 import app.routers.mission_control as mission_control_module
 import app.routers.needs as needs_module
+import app.routers.next_action as next_action_module
 import app.routers.onboarding as onboarding_module
 import app.routers.organization as organization_module
 import app.routers.payment as payment_module
@@ -83,6 +84,12 @@ import app.routers.sales_script as sales_script_module
 import app.routers.unit_economics as unit_economics_module
 import app.routers.upload as upload_module
 import app.routers.vector_search_router as vector_search_module
+import app.routers.esign as esign_module
+import app.routers.enterprise_enrich as enterprise_enrich_module
+import app.routers.contract_templates as contract_templates_module
+import app.routers.escrow as escrow_module
+import app.routers.ai_chatbot as ai_chatbot_module
+import app.routers.ai_chatbot_ui as ai_chatbot_ui_module
 
 # ===== 顶层模块（PYTHONPATH 级别导入） =====
 import invoice as invoice_module
@@ -371,7 +378,9 @@ router_modules = [
     payment_module,
     events_module,
     insights_module,
+    mission_control_module,
     needs_module,
+    next_action_module,
     onboarding_module,
     recommend_module,
     business_card_module,
@@ -395,6 +404,9 @@ router_modules = [
     retro_board_module,
     sales_script_module,
     unit_economics_module,
+    enterprise_enrich_module,
+    escrow_module,
+    ai_chatbot_module,
 ]
 
 # 可选模块追加
@@ -427,6 +439,7 @@ app.include_router(payment_module.router)
 app.include_router(insights_module.router)
 app.include_router(needs_module.router)
 app.include_router(mission_control_module.router)
+app.include_router(next_action_module.router)
 app.include_router(onboarding_module.router)
 app.include_router(recommend_module.router)
 app.include_router(business_card_module.router)
@@ -452,6 +465,12 @@ app.include_router(retention_insights_module.router)
 app.include_router(retro_board_module.router)
 app.include_router(sales_script_module.router)
 app.include_router(unit_economics_module.router)
+app.include_router(esign_module.router)
+app.include_router(enterprise_enrich_module.router)
+app.include_router(contract_templates_module.router)
+app.include_router(escrow_module.router)
+app.include_router(ai_chatbot_module.router)
+app.include_router(ai_chatbot_ui_module.router)
 
 # ===== 启动时初始化增长引擎数据库 =====
 from app.routers.growth import init_growth_db

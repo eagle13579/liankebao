@@ -24,4 +24,11 @@ for _name in dir(_flat):
 # Also import organization models
 from app.models.organization import Invite, Organization, OrganizationMember  # noqa: F401
 
-__all__ = [n for n in dir(_flat) if not n.startswith("_")] + ["Organization", "OrganizationMember", "Invite"]
+# Import escrow models
+from app.models.escrow import Deal, Dispute, Milestone  # noqa: F401
+
+__all__ = (
+    [n for n in dir(_flat) if not n.startswith("_")]
+    + ["Organization", "OrganizationMember", "Invite"]
+    + ["Deal", "Milestone", "Dispute"]
+)

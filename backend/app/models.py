@@ -1,5 +1,6 @@
 """SQLAlchemy ORM 数据模型"""
 
+import os
 from datetime import datetime
 
 from sqlalchemy import BigInteger, Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
@@ -17,7 +18,7 @@ class _StubMembership:  # placeholder when IS_MULTI_TENANT=False
 # ============================================================
 # 多租户判断：PostgreSQL 模式下强制启用 organization_id
 # ============================================================
-_IS_MULTI_TENANT = DB_TYPE == "postgres"
+_IS_MULTI_TENANT = os.environ.get("IS_MULTI_TENANT", "true").lower() in ("true", "1", "yes") if True else DB_TYPE == "postgres"
 
 
 def _org_fk():
@@ -754,3 +755,54 @@ class AestheticScoreCardRecord(Base):
     card_data = Column(Text, nullable=True, default="{}")
     overall_score = Column(Float, nullable=False, default=0.0)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ============================================================
+# e签宝电子签约模型 (Esign)
+# ============================================================
+
+
+class EsignTemplate(Base):
+    """e签宝合同模板（本地镜像）"""
+
+    __tablename__ = "esign_templates"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    esign_template_id = Column(String(64), unique=True, nullable=False, index=True, comment="e签宝平台模板 ID")
+    name = Column(String(200), nullable=False, comment="模板名称")
+    file_id = Column(String(64), nullable=True, comment="e签宝文件 ID")
+    status = Column(String(20), nullable=False, default="active", comment="状态: active/disabled")
+    meta_data = Column(Text, nullable=True, default="{}", comment="扩展元数据(JSON)")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # 多租户
+    organization_id = _org_fk()
+
+
+class EsignContract(Base):
+    """e签宝签署合同记录（本地镜像）"""
+
+    __tablename__ = "esign_contracts"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    esign_contract_id = Column(String(64), unique=True, nullable=False, index=True, comment="e签宝平台合同流程 ID")
+    template_id = Column(Integer, ForeignKey("esign_templates.id"), nullable=True, index=True, comment="关联本地模板 ID")
+    contract_name = Column(String(200), nullable=True, comment="合同名称")
+    status = Column(Integer, nullable=False, default=0, comment="签署状态: 0=待签署 1=签署中 2=已完成 3=已撤销 4=已过期")
+    status_label = Column(String(20), nullable=True, comment="状态中文描述")
+    signers_json = Column(Text, nullable=True, default="[]", comment="签署方列表(JSON)")
+    fields_json = Column(Text, nullable=True, default="[]", comment="填充字段(JSON)")
+    sign_url = Column(String(500), nullable=True, comment="签署链接")
+    expire_at = Column(DateTime, nullable=True, comment="签署截止时间")
+    finish_time = Column(DateTime, nullable=True, comment="签署完成时间")
+    meta_data = Column(Text, nullable=True, default="{}", comment="扩展数据(JSON)")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # 多租户
+    organization_id = _org_fk()
+    # 用户关联
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True, comment="发起用户ID")
+    
+    # 关系
+    template = relationship("EsignTemplate", foreign_keys=[template_id])
+    user = relationship("User", foreign_keys=[user_id])

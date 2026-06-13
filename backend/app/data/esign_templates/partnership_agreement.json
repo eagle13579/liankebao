@@ -1,0 +1,241 @@
+{
+  "template_id": "partnership_agreement",
+  "name": "合伙人合作协议",
+  "version": "1.0.0",
+  "description": "适用于多方合伙人共同出资、共同经营、共担风险、共享收益的合作协议。涵盖出资比例、股权分配、决策机制、利润分配、退出机制等核心条款，适用于创业团队、联合经营等多种场景。",
+  "category": "partnership",
+  "variables": [
+    {
+      "name": "project_name",
+      "label": "合作项目名称",
+      "type": "string",
+      "description": "合作项目的全称"
+    },
+    {
+      "name": "project_description",
+      "label": "项目经营范围/描述",
+      "type": "string",
+      "description": "合作项目的主要经营范围"
+    },
+    {
+      "name": "partner_a_name",
+      "label": "合伙人A名称",
+      "type": "string",
+      "description": "合伙人A的姓名或企业全称"
+    },
+    {
+      "name": "partner_a_type",
+      "label": "合伙人A类型",
+      "type": "string",
+      "description": "个人/企业",
+      "default": "个人"
+    },
+    {
+      "name": "partner_a_credit_code",
+      "label": "合伙人A证件号",
+      "type": "string",
+      "description": "身份证号或统一社会信用代码"
+    },
+    {
+      "name": "partner_a_address",
+      "label": "合伙人A地址",
+      "type": "string",
+      "description": "合伙人A的地址"
+    },
+    {
+      "name": "partner_a_mobile",
+      "label": "合伙人A手机号",
+      "type": "string",
+      "description": "合伙人A联系电话"
+    },
+    {
+      "name": "partner_a_contribution",
+      "label": "合伙人A出资额（元）",
+      "type": "number",
+      "description": "合伙人A认缴出资额"
+    },
+    {
+      "name": "partner_a_contribution_type",
+      "label": "合伙人A出资方式",
+      "type": "string",
+      "description": "货币/实物/知识产权/土地使用权/其他",
+      "default": "货币"
+    },
+    {
+      "name": "partner_a_ratio",
+      "label": "合伙人A持股比例（%）",
+      "type": "number",
+      "description": "合伙人A的股权比例"
+    },
+    {
+      "name": "partner_b_name",
+      "label": "合伙人B名称",
+      "type": "string",
+      "description": "合伙人B的姓名或企业全称"
+    },
+    {
+      "name": "partner_b_type",
+      "label": "合伙人B类型",
+      "type": "string",
+      "description": "个人/企业",
+      "default": "个人"
+    },
+    {
+      "name": "partner_b_credit_code",
+      "label": "合伙人B证件号",
+      "type": "string",
+      "description": "身份证号或统一社会信用代码"
+    },
+    {
+      "name": "partner_b_address",
+      "label": "合伙人B地址",
+      "type": "string",
+      "description": "合伙人B的地址"
+    },
+    {
+      "name": "partner_b_mobile",
+      "label": "合伙人B手机号",
+      "type": "string",
+      "description": "合伙人B联系电话"
+    },
+    {
+      "name": "partner_b_contribution",
+      "label": "合伙人B出资额（元）",
+      "type": "number",
+      "description": "合伙人B认缴出资额"
+    },
+    {
+      "name": "partner_b_contribution_type",
+      "label": "合伙人B出资方式",
+      "type": "string",
+      "description": "货币/实物/知识产权/土地使用权/其他",
+      "default": "货币"
+    },
+    {
+      "name": "partner_b_ratio",
+      "label": "合伙人B持股比例（%）",
+      "type": "number",
+      "description": "合伙人B的股权比例"
+    },
+    {
+      "name": "partner_c_name",
+      "label": "合伙人C名称（可选）",
+      "type": "string",
+      "description": "合伙人C的姓名或企业全称，没有请留空",
+      "default": ""
+    },
+    {
+      "name": "partner_c_contribution",
+      "label": "合伙人C出资额（元）",
+      "type": "number",
+      "description": "合伙人C认缴出资额",
+      "default": "0"
+    },
+    {
+      "name": "partner_c_ratio",
+      "label": "合伙人C持股比例（%）",
+      "type": "number",
+      "description": "合伙人C的股权比例",
+      "default": "0"
+    },
+    {
+      "name": "total_capital",
+      "label": "项目总资本（元）",
+      "type": "number",
+      "description": "合作项目总投资总额"
+    },
+    {
+      "name": "contract_term_years",
+      "label": "合作期限（年）",
+      "type": "number",
+      "description": "合作期限，0表示长期",
+      "default": "10"
+    },
+    {
+      "name": "contract_start_date",
+      "label": "合作起始日期",
+      "type": "date",
+      "description": "合作开始日期"
+    },
+    {
+      "name": "profit_distribution_cycle",
+      "label": "利润分配周期",
+      "type": "string",
+      "description": "每月/每季度/每半年/每年",
+      "default": "每季度"
+    },
+    {
+      "name": "management_company",
+      "label": "执行事务合伙人",
+      "type": "string",
+      "description": "负责日常经营管理的合伙人"
+    },
+    {
+      "name": "significant_decision_threshold",
+      "label": "重大决策通过比例（%）",
+      "type": "number",
+      "description": "重大事项决议所需表决权比例",
+      "default": "66.67"
+    },
+    {
+      "name": "lockup_period",
+      "label": "股权锁定期（月）",
+      "type": "number",
+      "description": "合伙人不得转让股权的期限",
+      "default": "12"
+    },
+    {
+      "name": "sign_date",
+      "label": "签署日期",
+      "type": "date",
+      "description": "双方签署日期"
+    },
+    {
+      "name": "sign_location",
+      "label": "签署地点",
+      "type": "string",
+      "description": "合同签署的城市"
+    }
+  ],
+  "content_template": "合伙人合作协议\n\n协议编号：PTN-{{project_name}}-{{contract_start_date}}\n\n本协议由以下各方于{{sign_date}}在{{sign_location}}共同签署：\n\n甲方（合伙人A）：{{partner_a_name}}\n类型：{{partner_a_type}}\n证件号码：{{partner_a_credit_code}}\n地址：{{partner_a_address}}\n联系电话：{{partner_a_mobile}}\n\n乙方（合伙人B）：{{partner_b_name}}\n类型：{{partner_b_type}}\n证件号码：{{partner_b_credit_code}}\n地址：{{partner_b_address}}\n联系电话：{{partner_b_mobile}}\n{% if partner_c_name %}\n丙方（合伙人C）：{{partner_c_name}}\n类型：个人\n证件号码：\n地址：\n联系电话：\n{% endif %}\n\n鉴于各方均认同{{project_name}}的市场前景和商业模式，自愿本着平等互利、诚实信用的原则，共同出资、共同经营、共担风险、共享收益。经友好协商，根据《中华人民共和国民法典》《中华人民共和国合伙企业法》及相关法律法规，达成如下协议：\n\n第一条 合作项目\n1.1 项目名称：{{project_name}}\n1.2 经营范围：{{project_description}}\n1.3 合作性质：本协议项下的合作为非法人合伙形式，各方按照出资比例分享收益、分担风险。各方可选择在本协议生效后根据经营需要注册成立有限责任公司或有限合伙企业。\n\n第二条 合作期限\n2.1 合作期限为{{contract_term_years}}年，自{{contract_start_date}}起计算。\n2.2 合作期满前六个月，经各方协商一致可以续期。\n2.3 如合作期限届满各方未达成续期协议，则合作自动终止并进行清算。\n\n第三条 出资及股权结构\n3.1 项目总资本为人民币{{total_capital}}元（大写：______________元整）。\n3.2 各方出资额、出资方式及持股比例如下：\n\n┌──────────────┬────────────┬────────────┬────────────┬────────────┐\n│   合伙人      │  出资额     │  出资方式   │  持股比例   │  出资期限   │\n├──────────────┼────────────┼────────────┼────────────┼────────────┤\n│ {{partner_a_name}} │ {{partner_a_contribution}}元 │ {{partner_a_contribution_type}} │ {{partner_a_ratio}}% │ 本协议生效后___日内 │\n├──────────────┼────────────┼────────────┼────────────┼────────────┤\n│ {{partner_b_name}} │ {{partner_b_contribution}}元 │ {{partner_b_contribution_type}} │ {{partner_b_ratio}}% │ 本协议生效后___日内 │\n{% if partner_c_name %}\n├──────────────┼────────────┼────────────┼────────────┼────────────┤\n│ {{partner_c_name}} │ {{partner_c_contribution}}元 │   货币     │ {{partner_c_ratio}}% │ 本协议生效后___日内 │\n{% endif %}\n└──────────────┴────────────┴────────────┴────────────┴────────────┘\n\n合计：{{total_capital}}元，100%\n\n3.3 各方应按时足额缴纳出资。任何一方逾期缴纳的，每逾期一日，应按逾期出资金额的千分之五向其他守约方支付违约金；逾期超过30日的，视为自动放弃合伙人资格，其他合伙人有权决定取消其合伙资格并调整股权比例。\n3.4 非货币出资须经全体合伙人一致认可的评估机构评估作价，评估费用由全体合伙人按出资比例分担。\n\n第四条 财务管理\n4.1 合作项目应建立独立的财务账簿和银行账户，所有经营收支统一核算。\n4.2 各方均有权随时查阅项目财务账簿和经营资料，财务负责人应在接到查询请求后三个工作日内予以配合。\n4.3 每个财务年度结束后15日内，应完成年度财务报告并报送全体合伙人。\n4.4 项目聘请的财务人员由执行事务合伙人推荐，全体合伙人一致同意后聘用。\n\n第五条 利润分配与亏损分担\n5.1 利润分配周期为{{profit_distribution_cycle}}。每个分配周期结束后15日内完成核算和分配。\n5.2 可分配利润为当期税后利润提取10%法定公积金后的余额，按各方持股比例分配。\n5.3 项目发生的亏损由各方按持股比例分担。\n5.4 连续两个分配周期出现亏损的，应召开合伙人会议审议是否调整经营策略或补充资本。\n\n第六条 决策机制\n6.1 执行事务合伙人为{{management_company}}，负责项目的日常经营管理决策。\n6.2 执行事务合伙人的权限包括但不限于：日常运营管理、员工招聘与解聘、单笔不超过人民币______________元的交易决策、日常采购等。\n6.3 以下重大事项须经持有{{significant_decision_threshold}}%以上表决权的合伙人同意方可执行：\n    （1）变更经营范围或主营业务方向；\n    （2）单笔金额超过人民币______________元的交易或对外投资；\n    （3）对外提供担保或资产抵押；\n    （4）引入新合伙人或现有合伙人退出；\n    （5）股权结构变更或增资扩股；\n    （6）利润分配方案的批准；\n    （7）合作项目的解散与清算；\n    （8）修改本协议或签订补充协议。\n6.4 表决权按持股比例行使，不足1%的按1%计算。\n\n第七条 股权锁定期与转让\n7.1 自合作起始之日起{{lockup_period}}个月内，为股权锁定期。锁定期内任何一方不得转让其持有的股权。\n7.2 锁定期届满后，任何一方转让股权的，在同等条件下其他合伙人有优先受让权。\n7.3 股权转让价格由转让方与受让方协商确定，或由全体合伙人一致认可的第三方评估机构评估确定。\n7.4 外部第三方受让股权，须经全体合伙人一致同意。\n\n第八条 合伙人退出机制\n8.1 自愿退出：合伙人可提前90天书面通知其他合伙人，经全体合伙人一致同意后退伙。退伙时其股权由其他合伙人按评估价值收购。\n8.2 当然退伙：合伙人死亡、丧失民事行为能力、被吊销营业执照或被依法宣告破产的，当然退伙。\n8.3 除名退伙：合伙人有下列情形之一的，经其他合伙人一致同意可予以除名：\n    （1）未按约定履行出资义务且逾期超过30日；\n    （2）因故意或重大过失给合作项目造成重大损失；\n    （3）执行职务时存在贪污、侵占、挪用资金等违法违规行为；\n    （4）违反保密义务或竞业禁止条款。\n8.4 退伙结算：退伙时，应进行财务审计和资产评估，退伙人应得的金额按审计评估基准日的净资产乘以持股比例计算，在退伙生效后60日内支付。\n\n第九条 竞业禁止与保密\n9.1 合作期间及退出后两年内，任何合伙人不得直接或间接从事与合作项目相竞争的业务。\n9.2 各方应对合作项目的商业秘密（包括但不限于商业模式、技术方案、客户信息、财务数据、供应链信息等）承担保密义务。\n9.3 违反竞业禁止或保密义务的，应向其他合伙人支付违约金人民币______________元，并赔偿全部损失。\n\n第十条 违约责任\n10.1 任何一方违反本协议约定的，应承担违约责任，赔偿其他方因此遭受的全部损失。\n10.2 一方违约导致协议无法继续履行的，其他方有权解除本协议并要求违约方按持股比例30%支付违约金。\n10.3 因一方严重违约导致合作终止清算的，该方不参与剩余财产的分配。\n\n第十一条 解散与清算\n11.1 有下列情形之一的，合作项目解散并进行清算：\n    （1）合作期限届满且未续期；\n    （2）全体合伙人一致同意解散；\n    （3）合作项目持续亏损，经合伙人会议决议解散；\n    （4）法律法规规定的其他解散事由。\n11.2 清算组由全体合伙人共同组成，或委托第三方专业机构进行清算。\n11.3 清算后的剩余财产按各方持股比例分配。\n\n第十二条 争议解决\n12.1 因本协议引起的或与本协议有关的任何争议，各方应首先友好协商解决。\n12.2 协商不成的，任何一方均可向协议签署地{{sign_location}}有管辖权的人民法院提起诉讼。\n\n第十三条 其他\n13.1 本协议自各方签字或盖章之日起生效。\n13.2 本协议一式{{partner_count}}份，各方各执一份，具有同等法律效力。\n13.3 本协议未尽事宜，经全体合伙人协商一致可签订补充协议。\n13.4 各方确认本协议载明的地址为有效送达地址。\n\n（以下无正文）\n\n合伙人A（签字/盖章）：{{partner_a_name}}\n日期：{{sign_date}}\n\n合伙人B（签字/盖章）：{{partner_b_name}}\n日期：{{sign_date}}\n\n{% if partner_c_name %}\n合伙人C（签字/盖章）：{{partner_c_name}}\n日期：{{sign_date}}\n{% endif %}\n\n签署地点：{{sign_location}}",
+  "sign_positions": [
+    {
+      "signer_key": "partyA",
+      "label": "合伙人A",
+      "required": true,
+      "signer_type": "PSN_FIRM",
+      "position": {
+        "x": 100,
+        "y": 100,
+        "page": 7
+      }
+    },
+    {
+      "signer_key": "partyB",
+      "label": "合伙人B",
+      "required": true,
+      "signer_type": "PSN_FIRM",
+      "position": {
+        "x": 100,
+        "y": 200,
+        "page": 7
+      }
+    }
+  ],
+  "metadata": {
+    "industry": [
+      "创业",
+      "联合经营",
+      "投资"
+    ],
+    "template_type": "partnership",
+    "tags": [
+      "合伙",
+      "创业",
+      "股权",
+      "联合经营"
+    ],
+    "effective_date": "2025-01-01",
+    "regulation_ref": "《中华人民共和国合伙企业法》"
+  }
+}

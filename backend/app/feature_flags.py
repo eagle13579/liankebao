@@ -129,6 +129,19 @@ BUILTIN_FLAGS: dict[str, dict[str, Any]] = {
         "created_at": "2025-05-01T00:00:00Z",
         "updated_at": "2025-05-01T00:00:00Z",
     },
+    "F-CHAINKE-CHATBOT-01": {
+        "key": "F-CHAINKE-CHATBOT-01",
+        "description": "AI客服机器人系统 - 意图识别+FAQ知识库+聊天API+WebUI+上下文管理+转人工",
+        "default": True,
+        "strategy": "always",
+        "rollout_percentage": 100,
+        "org_whitelist": [],
+        "environments": ["dev", "staging", "prod"],
+        "enabled": True,
+        "owner": "AI团队",
+        "created_at": "2026-06-13T00:00:00Z",
+        "updated_at": "2026-06-13T00:00:00Z",
+    },
 }
 
 

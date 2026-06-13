@@ -8,6 +8,7 @@
 import json
 import logging
 import os
+import urllib.parse
 
 from passlib.hash import bcrypt as bcrypt_hasher
 from sqlalchemy import create_engine
@@ -69,7 +70,7 @@ elif DB_TYPE == "postgres":
                 "DB_TYPE=postgres 但未设置 PG_* 或 PG_URL 环境变量。\n"
                 "请设置 PG_HOST, PG_PORT, PG_USER, PG_PASSWORD, PG_DATABASE 或 PG_URL"
             )
-        PG_URL = f"postgresql+psycopg2://{PG_USER}:{PG_PASSWORD}@{PG_HOST}:{PG_PORT}/{PG_DATABASE}"
+        PG_URL = f"postgresql+psycopg2://{urllib.parse.quote_plus(PG_USER)}:{urllib.parse.quote_plus(PG_PASSWORD)}@{PG_HOST}:{PG_PORT}/{PG_DATABASE}"
     engine = create_engine(
         PG_URL,
         pool_size=10,
@@ -176,15 +177,18 @@ def init_db():
         Withdrawal,
     )  # noqa
 
+    # === 交易保障：创建 escrow 表 ===
+    from app.models.escrow import Deal, Dispute, Milestone  # noqa: F401
+
     # === 多租户：始终创建组织相关表（SQLite + PostgreSQL 均支持） ===
     from app.models.organization import Invite, Organization, OrganizationMember  # noqa: F401
 
     # === 多租户：PostgreSQL 模式下创建额外租户表 ===
     if is_multi_tenant():
         try:
-            from app.tenant import Membership as TenantMembership  # noqa: F401
+            from app.tenant import Membership as TenantMembership  # noqa: F401,N806
         except ImportError:
-            TenantMembership = None  # noqa: F401
+            TenantMembership = None  # noqa: F841,N806
 
     # === 创建表（如果不存在） ===
     Base.metadata.create_all(bind=engine)
@@ -345,7 +349,7 @@ def init_db():
                         "适用规模": "10-500人企业",
                     }
                 ),
-                details="<h3>服务内容</h3><ul><li>日常法律咨询（电话/微信/邮件）</li><li>合同起草与审核（每年50份内）</li><li>企业规章制度审查</li><li>劳动人事法律支持</li><li>知识产权基础保护</li><li>律师函发送（5次/年）</li></ul><h3>服务流程</h3><p>在线下单 → 分配律师 → 建立服务群 → 全年无忧</p>",
+                details="<h3>服务内容</h3><ul><li>日常法律咨询（电话/微信/邮件）</li><li>合同起草与审核（每年50份内）</li><li>企业规章制度审查</li><li>劳动人事法律支持</li><li>知识产权基础保护</li><li>律师函发送（5次/年）</li></ul><h3>服务流程</h3><p>在线下单 → 分配律师 → 建立服务群 → 全年无忧</p>",  # noqa: E501
                 tags="法律顾问,企业服务,合同审核,知识产权,法律服务",
                 files=json.dumps(
                     [
@@ -535,7 +539,7 @@ def init_db():
 
         db.commit()
         print(
-            f"种子数据填充完成：{len(users)}个用户, {len(products)}个产品, {len(orders)}个订单, {len(withdrawals)}个提现记录"
+            f"种子数据填充完成：{len(users)}个用户, {len(products)}个产品, {len(orders)}个订单, {len(withdrawals)}个提现记录"  # noqa: E501
         )
 
         # === 多租户：创建默认组织（仅 PostgreSQL 模式首次初始化） ===

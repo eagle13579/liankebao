@@ -1,0 +1,235 @@
+{
+  "template_id": "distribution_deal",
+  "name": "经销商代理协议",
+  "version": "1.0.0",
+  "description": "适用于品牌方或生产商（供货方）与经销商（代理方）之间签订的经销商代理协议。涵盖代理区域、代理级别、销售目标、价格体系、结算方式、售后服务、市场推广等核心条款。",
+  "category": "distribution",
+  "variables": [
+    {
+      "name": "partyA_name",
+      "label": "供货方（甲方）名称",
+      "type": "string",
+      "description": "品牌方或生产商的企业全称"
+    },
+    {
+      "name": "partyA_address",
+      "label": "甲方地址",
+      "type": "string",
+      "description": "供货方注册地址"
+    },
+    {
+      "name": "partyA_legal",
+      "label": "甲方法定代表人",
+      "type": "string",
+      "description": "供货方法定代表人姓名"
+    },
+    {
+      "name": "partyA_credit_code",
+      "label": "甲方统一社会信用代码",
+      "type": "string",
+      "description": "供货方企业信用代码"
+    },
+    {
+      "name": "partyA_mobile",
+      "label": "甲方联系电话",
+      "type": "string",
+      "description": "供货方联系电话"
+    },
+    {
+      "name": "partyB_name",
+      "label": "经销商（乙方）名称",
+      "type": "string",
+      "description": "经销商的企业全称"
+    },
+    {
+      "name": "partyB_address",
+      "label": "乙方地址",
+      "type": "string",
+      "description": "经销商注册地址"
+    },
+    {
+      "name": "partyB_legal",
+      "label": "乙方法定代表人",
+      "type": "string",
+      "description": "经销商法定代表人姓名"
+    },
+    {
+      "name": "partyB_credit_code",
+      "label": "乙方统一社会信用代码",
+      "type": "string",
+      "description": "经销商企业信用代码"
+    },
+    {
+      "name": "partyB_mobile",
+      "label": "乙方联系电话",
+      "type": "string",
+      "description": "经销商联系电话"
+    },
+    {
+      "name": "product_name",
+      "label": "代理产品名称",
+      "type": "string",
+      "description": "代理销售的产品/服务名称"
+    },
+    {
+      "name": "product_category",
+      "label": "产品类别",
+      "type": "string",
+      "description": "代理产品的品类描述"
+    },
+    {
+      "name": "agency_level",
+      "label": "代理级别",
+      "type": "string",
+      "description": "总代理/一级代理/二级代理/区域代理",
+      "default": "区域代理"
+    },
+    {
+      "name": "agency_area",
+      "label": "代理区域",
+      "type": "string",
+      "description": "授权代理经营的地理区域"
+    },
+    {
+      "name": "contract_term_years",
+      "label": "协议期限（年）",
+      "type": "number",
+      "description": "代理协议的有效年限",
+      "default": "1"
+    },
+    {
+      "name": "contract_start_date",
+      "label": "协议生效日期",
+      "type": "date",
+      "description": "协议开始日期"
+    },
+    {
+      "name": "contract_end_date",
+      "label": "协议终止日期",
+      "type": "date",
+      "description": "协议结束日期"
+    },
+    {
+      "name": "annual_sales_target",
+      "label": "年度销售目标（元）",
+      "type": "number",
+      "description": "经销商年度最低销售额"
+    },
+    {
+      "name": "deposit",
+      "label": "履约保证金（元）",
+      "type": "number",
+      "description": "经销商向供货方支付的保证金",
+      "default": "0"
+    },
+    {
+      "name": "wholesale_discount",
+      "label": "经销折扣（折）",
+      "type": "number",
+      "description": "供货价相对于零售价的折扣，如8.5表示85折",
+      "default": "6"
+    },
+    {
+      "name": "payment_terms",
+      "label": "结算方式",
+      "type": "string",
+      "description": "款到发货/月结30天/月结60天/按批结算",
+      "default": "款到发货"
+    },
+    {
+      "name": "credit_limit",
+      "label": "授信额度（元）",
+      "type": "number",
+      "description": "供货方给予经销商的最大赊账额度",
+      "default": "0"
+    },
+    {
+      "name": "return_rate",
+      "label": "退货率上限（%）",
+      "type": "number",
+      "description": "允许的最高退货比例",
+      "default": "5"
+    },
+    {
+      "name": "warranty_months",
+      "label": "产品保修期（月）",
+      "type": "number",
+      "description": "产品质保期限",
+      "default": "12"
+    },
+    {
+      "name": "exclusive_right",
+      "label": "独家代理权",
+      "type": "boolean",
+      "description": "是否在代理区域内享有独家代理权",
+      "default": "是"
+    },
+    {
+      "name": "sub_dealer_allowed",
+      "label": "是否允许发展下级经销商",
+      "type": "boolean",
+      "description": "经销商是否有权发展下级经销商",
+      "default": "否"
+    },
+    {
+      "name": "sales_rebate_rate",
+      "label": "年度返点比例（%）",
+      "type": "number",
+      "description": "完成年度目标后的额外返点比例",
+      "default": "3"
+    },
+    {
+      "name": "sign_date",
+      "label": "签署日期",
+      "type": "date",
+      "description": "双方签署日期"
+    },
+    {
+      "name": "sign_location",
+      "label": "签署地点",
+      "type": "string",
+      "description": "协议签署的城市"
+    }
+  ],
+  "content_template": "经销商代理协议\n\n协议编号：DIST-{{partyA_credit_code}}-{{contract_start_date}}\n\n供货方（甲方）：{{partyA_name}}\n统一社会信用代码：{{partyA_credit_code}}\n法定代表人：{{partyA_legal}}\n地址：{{partyA_address}}\n联系电话：{{partyA_mobile}}\n\n经销商（乙方）：{{partyB_name}}\n统一社会信用代码：{{partyB_credit_code}}\n法定代表人：{{partyB_legal}}\n地址：{{partyB_address}}\n联系电话：{{partyB_mobile}}\n\n鉴于甲方系从事{{product_category}}产品生产和销售的合法企业，拥有{{product_name}}产品的合法生产或销售资质；乙方具备相应的销售渠道和市场推广能力，自愿申请成为甲方产品的经销商。根据《中华人民共和国民法典》及相关法律法规，甲乙双方本着平等互利、诚实信用的原则，就产品经销事宜达成如下协议：\n\n第一条 授权与代理级别\n1.1 甲方授权乙方为{{agency_level}}，在{{agency_area}}区域内销售甲方生产的{{product_name}}产品。\n1.2 代理级别为：{{agency_level}}。\n{% if exclusive_right == '是' %}\n1.3 甲方授予乙方在授权区域内的独家代理权。甲方不得在授权区域内自行销售或另行授权其他第三方销售本协议约定的产品。\n{% else %}\n1.3 甲方保留在授权区域内自行销售或授权其他第三方销售本协议约定产品的权利。\n{% endif %}\n{% if sub_dealer_allowed == '是' %}\n1.4 乙方有权在授权区域内发展下级经销商，但下级经销商的选定须经甲方书面备案认可。乙方应对其下级经销商的行为承担连带责任。\n{% endif %}\n\n第二条 产品范围\n2.1 本协议项下的经销产品为：{{product_name}}（产品类别：{{product_category}}）。\n2.2 甲方有权根据市场需求调整产品线，新增产品应优先通知乙方，乙方享有新增产品在授权区域内的优先经销权。\n2.3 甲方停产或淘汰的产品，应提前30个工作日通知乙方，乙方应在收到通知后15个工作日内清空相关产品库存。\n\n第三条 协议期限\n3.1 本协议有效期为{{contract_term_years}}年，自{{contract_start_date}}起至{{contract_end_date}}止。\n3.2 协议期满前60日，双方协商一致可续签协议。在同等条件下，乙方享有优先续约权。\n3.3 协议期满后若双方未续签，乙方应停止以甲方经销商名义开展业务，并在30日内完成善后工作。\n\n第四条 销售目标与考核\n4.1 乙方在本协议期内的年度销售目标为人民币{{annual_sales_target}}元（大写：______________元整）。\n4.2 销售目标按季度分解：第一季度完成全年目标的20%，第二季度30%，第三季度25%，第四季度25%。\n4.3 季度考核：连续两个季度未完成销售目标的80%的，甲方有权降低乙方代理级别或缩小代理区域。\n4.4 年度考核：年度完成销售额低于目标60%的，甲方有权单方解除本协议，保证金不予退还。年度完成销售额超过目标120%的，超出部分享受额外返点{{sales_rebate_rate}}%。\n\n第五条 价格与结算\n5.1 产品经销价格为甲方统一出厂价格的{{wholesale_discount}}折。甲方调整出厂价格应提前15个工作日书面通知乙方。\n5.2 结算方式：{{payment_terms}}。\n    - 款到发货：乙方下单时支付全部货款，甲方收到款项后48小时内安排发货。\n    - 月结：每月5日前结算上月货款。\n5.3 授信额度：甲方给予乙方的授信额度为人民币{{credit_limit}}元。超出授信额度的订单须款到发货。\n5.4 乙方逾期支付货款的，每逾期一日，应按应付未付金额的千分之三向甲方支付违约金；逾期超过30日的，甲方有权暂停供货并解除协议。\n\n第六条 供货与物流\n6.1 乙方下单后，甲方应在3个工作日内确认订单，7个工作日内完成发货（订制产品除外）。\n6.2 运输方式及费用：________________。单笔订单金额超过人民币______________元的，运费由甲方承担。\n6.3 产品毁损灭失的风险自货物交付承运人时起转移至乙方。\n6.4 乙方收到货物后应在24小时内进行验收，如有数量短缺或质量问题应在48小时内书面通知甲方，逾期视为验收合格。\n\n第七条 质量保证与售后服务\n7.1 甲方保证产品符合国家相关质量标准，并提供产品质量检测报告及相关资质证明文件。\n7.2 产品质保期为{{warranty_months}}个月，自乙方收到产品之日起计算。质保期内因产品本身质量问题导致的故障，甲方负责免费维修或更换。\n7.3 乙方应建立售后服务团队，负责授权区域内的产品安装、调试和日常维护。甲方为乙方提供必要的技术培训和售后支持。\n7.4 退货政策：乙方退货率不得超过{{return_rate}}%（按年度销售金额计算）。超出部分产生的退货费用由乙方自行承担。\n\n第八条 市场推广与品牌建设\n8.1 乙方应在授权区域内积极进行市场推广活动，包括但不限于产品宣传、客户拓展、行业展会参与等。\n8.2 甲方提供必要的宣传材料、产品样册、展示样品等市场推广物料。\n8.3 乙方使用甲方品牌标识应严格遵守甲方品牌使用规范，不得擅自修改或滥用。\n8.4 乙方策划的重大市场活动（如产品发布会、促销活动等）应提前15个工作日向甲方报备。\n\n第九条 保密义务\n9.1 乙方应对其在合作过程中获知的甲方商业秘密（包括但不限于产品配方、生产工艺、价格体系、客户信息、营销策略等）承担保密义务。\n9.2 保密义务不因本协议的终止而终止，保密期限为协议终止后三年。\n9.3 违反保密义务的，应向甲方支付违约金人民币______________元，并赔偿甲方全部损失。\n\n第十条 违约责任\n10.1 乙方跨区域销售（窜货）的，每次应向甲方支付窜货金额的双倍违约金，且甲方有权取消其代理资格。\n10.2 乙方销售假冒伪劣产品或擅自降低产品质量标准的，甲方有权立即解除协议，保证金不予退还，并追究乙方法律责任。\n10.3 甲方未按约定供货或产品质量存在严重问题的，乙方有权要求甲方承担违约责任。\n10.4 任何一方提前解除协议，应提前30天书面通知对方，并支付违约金人民币______________元。\n\n第十一条 协议的变更与解除\n11.1 经双方协商一致，可书面变更或解除本协议。\n11.2 有下列情形之一的，甲方有权单方解除本协议：\n    （1）乙方连续两个季度未完成销售目标的80%；\n    （2）乙方存在严重的窜货、乱价行为；\n    （3）乙方销售假冒产品或有其他严重违约行为；\n    （4）乙方被吊销营业执照或进入破产程序。\n11.3 有下列情形之一的，乙方有权单方解除本协议：\n    （1）甲方连续三个月无法正常供货；\n    （2）甲方产品质量存在严重缺陷且经整改后仍不合格；\n    （3）甲方违反独家代理约定（限独家代理情形）。\n\n第十二条 争议解决\n12.1 因本协议引起的或与本协议有关的任何争议，双方应友好协商解决。\n12.2 协商不成的，任何一方均可向协议签署地{{sign_location}}有管辖权的人民法院提起诉讼。\n\n第十三条 其他约定\n13.1 本协议自双方法定代表人或授权代表签字并加盖公章之日起生效。\n13.2 本协议一式两份，甲乙双方各持一份，具有同等法律效力。\n13.3 本协议附件（包括产品价格清单、授权区域划分图等）为本协议不可分割的组成部分。\n13.4 双方确认本协议载明的地址为有效送达地址。\n\n（以下无正文）\n\n甲方（盖章）：{{partyA_name}}\n\n法定代表人/授权代表（签字）：\n\n日期：{{sign_date}}\n\n\n乙方（盖章）：{{partyB_name}}\n\n法定代表人/授权代表（签字）：\n\n日期：{{sign_date}}\n\n签署地点：{{sign_location}}",
+  "sign_positions": [
+    {
+      "signer_key": "partyA",
+      "label": "供货方（甲方）",
+      "required": true,
+      "signer_type": "PSN_FIRM",
+      "position": {
+        "x": 100,
+        "y": 100,
+        "page": 7
+      }
+    },
+    {
+      "signer_key": "partyB",
+      "label": "经销商（乙方）",
+      "required": true,
+      "signer_type": "PSN_FIRM",
+      "position": {
+        "x": 100,
+        "y": 200,
+        "page": 7
+      }
+    }
+  ],
+  "metadata": {
+    "industry": [
+      "消费品",
+      "工业品",
+      "快消品",
+      "医疗器械"
+    ],
+    "template_type": "distribution",
+    "tags": [
+      "经销",
+      "代理",
+      "渠道合作"
+    ],
+    "effective_date": "2025-01-01",
+    "regulation_ref": "《中华人民共和国民法典》"
+  }
+}
