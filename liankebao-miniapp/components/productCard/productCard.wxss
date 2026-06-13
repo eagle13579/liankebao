@@ -1,0 +1,7 @@
+.card { display: flex; background: #fff; border-radius: 32rpx; margin: 20rpx 32rpx; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.card:active { opacity: 0.9; }
+.thumb { width: 280rpx; height: 280rpx; flex-shrink: 0; }
+.body { flex: 1; padding: 24rpx; display: flex; flex-direction: column; justify-content: space-between; }
+.name { font-size: 28rpx; font-weight: 600; color: #1a1a2e; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.price { font-size: 36rpx; font-weight: 700; color: #f59e0b; }
+.earn { font-size: 22rpx; color: #0ea5e9; background: #f0f9ff; padding: 4rpx 16rpx; border-radius: 8rpx; align-self: flex-start; }

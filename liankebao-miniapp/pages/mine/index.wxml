@@ -1,0 +1,133 @@
+<!-- pages/mine/index.wxml -->
+<view class="mine-page">
+  <!-- 导航 -->
+  <view class="mine-nav">
+    <text class="nav-title">我的</text>
+    <view class="nav-settings" bindtap="goSettings">⚙️</view>
+  </view>
+
+  <!-- 登录状态 -->
+  <block wx:if="{{!isLoggedIn}}">
+    <view class="unlogin-section">
+      <view class="unlogin-avatar">👤</view>
+      <text class="unlogin-text">未登录</text>
+      <button class="btn-primary login-btn" bindtap="goLogin">立即登录</button>
+    </view>
+  </block>
+
+  <block wx:else>
+    <!-- 用户信息区 -->
+    <view class="user-section">
+      <view class="user-info-row">
+        <view class="user-avatar">
+          <text class="avatar-text">{{userInitial}}</text>
+        </view>
+        <view class="user-details">
+          <text class="user-name">{{userName}}</text>
+          <text class="user-company" wx:if="{{userCompany}}">{{userCompany}}{{userPosition ? ' · ' + userPosition : ''}}</text>
+        </view>
+        <view class="membership-badge">
+          <text class="badge-text">{{membershipBadge}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 数据看板 -->
+    <view class="data-board glass" bindtap="goDataBoard">
+      <view class="data-item">
+        <text class="data-num">{{stats.views}}</text>
+        <text class="data-label">浏览</text>
+      </view>
+      <view class="data-divider"></view>
+      <view class="data-item">
+        <text class="data-num">{{stats.matches}}</text>
+        <text class="data-label">匹配</text>
+      </view>
+      <view class="data-divider"></view>
+      <view class="data-item">
+        <text class="data-num">{{stats.contacts}}</text>
+        <text class="data-label">被联系</text>
+      </view>
+    </view>
+
+    <!-- 菜单列表 -->
+    <view class="menu-list">
+      <view class="menu-item" bindtap="goMyCard">
+        <view class="menu-left">
+          <text class="menu-icon">📇</text>
+          <text>我的名片</text>
+        </view>
+        <view class="menu-right">
+          <text class="arrow">›</text>
+        </view>
+      </view>
+
+      <view class="menu-item" bindtap="goEditCard">
+        <view class="menu-left">
+          <text class="menu-icon">✏️</text>
+          <text>编辑名片</text>
+        </view>
+        <view class="menu-right">
+          <text class="arrow">›</text>
+        </view>
+      </view>
+
+      <view class="menu-item" bindtap="goDataBoard">
+        <view class="menu-left">
+          <text class="menu-icon">📊</text>
+          <text>数据看板</text>
+        </view>
+        <view class="menu-right">
+          <text class="arrow">›</text>
+        </view>
+      </view>
+
+      <view class="menu-item" bindtap="goMembership">
+        <view class="menu-left">
+          <text class="menu-icon">💎</text>
+          <text>会员中心</text>
+        </view>
+        <view class="menu-right">
+          <text class="membership-tag" wx:if="{{membershipBadge !== 'VIP'}}">升级</text>
+          <text class="arrow">›</text>
+        </view>
+      </view>
+
+      <view class="menu-item" bindtap="goNotifications">
+        <view class="menu-left">
+          <text class="menu-icon">🔔</text>
+          <text>消息通知</text>
+        </view>
+        <view class="menu-right">
+          <text class="unread-badge" wx:if="{{unreadCount > 0}}">{{unreadCount > 99 ? '99+' : unreadCount}}</text>
+          <text class="arrow">›</text>
+        </view>
+      </view>
+
+      <view class="menu-item" bindtap="goSettings">
+        <view class="menu-left">
+          <text class="menu-icon">⚙️</text>
+          <text>设置</text>
+        </view>
+        <view class="menu-right">
+          <text class="arrow">›</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 升级推荐 -->
+    <view class="upgrade-banner glass" wx:if="{{membershipBadge !== 'VIP'}}" bindtap="handleUpgrade">
+      <view class="banner-content">
+        <text class="banner-icon">💎</text>
+        <view class="banner-text">
+          <text class="banner-title">升级VIP解锁更多权益</text>
+          <text class="banner-desc">无限解锁、数据看板、AI智能分析</text>
+        </view>
+      </view>
+      <text class="banner-action">立即升级 ›</text>
+    </view>
+
+    <!-- 退出 -->
+    <button class="logout-btn" bindtap="handleLogout">退出登录</button>
+  </block>
+</view>

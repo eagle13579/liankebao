@@ -1,0 +1,147 @@
+<!-- pages/index/index.wxml -->
+<view class="home-page">
+  <!-- 自定义导航栏 -->
+  <view class="home-nav">
+    <view class="nav-title">AI数字名片</view>
+    <view class="nav-actions">
+      <button class="nav-btn" open-type="share">📤</button>
+    </view>
+  </view>
+
+  <!-- 加载状态 -->
+  <block wx:if="{{loading}}">
+    <view class="skeleton-container">
+      <view class="skeleton skeleton-card"></view>
+    </view>
+  </block>
+
+  <!-- 无名片状态 -->
+  <block wx:elif="{{!hasBrochure}}">
+    <view class="empty-state">
+      <text class="empty-icon">📇</text>
+      <text class="empty-title">还没有数字名片</text>
+      <text class="empty-desc">创建你的第一张AI数字名片，连接更多商业机会</text>
+      <button class="btn-primary" bindtap="onCreateNew">创建我的名片</button>
+    </view>
+  </block>
+
+  <!-- 名片翻页展示 -->
+  <block wx:else>
+    <view class="flipbook-container"
+      bindtouchstart="onTouchStart"
+      bindtouchend="onTouchEnd">
+
+      <!-- 封面页 -->
+      <view class="flip-page {{currentPage === 0 ? 'active' : ''}}">
+        <view class="page-card glass cover-card">
+          <view class="avatar-section">
+            <view class="avatar-ring">
+              <text class="avatar-text">{{brochure.name ? brochure.name[0] : '?'}}</text>
+            </view>
+            <text class="user-name">{{brochure.name || '未知'}}</text>
+            <text class="user-company" wx:if="{{brochure.company}}">{{brochure.company}}{{brochure.position ? ' · ' + brochure.position : ''}}</text>
+            <text class="user-bio" wx:if="{{brochure.bio}}">{{brochure.bio}}</text>
+          </view>
+
+          <view class="purpose-section" wx:if="{{brochure.purpose}}">
+            <text class="purpose-badge">{{brochure.purpose}}</text>
+          </view>
+
+          <view class="tags-section">
+            <view class="tag-group" wx:if="{{brochure.provide_tags && brochure.provide_tags.length > 0}}">
+              <text class="tag-label">我能提供:</text>
+              <view class="tags">
+                <text class="tag tag-provide" wx:for="{{brochure.provide_tags}}" wx:key="*this">{{item}}</text>
+              </view>
+            </view>
+            <view class="tag-group" wx:if="{{brochure.need_tags && brochure.need_tags.length > 0}}">
+              <text class="tag-label">我需要:</text>
+              <view class="tags">
+                <text class="tag tag-need" wx:for="{{brochure.need_tags}}" wx:key="*this">{{item}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 联系方式页 -->
+      <view class="flip-page {{currentPage === 1 ? 'active' : ''}}">
+        <view class="page-card glass contact-card">
+          <text class="page-title">📞 联系方式</text>
+          <view class="contact-item" wx:if="{{brochure.phone}}">
+            <text class="contact-icon">📞</text>
+            <text class="contact-value">{{brochure.phone}}</text>
+          </view>
+          <view class="contact-item" wx:if="{{brochure.email}}">
+            <text class="contact-icon">✉️</text>
+            <text class="contact-value">{{brochure.email}}</text>
+          </view>
+          <view class="contact-item" wx:if="{{brochure.wechat}}">
+            <text class="contact-icon">💬</text>
+            <text class="contact-value">{{brochure.wechat}}</text>
+          </view>
+          <view class="contact-empty" wx:elif="{{!brochure.phone && !brochure.email && !brochure.wechat}}">
+            <text>暂无联系方式信息</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 企业信息页 -->
+      <view class="flip-page {{currentPage === 2 ? 'active' : ''}}">
+        <view class="page-card glass company-card">
+          <text class="page-title">🏢 企业信息</text>
+          <view class="info-row">
+            <text class="info-label">公司</text>
+            <text class="info-value">{{brochure.company || '未填写'}}</text>
+          </view>
+          <view class="info-row">
+            <text class="info-label">职位</text>
+            <text class="info-value">{{brochure.position || '未填写'}}</text>
+          </view>
+          <view class="info-row">
+            <text class="info-label">主营</text>
+            <text class="info-value">{{brochure.business || '未填写'}}</text>
+          </view>
+          <view class="info-row">
+            <text class="info-label">优势</text>
+            <text class="info-value">{{brochure.advantage || '未填写'}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 二维码页 -->
+      <view class="flip-page {{currentPage === 3 ? 'active' : ''}}">
+        <view class="page-card glass qrcode-card">
+          <text class="page-title">📱 扫码添加</text>
+          <view class="qrcode-area">
+            <view class="qrcode-placeholder">
+              <text class="qrcode-icon">〰️</text>
+              <text>扫一扫添加好友</text>
+            </view>
+          </view>
+          <text class="qrcode-hint">打开微信扫一扫，添加我为好友</text>
+        </view>
+      </view>
+
+      <!-- 分页指示器 -->
+      <view class="page-indicator">
+        <view class="indicator-dot {{currentPage === 0 ? 'active' : ''}}"></view>
+        <view class="indicator-dot {{currentPage === 1 ? 'active' : ''}}"></view>
+        <view class="indicator-dot {{currentPage === 2 ? 'active' : ''}}"></view>
+        <view class="indicator-dot {{currentPage === 3 ? 'active' : ''}}"></view>
+      </view>
+    </view>
+
+    <!-- 底部操作栏 -->
+    <view class="bottom-actions">
+      <view class="action-bar glass">
+        <button class="action-btn" open-type="share">📤 分享</button>
+        <button class="action-btn primary" bindtap="handleContact">💬 联系我</button>
+        <button class="action-btn" bindtap="goEdit">✏️ 编辑</button>
+      </view>
+      <view class="view-stats">
+        <text>👁️ {{viewCount}} 次浏览</text>
+      </view>
+    </view>
+  </block>
+</view>

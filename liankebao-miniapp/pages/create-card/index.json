@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "创建AI名片",
+  "navigationBarBackgroundColor": "#0f0f1a",
+  "navigationBarTextStyle": "white",
+  "backgroundColor": "#0f0f1a",
+  "disableScroll": true,
+  "usingComponents": {}
+}

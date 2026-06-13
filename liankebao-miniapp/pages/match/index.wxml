@@ -1,0 +1,118 @@
+<!-- pages/match/index.wxml -->
+<view class="match-page">
+  <!-- 导航 -->
+  <view class="match-nav">
+    <text class="nav-title">AI智能匹配</text>
+  </view>
+
+  <!-- 加载中 -->
+  <block wx:if="{{loading}}">
+    <view class="loading-section">
+      <view class="skeleton skeleton-stat"></view>
+      <view class="skeleton skeleton-card" wx:for="{{3}}" wx:key="*this"></view>
+    </view>
+  </block>
+
+  <block wx:else>
+    <!-- 匹配概览 -->
+    <view class="match-summary glass">
+      <text class="summary-icon">🤖</text>
+      <view class="summary-text">
+        <text class="summary-main">已为您匹配到 <text class="highlight">{{matchStats.total}}</text> 位联系人</text>
+        <text class="summary-sub" wx:if="{{matchStats.today > 0}}">今日新增 {{matchStats.today}} 位</text>
+      </view>
+    </view>
+
+    <!-- 筛选 -->
+    <view class="filter-bar">
+      <scroll-view class="filter-scroll" scroll-x enable-flex>
+        <view class="filter-item {{filterType === '' ? 'active' : ''}}" data-type="全部" bindtap="selectFilter">全部</view>
+        <view class="filter-item {{filterType === item ? 'active' : ''}}" wx:for="{{filterOptions}}" wx:key="*this" data-type="{{item}}" wx:if="{{item !== '全部'}}" bindtap="selectFilter">{{item}}</view>
+      </scroll-view>
+    </view>
+
+    <!-- 匹配列表 -->
+    <view class="match-list">
+      <!-- 空状态 -->
+      <view class="empty-state" wx:if="{{filteredMatches.length === 0}}">
+        <text class="empty-icon">📭</text>
+        <text class="empty-title">暂无匹配结果</text>
+        <text class="empty-desc">完善名片信息能获得更多匹配</text>
+        <button class="btn-primary" bindtap="goEdit">去完善名片</button>
+      </view>
+
+      <!-- 匹配卡片 -->
+      <view class="match-card glass" wx:for="{{filteredMatches}}" wx:key="id" data-id="{{item.id}}" bindtap="goViewProfile">
+        <view class="match-header">
+          <view class="match-avatar">
+            <text class="avatar-text">{{item.name ? item.name[0] : '?'}}</text>
+          </view>
+          <view class="match-info">
+            <text class="match-name">{{item.name}}</text>
+            <text class="match-company">{{item.company}}{{item.position ? ' · ' + item.position : ''}}</text>
+          </view>
+          <view class="match-score">
+            <view class="score-ring">
+              <text class="score-text">{{item.matchPercent}}%</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 用途标签 -->
+        <text class="match-purpose-badge" wx:if="{{item.purpose}}">{{item.purpose}}</text>
+
+        <!-- 供需标签 -->
+        <view class="match-tags">
+          <text class="tag tag-provide" wx:for="{{item.tags}}" wx:key="*this" wx:if="{{item.tags}}">{{item}}</text>
+          <text class="tag tag-need" wx:for="{{item.needTags}}" wx:key="*this" wx:if="{{item.needTags}}">{{item}}</text>
+        </view>
+
+        <!-- 联系方式（脱敏） -->
+        <view class="match-contact">
+          <text class="contact-phone">📞 {{item.phone || '未提供'}}</text>
+        </view>
+
+        <!-- 解锁按钮 -->
+        <view class="match-footer">
+          <view class="match-status {{item.isUnlocked ? 'unlocked' : ''}}">
+            {{item.isUnlocked ? '✅ 已解锁' : '🔒 联系方式已脱敏'}}
+          </view>
+          <button class="unlock-btn {{item.isUnlocked ? 'unlocked' : ''}}" data-id="{{item.id}}" bindtap="showUnlock" catchtap>
+            {{item.isUnlocked ? '查看' : '🔓 解锁联系方式'}}
+          </button>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <!-- 解锁弹窗 -->
+  <view class="modal-overlay {{showUnlockModal ? 'show' : ''}}" bindtap="closeUnlockModal">
+    <view class="unlock-modal glass" catchtap="stopPropagation">
+      <text class="modal-icon">🔓</text>
+      <text class="modal-title">解锁联系方式</text>
+      <text class="modal-desc" wx:if="{{unlockTarget}}">查看 {{unlockTarget.real_name}} 的联系方式</text>
+
+      <view class="unlock-options">
+        <view class="unlock-option vip" bindtap="goUpgrade">
+          <text class="option-icon">💎</text>
+          <view class="option-info">
+            <text class="option-name">VIP会员</text>
+            <text class="option-desc">无限次解锁+数据看板</text>
+          </view>
+          <text class="option-price">¥99/月</text>
+        </view>
+
+        <view class="unlock-option single" bindtap="handleUnlock">
+          <text class="option-icon">🎫</text>
+          <view class="option-info">
+            <text class="option-name">单次解锁</text>
+            <text class="option-desc">解锁此人的联系方式</text>
+          </view>
+          <text class="option-price">¥9.9</text>
+        </view>
+      </view>
+
+      <button class="modal-cancel" bindtap="closeUnlockModal">取消</button>
+    </view>
+  </view>
+</view>
