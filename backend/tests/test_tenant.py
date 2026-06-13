@@ -383,10 +383,8 @@ class TestTenantIsolationFullChain:
         pwhash = hash_password("Test1234")
         user = db_session.query(User).first()
 
-        p1 = Product(name="租户A产品", price=100, status="approved",
-                     owner_id=user.id, organization_id=10)
-        p2 = Product(name="租户B产品", price=200, status="approved",
-                     owner_id=user.id, organization_id=20)
+        p1 = Product(name="租户A产品", price=100, status="approved", owner_id=user.id, organization_id=10)
+        p2 = Product(name="租户B产品", price=200, status="approved", owner_id=user.id, organization_id=20)
         db_session.add_all([p1, p2])
         db_session.flush()
 
@@ -413,9 +411,7 @@ class TestTenantIsolationFullChain:
         assert "租户A产品" not in b_names, "租户B不应看到租户A的产品"
 
         # 清理
-        db_session.query(Product).filter(Product.id.in_([p1.id, p2.id])).delete(
-            synchronize_session=False
-        )
+        db_session.query(Product).filter(Product.id.in_([p1.id, p2.id])).delete(synchronize_session=False)
         db_session.commit()
 
     def test_get_current_org_id_returns_org(self, db_session):

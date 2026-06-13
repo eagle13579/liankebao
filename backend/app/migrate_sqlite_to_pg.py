@@ -16,16 +16,12 @@
     pip install psycopg2-binary sqlalchemy
 """
 
-import json
 import logging
 import os
-import sys
 import uuid
 from datetime import datetime
 
-import sqlalchemy
-from sqlalchemy import create_engine, text, MetaData, Table, inspect
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine, inspect, text
 
 logging.basicConfig(
     level=logging.INFO,
@@ -53,11 +49,23 @@ PG_URL = f"postgresql+psycopg2://{PG_USER}:{PG_PASSWORD}@{PG_HOST}:{PG_PORT}/{PG
 # Tables that need organization_id (from models.py _org_fk())
 # ============================================================
 TABLES_WITH_ORG_ID = [
-    "users", "products", "orders", "contacts", "activities",
-    "import_history", "business_needs", "business_cards", "visitor_logs",
-    "user_events", "withdrawals", "private_board_orders",
-    "membership_orders", "match_credit_logs", "online_matching_events",
-    "online_matching_registrations", "online_matching_feedback",
+    "users",
+    "products",
+    "orders",
+    "contacts",
+    "activities",
+    "import_history",
+    "business_needs",
+    "business_cards",
+    "visitor_logs",
+    "user_events",
+    "withdrawals",
+    "private_board_orders",
+    "membership_orders",
+    "match_credit_logs",
+    "online_matching_events",
+    "online_matching_registrations",
+    "online_matching_feedback",
     "revoked_tokens",
 ]
 
@@ -177,10 +185,10 @@ def migrate_table(sqlite_conn, pg_conn, table_name):
             update_parts = [f'"{c}" = EXCLUDED."{c}"' for c in cols if c != unique_col]
             if update_parts:
                 upsert_sql = f"""
-                    INSERT INTO "{table_name}" ({', '.join(f'"{c}"' for c in cols)})
-                    VALUES ({', '.join(placeholders)})
+                    INSERT INTO "{table_name}" ({", ".join(f'"{c}"' for c in cols)})
+                    VALUES ({", ".join(placeholders)})
                     ON CONFLICT ("{unique_col}") DO UPDATE SET
-                    {', '.join(update_parts)}
+                    {", ".join(update_parts)}
                 """
                 try:
                     pg_conn.execute(text(upsert_sql), values)
@@ -190,8 +198,8 @@ def migrate_table(sqlite_conn, pg_conn, table_name):
                     try:
                         # Fallback: simple INSERT IGNORE
                         insert_sql = f"""
-                            INSERT INTO "{table_name}" ({', '.join(f'"{c}"' for c in cols)})
-                            VALUES ({', '.join(placeholders)})
+                            INSERT INTO "{table_name}" ({", ".join(f'"{c}"' for c in cols)})
+                            VALUES ({", ".join(placeholders)})
                             ON CONFLICT ("{unique_col}") DO NOTHING
                         """
                         pg_conn.execute(text(insert_sql), values)
@@ -200,8 +208,8 @@ def migrate_table(sqlite_conn, pg_conn, table_name):
                         logger.warning(f"    INSERT IGNORE 也失败: {e2}")
             else:
                 insert_sql = f"""
-                    INSERT INTO "{table_name}" ({', '.join(f'"{c}"' for c in cols)})
-                    VALUES ({', '.join(placeholders)})
+                    INSERT INTO "{table_name}" ({", ".join(f'"{c}"' for c in cols)})
+                    VALUES ({", ".join(placeholders)})
                     ON CONFLICT DO NOTHING
                 """
                 try:
@@ -212,8 +220,8 @@ def migrate_table(sqlite_conn, pg_conn, table_name):
         else:
             # Simple INSERT
             insert_sql = f"""
-                INSERT INTO "{table_name}" ({', '.join(f'"{c}"' for c in cols)})
-                VALUES ({', '.join(placeholders)})
+                INSERT INTO "{table_name}" ({", ".join(f'"{c}"' for c in cols)})
+                VALUES ({", ".join(placeholders)})
             """
             try:
                 pg_conn.execute(text(insert_sql), values)
@@ -252,8 +260,7 @@ def backfill_organizations(sqlite_conn, pg_conn):
 
         # 检查用户是否已有组织（通过 PG 中的组织表）
         existing_org = pg_conn.execute(
-            text(f'SELECT id FROM organizations WHERE owner_id = :uid'),
-            {"uid": user_id}
+            text("SELECT id FROM organizations WHERE owner_id = :uid"), {"uid": user_id}
         ).fetchone()
 
         if existing_org:
@@ -272,7 +279,7 @@ def backfill_organizations(sqlite_conn, pg_conn):
                         "slug": slug,
                         "owner_id": user_id,
                         "created_at": datetime.utcnow(),
-                    }
+                    },
                 )
                 org_id = result.fetchone()[0]
                 org_map[user_id] = org_id
@@ -289,7 +296,7 @@ def backfill_organizations(sqlite_conn, pg_conn):
                         "user_id": user_id,
                         "role": "admin",
                         "joined_at": datetime.utcnow(),
-                    }
+                    },
                 )
             except Exception as e:
                 logger.warning(f"  为用户 {user_id} 创建组织失败: {e}")
@@ -337,7 +344,7 @@ def backfill_organizations(sqlite_conn, pg_conn):
                 if ref_user_id and ref_user_id in org_map:
                     pg_conn.execute(
                         text(f'UPDATE "{table_name}" SET organization_id = :org_id WHERE id = :id'),
-                        {"org_id": org_map[ref_user_id], "id": row_id}
+                        {"org_id": org_map[ref_user_id], "id": row_id},
                     )
                 elif ref_user_id:
                     # 用户没有组织，尝试用第一个组织
@@ -345,7 +352,7 @@ def backfill_organizations(sqlite_conn, pg_conn):
                     if first_org:
                         pg_conn.execute(
                             text(f'UPDATE "{table_name}" SET organization_id = :org_id WHERE id = :id'),
-                            {"org_id": first_org[0], "id": row_id}
+                            {"org_id": first_org[0], "id": row_id},
                         )
 
             pg_conn.commit()
@@ -403,6 +410,7 @@ def main():
         except Exception as e:
             logger.warning(f"  迁移 {table_name} 失败: {e}")
             import traceback
+
             traceback.print_exc()
 
     logger.info(f"\n共迁移 {total_rows} 行数据")

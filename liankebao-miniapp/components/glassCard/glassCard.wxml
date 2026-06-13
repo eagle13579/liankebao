@@ -1,3 +1,0 @@
-<view class="glass-card" style="padding: {{padding}}; margin: {{margin}};">
-  <slot></slot>
-</view>

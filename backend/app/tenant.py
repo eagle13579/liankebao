@@ -17,10 +17,10 @@ from contextvars import ContextVar
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Session, relationship
 
-from app.database import DB_TYPE, Base
+from app.database import Base
 
 logger = logging.getLogger(__name__)
 
@@ -90,12 +90,13 @@ def get_current_org_slug() -> str:
 
 
 if IS_MULTI_TENANT:
+
     class Membership(Base):
         """用户-组织关联模型"""
-    
+
         __table_args__ = {"extend_existing": True}
         __tablename__ = "memberships"
-    
+
         id = Column(Integer, primary_key=True, index=True, autoincrement=True)
         user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
         org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)

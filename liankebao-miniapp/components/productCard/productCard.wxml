@@ -1,8 +1,0 @@
-<view class="card" bindtap="handleClick">
-  <image class="thumb" src="{{img}}" mode="aspectFill" />
-  <view class="body">
-    <text class="name">{{name}}</text>
-    <text class="price">¥{{price}}</text>
-    <text class="earn" wx:if="{{earn > 0}}">推广赚 ¥{{earn}}</text>
-  </view>
-</view>

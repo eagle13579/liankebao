@@ -34,8 +34,7 @@ def _find_db() -> Path:
         if resolved.exists():
             return resolved
     raise FileNotFoundError(
-        "未找到 chainke.db！请确认数据库路径。"
-        "\n已搜索: " + "\n        ".join(str(p) for p in candidates)
+        "未找到 chainke.db！请确认数据库路径。\n已搜索: " + "\n        ".join(str(p) for p in candidates)
     )
 
 

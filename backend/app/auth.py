@@ -1,5 +1,6 @@
 """JWT认证 + 密码哈希 + 微信登录"""
 
+import hashlib
 import os
 import uuid
 from datetime import datetime, timedelta
@@ -7,7 +8,6 @@ from datetime import datetime, timedelta
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
-import hashlib
 from passlib.hash import bcrypt as bcrypt_hasher
 from sqlalchemy.orm import Session
 
@@ -43,6 +43,7 @@ def _load_blacklist_from_db():
     try:
         from app.database import SessionLocal
         from app.models import RevokedToken
+
         db = SessionLocal()
         revoked = db.query(RevokedToken.jti).all()
         for (jti,) in revoked:
@@ -165,10 +166,12 @@ def add_token_to_blacklist(token: str) -> bool:
                 existing = db.query(RevokedToken).filter(RevokedToken.jti == jti).first()
                 if not existing:
                     expires_at = datetime.fromtimestamp(payload.get("exp")) if payload.get("exp") else None
-                    db.add(RevokedToken(
-                        jti=jti,
-                        expires_at=expires_at,
-                    ))
+                    db.add(
+                        RevokedToken(
+                            jti=jti,
+                            expires_at=expires_at,
+                        )
+                    )
                     db.commit()
                 db.close()
             except Exception:
