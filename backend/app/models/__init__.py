@@ -22,8 +22,8 @@ for _name in dir(_flat):
         globals()[_name] = getattr(_flat, _name)
 
 # Also import organization models
-# Import escrow models
-from app.models.escrow import Deal, Dispute, Milestone  # noqa: F401
+# Import escrow models (NOT from __init__ - imported directly by escrow service/router)
+# Deal is already in app.models.py as a CRM model; escrow models use table escrow_deals
 from app.models.organization import Invite, Organization, OrganizationMember  # noqa: F401
 
 __all__ = (
