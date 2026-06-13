@@ -17,7 +17,6 @@ from pydantic import BaseModel, Field
 
 from app.auth import get_current_user
 from app.models import User
-from app.schemas import ApiResponse
 from app.services.action_recommender import (
     ActionRule,
     ActionType,
@@ -52,17 +51,13 @@ class RecommendRequest(BaseModel):
         None,
         description="实体类型：enterprise / product / supplier / need",
     )
-    context: dict[str, Any] | None = Field(
-        None, description="额外上下文信息"
-    )
+    context: dict[str, Any] | None = Field(None, description="额外上下文信息")
 
 
 class RecommendBatchRequest(BaseModel):
     """批量评分推荐请求"""
 
-    scores: list[RecommendRequest] = Field(
-        ..., min_length=1, max_length=100, description="评分列表"
-    )
+    scores: list[RecommendRequest] = Field(..., min_length=1, max_length=100, description="评分列表")
     score_scale: str = Field(
         "0-100",
         description="分数制式（统一作用于所有评分）",
@@ -82,14 +77,11 @@ class RuleConfigRequest(BaseModel):
     )
     priority: int = Field(1, ge=1, description="优先级（数字越小越优先）")
     display_name: str = Field(..., min_length=1, max_length=50, description="前端展示名称")
-    description: str = Field(
-        ..., min_length=1, max_length=500, description="行动描述"
-    )
-    action_data: dict[str, Any] = Field(
-        default_factory=dict, description="行动额外数据"
-    )
+    description: str = Field(..., min_length=1, max_length=500, description="行动描述")
+    action_data: dict[str, Any] = Field(default_factory=dict, description="行动额外数据")
     label: str | None = Field(
-        None, description="分数段标签：high / medium / low",
+        None,
+        description="分数段标签：high / medium / low",
         pattern=r"^(high|medium|low)?$",
     )
 
@@ -97,9 +89,7 @@ class RuleConfigRequest(BaseModel):
 class UpdateRulesRequest(BaseModel):
     """更新规则请求"""
 
-    rules: list[RuleConfigRequest] = Field(
-        ..., min_length=1, max_length=20, description="规则列表"
-    )
+    rules: list[RuleConfigRequest] = Field(..., min_length=1, max_length=20, description="规则列表")
 
 
 # ============================================================
@@ -173,9 +163,7 @@ def recommend_next_action_batch(
         "message": "success",
         "data": {
             "total": len(results),
-            "items": [
-                recommender.recommendation_to_dict(r) for r in results
-            ],
+            "items": [recommender.recommendation_to_dict(r) for r in results],
         },
     }
 

@@ -29,9 +29,28 @@ HASH_SALT_OLD = "digital_brochure_v2"
 # HTTP Bearer token 安全方案
 security = HTTPBearer(auto_error=False)
 
-# Token黑名单（内存中，生产环境建议改为 Redis）
-# 使用 set 存储已失效的 token jti
+# Token黑名单（内存+DB双重持久化）
+# 内存缓存加速查询，DB持久化防止重启丢失
 _token_blacklist: set[str] = set()
+_blacklist_loaded: bool = False
+
+
+def _load_blacklist_from_db():
+    """启动/首次使用时从DB加载已吊销token到内存"""
+    global _blacklist_loaded
+    if _blacklist_loaded:
+        return
+    try:
+        from app.database import SessionLocal
+        from app.models import RevokedToken
+        db = SessionLocal()
+        revoked = db.query(RevokedToken.jti).all()
+        for (jti,) in revoked:
+            _token_blacklist.add(jti)
+        db.close()
+        _blacklist_loaded = True
+    except Exception:
+        pass  # DB表可能还不存在（首次启动），静默跳过
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -117,7 +136,8 @@ def verify_token(token: str, expected_type: str | None = None) -> dict | None:
     """
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        # 检查黑名单
+        # 检查黑名单（先确保从DB加载过）
+        _load_blacklist_from_db()
         jti = payload.get("jti")
         if jti and jti in _token_blacklist:
             return None
@@ -130,12 +150,29 @@ def verify_token(token: str, expected_type: str | None = None) -> dict | None:
 
 
 def add_token_to_blacklist(token: str) -> bool:
-    """将 token 加入黑名单（通过 jti 识别）"""
+    """将 token 加入黑名单（通过 jti 识别），同时持久化到 DB"""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         jti = payload.get("jti")
         if jti:
             _token_blacklist.add(jti)
+            # 持久化到 DB
+            try:
+                from app.database import SessionLocal
+                from app.models import RevokedToken
+
+                db = SessionLocal()
+                existing = db.query(RevokedToken).filter(RevokedToken.jti == jti).first()
+                if not existing:
+                    expires_at = datetime.fromtimestamp(payload.get("exp")) if payload.get("exp") else None
+                    db.add(RevokedToken(
+                        jti=jti,
+                        expires_at=expires_at,
+                    ))
+                    db.commit()
+                db.close()
+            except Exception:
+                pass  # DB不可用时至少内存黑名单生效
             return True
         return False
     except JWTError:

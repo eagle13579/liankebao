@@ -9,11 +9,10 @@
 依赖 app.services.qichacha_client.QichachaClient，从环境变量读取 API 凭据。
 """
 
-import json
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Path
 from pydantic import BaseModel, Field
 
 from app.auth import get_current_user
@@ -30,8 +29,10 @@ router = APIRouter(prefix="/api/enterprise", tags=["企查查企业丰富"])
 # 请求/响应模型
 # ============================================================
 
+
 class VerifyRequest(BaseModel):
     """企业三要素核验请求"""
+
     name: str = Field(..., min_length=1, max_length=200, description="企业全称")
     credit_code: str = Field(
         ...,
@@ -39,13 +40,12 @@ class VerifyRequest(BaseModel):
         max_length=18,
         description="统一社会信用代码（18 位）",
     )
-    legal_person: str = Field(
-        ..., min_length=1, max_length=50, description="法定代表人姓名"
-    )
+    legal_person: str = Field(..., min_length=1, max_length=50, description="法定代表人姓名")
 
 
 class VerifyResponse(BaseModel):
     """企业三要素核验响应"""
+
     verified: bool = Field(..., description="是否核验通过")
     match_score: int = Field(..., ge=0, le=100, description="匹配分数 0-100")
     detail: str = Field("", description="核验详情")
@@ -54,19 +54,20 @@ class VerifyResponse(BaseModel):
 
 class BatchEnrichItem(BaseModel):
     """单条批量丰富请求项"""
+
     name: str = Field(..., min_length=1, description="企业名称")
     credit_code: str | None = Field(None, description="统一社会信用代码（可选）")
 
 
 class BatchEnrichRequest(BaseModel):
     """批量企业信息丰富请求"""
-    enterprises: list[BatchEnrichItem] = Field(
-        ..., min_length=1, max_length=100, description="企业列表（最多 100 条）"
-    )
+
+    enterprises: list[BatchEnrichItem] = Field(..., min_length=1, max_length=100, description="企业列表（最多 100 条）")
 
 
 class BatchEnrichResult(BaseModel):
     """单条批量丰富结果"""
+
     name: str
     credit_code: str | None = None
     success: bool
@@ -125,7 +126,10 @@ async def enterprise_verify(
         )
         logger.info(
             "企业三要素核验 [user=%s]: name=%s, credit_code=%s, verified=%s",
-            current_user.id, req.name, req.credit_code, result.get("verified"),
+            current_user.id,
+            req.name,
+            req.credit_code,
+            result.get("verified"),
         )
         return ApiResponse(code=200, message="success", data=result)
     except Exception as e:
@@ -135,9 +139,7 @@ async def enterprise_verify(
 
 @router.get("/{credit_code}", response_model=ApiResponse, summary="企业信息查询")
 async def enterprise_detail(
-    credit_code: str = Path(
-        ..., min_length=18, max_length=18, description="统一社会信用代码（18 位）"
-    ),
+    credit_code: str = Path(..., min_length=18, max_length=18, description="统一社会信用代码（18 位）"),
     current_user: User = Depends(get_current_user),
     client: QichachaClient = Depends(get_qichacha_client),
 ):
@@ -172,7 +174,9 @@ async def enterprise_detail(
 
     logger.info(
         "企业信息查询 [user=%s]: credit_code=%s, name=%s",
-        current_user.id, credit_code, detail.get("name", ""),
+        current_user.id,
+        credit_code,
+        detail.get("name", ""),
     )
     return ApiResponse(code=200, message="success", data=detail)
 
@@ -205,7 +209,7 @@ async def enterprise_batch_enrich(
             }]
         }
     """
-    enterprises = req. enterprises
+    enterprises = req.enterprises
     total = len(enterprises)
     results: list[BatchEnrichResult] = []
     success_count = 0
@@ -220,67 +224,86 @@ async def enterprise_batch_enrich(
                     # 尝试按名称搜索兜底
                     search_result = client.search_by_name(item.name, page=1, page_size=1)
                     if search_result.get("items"):
-                        results.append(BatchEnrichResult(
+                        results.append(
+                            BatchEnrichResult(
+                                name=item.name,
+                                credit_code=item.credit_code,
+                                success=True,
+                                data=search_result["items"][0],
+                            )
+                        )
+                        success_count += 1
+                    else:
+                        results.append(
+                            BatchEnrichResult(
+                                name=item.name,
+                                credit_code=item.credit_code,
+                                success=False,
+                                error=detail.get("error", "查询失败"),
+                            )
+                        )
+                        fail_count += 1
+                else:
+                    results.append(
+                        BatchEnrichResult(
                             name=item.name,
                             credit_code=item.credit_code,
                             success=True,
-                            data=search_result["items"][0],
-                        ))
-                        success_count += 1
-                    else:
-                        results.append(BatchEnrichResult(
-                            name=item.name,
-                            credit_code=item.credit_code,
-                            success=False,
-                            error=detail.get("error", "查询失败"),
-                        ))
-                        fail_count += 1
-                else:
-                    results.append(BatchEnrichResult(
-                        name=item.name,
-                        credit_code=item.credit_code,
-                        success=True,
-                        data=detail,
-                    ))
+                            data=detail,
+                        )
+                    )
                     success_count += 1
             else:
                 # 无信用代码：按名称搜索
                 search_result = client.search_by_name(item.name, page=1, page_size=1)
                 if search_result.get("items"):
                     best = search_result["items"][0]
-                    results.append(BatchEnrichResult(
-                        name=item.name,
-                        credit_code=best.get("credit_code", ""),
-                        success=True,
-                        data=best,
-                    ))
+                    results.append(
+                        BatchEnrichResult(
+                            name=item.name,
+                            credit_code=best.get("credit_code", ""),
+                            success=True,
+                            data=best,
+                        )
+                    )
                     success_count += 1
                 else:
-                    results.append(BatchEnrichResult(
-                        name=item.name,
-                        credit_code=None,
-                        success=False,
-                        error="未找到该企业信息",
-                    ))
+                    results.append(
+                        BatchEnrichResult(
+                            name=item.name,
+                            credit_code=None,
+                            success=False,
+                            error="未找到该企业信息",
+                        )
+                    )
                     fail_count += 1
         except Exception as e:
             logger.error("批量丰富单项失败 [%s]: %s", item.name, e)
-            results.append(BatchEnrichResult(
-                name=item.name,
-                credit_code=item.credit_code,
-                success=False,
-                error=str(e),
-            ))
+            results.append(
+                BatchEnrichResult(
+                    name=item.name,
+                    credit_code=item.credit_code,
+                    success=False,
+                    error=str(e),
+                )
+            )
             fail_count += 1
 
     logger.info(
         "批量企业信息丰富 [user=%s]: total=%d, success=%d, fail=%d",
-        current_user.id, total, success_count, fail_count,
+        current_user.id,
+        total,
+        success_count,
+        fail_count,
     )
 
-    return ApiResponse(code=200, message="success", data={
-        "total": total,
-        "success_count": success_count,
-        "fail_count": fail_count,
-        "results": [r.model_dump() for r in results],
-    })
+    return ApiResponse(
+        code=200,
+        message="success",
+        data={
+            "total": total,
+            "success_count": success_count,
+            "fail_count": fail_count,
+            "results": [r.model_dump() for r in results],
+        },
+    )

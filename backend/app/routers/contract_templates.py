@@ -14,9 +14,9 @@
 """
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.auth import get_current_user
@@ -42,9 +42,7 @@ router = APIRouter(prefix="/api/contract-templates", tags=["合同模板"])
 class RenderRequest(BaseModel):
     """填充变量渲染合同请求"""
 
-    variables: dict[str, Any] = Field(
-        ..., description="模板填充变量字典，key 为变量名，value 为填充值"
-    )
+    variables: dict[str, Any] = Field(..., description="模板填充变量字典，key 为变量名，value 为填充值")
 
 
 class SignerInfo(BaseModel):
@@ -65,12 +63,8 @@ class SignerInfo(BaseModel):
 class SignRequest(BaseModel):
     """一键签署请求"""
 
-    variables: dict[str, Any] = Field(
-        ..., description="模板填充变量字典"
-    )
-    signers: list[SignerInfo] = Field(
-        ..., min_length=1, max_length=20, description="签署方列表"
-    )
+    variables: dict[str, Any] = Field(..., description="模板填充变量字典")
+    signers: list[SignerInfo] = Field(..., min_length=1, max_length=20, description="签署方列表")
     contract_name: str = Field("", description="合同名称（默认取模板名称）")
     expire_days: int = Field(30, ge=1, le=365, description="签署有效期（天）")
     auto_archive: bool = Field(True, description="签署完成后是否自动归档")

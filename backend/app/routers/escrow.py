@@ -15,8 +15,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -26,21 +25,9 @@ from app.auth import get_current_user
 from app.database import get_db
 from app.models import User
 from app.models.escrow import (
-    DEAL_STATUS_CANCELLED,
-    DEAL_STATUS_COMPLETED,
-    DEAL_STATUS_DISPUTED,
-    DEAL_STATUS_FULFILLED,
-    DEAL_STATUS_PAID,
-    DEAL_STATUS_PENDING,
-    DEAL_STATUS_REFUNDED,
-    DEAL_STATUS_RESOLVED,
     VALID_DEAL_STATUSES,
-    Deal,
-    Dispute,
-    Milestone,
 )
 from app.services.escrow_service import (
-    calculate_trust_score,
     cancel_deal,
     create_deal,
     create_dispute,
@@ -66,8 +53,8 @@ class MilestoneInput(BaseModel):
     """里程碑输入"""
 
     name: str = Field(..., min_length=1, max_length=200, description="里程碑名称")
-    description: Optional[str] = Field(None, description="描述")
-    due_date: Optional[str] = Field(None, description="截止日期 (ISO 8601)")
+    description: str | None = Field(None, description="描述")
+    due_date: str | None = Field(None, description="截止日期 (ISO 8601)")
 
 
 class CreateDealRequest(BaseModel):
@@ -77,7 +64,7 @@ class CreateDealRequest(BaseModel):
     amount: float = Field(..., gt=0, description="交易金额")
     title: str = Field("", max_length=255, description="交易标题")
     description: str = Field("", description="交易描述")
-    milestones: Optional[List[MilestoneInput]] = Field(None, description="里程碑列表")
+    milestones: list[MilestoneInput] | None = Field(None, description="里程碑列表")
 
 
 class MilestoneUpdateRequest(BaseModel):
@@ -92,7 +79,7 @@ class DisputeRequest(BaseModel):
 
     reason: str = Field(..., min_length=1, max_length=500, description="争议原因")
     description: str = Field("", description="详细描述")
-    evidence: Optional[List[str]] = Field(None, description="证据列表（文件URL）")
+    evidence: list[str] | None = Field(None, description="证据列表（文件URL）")
 
 
 class ResolveDisputeRequest(BaseModel):
@@ -108,7 +95,7 @@ class ResolveDisputeRequest(BaseModel):
 # ============================================================
 
 
-@router.post("/deals", summary="创建交易", response_model=Dict[str, Any])
+@router.post("/deals", summary="创建交易", response_model=dict[str, Any])
 async def api_create_deal(
     req: CreateDealRequest,
     db: Session = Depends(get_db),
@@ -137,9 +124,9 @@ async def api_create_deal(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="创建交易失败")
 
 
-@router.get("/deals", summary="交易列表", response_model=Dict[str, Any])
+@router.get("/deals", summary="交易列表", response_model=dict[str, Any])
 async def api_list_deals(
-    status_filter: Optional[str] = Query(None, alias="status", description="按状态过滤"),
+    status_filter: str | None = Query(None, alias="status", description="按状态过滤"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -164,7 +151,7 @@ async def api_list_deals(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="查询交易列表失败")
 
 
-@router.get("/deals/{deal_id}", summary="交易详情", response_model=Dict[str, Any])
+@router.get("/deals/{deal_id}", summary="交易详情", response_model=dict[str, Any])
 async def api_get_deal(
     deal_id: int,
     db: Session = Depends(get_db),
@@ -185,7 +172,7 @@ async def api_get_deal(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="查询交易详情失败")
 
 
-@router.post("/deals/{deal_id}/milestones", summary="更新里程碑", response_model=Dict[str, Any])
+@router.post("/deals/{deal_id}/milestones", summary="更新里程碑", response_model=dict[str, Any])
 async def api_update_milestone(
     deal_id: int,
     req: MilestoneUpdateRequest,
@@ -207,7 +194,7 @@ async def api_update_milestone(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="更新里程碑失败")
 
 
-@router.post("/deals/{deal_id}/release", summary="释放付款", response_model=Dict[str, Any])
+@router.post("/deals/{deal_id}/release", summary="释放付款", response_model=dict[str, Any])
 async def api_release_payment(
     deal_id: int,
     db: Session = Depends(get_db),
@@ -224,7 +211,7 @@ async def api_release_payment(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="释放付款失败")
 
 
-@router.post("/deals/{deal_id}/dispute", summary="发起争议", response_model=Dict[str, Any])
+@router.post("/deals/{deal_id}/dispute", summary="发起争议", response_model=dict[str, Any])
 async def api_create_dispute(
     deal_id: int,
     req: DisputeRequest,
@@ -249,7 +236,7 @@ async def api_create_dispute(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="发起争议失败")
 
 
-@router.post("/deals/{deal_id}/cancel", summary="取消交易", response_model=Dict[str, Any])
+@router.post("/deals/{deal_id}/cancel", summary="取消交易", response_model=dict[str, Any])
 async def api_cancel_deal(
     deal_id: int,
     db: Session = Depends(get_db),
@@ -266,7 +253,7 @@ async def api_cancel_deal(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="取消交易失败")
 
 
-@router.get("/trust-score/{user_id}", summary="用户信任分", response_model=Dict[str, Any])
+@router.get("/trust-score/{user_id}", summary="用户信任分", response_model=dict[str, Any])
 async def api_trust_score(
     user_id: int,
     db: Session = Depends(get_db),
@@ -292,7 +279,7 @@ async def api_trust_score(
 # ============================================================
 
 
-@router.post("/disputes/resolve", summary="解决争议（管理员）", response_model=Dict[str, Any])
+@router.post("/disputes/resolve", summary="解决争议（管理员）", response_model=dict[str, Any])
 async def api_resolve_dispute(
     req: ResolveDisputeRequest,
     db: Session = Depends(get_db),

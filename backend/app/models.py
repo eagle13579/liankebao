@@ -18,7 +18,9 @@ class _StubMembership:  # placeholder when IS_MULTI_TENANT=False
 # ============================================================
 # 多租户判断：PostgreSQL 模式下强制启用 organization_id
 # ============================================================
-_IS_MULTI_TENANT = os.environ.get("IS_MULTI_TENANT", "true").lower() in ("true", "1", "yes") if True else DB_TYPE == "postgres"
+_IS_MULTI_TENANT = (
+    os.environ.get("IS_MULTI_TENANT", "true").lower() in ("true", "1", "yes") if True else DB_TYPE == "postgres"
+)
 
 
 def _org_fk():
@@ -669,6 +671,7 @@ class OnlineMatchingFeedback(Base):
 
 class RevokedToken(Base):
     """已吊销JWT Token — DB持久化，防止重启后黑名单丢失"""
+
     __tablename__ = "revoked_tokens"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
@@ -685,6 +688,7 @@ class RevokedToken(Base):
 # ============================================================
 class BusinessHypothesis(Base):
     """商业假设"""
+
     __tablename__ = "business_hypotheses"
 
     id = Column(String(50), primary_key=True, index=True)
@@ -702,6 +706,7 @@ class BusinessHypothesis(Base):
 
 class InnovationExperiment(Base):
     """创新实验"""
+
     __tablename__ = "innovation_experiments"
 
     id = Column(String(50), primary_key=True, index=True)
@@ -717,6 +722,7 @@ class InnovationExperiment(Base):
 
 class InnovationOpportunity(Base):
     """创新机会"""
+
     __tablename__ = "innovation_opportunities"
 
     id = Column(String(50), primary_key=True, index=True)
@@ -737,6 +743,7 @@ class InnovationOpportunity(Base):
 # ============================================================
 class DesignReviewReport(Base):
     """设计审查报告"""
+
     __tablename__ = "design_review_reports"
 
     id = Column(String(50), primary_key=True, index=True)
@@ -749,6 +756,7 @@ class DesignReviewReport(Base):
 
 class AestheticScoreCardRecord(Base):
     """审美评分卡记录"""
+
     __tablename__ = "aesthetic_score_card_records"
 
     id = Column(String(50), primary_key=True, index=True)
@@ -786,9 +794,13 @@ class EsignContract(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     esign_contract_id = Column(String(64), unique=True, nullable=False, index=True, comment="e签宝平台合同流程 ID")
-    template_id = Column(Integer, ForeignKey("esign_templates.id"), nullable=True, index=True, comment="关联本地模板 ID")
+    template_id = Column(
+        Integer, ForeignKey("esign_templates.id"), nullable=True, index=True, comment="关联本地模板 ID"
+    )
     contract_name = Column(String(200), nullable=True, comment="合同名称")
-    status = Column(Integer, nullable=False, default=0, comment="签署状态: 0=待签署 1=签署中 2=已完成 3=已撤销 4=已过期")
+    status = Column(
+        Integer, nullable=False, default=0, comment="签署状态: 0=待签署 1=签署中 2=已完成 3=已撤销 4=已过期"
+    )
     status_label = Column(String(20), nullable=True, comment="状态中文描述")
     signers_json = Column(Text, nullable=True, default="[]", comment="签署方列表(JSON)")
     fields_json = Column(Text, nullable=True, default="[]", comment="填充字段(JSON)")
@@ -802,7 +814,7 @@ class EsignContract(Base):
     organization_id = _org_fk()
     # 用户关联
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True, comment="发起用户ID")
-    
+
     # 关系
     template = relationship("EsignTemplate", foreign_keys=[template_id])
     user = relationship("User", foreign_keys=[user_id])

@@ -20,12 +20,12 @@
 
 import logging
 import os
-from typing import Any
-
-import numpy as np
 
 # 确保从项目根目录可导入
 import sys
+
+import numpy as np
+
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 
 logger = logging.getLogger(__name__)
@@ -40,26 +40,26 @@ AUGMENTED_DATA_PATH = os.path.join(MODELS_DIR, "training_data_augmented.npz")
 
 # FEATURE_NAMES 与 matching_model.py 保持一致
 FEATURE_NAMES = [
-    "category_sim",       # 类目 Jaccard 相似度
-    "text_sim",           # TF-IDF 余弦相似度
-    "price_budget_sim",   # 价格-预算匹配度
-    "recency_prod",       # 产品新鲜度
-    "recency_need",       # 需求新鲜度
-    "price_norm",         # 产品归一化价格
-    "budget_mid_norm",    # 需求预算中点（归一化）
-    "feature_sim",        # feature_pipeline 综合相似度
-    "is_cold_prod",       # 产品是否为冷启动新品 (0/1)
-    "is_cold_need",       # 需求是否为冷启动新需求 (0/1)
+    "category_sim",  # 类目 Jaccard 相似度
+    "text_sim",  # TF-IDF 余弦相似度
+    "price_budget_sim",  # 价格-预算匹配度
+    "recency_prod",  # 产品新鲜度
+    "recency_need",  # 需求新鲜度
+    "price_norm",  # 产品归一化价格
+    "budget_mid_norm",  # 需求预算中点（归一化）
+    "feature_sim",  # feature_pipeline 综合相似度
+    "is_cold_prod",  # 产品是否为冷启动新品 (0/1)
+    "is_cold_need",  # 需求是否为冷启动新需求 (0/1)
 ]
 NUM_FEATURES = len(FEATURE_NAMES)
 
 # 规则权重（与 matching_engine.py 保持一致）
-CATEGORY_WEIGHT = 0.40   # 类别 0-40 分 → 40%
-KEYWORD_WEIGHT = 0.40    # 关键词 0-40 分 → 40%
-PRICE_WEIGHT = 0.20      # 价格 0-20 分 → 20%
-COLD_START_BOOST = 1.2   # 冷启动乘数
-FEATURE_WEIGHT = 0.10    # 特征集成权重
-FEEDBACK_MAX = 0.10      # 反馈最大调整
+CATEGORY_WEIGHT = 0.40  # 类别 0-40 分 → 40%
+KEYWORD_WEIGHT = 0.40  # 关键词 0-40 分 → 40%
+PRICE_WEIGHT = 0.20  # 价格 0-20 分 → 20%
+COLD_START_BOOST = 1.2  # 冷启动乘数
+FEATURE_WEIGHT = 0.10  # 特征集成权重
+FEEDBACK_MAX = 0.10  # 反馈最大调整
 
 # 合成数据量
 DEFAULT_N_SAMPLES = 600
@@ -140,11 +140,7 @@ def compute_rule_score(features: np.ndarray) -> float:
     kw_score = _rule_keyword_score(text_sim)
     price_score = _rule_price_score(price_budget_sim)
 
-    total_score = (
-        CATEGORY_WEIGHT * cat_score
-        + KEYWORD_WEIGHT * kw_score
-        + PRICE_WEIGHT * price_score
-    )
+    total_score = CATEGORY_WEIGHT * cat_score + KEYWORD_WEIGHT * kw_score + PRICE_WEIGHT * price_score
     # total_score 在 [0, 1] 区间
 
     # 4. 冷启动加权

@@ -19,8 +19,7 @@ e签宝电子签约路由
 
 import json
 import logging
-from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
@@ -55,9 +54,7 @@ class TemplateCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=200, description="模板名称")
     doc_base64: str = Field(..., description="PDF 文件 Base64 编码内容")
     doc_file_name: str = Field("contract.pdf", description="PDF 文件名")
-    fields: Optional[list[dict[str, Any]]] = Field(
-        None, description="模板填充字段定义（可选）"
-    )
+    fields: list[dict[str, Any]] | None = Field(None, description="模板填充字段定义（可选）")
 
 
 class SignerInfo(BaseModel):
@@ -99,9 +96,9 @@ class CallbackNotification(BaseModel):
     contractName: str = Field("", description="合同名称")
     status: int = Field(0, description="合同状态")
     statusDescription: str = Field("", description="状态描述")
-    signTime: Optional[str] = Field(None, description="签署完成时间")
-    operator: Optional[str] = Field(None, description="操作人")
-    remark: Optional[str] = Field(None, description="备注")
+    signTime: str | None = Field(None, description="签署完成时间")
+    operator: str | None = Field(None, description="操作人")
+    remark: str | None = Field(None, description="备注")
 
 
 # ──────────────────────────────────────────────
@@ -283,9 +280,7 @@ async def create_contract(
         ]
 
         # 构建填充字段
-        fields = [
-            EsignTemplateField(name=f.name, value=f.value) for f in req.fields
-        ]
+        fields = [EsignTemplateField(name=f.name, value=f.value) for f in req.fields]
 
         # 构建配置
         config = EsignContractConfig(
@@ -465,7 +460,7 @@ async def revoke_contract(
 @router.post("/callback", summary="e签宝回调通知（Webhook）")
 async def esign_callback(
     request: Request,
-    body: Optional[CallbackNotification] = None,
+    body: CallbackNotification | None = None,
     db: Session = Depends(get_db),
 ):
     """

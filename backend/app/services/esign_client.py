@@ -28,7 +28,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 import requests
 
@@ -100,9 +100,9 @@ class EsignClient:
 
     def __init__(
         self,
-        app_key: Optional[str] = None,
-        app_secret: Optional[str] = None,
-        host: Optional[str] = None,
+        app_key: str | None = None,
+        app_secret: str | None = None,
+        host: str | None = None,
     ):
         """
         初始化 e签宝客户端
@@ -117,12 +117,10 @@ class EsignClient:
         self.host = (host or ESIGN_HOST).rstrip("/")
 
         if not self.app_key or not self.app_secret:
-            logger.warning(
-                "e签宝 API 密钥未配置: 请设置 ESIGN_APP_KEY 和 ESIGN_APP_SECRET 环境变量"
-            )
+            logger.warning("e签宝 API 密钥未配置: 请设置 ESIGN_APP_KEY 和 ESIGN_APP_SECRET 环境变量")
 
         # AccessToken 缓存
-        self._access_token: Optional[str] = None
+        self._access_token: str | None = None
         self._token_expires_at: float = 0.0  # 过期时间戳
 
         # HTTP 会话（复用连接池）
@@ -181,9 +179,9 @@ class EsignClient:
         self,
         method: str,
         path: str,
-        params: Optional[dict] = None,
-        json_data: Optional[dict] = None,
-        files: Optional[dict] = None,
+        params: dict | None = None,
+        json_data: dict | None = None,
+        files: dict | None = None,
     ) -> dict[str, Any]:
         """
         通用 API 请求封装
@@ -212,9 +210,7 @@ class EsignClient:
                     method, url, params=params, data=json_data, files=files, headers=headers, timeout=60
                 )
             else:
-                resp = self._session.request(
-                    method, url, params=params, json=json_data, headers=headers, timeout=30
-                )
+                resp = self._session.request(method, url, params=params, json=json_data, headers=headers, timeout=30)
             return self._handle_response(resp)
         except requests.RequestException as e:
             raise EsignError(f"API 请求失败 [{method} {path}]: {e}") from e
@@ -263,7 +259,7 @@ class EsignClient:
         name: str,
         doc_pdf: bytes,
         doc_file_name: str = "contract.pdf",
-        fields: Optional[list[dict[str, str]]] = None,
+        fields: list[dict[str, str]] | None = None,
     ) -> dict[str, Any]:
         """
         创建合同模板（上传 PDF + 定义填充字段）
@@ -382,13 +378,9 @@ class EsignClient:
             "contractName": config.contract_name or "",
         }
         if config.fields:
-            doc_payload["fields"] = [
-                {"name": f.name, "value": f.value} for f in config.fields
-            ]
+            doc_payload["fields"] = [{"name": f.name, "value": f.value} for f in config.fields]
 
-        doc_result = self._request(
-            "POST", "/open/api/v2/contracts/createByTemplate", json_data=doc_payload
-        )
+        doc_result = self._request("POST", "/open/api/v2/contracts/createByTemplate", json_data=doc_payload)
         contract_id = doc_result.get("contractId") or doc_result.get("id", "")
 
         # Step 2: 添加签署方
@@ -469,9 +461,7 @@ class EsignClient:
         if app_url:
             payload["appUrl"] = app_url
 
-        return self._request(
-            "POST", "/open/api/v2/signflow/signUrl", json_data=payload
-        )
+        return self._request("POST", "/open/api/v2/signflow/signUrl", json_data=payload)
 
     def revoke_contract(
         self,
@@ -502,9 +492,7 @@ class EsignClient:
         Returns:
             PDF 文件二进制内容
         """
-        result = self._request(
-            "GET", f"/open/api/v2/contracts/{contract_id}/download"
-        )
+        result = self._request("GET", f"/open/api/v2/contracts/{contract_id}/download")
         download_url = result.get("downloadUrl", "")
         if not download_url:
             raise EsignError(f"合同 {contract_id} 下载链接为空")
@@ -576,7 +564,7 @@ class EsignError(Exception):
         message: str,
         code: int = -1,
         message_raw: str = "",
-        response: Optional[dict[str, Any]] = None,
+        response: dict[str, Any] | None = None,
     ):
         super().__init__(message)
         self.code = code
@@ -597,7 +585,7 @@ class EsignError(Exception):
 def verify_callback_signature(
     body: dict[str, Any],
     signature: str,
-    app_secret: Optional[str] = None,
+    app_secret: str | None = None,
 ) -> bool:
     """
     验证 e签宝回调通知的签名

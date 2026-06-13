@@ -20,10 +20,9 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import List, Optional
 
 from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import Mapped, Session, relationship
+from sqlalchemy.orm import Mapped, relationship
 
 from app.database import Base
 
@@ -42,16 +41,18 @@ DEAL_STATUS_COMPLETED = "completed"  # 已完成
 DEAL_STATUS_REFUNDED = "refunded"  # 已退款
 DEAL_STATUS_CANCELLED = "cancelled"  # 已取消
 
-VALID_DEAL_STATUSES = frozenset({
-    DEAL_STATUS_PENDING,
-    DEAL_STATUS_PAID,
-    DEAL_STATUS_FULFILLED,
-    DEAL_STATUS_DISPUTED,
-    DEAL_STATUS_RESOLVED,
-    DEAL_STATUS_COMPLETED,
-    DEAL_STATUS_REFUNDED,
-    DEAL_STATUS_CANCELLED,
-})
+VALID_DEAL_STATUSES = frozenset(
+    {
+        DEAL_STATUS_PENDING,
+        DEAL_STATUS_PAID,
+        DEAL_STATUS_FULFILLED,
+        DEAL_STATUS_DISPUTED,
+        DEAL_STATUS_RESOLVED,
+        DEAL_STATUS_COMPLETED,
+        DEAL_STATUS_REFUNDED,
+        DEAL_STATUS_CANCELLED,
+    }
+)
 
 # 合法的状态转换映射
 DEAL_STATUS_TRANSITIONS: dict[str, set[str]] = {
@@ -70,34 +71,35 @@ MILESTONE_STATUS_IN_PROGRESS = "in_progress"
 MILESTONE_STATUS_COMPLETED = "completed"
 MILESTONE_STATUS_FAILED = "failed"
 
-VALID_MILESTONE_STATUSES = frozenset({
-    MILESTONE_STATUS_PENDING,
-    MILESTONE_STATUS_IN_PROGRESS,
-    MILESTONE_STATUS_COMPLETED,
-    MILESTONE_STATUS_FAILED,
-})
+VALID_MILESTONE_STATUSES = frozenset(
+    {
+        MILESTONE_STATUS_PENDING,
+        MILESTONE_STATUS_IN_PROGRESS,
+        MILESTONE_STATUS_COMPLETED,
+        MILESTONE_STATUS_FAILED,
+    }
+)
 
 DISPUTE_STATUS_OPEN = "open"
 DISPUTE_STATUS_INVESTIGATING = "investigating"
 DISPUTE_STATUS_RESOLVED = "resolved"
 DISPUTE_STATUS_REJECTED = "rejected"
 
-VALID_DISPUTE_STATUSES = frozenset({
-    DISPUTE_STATUS_OPEN,
-    DISPUTE_STATUS_INVESTIGATING,
-    DISPUTE_STATUS_RESOLVED,
-    DISPUTE_STATUS_REJECTED,
-})
+VALID_DISPUTE_STATUSES = frozenset(
+    {
+        DISPUTE_STATUS_OPEN,
+        DISPUTE_STATUS_INVESTIGATING,
+        DISPUTE_STATUS_RESOLVED,
+        DISPUTE_STATUS_REJECTED,
+    }
+)
 
 
 def validate_deal_transition(current: str, next_status: str) -> None:
     """校验交易状态转换是否合法"""
     allowed = DEAL_STATUS_TRANSITIONS.get(current, set())
     if next_status not in allowed:
-        raise ValueError(
-            f"非法状态转换: {current} → {next_status} "
-            f"(允许: {', '.join(sorted(allowed)) or '无'})"
-        )
+        raise ValueError(f"非法状态转换: {current} → {next_status} (允许: {', '.join(sorted(allowed)) or '无'})")
 
 
 # ============================================================
@@ -124,12 +126,8 @@ class Deal(Base):
     # 关系
     buyer = relationship("User", foreign_keys=[buyer_id])
     seller = relationship("User", foreign_keys=[seller_id])
-    milestones: Mapped[List["Milestone"]] = relationship(
-        "Milestone", back_populates="deal", cascade="all, delete-orphan"
-    )
-    disputes: Mapped[List["Dispute"]] = relationship(
-        "Dispute", back_populates="deal", cascade="all, delete-orphan"
-    )
+    milestones: Mapped[list[Milestone]] = relationship("Milestone", back_populates="deal", cascade="all, delete-orphan")
+    disputes: Mapped[list[Dispute]] = relationship("Dispute", back_populates="deal", cascade="all, delete-orphan")
 
     def to_dict(self) -> dict:
         return {
@@ -162,7 +160,7 @@ class Milestone(Base):
     completed_at = Column(DateTime, nullable=True, comment="完成时间")
 
     # 关系
-    deal: Mapped["Deal"] = relationship("Deal", back_populates="milestones")
+    deal: Mapped[Deal] = relationship("Deal", back_populates="milestones")
 
     def to_dict(self) -> dict:
         return {
@@ -194,7 +192,7 @@ class Dispute(Base):
     resolved_at = Column(DateTime, nullable=True, comment="解决时间")
 
     # 关系
-    deal: Mapped["Deal"] = relationship("Deal", back_populates="disputes")
+    deal: Mapped[Deal] = relationship("Deal", back_populates="disputes")
     initiator = relationship("User", foreign_keys=[initiator_id])
 
     def to_dict(self) -> dict:

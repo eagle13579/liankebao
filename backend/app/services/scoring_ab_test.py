@@ -12,14 +12,13 @@
 
 使用方式:
   from app.services.scoring_ab_test import ScoreABTest, run_ab_test
-  
+
   ab = ScoreABTest()
   result = ab.evaluate(prod_feat_list, need_feat_list)
   print(result.summary())
 """
 
 import logging
-import math
 import random
 from dataclasses import dataclass, field
 from typing import Any
@@ -182,7 +181,7 @@ def _ascii_histogram(values: list[float], bins: int = 10, width: int = 30) -> st
     for i, count in enumerate(hist):
         bar_len = int(count / max_count * width)
         bar = "█" * bar_len
-        bar_chars.append(f"[{bin_edges[i]:.1f}-{bin_edges[i+1]:.1f}] {bar} ({count})")
+        bar_chars.append(f"[{bin_edges[i]:.1f}-{bin_edges[i + 1]:.1f}] {bar} ({count})")
     return "\n      " + "\n      ".join(bar_chars)
 
 
@@ -228,7 +227,7 @@ def _compute_spearman_r(list_a: list[float], list_b: list[float]) -> float:
     rank_b = {i: r for i, r in enumerate(sorted(range(n), key=lambda i: list_b[i]))}
 
     d_squared_sum = sum((rank_a[i] - rank_b[i]) ** 2 for i in range(n))
-    denominator = n * (n ** 2 - 1) / 6.0
+    denominator = n * (n**2 - 1) / 6.0
     if denominator == 0:
         return 0.0
 
@@ -329,13 +328,9 @@ class ScoreABTest:
                 vec = build_feature_vector(prod_feat_list[i], need_feat_list[i])
 
                 # 计算两种评分
-                ml_score = predict_match_score(
-                    prod_feat_list[i], need_feat_list[i], mode="ml"
-                )
+                ml_score = predict_match_score(prod_feat_list[i], need_feat_list[i], mode="ml")
                 rule_score = compute_rule_score_from_features(vec)
-                ensemble_score = predict_match_score(
-                    prod_feat_list[i], need_feat_list[i], mode="ensemble"
-                )
+                ensemble_score = predict_match_score(prod_feat_list[i], need_feat_list[i], mode="ensemble")
 
                 all_ml_scores.append(ml_score)
                 all_rule_scores.append(rule_score)
@@ -503,6 +498,7 @@ if __name__ == "__main__":
     # 转换为字典
     print()
     import json
+
     print("Dict output:")
     print(json.dumps(result.to_dict(), indent=2, ensure_ascii=False))
 

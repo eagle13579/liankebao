@@ -14,12 +14,11 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models import User
 from app.models.escrow import (
     DEAL_STATUS_CANCELLED,
     DEAL_STATUS_COMPLETED,
@@ -35,7 +34,6 @@ from app.models.escrow import (
     DISPUTE_STATUS_RESOLVED,
     MILESTONE_STATUS_COMPLETED,
     MILESTONE_STATUS_FAILED,
-    MILESTONE_STATUS_IN_PROGRESS,
     MILESTONE_STATUS_PENDING,
     Deal,
     Dispute,
@@ -58,7 +56,7 @@ def create_deal(
     amount: float,
     title: str = "",
     description: str = "",
-    milestones: Optional[List[Dict[str, Any]]] = None,
+    milestones: list[dict[str, Any]] | None = None,
 ) -> Deal:
     """
     创建交易保障订单
@@ -185,11 +183,7 @@ def update_milestone(
     Returns:
         更新后的 Milestone 对象
     """
-    milestone = (
-        db.query(Milestone)
-        .filter(Milestone.id == milestone_id, Milestone.deal_id == deal_id)
-        .first()
-    )
+    milestone = db.query(Milestone).filter(Milestone.id == milestone_id, Milestone.deal_id == deal_id).first()
     if not milestone:
         raise ValueError(f"里程碑不存在: milestone_id={milestone_id}, deal_id={deal_id}")
 
@@ -203,7 +197,7 @@ def update_milestone(
     return milestone
 
 
-def get_milestones(db: Session, deal_id: int) -> List[Milestone]:
+def get_milestones(db: Session, deal_id: int) -> list[Milestone]:
     """获取交易的所有里程碑"""
     return db.query(Milestone).filter(Milestone.deal_id == deal_id).order_by(Milestone.id).all()
 
@@ -267,7 +261,7 @@ def create_dispute(
     initiator_id: int,
     reason: str,
     description: str = "",
-    evidence: Optional[List[str]] = None,
+    evidence: list[str] | None = None,
 ) -> Dispute:
     """
     发起争议
@@ -415,18 +409,18 @@ def cancel_deal(db: Session, deal_id: int, actor_id: int) -> Deal:
 # ============================================================
 
 
-def get_deal(db: Session, deal_id: int) -> Optional[Deal]:
+def get_deal(db: Session, deal_id: int) -> Deal | None:
     """获取交易详情"""
     return db.query(Deal).filter(Deal.id == deal_id).first()
 
 
-def get_deal_status(db: Session, deal_id: int) -> Optional[str]:
+def get_deal_status(db: Session, deal_id: int) -> str | None:
     """获取交易状态"""
     deal = db.query(Deal).filter(Deal.id == deal_id).first()
     return deal.status if deal else None
 
 
-def list_deals(db: Session, user_id: int, status: Optional[str] = None) -> List[Deal]:
+def list_deals(db: Session, user_id: int, status: str | None = None) -> list[Deal]:
     """
     获取用户的所有交易（作为买方或卖方）
 
@@ -438,15 +432,13 @@ def list_deals(db: Session, user_id: int, status: Optional[str] = None) -> List[
     Returns:
         交易列表
     """
-    query = db.query(Deal).filter(
-        (Deal.buyer_id == user_id) | (Deal.seller_id == user_id)
-    )
+    query = db.query(Deal).filter((Deal.buyer_id == user_id) | (Deal.seller_id == user_id))
     if status:
         query = query.filter(Deal.status == status)
     return query.order_by(Deal.updated_at.desc()).all()
 
 
-def list_disputes(db: Session, deal_id: Optional[int] = None) -> List[Dispute]:
+def list_disputes(db: Session, deal_id: int | None = None) -> list[Dispute]:
     """获取争议列表，可按交易ID过滤"""
     query = db.query(Dispute)
     if deal_id is not None:
@@ -459,7 +451,7 @@ def list_disputes(db: Session, deal_id: Optional[int] = None) -> List[Dispute]:
 # ============================================================
 
 
-def calculate_trust_score(db: Session, user_id: int) -> Dict[str, Any]:
+def calculate_trust_score(db: Session, user_id: int) -> dict[str, Any]:
     """
     计算用户信任分
 
@@ -478,10 +470,7 @@ def calculate_trust_score(db: Session, user_id: int) -> Dict[str, Any]:
     """
     # 统计用户参与的所有交易
     total_deals_count = (
-        db.query(func.count(Deal.id))
-        .filter((Deal.buyer_id == user_id) | (Deal.seller_id == user_id))
-        .scalar()
-        or 0
+        db.query(func.count(Deal.id)).filter((Deal.buyer_id == user_id) | (Deal.seller_id == user_id)).scalar() or 0
     )
 
     completed_count = (
@@ -594,7 +583,7 @@ def calculate_trust_score(db: Session, user_id: int) -> Dict[str, Any]:
 
     total_score = round(completion_score + dispute_score + speed_score + volume_score, 1)
 
-    result: Dict[str, Any] = {
+    result: dict[str, Any] = {
         "user_id": user_id,
         "trust_score": min(100.0, total_score),
         "completion_score": completion_score,
@@ -612,7 +601,7 @@ def calculate_trust_score(db: Session, user_id: int) -> Dict[str, Any]:
     return result
 
 
-def get_trust_score(db: Session, user_id: int) -> Dict[str, Any]:
+def get_trust_score(db: Session, user_id: int) -> dict[str, Any]:
     """
     获取用户信任分（对外暴露接口，简化返回）
 

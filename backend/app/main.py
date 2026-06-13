@@ -57,12 +57,18 @@ logger = logging.getLogger(__name__)
 import admin_config as admin_config_module
 import app.bi_routes as bi_module
 import app.routers.activities as activities_module
+import app.routers.ai_chatbot as ai_chatbot_module
+import app.routers.ai_chatbot_ui as ai_chatbot_ui_module
 import app.routers.business_card as business_card_module
 import app.routers.contacts as contacts_module
+import app.routers.contract_templates as contract_templates_module
 import app.routers.crm as crm_module
 import app.routers.crm_pipeline as crm_pipeline_module
 import app.routers.enrichment as enrichment_module
 import app.routers.enterprise as enterprise_module
+import app.routers.enterprise_enrich as enterprise_enrich_module
+import app.routers.escrow as escrow_module
+import app.routers.esign as esign_module
 import app.routers.events as events_module
 import app.routers.growth as growth_module
 import app.routers.hypothesis_gate as hypothesis_gate_module
@@ -84,12 +90,6 @@ import app.routers.sales_script as sales_script_module
 import app.routers.unit_economics as unit_economics_module
 import app.routers.upload as upload_module
 import app.routers.vector_search_router as vector_search_module
-import app.routers.esign as esign_module
-import app.routers.enterprise_enrich as enterprise_enrich_module
-import app.routers.contract_templates as contract_templates_module
-import app.routers.escrow as escrow_module
-import app.routers.ai_chatbot as ai_chatbot_module
-import app.routers.ai_chatbot_ui as ai_chatbot_ui_module
 
 # ===== 顶层模块（PYTHONPATH 级别导入） =====
 import invoice as invoice_module
@@ -101,6 +101,7 @@ import reconciliation as reconciliation_module
 # ===== 创新引擎 & 审美评估引擎（KFD Feature 模块 - 可选加载） =====
 try:
     import innovation_engine as innovation_engine_module
+
     _HAS_INNOVATION = True
 except ImportError as e:
     innovation_engine_module = None
@@ -109,6 +110,7 @@ except ImportError as e:
 
 try:
     import design_review_engine as design_review_engine_module
+
     _HAS_DESIGN_REVIEW = True
 except ImportError as e:
     design_review_engine_module = None

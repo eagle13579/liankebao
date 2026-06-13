@@ -43,8 +43,8 @@ except ImportError:
     _HAS_LGB = False
 
 from sklearn.ensemble import GradientBoostingRegressor
-from sklearn.metrics import precision_score, recall_score, f1_score
-from sklearn.model_selection import StratifiedKFold, cross_val_predict
+from sklearn.metrics import f1_score, precision_score, recall_score
+from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import StandardScaler
 
 from app import feature_pipeline as fp
@@ -106,16 +106,16 @@ DEFAULT_MODE = os.environ.get("LIANKEBAO_ML_MODE", "ml")
 # ============================================================
 
 FEATURE_NAMES = [
-    "category_sim",       # 类目 Jaccard 相似度
-    "text_sim",           # TF-IDF 余弦相似度
-    "price_budget_sim",   # 价格-预算匹配度
-    "recency_prod",       # 产品新鲜度
-    "recency_need",       # 需求新鲜度
-    "price_norm",         # 产品归一化价格
-    "budget_mid_norm",    # 需求预算中点（归一化）
-    "feature_sim",        # feature_pipeline 综合相似度
-    "is_cold_prod",       # 产品是否为冷启动新品 (0/1)
-    "is_cold_need",       # 需求是否为冷启动新需求 (0/1)
+    "category_sim",  # 类目 Jaccard 相似度
+    "text_sim",  # TF-IDF 余弦相似度
+    "price_budget_sim",  # 价格-预算匹配度
+    "recency_prod",  # 产品新鲜度
+    "recency_need",  # 需求新鲜度
+    "price_norm",  # 产品归一化价格
+    "budget_mid_norm",  # 需求预算中点（归一化）
+    "feature_sim",  # feature_pipeline 综合相似度
+    "is_cold_prod",  # 产品是否为冷启动新品 (0/1)
+    "is_cold_need",  # 需求是否为冷启动新需求 (0/1)
 ]
 
 NUM_FEATURES = len(FEATURE_NAMES)
@@ -262,7 +262,11 @@ def compute_rule_score_from_features(features: np.ndarray) -> float:
     is_cold_need = features[9]
 
     # 基础分数 [0, 1]
-    total = CATEGORY_WEIGHT * float(category_sim) + KEYWORD_WEIGHT * float(text_sim) + PRICE_WEIGHT * float(price_budget_sim)
+    total = (
+        CATEGORY_WEIGHT * float(category_sim)
+        + KEYWORD_WEIGHT * float(text_sim)
+        + PRICE_WEIGHT * float(price_budget_sim)
+    )
 
     # 冷启动加权
     if is_cold_prod > 0.5 or is_cold_need > 0.5:
@@ -524,7 +528,7 @@ def cross_validate_model(
             fold_model.fit(X_train_scaled, y_train)
             y_pred = fold_model.predict(X_val_scaled)
 
-            fold_eval = evaluate_predictions(y_val.numpy() if hasattr(y_val, 'numpy') else y_val, y_pred)
+            fold_eval = evaluate_predictions(y_val.numpy() if hasattr(y_val, "numpy") else y_val, y_pred)
             fold_eval["fold"] = fold_idx
             fold_eval["train_samples"] = len(y_train)
             fold_eval["val_samples"] = len(y_val)
@@ -847,7 +851,7 @@ class MatchingModel:
                 # 加载元数据（如果存在）
                 if os.path.exists(METADATA_PATH):
                     try:
-                        with open(METADATA_PATH, "r", encoding="utf-8") as f:
+                        with open(METADATA_PATH, encoding="utf-8") as f:
                             metadata = json.load(f)
                         self._feature_importance = metadata.get("feature_importance", [])
                         self._cv_results = metadata.get("cv_results", {})
@@ -956,11 +960,13 @@ def predict_match_score(
         return ml_score
 
     if mode == "ensemble":
-        return float(np.clip(
-            ENSEMBLE_ML_WEIGHT * ml_score + ENSEMBLE_RULE_WEIGHT * rule_score,
-            0.0,
-            1.0,
-        ))
+        return float(
+            np.clip(
+                ENSEMBLE_ML_WEIGHT * ml_score + ENSEMBLE_RULE_WEIGHT * rule_score,
+                0.0,
+                1.0,
+            )
+        )
 
     # 未知模式，默认返回 ML 评分
     logger.warning(f"未知评分模式 '{mode}'，使用 ML 评分")

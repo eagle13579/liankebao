@@ -48,6 +48,7 @@ LRU_CACHE_CAPACITY = 512  # LRU 缓存最大条目数
 # LRU 内存缓存（线程不安全，适用于单线程/异步场景）
 # ============================================================
 
+
 class LRUCache:
     """LRU 内存缓存，带 TTL 过期
 
@@ -118,6 +119,7 @@ _cache = LRUCache(capacity=LRU_CACHE_CAPACITY, default_ttl=DEFAULT_CACHE_TTL)
 # 企查查 API 客户端
 # ============================================================
 
+
 class QichachaClient:
     """企查查开放平台 API 客户端
 
@@ -148,16 +150,16 @@ class QichachaClient:
         self.cache = cache or _cache
 
         if not self.app_key or not self.app_secret:
-            logger.warning(
-                "企查查 API 未配置: 请设置 QICHACHA_APP_KEY 和 QICHACHA_APP_SECRET 环境变量"
-            )
+            logger.warning("企查查 API 未配置: 请设置 QICHACHA_APP_KEY 和 QICHACHA_APP_SECRET 环境变量")
 
         self._session = requests.Session()
-        self._session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "Accept": "application/json",
-            "Content-Type": "application/json;charset=UTF-8",
-        })
+        self._session.headers.update(
+            {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept": "application/json",
+                "Content-Type": "application/json;charset=UTF-8",
+            }
+        )
 
     # --------------------------------------------------
     # 内部工具
@@ -274,11 +276,14 @@ class QichachaClient:
             logger.info("三要素核验缓存命中 [%s]", credit_code)
             return dict(cached)  # 返回副本
 
-        result = self._request("/Company/ThreeElementsVerify", {
-            "companyName": name,
-            "creditCode": credit_code,
-            "legalPersonName": legal_person,
-        })
+        result = self._request(
+            "/Company/ThreeElementsVerify",
+            {
+                "companyName": name,
+                "creditCode": credit_code,
+                "legalPersonName": legal_person,
+            },
+        )
 
         if result is None:
             fallback = {
@@ -323,9 +328,12 @@ class QichachaClient:
             logger.info("企业详情缓存命中 [%s]", credit_code)
             return dict(cached)
 
-        result = self._request("/Company/GetCompanyDetail", {
-            "key": credit_code,
-        })
+        result = self._request(
+            "/Company/GetCompanyDetail",
+            {
+                "key": credit_code,
+            },
+        )
 
         if result is None:
             return {
@@ -355,9 +363,12 @@ class QichachaClient:
             logger.info("企业工商信息缓存命中 [%s]", credit_code)
             return dict(cached)
 
-        result = self._request("/Company/GetCompanyBaseInfo", {
-            "key": credit_code,
-        })
+        result = self._request(
+            "/Company/GetCompanyBaseInfo",
+            {
+                "key": credit_code,
+            },
+        )
 
         if result is None:
             return {
@@ -392,11 +403,14 @@ class QichachaClient:
             logger.info("企业搜索缓存命中 [%s]", name)
             return dict(cached)
 
-        result = self._request("/Company/Search", {
-            "key": name,
-            "pageIndex": page,
-            "pageSize": min(page_size, 100),
-        })
+        result = self._request(
+            "/Company/Search",
+            {
+                "key": name,
+                "pageIndex": page,
+                "pageSize": min(page_size, 100),
+            },
+        )
 
         if result is None:
             return {
@@ -435,47 +449,25 @@ class QichachaClient:
     def _normalize_company_detail(data: dict, credit_code: str) -> dict:
         """统一企查查返回字段名为项目标准命名"""
         return {
-            "name": data.get("CompanyName")
-                    or data.get("companyName")
-                    or data.get("Name")
-                    or data.get("name", ""),
-            "short_name": data.get("ShortName")
-                          or data.get("shortName")
-                          or data.get("short_name", ""),
-            "credit_code": data.get("CreditCode")
-                           or data.get("creditCode")
-                           or credit_code,
-            "legal_person": data.get("LegalPerson")
-                            or data.get("legalPerson")
-                            or data.get("legal_person", ""),
+            "name": data.get("CompanyName") or data.get("companyName") or data.get("Name") or data.get("name", ""),
+            "short_name": data.get("ShortName") or data.get("shortName") or data.get("short_name", ""),
+            "credit_code": data.get("CreditCode") or data.get("creditCode") or credit_code,
+            "legal_person": data.get("LegalPerson") or data.get("legalPerson") or data.get("legal_person", ""),
             "registered_capital": data.get("RegCapital")
-                                  or data.get("regCapital")
-                                  or data.get("registered_capital", ""),
+            or data.get("regCapital")
+            or data.get("registered_capital", ""),
             "established_date": data.get("EstiblishTime")
-                                or data.get("estiblishTime")
-                                or data.get("established_date", ""),
-            "industry": data.get("Industry")
-                        or data.get("industry", ""),
-            "region": data.get("Area")
-                      or data.get("area")
-                      or data.get("region", ""),
-            "business_scope": data.get("BusinessScope")
-                              or data.get("businessScope")
-                              or data.get("business_scope", ""),
-            "status": data.get("RegStatus")
-                      or data.get("regStatus")
-                      or data.get("status", ""),
-            "website": data.get("Website")
-                       or data.get("website", ""),
-            "phone": data.get("Phone")
-                     or data.get("phone", ""),
-            "email": data.get("Email")
-                     or data.get("email", ""),
-            "address": data.get("Address")
-                       or data.get("address", ""),
-            "tags": data.get("Tags")
-                    or data.get("tags")
-                    or [],
+            or data.get("estiblishTime")
+            or data.get("established_date", ""),
+            "industry": data.get("Industry") or data.get("industry", ""),
+            "region": data.get("Area") or data.get("area") or data.get("region", ""),
+            "business_scope": data.get("BusinessScope") or data.get("businessScope") or data.get("business_scope", ""),
+            "status": data.get("RegStatus") or data.get("regStatus") or data.get("status", ""),
+            "website": data.get("Website") or data.get("website", ""),
+            "phone": data.get("Phone") or data.get("phone", ""),
+            "email": data.get("Email") or data.get("email", ""),
+            "address": data.get("Address") or data.get("address", ""),
+            "tags": data.get("Tags") or data.get("tags") or [],
             "data_source": "qichacha_api",
             "confidence": 90,
         }
@@ -484,44 +476,24 @@ class QichachaClient:
     def _normalize_company_base_info(data: dict, credit_code: str) -> dict:
         """统一企查查工商信息返回字段"""
         return {
-            "credit_code": data.get("CreditCode")
-                           or data.get("creditCode")
-                           or credit_code,
-            "name": data.get("CompanyName")
-                    or data.get("companyName")
-                    or data.get("Name")
-                    or data.get("name", ""),
-            "legal_person": data.get("LegalPerson")
-                            or data.get("legalPerson")
-                            or data.get("legal_person", ""),
+            "credit_code": data.get("CreditCode") or data.get("creditCode") or credit_code,
+            "name": data.get("CompanyName") or data.get("companyName") or data.get("Name") or data.get("name", ""),
+            "legal_person": data.get("LegalPerson") or data.get("legalPerson") or data.get("legal_person", ""),
             "registered_capital": data.get("RegCapital")
-                                  or data.get("regCapital")
-                                  or data.get("registered_capital", ""),
-            "paid_capital": data.get("PaidCapital")
-                            or data.get("paidCapital")
-                            or data.get("paid_capital", ""),
+            or data.get("regCapital")
+            or data.get("registered_capital", ""),
+            "paid_capital": data.get("PaidCapital") or data.get("paidCapital") or data.get("paid_capital", ""),
             "established_date": data.get("EstiblishTime")
-                                or data.get("estiblishTime")
-                                or data.get("established_date", ""),
-            "status": data.get("RegStatus")
-                      or data.get("regStatus")
-                      or data.get("status", ""),
-            "industry": data.get("Industry")
-                        or data.get("industry", ""),
-            "region": data.get("Area")
-                      or data.get("area")
-                      or data.get("region", ""),
-            "business_scope": data.get("BusinessScope")
-                              or data.get("businessScope")
-                              or data.get("business_scope", ""),
-            "registration_authority": data.get("RegistrationAuthority")
-                                      or data.get("registrationAuthority", ""),
-            "approved_date": data.get("ApprovedDate")
-                             or data.get("approvedDate", ""),
-            "taxpayer_qual": data.get("TaxpayerQual")
-                             or data.get("taxpayerQual", ""),
-            "enterprise_type": data.get("EnterpriseType")
-                               or data.get("enterpriseType", ""),
+            or data.get("estiblishTime")
+            or data.get("established_date", ""),
+            "status": data.get("RegStatus") or data.get("regStatus") or data.get("status", ""),
+            "industry": data.get("Industry") or data.get("industry", ""),
+            "region": data.get("Area") or data.get("area") or data.get("region", ""),
+            "business_scope": data.get("BusinessScope") or data.get("businessScope") or data.get("business_scope", ""),
+            "registration_authority": data.get("RegistrationAuthority") or data.get("registrationAuthority", ""),
+            "approved_date": data.get("ApprovedDate") or data.get("approvedDate", ""),
+            "taxpayer_qual": data.get("TaxpayerQual") or data.get("taxpayerQual", ""),
+            "enterprise_type": data.get("EnterpriseType") or data.get("enterpriseType", ""),
             "data_source": "qichacha_api",
             "confidence": 90,
         }

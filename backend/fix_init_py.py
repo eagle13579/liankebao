@@ -16,18 +16,15 @@ _flat = importlib.util.module_from_spec(_spec)
 sys.modules["app.models_flat"] = _flat
 _spec.loader.exec_module(_flat)
 
+# Also import organization models
+from app.models.organization import Invite, Organization, OrganizationMember
+
+# Inject Membership alias for User.relationship("Membership") backward compat
+_flat.Membership = OrganizationMember
+
 # Copy all exports to this package's namespace
 for _name in dir(_flat):
     if not _name.startswith("_"):
         globals()[_name] = getattr(_flat, _name)
 
-# Also import organization models
-# Import escrow models
-from app.models.escrow import Deal, Dispute, Milestone  # noqa: F401
-from app.models.organization import Invite, Organization, OrganizationMember  # noqa: F401
-
-__all__ = (
-    [n for n in dir(_flat) if not n.startswith("_")]
-    + ["Organization", "OrganizationMember", "Invite"]
-    + ["Deal", "Milestone", "Dispute"]
-)
+__all__ = [n for n in dir(_flat) if not n.startswith("_")] + ["Organization", "OrganizationMember", "Invite"]

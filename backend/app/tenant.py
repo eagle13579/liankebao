@@ -11,6 +11,7 @@ TenantContext — 当前请求的租户上下文（线程安全）
 """
 
 import logging
+import os
 import threading
 from contextvars import ContextVar
 from datetime import datetime
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 # ============================================================
 # 是否启用多租户
 # ============================================================
-IS_MULTI_TENANT = False
+IS_MULTI_TENANT = os.environ.get("IS_MULTI_TENANT", "true").lower() in ("1", "true", "yes")
 
 
 # ============================================================

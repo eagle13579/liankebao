@@ -242,9 +242,7 @@ class ActionRecommender:
     # ---------------------------------------------------------
     # 备选行动推荐
     # ---------------------------------------------------------
-    def _get_alternatives(
-        self, score: float, matched_rule: ActionRule
-    ) -> list[dict]:
+    def _get_alternatives(self, score: float, matched_rule: ActionRule) -> list[dict]:
         """获取备选行动（当主要推荐不适用时的降级方案）
 
         Args:
@@ -299,10 +297,7 @@ class ActionRecommender:
         normalized_score = self.normalize_score(score, score_scale)
 
         if normalized_score < 0 or normalized_score > 100:
-            raise ValueError(
-                f"评分值无效: {score} (归一化后: {normalized_score})，"
-                f"期望 0~100 范围"
-            )
+            raise ValueError(f"评分值无效: {score} (归一化后: {normalized_score})，期望 0~100 范围")
 
         # ---- 2. 匹配规则 ----
         matched_rule = None

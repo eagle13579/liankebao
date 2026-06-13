@@ -15,10 +15,9 @@
 
 import json
 import logging
-import os
 import re
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +28,7 @@ TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "data" / "esign_templat
 VAR_PATTERN = re.compile(r"\{\{\s*(\w+)\s*\}\}")
 
 # ── Jinja2 条件块正则（简单模式，支持基础 if/endif） ──
-IF_BLOCK_PATTERN = re.compile(
-    r"\{%\s*if\s+(\w+)\s*%\}(.*?)\{%\s*endif\s*%\}", re.DOTALL
-)
+IF_BLOCK_PATTERN = re.compile(r"\{%\s*if\s+(\w+)\s*%\}(.*?)\{%\s*endif\s*%\}", re.DOTALL)
 
 
 class TemplateNotFoundError(Exception):
@@ -99,7 +96,7 @@ class ContractTemplate:
 class ContractTemplateManager:
     """合同模板管理器——负责模板的加载、列表、渲染和一键签署"""
 
-    def __init__(self, templates_dir: Optional[str] = None):
+    def __init__(self, templates_dir: str | None = None):
         """
         初始化模板管理器
 
@@ -120,14 +117,12 @@ class ContractTemplateManager:
 
         for fpath in sorted(self._templates_dir.glob("*.json")):
             try:
-                with open(fpath, "r", encoding="utf-8") as f:
+                with open(fpath, encoding="utf-8") as f:
                     data = json.load(f)
                 template = ContractTemplate(data)
                 if template.template_id:
                     self._cache[template.template_id] = template
-                    logger.debug(
-                        "已加载模板: %s (%s)", template.template_id, template.name
-                    )
+                    logger.debug("已加载模板: %s (%s)", template.template_id, template.name)
                 else:
                     logger.warning("模板文件缺少 template_id: %s", fpath)
             except json.JSONDecodeError as e:
@@ -135,13 +130,9 @@ class ContractTemplateManager:
             except Exception as e:
                 logger.error("加载模板文件异常: %s — %s", fpath, e)
 
-        logger.info(
-            "模板管理器初始化完成，共加载 %d 个模板", len(self._cache)
-        )
+        logger.info("模板管理器初始化完成，共加载 %d 个模板", len(self._cache))
 
-    def _validate_variables(
-        self, template: ContractTemplate, variables: dict[str, Any]
-    ) -> None:
+    def _validate_variables(self, template: ContractTemplate, variables: dict[str, Any]) -> None:
         """验证填充变量是否完整（仅检查无默认值的变量）"""
         required = template.get_required_variables()
         missing = []
@@ -154,9 +145,7 @@ class ContractTemplateManager:
                 if val is None or (isinstance(val, str) and val.strip() == ""):
                     missing.append(v)
         if missing:
-            raise TemplateValidationError(
-                f"模板 '{template.template_id}' 缺少必填变量: {', '.join(missing)}"
-            )
+            raise TemplateValidationError(f"模板 '{template.template_id}' 缺少必填变量: {', '.join(missing)}")
 
     def _render_jinja_like(self, template_str: str, variables: dict[str, Any]) -> str:
         """
@@ -245,9 +234,7 @@ class ContractTemplateManager:
         template = self.load_template(template_id)
         return template.to_dict_full()
 
-    def render_contract(
-        self, template_id: str, variables: dict[str, Any]
-    ) -> dict[str, Any]:
+    def render_contract(self, template_id: str, variables: dict[str, Any]) -> dict[str, Any]:
         """
         填充变量生成最终合同文本
 
@@ -271,9 +258,7 @@ class ContractTemplateManager:
         template = self.load_template(template_id)
         self._validate_variables(template, variables)
 
-        contract_text = self._render_jinja_like(
-            template.content_template, variables
-        )
+        contract_text = self._render_jinja_like(template.content_template, variables)
 
         return {
             "template_id": template.template_id,
@@ -325,16 +310,12 @@ class ContractTemplateManager:
             ValueError: 缺少 e签宝客户端
         """
         if not esign_client:
-            raise ValueError(
-                "请提供 e签宝客户端实例 (esign_client) 以发起签署"
-            )
+            raise ValueError("请提供 e签宝客户端实例 (esign_client) 以发起签署")
 
         # 1. 填充变量生成合同文本
         template = self.load_template(template_id)
         self._validate_variables(template, variables)
-        contract_text = self._render_jinja_like(
-            template.content_template, variables
-        )
+        contract_text = self._render_jinja_like(template.content_template, variables)
 
         # 2. 构建合同名称
         if not contract_name:
@@ -346,17 +327,13 @@ class ContractTemplateManager:
         from app.services.esign_client import (
             EsignContractConfig,
             EsignSigner,
-            EsignTemplateField,
         )
 
         # 将合同文本转换为字节（后续由 esign_client 生成 PDF）
         contract_bytes = contract_text.encode("utf-8")
 
         # 4. 先创建模板（上传合同文档）
-        fields = [
-            {"name": k, "type": "text", "value": str(v)}
-            for k, v in variables.items()
-        ]
+        fields = [{"name": k, "type": "text", "value": str(v)} for k, v in variables.items()]
 
         try:
             # 创建电子模板
@@ -409,7 +386,7 @@ class ContractTemplateManager:
                 "status": contract_result.get("status", 0),
             }
 
-        except Exception as e:
+        except Exception:
             logger.exception("一键签署失败: template=%s", template_id)
             raise
 
@@ -422,7 +399,7 @@ class ContractTemplateManager:
 
 # ── 全局单例 ──────────────────────────────────
 
-_manager_instance: Optional[ContractTemplateManager] = None
+_manager_instance: ContractTemplateManager | None = None
 
 
 def get_template_manager() -> ContractTemplateManager:
