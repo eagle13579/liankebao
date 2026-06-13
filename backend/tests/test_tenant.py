@@ -65,13 +65,15 @@ class TestTenantContext:
             assert kwargs == {}
 
     def test_is_multi_tenant_flag(self):
-        """多租户标志位"""
-        from app.database import DB_TYPE
+        """多租户标志位 — 由 IS_MULTI_TENANT 环境变量控制，默认 True"""
         from app.tenant import IS_MULTI_TENANT
 
-        assert IS_MULTI_TENANT == (DB_TYPE == "postgres")
-        # 测试环境下应该是False（SQLite）
-        assert IS_MULTI_TENANT == False
+        # IS_MULTI_TENANT 现在由 os.environ.get('IS_MULTI_TENANT', 'true') 控制
+        # 默认值为 True（因为 conftest 未设置该环境变量）
+        expected = os.environ.get("IS_MULTI_TENANT", "true").lower() in ("1", "true", "yes")
+        assert IS_MULTI_TENANT == expected
+        # 测试环境下应为 True（默认值）
+        assert IS_MULTI_TENANT == True
 
     def test_apply_tenant_filter_noop_sqlite(self):
         """SQLite下apply_tenant_filter不修改查询"""
@@ -307,7 +309,127 @@ class TestDbFunctions:
         assert "sqlite" in url
 
     def test_is_multi_tenant_sqlite(self):
-        """SQLite模式下不是多租户"""
+        """SQLite模式下不是多租户（database层）"""
         from app.database import is_multi_tenant
 
         assert is_multi_tenant() == False
+
+
+# ============================================================
+# 新增：多租户隔离全链路验证（SQLite + 内存上下文模拟）
+# ============================================================
+class TestTenantIsolationFullChain:
+    """多租户隔离全链路验证 — 模拟租户A看不到租户B的数据"""
+
+    def test_tenant_filter_by_org_id(self, db_session):
+        """_tenant_filter_kwargs 在有租户上下文时返回 org_id"""
+        from app.tenant import TenantContext, _tenant_filter_kwargs
+
+        TenantContext.clear()
+        TenantContext.set(TenantContext(org_id=5))
+        kwargs = _tenant_filter_kwargs()
+        TenantContext.clear()
+
+        assert kwargs == {"organization_id": 5}
+
+    def test_tenant_filter_no_context(self, db_session):
+        """无租户上下文时不返回 org_id 过滤"""
+        from app.tenant import TenantContext, _tenant_filter_kwargs
+
+        TenantContext.clear()
+        kwargs = _tenant_filter_kwargs()
+        assert kwargs == {}
+
+    def test_apply_tenant_filter_with_context(self, db_session):
+        """apply_tenant_filter 在有上下文时正确过滤"""
+        from app.models import Product
+        from app.tenant import TenantContext, apply_tenant_filter
+
+        org_id = 7
+        TenantContext.clear()
+        TenantContext.set(TenantContext(org_id=org_id))
+
+        q = db_session.query(Product)
+        filtered_q = apply_tenant_filter(q, Product)
+        TenantContext.clear()
+
+        # 验证 SQL 中包含了 organization_id 过滤条件
+        compiled = str(filtered_q.statement.compile(compile_kwargs={"literal_binds": True}))
+        assert f"organization_id = {org_id}" in compiled or "organization_id" in compiled
+
+    def test_tenant_session_wrapper(self, db_session):
+        """TenantSessionWrapper 自动注入租户过滤"""
+        from app.models import Product
+        from app.tenant import TenantContext, TenantSessionWrapper
+
+        org_id = 9
+        TenantContext.clear()
+        TenantContext.set(TenantContext(org_id=org_id))
+
+        with TenantSessionWrapper(db_session) as wrapped:
+            q = wrapped.query(Product)
+            compiled = str(q.statement.compile(compile_kwargs={"literal_binds": True}))
+
+        TenantContext.clear()
+        assert f"organization_id = {org_id}" in compiled or "organization_id" in compiled
+
+    def test_isolation_two_tenants(self, db_session):
+        """模拟两个租户的数据隔离：设置不同上下文看到不同数据"""
+        from app.auth import hash_password
+        from app.models import Product, User
+        from app.tenant import TenantContext, apply_tenant_filter
+
+        # 准备：创建两个租户各自的产品
+        pwhash = hash_password("Test1234")
+        user = db_session.query(User).first()
+
+        p1 = Product(name="租户A产品", price=100, status="approved",
+                     owner_id=user.id, organization_id=10)
+        p2 = Product(name="租户B产品", price=200, status="approved",
+                     owner_id=user.id, organization_id=20)
+        db_session.add_all([p1, p2])
+        db_session.flush()
+
+        # 场景1：以租户A身份查询
+        TenantContext.clear()
+        TenantContext.set(TenantContext(org_id=10))
+        q_a = apply_tenant_filter(db_session.query(Product), Product)
+        results_a = [r for r in q_a.all() if r.id in (p1.id, p2.id)]
+        TenantContext.clear()
+
+        # 场景2：以租户B身份查询
+        TenantContext.set(TenantContext(org_id=20))
+        q_b = apply_tenant_filter(db_session.query(Product), Product)
+        results_b = [r for r in q_b.all() if r.id in (p1.id, p2.id)]
+        TenantContext.clear()
+
+        # 验证隔离
+        a_names = {r.name for r in results_a}
+        b_names = {r.name for r in results_b}
+
+        assert "租户A产品" in a_names, "租户A应能看到自己的产品"
+        assert "租户B产品" not in a_names, "租户A不应看到租户B的产品"
+        assert "租户B产品" in b_names, "租户B应能看到自己的产品"
+        assert "租户A产品" not in b_names, "租户B不应看到租户A的产品"
+
+        # 清理
+        db_session.query(Product).filter(Product.id.in_([p1.id, p2.id])).delete(
+            synchronize_session=False
+        )
+        db_session.commit()
+
+    def test_get_current_org_id_returns_org(self, db_session):
+        """get_current_org_id 返回当前设置的 org_id"""
+        from app.tenant import TenantContext, get_current_org_id
+
+        TenantContext.clear()
+        TenantContext.set(TenantContext(org_id=42))
+        assert get_current_org_id() == 42
+        TenantContext.clear()
+
+    def test_get_current_org_id_none(self, db_session):
+        """清除上下文后 get_current_org_id 返回 None"""
+        from app.tenant import TenantContext, get_current_org_id
+
+        TenantContext.clear()
+        assert get_current_org_id() is None

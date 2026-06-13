@@ -29,31 +29,28 @@ HASH_SALT_OLD = "digital_brochure_v2"
 # HTTP Bearer token 安全方案
 security = HTTPBearer(auto_error=False)
 
-# Token黑名单（内存缓存 + DB持久化）
-# 先查缓存（LRU set），miss时查DB，写入时同时写DB+缓存
-# DB写入失败时回退到内存dict（降级不阻断）
+# Token黑名单（内存+DB双重持久化）
+# 内存缓存加速查询，DB持久化防止重启丢失
 _token_blacklist: set[str] = set()
+_blacklist_loaded: bool = False
 
 
-def _load_blacklist_from_db() -> None:
-    """从DB加载所有已撤销token到缓存（启动时预热）"""
+def _load_blacklist_from_db():
+    """启动/首次使用时从DB加载已吊销token到内存"""
+    global _blacklist_loaded
+    if _blacklist_loaded:
+        return
     try:
         from app.database import SessionLocal
         from app.models import RevokedToken
-
         db = SessionLocal()
-        try:
-            revoked = db.query(RevokedToken.token_id).all()
-            for row in revoked:
-                _token_blacklist.add(row[0])
-        finally:
-            db.close()
+        revoked = db.query(RevokedToken.jti).all()
+        for (jti,) in revoked:
+            _token_blacklist.add(jti)
+        db.close()
+        _blacklist_loaded = True
     except Exception:
-        pass  # 表可能还不存在（首次启动或init_db尚未调用）
-
-
-# 模块加载时预热黑名单缓存
-_load_blacklist_from_db()
+        pass  # DB表可能还不存在（首次启动），静默跳过
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -132,30 +129,18 @@ def create_refresh_token(data: dict, expires_delta: timedelta | None = None) -> 
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def verify_token(token: str, expected_type: str | None = None, db: Session | None = None) -> dict | None:
+def verify_token(token: str, expected_type: str | None = None) -> dict | None:
     """
     验证JWT token，返回 payload。
-    同时检查黑名单（缓存+DB）。可指定期望的 token type（access/refresh）。
+    同时检查黑名单。可指定期望的 token type（access/refresh）。
     """
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        # 检查黑名单
+        # 检查黑名单（先确保从DB加载过）
+        _load_blacklist_from_db()
         jti = payload.get("jti")
-        if jti:
-            # 先查缓存（快速路径）
-            if jti in _token_blacklist:
-                return None
-            # 缓存miss，查DB（慢路径）
-            if db is not None:
-                try:
-                    from app.models import RevokedToken
-
-                    exists = db.query(RevokedToken.id).filter(RevokedToken.token_id == jti).first()
-                    if exists:
-                        _token_blacklist.add(jti)  # 预热缓存
-                        return None
-                except Exception:
-                    pass  # DB查询失败，回退到缓存
+        if jti and jti in _token_blacklist:
+            return None
         # 检查 token 类型
         if expected_type and payload.get("type") != expected_type:
             return None
@@ -164,52 +149,30 @@ def verify_token(token: str, expected_type: str | None = None, db: Session | Non
         return None
 
 
-def add_token_to_blacklist(token: str, db: Session | None = None, user_id: int | None = None) -> bool:
-    """将 token 加入黑名单（通过 jti 识别），写入DB + 缓存"""
+def add_token_to_blacklist(token: str) -> bool:
+    """将 token 加入黑名单（通过 jti 识别），同时持久化到 DB"""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         jti = payload.get("jti")
         if jti:
-            _token_blacklist.add(jti)  # 先写缓存
-            # 写DB（失败时降级不阻断）
-            if db is not None:
-                try:
-                    from app.models import RevokedToken
-                    from datetime import datetime
+            _token_blacklist.add(jti)
+            # 持久化到 DB
+            try:
+                from app.database import SessionLocal
+                from app.models import RevokedToken
 
-                    revoked = RevokedToken(
-                        token_id=jti,
-                        revoked_at=datetime.utcnow(),
-                        user_id=user_id,
-                    )
-                    db.add(revoked)
+                db = SessionLocal()
+                existing = db.query(RevokedToken).filter(RevokedToken.jti == jti).first()
+                if not existing:
+                    expires_at = datetime.fromtimestamp(payload.get("exp")) if payload.get("exp") else None
+                    db.add(RevokedToken(
+                        jti=jti,
+                        expires_at=expires_at,
+                    ))
                     db.commit()
-                except Exception:
-                    db.rollback()
-                    pass  # DB写入失败，缓存中已有记录，不阻断
-            else:
-                # 没有DB会话时，尝试自建session写入
-                try:
-                    from app.database import SessionLocal
-                    from app.models import RevokedToken
-                    from datetime import datetime
-
-                    _db = SessionLocal()
-                    try:
-                        revoked = RevokedToken(
-                            token_id=jti,
-                            revoked_at=datetime.utcnow(),
-                            user_id=user_id,
-                        )
-                        _db.add(revoked)
-                        _db.commit()
-                    except Exception:
-                        _db.rollback()
-                        pass
-                    finally:
-                        _db.close()
-                except Exception:
-                    pass  # 完全降级：仅缓存
+                db.close()
+            except Exception:
+                pass  # DB不可用时至少内存黑名单生效
             return True
         return False
     except JWTError:
@@ -228,7 +191,7 @@ def get_current_user(
         )
 
     token = credentials.credentials
-    payload = verify_token(token, expected_type="access", db=db)
+    payload = verify_token(token, expected_type="access")
     if payload is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

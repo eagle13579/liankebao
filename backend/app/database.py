@@ -8,6 +8,7 @@
 import json
 import logging
 import os
+import urllib.parse
 
 from passlib.hash import bcrypt as bcrypt_hasher
 from sqlalchemy import create_engine
@@ -69,7 +70,7 @@ elif DB_TYPE == "postgres":
                 "DB_TYPE=postgres 但未设置 PG_* 或 PG_URL 环境变量。\n"
                 "请设置 PG_HOST, PG_PORT, PG_USER, PG_PASSWORD, PG_DATABASE 或 PG_URL"
             )
-        PG_URL = f"postgresql+psycopg2://{PG_USER}:{PG_PASSWORD}@{PG_HOST}:{PG_PORT}/{PG_DATABASE}"
+        PG_URL = f"postgresql+psycopg2://{urllib.parse.quote_plus(PG_USER)}:{urllib.parse.quote_plus(PG_PASSWORD)}@{PG_HOST}:{PG_PORT}/{PG_DATABASE}"
     engine = create_engine(
         PG_URL,
         pool_size=10,
@@ -170,27 +171,24 @@ def get_db_for_tenant():
 def init_db():
     """初始化数据库：创建表并填充种子数据（如为空）"""
     from app.models import (
-        CircuitBreakerState,
-        MetricsSnapshot,
         Order,
         Product,
-        RateLimitRecord,
         User,
         Withdrawal,
-        MatchCreditLog,
-        MembershipOrder,
-        OnlineMatchingEvent,
-        OnlineMatchingRegistration,
-        RevokedToken,
-        Banner,
     )  # noqa
+
+    # === 交易保障：创建 escrow 表 ===
+    from app.models.escrow import Deal, Dispute, Milestone  # noqa: F401
 
     # === 多租户：始终创建组织相关表（SQLite + PostgreSQL 均支持） ===
     from app.models.organization import Invite, Organization, OrganizationMember  # noqa: F401
 
     # === 多租户：PostgreSQL 模式下创建额外租户表 ===
     if is_multi_tenant():
-        from app.tenant import Membership as TenantMembership  # noqa: F401
+        try:
+            from app.tenant import Membership as TenantMembership  # noqa: F401,N806
+        except ImportError:
+            TenantMembership = None  # noqa: F841,N806
 
     # === 创建表（如果不存在） ===
     Base.metadata.create_all(bind=engine)
@@ -201,30 +199,17 @@ def init_db():
         existing_users = db.query(User).count()
         if existing_users > 0:
             print(f"数据库已有数据 ({existing_users}个用户)，跳过种子数据填充")
-            # Banner 数据独立检查（无论用户数据是否存在，Banner 表为空则填充）
-            existing_banners = db.query(Banner).count()
-            if existing_banners == 0:
-                _seed_default_banners(db)
             return
 
         print("正在填充种子数据...")
 
-        # 预计算密码哈希
-        pwhash_admin = bcrypt_hasher.hash("admin123")
+        # 注意：不再预创建默认admin账号
+        # 管理员账号应由系统所有者手动创建，避免默认密码安全风险
         pwhash_123456 = bcrypt_hasher.hash("123456")
 
-        # === 创建用户 ===
+        # === 创建用户（测试用） ===
+        # 注意：不创建默认admin账号，管理员应由所有者手动创建
         users = [
-            User(
-                username="admin",
-                password_hash=pwhash_admin,
-                name="管理员",
-                phone="13800000000",
-                company="链客宝科技",
-                position="系统管理员",
-                role="admin",
-                avatar="https://api.dicebear.com/7.x/avataaars/svg?seed=admin",
-            ),
             User(
                 username="buyer1",
                 password_hash=pwhash_123456,
@@ -306,7 +291,7 @@ def init_db():
                 earn_per_share=80.00,
                 sale_price=499.00,
                 category="企业家服务",
-                brand="链客宝",
+                brand="链客宝AI",
                 stock=9999,
                 images=json.dumps(
                     [
@@ -364,7 +349,7 @@ def init_db():
                         "适用规模": "10-500人企业",
                     }
                 ),
-                details="<h3>服务内容</h3><ul><li>日常法律咨询（电话/微信/邮件）</li><li>合同起草与审核（每年50份内）</li><li>企业规章制度审查</li><li>劳动人事法律支持</li><li>知识产权基础保护</li><li>律师函发送（5次/年）</li></ul><h3>服务流程</h3><p>在线下单 → 分配律师 → 建立服务群 → 全年无忧</p>",
+                details="<h3>服务内容</h3><ul><li>日常法律咨询（电话/微信/邮件）</li><li>合同起草与审核（每年50份内）</li><li>企业规章制度审查</li><li>劳动人事法律支持</li><li>知识产权基础保护</li><li>律师函发送（5次/年）</li></ul><h3>服务流程</h3><p>在线下单 → 分配律师 → 建立服务群 → 全年无忧</p>",  # noqa: E501
                 tags="法律顾问,企业服务,合同审核,知识产权,法律服务",
                 files=json.dumps(
                     [
@@ -554,7 +539,7 @@ def init_db():
 
         db.commit()
         print(
-            f"种子数据填充完成：{len(users)}个用户, {len(products)}个产品, {len(orders)}个订单, {len(withdrawals)}个提现记录"
+            f"种子数据填充完成：{len(users)}个用户, {len(products)}个产品, {len(orders)}个订单, {len(withdrawals)}个提现记录"  # noqa: E501
         )
 
         # === 多租户：创建默认组织（仅 PostgreSQL 模式首次初始化） ===
@@ -564,10 +549,10 @@ def init_db():
             existing_orgs = db.query(Organization).count()
             if existing_orgs == 0:
                 default_org = Organization(
-                    name="链客宝科技有限公司",
+                    name="链客宝AI科技有限公司",
                     slug="liankebao",
                     plan="enterprise",
-                    settings={"display_name": "链客宝", "timezone": "Asia/Shanghai"},
+                    settings={"display_name": "链客宝AI", "timezone": "Asia/Shanghai"},
                 )
                 db.add(default_org)
                 db.flush()
@@ -586,46 +571,9 @@ def init_db():
                 db.commit()
                 print(f"已将 {db.query(User).count()} 个用户关联到默认组织")
 
-        # === Banner 种子数据（Banner 表为空时填充） ===
-        existing_banners = db.query(Banner).count()
-        if existing_banners == 0:
-            _seed_default_banners(db)
-
     except Exception as e:
         db.rollback()
         print(f"种子数据填充失败: {e}")
         raise
     finally:
         db.close()
-
-
-def _seed_default_banners(db):
-    """填充默认 Banner 数据（Banner 表为空时调用）"""
-    from app.models import Banner
-
-    default_banners = [
-        Banner(
-            image="https://www.go-aiport.com/static/banners/banner1.svg",
-            title="链客宝 · AI企业家生态",
-            url="/pages/pool/index",
-            sort_order=1,
-            is_active=True,
-        ),
-        Banner(
-            image="https://www.go-aiport.com/static/banners/banner2.svg",
-            title="GEO诊断 · 精准获客",
-            url="/pages/pool/index?cat=geo",
-            sort_order=2,
-            is_active=True,
-        ),
-        Banner(
-            image="https://www.go-aiport.com/static/banners/banner3.svg",
-            title="数字分身 · 智能交互",
-            url="/pages/pool/index?cat=ai",
-            sort_order=3,
-            is_active=True,
-        ),
-    ]
-    db.add_all(default_banners)
-    db.commit()
-    print(f"已插入 {len(default_banners)} 条默认 Banner 数据")

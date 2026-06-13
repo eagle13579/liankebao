@@ -15,7 +15,7 @@ jieba==0.42.1
 
 # PostgreSQL 驱动（可选 — 仅迁移到 PG 时需要）
 # 安装: pip install psycopg2-binary
-# psycopg2-binary==2.9.9
+psycopg2-binary==2.9.9
 
 # PostgreSQL驱动（多租户模式需要）
 psycopg2-binary==2.9.9
