@@ -1,0 +1,18 @@
+id: F-CKDP-AMOEBA-03
+name: 市场信号扫描器
+dimension: 数据
+description: 从GitHub Trending、HackerNews、RSS、知乎等多源自动采集市场信号，匹配部门，触发调研。可用于合规监管动态监控。
+source_model: gaia-commercial-amoeba/signal-scanner.ts
+priority: P1
+input: 信号源类型(real/mock)
+output: 结构化信号列表 + 部门匹配建议
+quality_gate: '3.0'
+sop: '1. 按信号源采集
+
+  2. NLP匹配部门
+
+  3. 阈值筛选(≥3分自动触发)
+
+  4. 推送至对应阿米巴'
+iterations: []
+draft: false

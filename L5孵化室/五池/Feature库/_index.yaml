@@ -1,0 +1,23 @@
+last_updated: 2026-06-15 07:58
+total_count: 5
+features:
+- id: F-CKDP-AMOEBA-01
+  name: 阿米巴自主经营引擎
+  dimension: 场景
+  priority: P0
+- id: F-CKDP-AMOEBA-02
+  name: 蜂巢会议工作台
+  dimension: 场景
+  priority: P0
+- id: F-CKDP-AMOEBA-03
+  name: 市场信号扫描器
+  dimension: 数据
+  priority: P1
+- id: F-CKDP-AMOEBA-04
+  name: AI多部门讨论引擎
+  dimension: 创造力
+  priority: P1
+- id: F-CKDP-AMOEBA-05
+  name: 自动调研管线
+  dimension: 体系
+  priority: P2

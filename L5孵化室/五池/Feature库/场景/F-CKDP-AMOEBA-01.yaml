@@ -1,0 +1,16 @@
+id: F-CKDP-AMOEBA-01
+name: 阿米巴自主经营引擎
+dimension: 场景
+description: 将部门映射为独立阿米巴经营单元，全自动Research→Analyze→Produce→Sell→Review循环。含营收追踪、KPI评分、自动进化机制。
+source_model: gaia-commercial-amoeba/amoeba-engine.ts
+priority: P0
+input: 部门ID或'all'参数
+output: 阿米巴循环完成状态 + 营收/利润/KPI数据
+quality_gate: '3.0'
+sop: '1. POST /api/compliance/amoeba/run → 运行指定部门循环
+
+  2. GET /api/compliance/amoeba → 获取所有阿米巴状态
+
+  3. 自动触发: 每24小时全部门循环'
+iterations: []
+draft: false

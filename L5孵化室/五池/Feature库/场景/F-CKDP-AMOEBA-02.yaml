@@ -1,0 +1,18 @@
+id: F-CKDP-AMOEBA-02
+name: 蜂巢会议工作台
+dimension: 场景
+description: 部门级讨论工作台，支持侧边栏部门切换、SSE流式AI对话、看板任务管理、文件库、报告预览。适合合规诊断的多人协作讨论。
+source_model: gaia-commercial-amoeba/workbench/*.tsx
+priority: P0
+input: 部门ID + 用户消息
+output: AI流式回复 + 文件/看板/报告管理
+quality_gate: '3.0'
+sop: '1. 前端: 侧边栏选择部门
+
+  2. 后端: SSE流式AI对话
+
+  3. 看板: 任务四态流转
+
+  4. 文件: 上传/预览/管理'
+iterations: []
+draft: false

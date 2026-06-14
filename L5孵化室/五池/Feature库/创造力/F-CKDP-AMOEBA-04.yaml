@@ -1,0 +1,18 @@
+id: F-CKDP-AMOEBA-04
+name: AI多部门讨论引擎
+dimension: 创造力
+description: 基于departments+employees多角色分工的AI讨论引擎，每个部门有专属prompt和角色设定。支持反方论证、多人协同产出。
+source_model: gaia-commercial-amoeba/ai-chat-engine.ts + data.ts
+priority: P1
+input: 议题 + 参与部门列表
+output: 多轮AI讨论记录 + 共识结论
+quality_gate: '3.0'
+sop: '1. 选定议题
+
+  2. 分配参与部门
+
+  3. 按角色prompt生成讨论
+
+  4. 收敛结论'
+iterations: []
+draft: false

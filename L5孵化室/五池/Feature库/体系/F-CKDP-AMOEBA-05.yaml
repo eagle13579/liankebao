@@ -1,0 +1,20 @@
+id: F-CKDP-AMOEBA-05
+name: 自动调研管线
+dimension: 体系
+description: Signal→Department Matching→Score Threshold→OSCAR Research→Report Generation的完整自动管线。信号触发后自动完成调研产出。
+source_model: gaia-commercial-amoeba/auto-pipeline.ts
+priority: P2
+input: 无（自动触发）
+output: 调研报告 + 行动建议
+quality_gate: '3.0'
+sop: '1. 信号采集
+
+  2. 部门匹配+评分
+
+  3. ≥阈值触发调研
+
+  4. OSCAR五步调研
+
+  5. 报告生成'
+iterations: []
+draft: false
