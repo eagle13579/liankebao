@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI员工详情 — {{ employee.name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap');
+        * { font-family: 'Noto Sans SC', 'JetBrains Mono', monospace; }
+        body { background: #0a0a0f; }
+        .neon-glow { box-shadow: 0 0 15px rgba(0, 255, 255, 0.15), 0 0 45px rgba(0, 255, 255, 0.05); }
+        .neon-border { border: 1px solid rgba(0, 255, 255, 0.2); }
+        .neon-text { color: #00ffff; text-shadow: 0 0 10px rgba(0, 255, 255, 0.5); }
+        .bg-card { background: linear-gradient(145deg, rgba(20, 25, 40, 0.95), rgba(10, 12, 25, 0.98)); }
+        .anchor-bar {
+            height: 6px;
+            border-radius: 3px;
+            background: linear-gradient(90deg, #00ffff, #00ff88);
+            transition: width 0.5s ease;
+        }
+        .scanline {
+            position: relative;
+            overflow: hidden;
+        }
+        .scanline::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.3), transparent);
+            animation: scan 4s linear infinite;
+        }
+        @keyframes scan {
+            0% { top: -2px; }
+            100% { top: 100%; }
+        }
+        .avatar-placeholder-large {
+            width: 80px;
+            height: 80px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(0, 255, 136, 0.05));
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            color: #00ffff;
+        }
+        .skill-tag {
+            background: rgba(0, 255, 255, 0.08);
+            border: 1px solid rgba(0, 255, 255, 0.15);
+            color: #00ffff;
+            padding: 2px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+        .cyber-grid {
+            background-image: 
+                linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            animation: blink 1.5s ease-in-out infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body class="cyber-grid min-h-screen text-gray-200">
+
+<div class="max-w-3xl mx-auto px-4 py-8">
+    <!-- Back link -->
+    <a href="/" class="text-xs text-gray-600 hover:text-cyan-400 transition mb-6 inline-block">&larr; 返回员工列表</a>
+
+    <!-- Header -->
+    <div class="bg-card neon-border neon-glow rounded-2xl p-8 scanline">
+        <div class="flex items-start gap-5 mb-6">
+            <div class="avatar-placeholder-large shrink-0">{{ employee.name[0] }}</div>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-100">{{ employee.name }}</h1>
+                <div class="flex items-center gap-2 mt-1">
+                    <span class="text-cyan-400">{{ employee.subtitle }}</span>
+                    <span class="text-gray-700">|</span>
+                    <span class="text-xs px-2 py-0.5 bg-cyan-900/30 text-cyan-300 rounded border border-cyan-800/30">{{ employee.role }}</span>
+                    <span class="flex items-center gap-1 text-[10px] text-green-400 ml-2">
+                        <span class="status-dot bg-green-400"></span>
+                        {{ employee.status }}
+                    </span>
+                </div>
+                <p class="text-sm text-gray-500 mt-2">{{ employee.role_description }}</p>
+            </div>
+        </div>
+
+        <!-- Skills -->
+        <div class="mb-8">
+            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">技能清单</h3>
+            <div class="flex flex-wrap gap-2">
+                {% for skill in employee.skills %}
+                <span class="skill-tag">{{ skill }}</span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Soul Architecture -->
+        <div class="mb-8">
+            <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">✦ 灵魂架构</h3>
+            <div class="space-y-2">
+                {% for soul_name, soul_desc in employee.soul_architecture.items() %}
+                <div class="flex items-start gap-3 bg-gray-900/40 rounded-lg p-3 border border-gray-800/30">
+                    <span class="text-xs font-bold text-cyan-400 bg-cyan-900/20 px-2 py-1 rounded shrink-0">{{ soul_name }}</span>
+                    <span class="text-sm text-gray-400">{{ soul_desc }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Mind Models -->
+        <div class="mb-8">
+            <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">◈ 心智模型</h3>
+            <div class="space-y-2">
+                {% for mm in employee.mind_models %}
+                <div class="flex items-start gap-3 bg-gray-900/40 rounded-lg p-3 border border-gray-800/30">
+                    <span class="text-xs font-mono text-gray-600 mt-0.5">#{{ loop.index }}</span>
+                    <div>
+                        <span class="text-sm font-medium text-cyan-300">{{ mm.name }}</span>
+                        <p class="text-xs text-gray-500 mt-0.5">{{ mm.description }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Emotion Anchors -->
+        <div class="mb-6">
+            <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">❤ 情感锚点</h3>
+            <div class="space-y-2">
+                {% for anchor in employee.emotion_anchors %}
+                <div class="flex items-center gap-3 bg-gray-900/40 rounded-lg px-3 py-2 border border-gray-800/30">
+                    <span class="text-xs text-gray-600 w-5 text-right font-mono">{{ anchor.weight }}</span>
+                    <div class="flex-1">
+                        <div class="flex justify-between items-center mb-0.5">
+                            <span class="text-sm text-gray-300">{{ anchor.name }}</span>
+                        </div>
+                        <div class="anchor-bar" style="width: {{ (anchor.weight / 10) * 100 }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Meta info -->
+        <div class="text-xs text-gray-700 border-t border-gray-800/50 pt-4 mt-4">
+            {% if employee.source_url %}
+            <div class="mb-1">
+                <span class="text-gray-600">来源URL:</span> 
+                <span class="text-cyan-700 break-all">{{ employee.source_url }}</span>
+            </div>
+            {% endif %}
+            <div>
+                <span class="text-gray-600">创建时间:</span> 
+                <span>{{ employee.created_at }}</span>
+            </div>
+            <div>
+                <span class="text-gray-600">员工ID:</span> 
+                <span class="font-mono">{{ employee.id }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

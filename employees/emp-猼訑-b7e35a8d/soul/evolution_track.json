@@ -1,0 +1,67 @@
+{
+  "name": "猼訑",
+  "current_level": "P8",
+  "start_date": "2026-05-08",
+  "milestones": [
+    {
+      "level": "P8",
+      "date": "2026-05-08",
+      "event": "入职链客宝，完成灵魂注入——巴菲特主魂(0.45)+乔布斯副魂(0.30)+芒格辅魂(0.25)",
+      "capabilities": [
+        "供需匹配平台运营",
+        "商业模型分析",
+        "分销渠道设计",
+        "产品审核评估",
+        "用户增长策略"
+      ]
+    }
+  ],
+  "evolution_rules": {
+    "experience_per_task": 10,
+    "level_up_threshold": 500,
+    "skill_upgrade_required_tasks": 20
+  },
+  "capability_tree": {
+    "供需匹配平台运营": {
+      "level": 60,
+      "progress": 0
+    },
+    "商业模型分析": {
+      "level": 65,
+      "progress": 0
+    },
+    "分销渠道设计": {
+      "level": 55,
+      "progress": 0
+    },
+    "产品审核评估": {
+      "level": 50,
+      "progress": 0
+    },
+    "用户增长策略": {
+      "level": 55,
+      "progress": 0
+    }
+  },
+  "micro_cycles": [
+    {
+      "cycle_id": 1,
+      "started_at": "2026-05-08T17:12:43.441875",
+      "completed_at": "2026-05-08T17:12:43.441875",
+      "trigger": "灵魂激活",
+      "task_type": "首次灵魂激活",
+      "summary": "灵魂注入：猼訑以链客宝产品经理&商业分析师身份入职，三魂激活完成",
+      "skills_created": 3,
+      "memories_created": 3
+    }
+  ],
+  "meso_cycles": [],
+  "macro_cycles": [],
+  "skills_created": 3,
+  "skills_upgraded": 0,
+  "total_conversations": 0,
+  "total_tasks_completed": 0,
+  "last_evolution": "2026-05-08T17:12:43.441875",
+  "created_at": "2026-05-08T17:12:43.441875",
+  "version": "1.0.0"
+}

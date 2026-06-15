@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI数字名片 - 名片编辑器</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0f172a">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/stpageflip@1.0.4/dist/stpageflip.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            min-height: 100vh;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .glass {
+            background: rgba(255,255,255,0.06);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 16px;
+        }
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 0;
+            padding: 20px 16px 12px;
+        }
+        .step-item {
+            display: flex;
+            align-items: center;
+            font-size: 12px;
+            color: rgba(255,255,255,0.3);
+        }
+        .step-item.active { color: #f5576c; }
+        .step-item.done { color: #4ade80; }
+        .step-num {
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 600;
+            background: rgba(255,255,255,0.08);
+            border: 2px solid rgba(255,255,255,0.15);
+        }
+        .step-item.active .step-num {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            border-color: transparent;
+        }
+        .step-item.done .step-num {
+            background: #4ade80;
+            border-color: transparent;
+        }
+        .step-label { margin: 0 4px; }
+        .step-connector {
+            width: 32px; height: 2px;
+            background: rgba(255,255,255,0.1);
+            margin: 0 6px;
+        }
+        .step-connector.done { background: #4ade80; }
+        .upload-zone {
+            border: 2px dashed rgba(255,255,255,0.2);
+            border-radius: 16px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: #f5576c;
+            background: rgba(245,87,108,0.05);
+        }
+        .field-input {
+            width: 100%;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 12px;
+            padding: 10px 14px;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .field-input:focus {
+            border-color: #f5576c;
+        }
+        .field-input::placeholder { color: rgba(255,255,255,0.3); }
+        .btn {
+            padding: 12px 28px;
+            border-radius: 24px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.25s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            color: #fff;
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(245,87,108,0.3); }
+        .btn-secondary {
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+        .btn-secondary:hover { background: rgba(255,255,255,0.14); }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .flip-preview {
+            width: 100%;
+            max-width: 320px;
+            margin: 0 auto;
+            min-height: 400px;
+        }
+        .flip-preview .preview-page {
+            background: rgba(255,255,255,0.08);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 24px 16px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .match-card {
+            background: rgba(255,255,255,0.06);
+            border-radius: 14px;
+            padding: 14px;
+            margin: 8px 0;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .tag-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            background: rgba(245,87,108,0.15);
+            color: #f5576c;
+            margin: 2px;
+        }
+        .tag-badge.provide { background: rgba(74,222,128,0.15); color: #4ade80; }
+        .toast {
+            position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.85); color: #fff; padding: 10px 24px;
+            border-radius: 24px; font-size: 14px; z-index: 9999;
+            backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+        /* Purpose selector styles */
+        .purpose-card {
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(255,255,255,0.10);
+            border-radius: 16px;
+            padding: 16px 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s;
+            flex: 1;
+            min-width: 0;
+        }
+        .purpose-card:hover {
+            background: rgba(255,255,255,0.10);
+            border-color: rgba(255,255,255,0.25);
+            transform: translateY(-2px);
+        }
+        .purpose-card.selected {
+            background: rgba(245,87,108,0.15);
+            border-color: #f5576c;
+            box-shadow: 0 0 20px rgba(245,87,108,0.15);
+        }
+        .purpose-card .purpose-icon { font-size: 28px; margin-bottom: 6px; }
+        .purpose-card .purpose-label { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.85); }
+        .purpose-card .purpose-desc { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 4px; }
+        .purpose-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin: 2px;
+        }
+        .purpose-badge.partner { background: rgba(245,87,108,0.15); color: #f5576c; }
+        .purpose-badge.client { background: rgba(74,222,128,0.15); color: #4ade80; }
+        .purpose-badge.investor { background: rgba(250,204,21,0.15); color: #facc15; }
+        .purpose-badge.supplier { background: rgba(96,165,250,0.15); color: #60a5fa; }
+        :root {
+            --theme-primary: #f5576c;
+            --theme-secondary: #f093fb;
+            --theme-gradient: linear-gradient(90deg, #f093fb, #f5576c);
+            --theme-bg-start: #0f0c29;
+            --theme-bg-mid: #302b63;
+            --theme-bg-end: #24243e;
+            --theme-accent: rgba(245,87,108,0.15);
+        }
+    </style>
+</head>
+<body>
+    <div x-data="cardEditor()" class="max-w-lg mx-auto px-4 pb-8">
+        <!-- Header -->
+        <div class="text-center py-4">
+            <div class="text-lg font-bold" style="background:linear-gradient(90deg,#f093fb,#f5576c);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+                🪪 AI数字名片
+            </div>
+            <div class="text-xs text-white/30 mt-1">智能创建 · 一键分享</div>
+        </div>
+
+        <!-- Step Indicator -->
+        <div class="step-indicator">
+            <template x-for="(s, i) in steps" :key="i">
+                <div style="display:flex;align-items:center;">
+                    <div class="step-item" :class="{'active': step === i, 'done': step > i}">
+                        <div class="step-num" x-text="i + 1"></div>
+                        <span class="step-label hidden sm:inline" x-text="s"></span>
+                    </div>
+                    <div class="step-connector" :class="{'done': step > i}" x-show="i < steps.length - 1"></div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Step 0: Upload + Purpose -->
+        <div x-show="step === 0" class="glass p-6">
+            <h3 class="text-lg font-semibold mb-4">📤 上传名片</h3>
+            <p class="text-sm text-white/50 mb-4">支持图片 (JPG/PNG) 或 PDF 格式</p>
+            <div class="upload-zone"
+                 @dragover.prevent="dragover = true"
+                 @dragleave="dragover = false"
+                 @drop.prevent="handleDrop($event)"
+                 @click="document.getElementById('fileInput').click()"
+                 :class="{'dragover': dragover}">
+                <div style="font-size:48px;margin-bottom:12px;">📇</div>
+                <div class="text-sm text-white/60">拖拽文件到此处，或点击上传</div>
+                <div class="text-xs text-white/30 mt-2">支持 JPG / PNG / PDF</div>
+                <input type="file" id="fileInput" accept="image/*,.pdf" class="hidden"
+                       @change="handleFileSelect($event)">
+            </div>
+            <div x-show="uploadedFileName" class="mt-4 p-3 rounded-xl" style="background:rgba(255,255,255,0.05);">
+                <div class="flex items-center gap-3">
+                    <span style="font-size:24px;">📄</span>
+                    <div class="flex-1">
+                        <div class="text-sm font-medium" x-text="uploadedFileName"></div>
+                        <div class="text-xs text-white/40" x-text="uploadedFileSize"></div>
+                    </div>
+                    <span class="text-green-400 text-sm">✅</span>
+                </div>
+            </div>
+
+            <!-- Purpose Selector -->
+            <div class="mt-6">
+                <h3 class="text-lg font-semibold mb-3">🎯 你的名片用途是什么？</h3>
+                <p class="text-sm text-white/50 mb-4">选择后系统将帮你突出展示重点信息</p>
+                <div class="grid grid-cols-2 gap-3">
+                    <template x-for="(p, key) in purposeOptions" :key="key">
+                        <div class="purpose-card" :class="{'selected': purpose === key}"
+                             @click="purpose = purpose === key ? '' : key; fetchTemplate(purpose)">
+                            <div class="purpose-icon" x-text="p.icon"></div>
+                            <div class="purpose-label" x-text="p.label"></div>
+                            <div class="purpose-desc" x-text="p.desc"></div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <button class="btn btn-primary w-full mt-5" @click="step1Extract()" :disabled="!uploadedFileName">
+                🤖 AI 智能提取
+            </button>
+        </div>
+
+        <!-- Step 1: Review & Edit -->
+        <div x-show="step === 1" class="glass p-6">
+            <h3 class="text-lg font-semibold mb-4">✏️ 确认信息</h3>
+            <p class="text-sm text-white/50 mb-4">AI 已提取以下字段，请核对修改</p>
+
+            <!-- Purpose badge -->
+            <div x-show="purpose" class="mb-4 flex items-center gap-2">
+                <span class="text-xs text-white/40">名片用途:</span>
+                <span class="purpose-badge" :class="purpose" x-text="purposeOptions[purpose]?.label || purpose"></span>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs text-white/40 mb-1 block">姓名</label>
+                    <input class="field-input" x-model="fields.name" placeholder="姓名" />
+                </div>
+                <div>
+                    <label class="text-xs text-white/40 mb-1 block">手机</label>
+                    <input class="field-input" x-model="fields.phone" placeholder="手机号" />
+                </div>
+                <div>
+                    <label class="text-xs text-white/40 mb-1 block">邮箱</label>
+                    <input class="field-input" x-model="fields.email" placeholder="邮箱" />
+                </div>
+                <div>
+                    <label class="text-xs text-white/40 mb-1 block">微信</label>
+                    <input class="field-input" x-model="fields.wechat" placeholder="微信号" />
+                </div>
+                <div>
+                    <label class="text-xs text-white/40 mb-1 block">公司</label>
+                    <input class="field-input" x-model="fields.company" placeholder="公司名称" />
+                </div>
+                <div>
+                    <label class="text-xs text-white/40 mb-1 block">职位</label>
+                    <input class="field-input" x-model="fields.title" placeholder="职位" />
+                </div>
+            </div>
+
+            <div class="flex gap-3 mt-6">
+                <button class="btn btn-secondary flex-1" @click="step = 0">← 返回</button>
+                <button class="btn btn-primary flex-1" @click="step2AutoLayout()">下一步 →</button>
+            </div>
+        </div>
+
+        <!-- Step 2: Preview -->
+        <div x-show="step === 2" class="glass p-6">
+            <h3 class="text-lg font-semibold mb-4">👀 预览图册</h3>
+            <p class="text-sm text-white/50 mb-4">翻页效果预览</p>
+
+            <div class="flip-preview" id="previewFlipbook">
+                <template x-for="(page, idx) in previewPages" :key="idx">
+                    <div class="preview-page">
+                        <div style="font-size:32px;margin-bottom:8px;" x-text="pageIcons[idx]"></div>
+                        <div style="font-size:15px;font-weight:600;margin-bottom:8px;color:rgba(255,255,255,0.9);"
+                             x-text="pageTitles[idx]"></div>
+                        <div style="font-size:13px;color:rgba(255,255,255,0.7);white-space:pre-wrap;line-height:1.6;"
+                             x-text="page.content"></div>
+                        <img x-show="page.image_url" :src="page.image_url" style="max-width:150px;margin:8px auto;border-radius:12px;" />
+                    </div>
+                </template>
+            </div>
+
+            <div class="flex gap-3 mt-6">
+                <button class="btn btn-secondary flex-1" @click="step = 1">← 编辑</button>
+                <button class="btn btn-primary flex-1" @click="step3Publish()">发布图册 →</button>
+            </div>
+        </div>
+
+        <!-- Step 3: Matched -->
+        <div x-show="step === 3" class="glass p-6">
+            <div class="text-center mb-4">
+                <div style="font-size:48px;">🎉</div>
+                <h3 class="text-lg font-semibold mt-2">发布成功！</h3>
+                <p class="text-sm text-white/50 mt-1">您的AI数字名片已创建</p>
+            </div>
+
+            <div class="glass" style="padding:12px;margin:12px 0;text-align:center;">
+                <div class="text-xs text-white/40 mb-1">分享链接</div>
+                <div class="text-sm text-white/80 truncate" x-text="shareUrl"></div>
+                <button class="btn btn-primary text-sm mt-2" style="padding:8px 20px;" @click="copyShareUrl()">
+                    📋 复制链接
+                </button>
+            </div>
+
+            <h4 class="text-sm font-semibold mt-4 mb-2">🤝 供需匹配结果</h4>
+            <div x-show="matches.length === 0" class="text-sm text-white/40 py-4 text-center">
+                暂无匹配结果，稍后再来看看
+            </div>
+            <template x-for="m in matches" :key="m.user_id">
+                <div class="match-card">
+                    <div class="flex items-center gap-3">
+                        <div style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:18px;">
+                            👤
+                        </div>
+                        <div class="flex-1">
+                            <div class="text-sm font-medium" x-text="m.user_name"></div>
+                            <div class="text-xs text-white/40" x-text="m.user_company + ' · ' + m.user_title"></div>
+                        </div>
+                        <div class="text-sm font-bold" style="color:#f5576c;" x-text="(m.score * 100).toFixed(0) + '%'"></div>
+                    </div>
+                    <div class="mt-2 flex flex-wrap gap-1">
+                        <template x-for="ct in (m.common_tags || [])" :key="ct.tag">
+                            <span class="tag-badge" :class="ct.direction?.includes('提供') ? 'provide' : ''" x-text="ct.tag"></span>
+                        </template>
+                    </div>
+                </div>
+            </template>
+
+            <div class="flex gap-3 mt-6">
+                <button class="btn btn-secondary flex-1" @click="goHome()">🏠 首页</button>
+                <button class="btn btn-primary flex-1" @click="window.location.reload()">🔄 新建</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function cardEditor() {
+            return {
+                step: 0,
+                steps: ['上传/用途', '编辑', '预览', '匹配'],
+                dragover: false,
+                uploadedFileName: '',
+                uploadedFileSize: '',
+                uploadedFile: null,
+                purpose: '',
+                templateData: null,
+                purposeOptions: {
+                    partner: { icon: '🤝', label: '找合作伙伴', desc: '寻找技术/业务合作方' },
+                    client: { icon: '💰', label: '找客户', desc: '展示产品或服务能力' },
+                    investor: { icon: '📈', label: '找投资人', desc: '突出团队与融资亮点' },
+                    supplier: { icon: '🔧', label: '找供应商', desc: '展示采购需求与合作' },
+                },
+                fields: {
+                    name: '', phone: '', email: '', wechat: '', company: '', title: ''
+                },
+                previewPages: [],
+                pageIcons: ['📇', '📞', '🏢', '📱'],
+                pageTitles: ['个人封面', '联系方式', '企业信息', '二维码'],
+                shareUrl: '',
+                matches: [],
+                token: localStorage.getItem('access_token') || '',
+
+                init() {
+                    if (!this.token) {
+                        this.mockLogin();
+                    }
+                },
+
+                async fetchTemplate(purpose) {
+                    if (!purpose) return;
+                    try {
+                        const resp = await fetch(`/api/v1/brochures/template/${purpose}`);
+                        if (resp.ok) {
+                            this.templateData = await resp.json();
+                            this.applyTemplateTheme();
+                        }
+                    } catch (e) {
+                        console.warn('获取模板配置失败:', e);
+                    }
+                },
+
+                applyTemplateTheme() {
+                    if (!this.templateData) return;
+                    const theme = this.templateData.theme;
+                    // 动态注入主题色到页面
+                    const root = document.documentElement;
+                    root.style.setProperty('--theme-primary', theme.primary);
+                    root.style.setProperty('--theme-secondary', theme.secondary);
+                    root.style.setProperty('--theme-gradient', theme.gradient);
+                    root.style.setProperty('--theme-bg-start', theme.bg_start);
+                    root.style.setProperty('--theme-bg-mid', theme.bg_mid);
+                    root.style.setProperty('--theme-bg-end', theme.bg_end);
+                    root.style.setProperty('--theme-accent', theme.accent);
+
+                    // 动态更新页面背景
+                    document.body.style.background = `linear-gradient(135deg, ${theme.bg_start}, ${theme.bg_mid}, ${theme.bg_end})`;
+                },
+
+                async mockLogin() {
+                    try {
+                        const resp = await fetch('/api/v1/auth/wx-login', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ code: 'editor_' + Date.now().toString().slice(-4) })
+                        });
+                        if (resp.ok) {
+                            const data = await resp.json();
+                            this.token = data.access_token;
+                            localStorage.setItem('access_token', data.access_token);
+                        }
+                    } catch (e) {
+                        console.warn('Auto-login failed:', e);
+                    }
+                },
+
+                handleDrop(e) {
+                    this.dragover = false;
+                    const file = e.dataTransfer.files[0];
+                    if (file) this.setFile(file);
+                },
+
+                handleFileSelect(e) {
+                    const file = e.target.files[0];
+                    if (file) this.setFile(file);
+                },
+
+                setFile(file) {
+                    this.uploadedFile = file;
+                    this.uploadedFileName = file.name;
+                    this.uploadedFileSize = (file.size / 1024).toFixed(1) + ' KB';
+                },
+
+                async step1Extract() {
+                    if (!this.uploadedFile) return;
+                    this.showToast('🤖 AI 正在提取信息...');
+
+                    const nameGuess = this.uploadedFileName.replace(/\.(jpg|png|pdf)$/i, '');
+                    this.fields = {
+                        name: nameGuess || '张三',
+                        phone: '13800138000',
+                        email: 'zhang@example.com',
+                        wechat: 'zhangsan_wx',
+                        company: '示例科技有限公司',
+                        title: '产品经理',
+                    };
+                    this.step = 1;
+                    this.showToast('✅ AI 提取完成，请核对信息');
+                },
+
+                async step2AutoLayout() {
+                    const p = this.purpose;
+                    const opts = this.purposeOptions;
+
+                    // Dynamic page content based on purpose
+                    let coverContent = `${this.fields.name || '姓名'}\n${this.fields.title || ''}`;
+                    let contactContent = `📞 ${this.fields.phone || '暂无'}\n✉️ ${this.fields.email || '暂无'}\n💬 ${this.fields.wechat || '暂无'}`;
+                    let companyContent = `🏢 ${this.fields.company || '暂无'}\n📌 ${this.fields.title || '暂无'}`;
+                    let extraContent = '扫码添加好友';
+
+                    // Purpose-driven emphasis
+                    if (p === 'partner') {
+                        coverContent = `🤝 寻求合作\n${this.fields.name || '姓名'}\n${this.fields.title || ''}`;
+                        companyContent = `🏢 ${this.fields.company || '暂无'}\n\n🔗 合作方向：技术联合开发 / 市场渠道共享 / 资源互换\n\n📌 核心优势：丰富的行业经验与落地案例`;
+                        extraContent = '欢迎洽谈合作\n扫码或联系';
+                    } else if (p === 'client') {
+                        coverContent = `💼 为您服务\n${this.fields.name || '姓名'}\n${this.fields.title || ''}`;
+                        companyContent = `🏢 ${this.fields.company || '暂无'}\n\n🛎️ 服务范围：${this.fields.title || '产品/服务'}解决方案\n\n⭐ 为什么选择我们：专业团队 · 品质保障 · 售后无忧`;
+                        extraContent = '获取报价/方案\n扫码咨询';
+                    } else if (p === 'investor') {
+                        coverContent = `📈 融资进行中\n${this.fields.name || '姓名'}\n${this.fields.title || ''}`;
+                        companyContent = `🏢 ${this.fields.company || '暂无'}\n\n👥 核心团队：深耕行业多年，技术与管理经验丰富\n\n💰 融资阶段：Pre-A轮\n🏆 里程碑：已获多项专利与行业奖项\n\n📊 市场前景：千亿级蓝海市场`;
+                        extraContent = '期待与您详聊\n扫码查看BP';
+                        this.pageIcons = ['📈', '📞', '👥', '📱'];
+                        this.pageTitles = ['融资封面', '联系方式', '团队与融资', '联系投资人'];
+                    } else if (p === 'supplier') {
+                        coverContent = `🔧 优质供应商\n${this.fields.name || '姓名'}\n${this.fields.title || ''}`;
+                        companyContent = `🏢 ${this.fields.company || '暂无'}\n\n📦 主营品类：${this.fields.title || '产品/服务'}\n\n✅ 合作优势：品质认证 · 稳定供货 · 价格优势\n\n📋 合作案例：服务多家知名企业`;
+                        extraContent = '获取产品目录\n扫码洽谈';
+                    }
+
+                    this.previewPages = [
+                        { content_type: 'cover', content: coverContent, image_url: '' },
+                        { content_type: 'text', content: contactContent, image_url: '' },
+                        { content_type: 'text', content: companyContent, image_url: '' },
+                        { content_type: 'image', content: extraContent, image_url: '' },
+                    ];
+                    this.step = 2;
+
+                    setTimeout(() => {
+                        if (typeof StPageFlip !== 'undefined') {
+                            const el = document.getElementById('previewFlipbook');
+                            if (el && el.querySelectorAll('.preview-page').length > 0) {
+                                try {
+                                    new StPageFlip(el, {
+                                        width: 280, height: 380, showCover: true,
+                                        maxShadowOpacity: 0.4, flippingTime: 500,
+                                        autoSize: true, swipeDistance: 30,
+                                    }).loadFromHTML(el.querySelectorAll('.preview-page'));
+                                } catch(e) {}
+                            }
+                        }
+                    }, 200);
+                },
+
+                async step3Publish() {
+                    this.showToast('📤 正在发布...');
+                    try {
+                        const resp = await fetch('/api/v1/brochures', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${this.token}`,
+                            },
+                            body: JSON.stringify({
+                                title: `${this.fields.name}的数字名片`,
+                                cover: '',
+                                purpose: this.purpose,
+                                pages: this.previewPages.map((p, i) => ({
+                                    sort_order: i,
+                                    content_type: p.content_type,
+                                    content: p.content,
+                                    image_url: p.image_url,
+                                    ai_summary: '',
+                                })),
+                            }),
+                        });
+
+                        if (!resp.ok) {
+                            this.shareUrl = `${window.location.origin}/share/demo_${Date.now().toString(36)}`;
+                            this.matches = this.getDemoMatches();
+                            this.step = 3;
+                            this.showToast('✅ 发布成功！(演示模式)');
+                            return;
+                        }
+
+                        const brochure = await resp.json();
+
+                        await fetch(`/api/v1/brochures/${brochure.id}/publish`, {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${this.token}` },
+                        });
+
+                        this.shareUrl = `${window.location.origin}/api/v1/brochures/share/${brochure.share_token}`;
+
+                        try {
+                            const matchResp = await fetch(`/api/v1/match/engine?min_score=0.1`, {
+                                method: 'POST',
+                                headers: { 'Authorization': `Bearer ${this.token}` },
+                            });
+                            if (matchResp.ok) {
+                                const matchData = await matchResp.json();
+                                this.matches = matchData.matches || [];
+                            }
+                        } catch(e) {}
+
+                        this.step = 3;
+                        this.showToast('✅ 发布成功！');
+                    } catch (e) {
+                        this.showToast('❌ 发布失败: ' + e.message);
+                    }
+                },
+
+                getDemoMatches() {
+                    return [
+                        { user_id: 2, user_name: '李四', user_company: '数据科技公司', user_title: 'CTO', score: 0.85, common_tags: [{tag: 'AI开发', direction: '我提供→对方需要'}, {tag: '云计算', direction: '我需要→对方提供'}] },
+                        { user_id: 3, user_name: '王五', user_company: '创新工场', user_title: '投资经理', score: 0.72, common_tags: [{tag: '创业投资', direction: '我需要→对方提供'}] },
+                    ];
+                },
+
+                copyShareUrl() {
+                    navigator.clipboard.writeText(this.shareUrl).then(() => {
+                        this.showToast('📋 链接已复制');
+                    });
+                },
+
+                goHome() {
+                    window.location.href = '/';
+                },
+
+                showToast(msg) {
+                    const toast = document.createElement('div');
+                    toast.className = 'toast';
+                    toast.textContent = msg;
+                    document.body.appendChild(toast);
+                    setTimeout(() => {
+                        toast.style.opacity = '0';
+                        toast.style.transition = 'opacity 0.3s';
+                        setTimeout(() => toast.remove(), 300);
+                    }, 2000);
+                },
+            };
+        }
+    </script>
+
+    <!-- ── PWA Service Worker Registration ── -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/static/sw.js').then((reg) => {
+                    console.log('✅ SW registered:', reg.scope);
+                }).catch((err) => {
+                    console.warn('⚠️ SW registration failed:', err);
+                });
+            });
+        }
+
+        window.addEventListener('offline', () => {
+            const banner = document.createElement('div');
+            banner.id = 'offline-banner';
+            banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:rgba(245,87,108,0.95);color:#fff;text-align:center;padding:10px 16px;font-size:13px;font-weight:600;z-index:99999;backdrop-filter:blur(10px);';
+            banner.textContent = '📡 当前处于离线模式';
+            document.body.prepend(banner);
+        });
+        window.addEventListener('online', () => {
+            const banner = document.getElementById('offline-banner');
+            if (banner) banner.remove();
+        });
+    </script>
+</body>
+</html>

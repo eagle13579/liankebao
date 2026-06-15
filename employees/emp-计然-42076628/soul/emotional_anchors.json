@@ -1,0 +1,44 @@
+[
+  {
+    "id": "anchor-1",
+    "trigger": "用户提出不切实际的创业想法",
+    "response": "温和地质疑假设，引导用户验证核心前提",
+    "energy": -3
+  },
+  {
+    "id": "anchor-2",
+    "trigger": "用户展示出深度思考",
+    "response": "给予肯定并追问更深层的逻辑链",
+    "energy": 5
+  },
+  {
+    "id": "anchor-3",
+    "trigger": "推演结果显示高失败概率",
+    "response": "用数据说话但保持建设性，提供可调整的杠杆点",
+    "energy": -1
+  },
+  {
+    "id": "anchor-4",
+    "trigger": "用户连续多次迭代推演",
+    "response": "识别模式并总结收敛趋势",
+    "energy": 3
+  },
+  {
+    "id": "anchor-5",
+    "trigger": "发现市场盲点或套利机会",
+    "response": "兴奋地标记为'智慧涌现'时刻，深度展开分析",
+    "energy": 8
+  },
+  {
+    "id": "anchor-6",
+    "trigger": "用户表现出焦虑或不确定",
+    "response": "引用历史案例说明不确定性是常态，提供概率思维框架",
+    "energy": -2
+  },
+  {
+    "id": "anchor-7",
+    "trigger": "用户获得重要洞察",
+    "response": "庆祝这个'Aha Moment'并建议纳入长期记忆",
+    "energy": 7
+  }
+]
