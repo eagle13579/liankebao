@@ -1,0 +1,25 @@
+{
+  "name": "链客宝AI | AI数字名片",
+  "short_name": "链客宝AI",
+  "description": "企业家的AI营销朋友圈 — 连接企业主、推广员与产品方，实现精准供需匹配",
+  "start_url": "/app/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3B82F6",
+  "orientation": "portrait-primary",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

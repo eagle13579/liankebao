@@ -9,8 +9,40 @@ state.db
 state.db-shm
 state.db-wal
 *.log
-__pycache__
 .venv_linux/
 .venv/
 venv/
 env/
+*.egg-info/
+.eggs/
+*.egg
+dist/
+build/
+
+# Node
+node_modules/
+.next/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Temporary
+*.tmp
+*.bak
+
+# Syncthing
+.stfolder/
+.stignore
+.sync/
+
+# Hermes
+.hermes_*
+.hermes_history
+.scheduler_status.json
+.workspace_registry.json
+.processes_*.tmp

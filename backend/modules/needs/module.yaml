@@ -1,0 +1,20 @@
+name: needs
+version: "1.0.0"
+description: 商业需求管理
+author: 链客宝
+dependencies:
+  - auth
+  - products
+routes:
+  prefix: /api/needs
+  auth_required: true
+frontend:
+  entry: ./frontend/NeedsModule
+  routes:
+    - /needs
+    - /needs/create
+    - /needs/:id
+permissions:
+  - needs.view
+  - needs.create
+  - needs.respond

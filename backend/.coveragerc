@@ -1,0 +1,31 @@
+[run]
+source = app
+omit =
+    tests/*
+    venv/*
+    migrations/*
+    scripts/*
+    */__init__.py
+    */migrations/*
+    */tests/*
+    payment/*
+    recharge/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    def __str__
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    pass
+    logger.debug
+    logger.info
+    # type: ignore
+
+show_missing = True
+skip_covered = False
+skip_empty = True
+
+[html]
+directory = coverage_html

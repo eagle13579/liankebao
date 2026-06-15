@@ -1,0 +1,44 @@
+<view class="manage-products">
+  <view class="header">
+    <text>产品管理</text>
+  </view>
+
+  <scroll-view class="product-list" scroll-y>
+    <block wx:if="{{loading}}">
+      <text class="loading">加载中...</text>
+    </block>
+    <block wx:elif="{{products.length === 0}}">
+      <view class="empty-state">
+        <text class="empty-icon">📦</text>
+        <text class="empty-text">暂无产品</text>
+        <text class="empty-hint">您还没有上架任何产品</text>
+      </view>
+    </block>
+    <block wx:else>
+      <view wx:for="{{products}}" wx:key="id" class="product-card">
+        <view class="product-body">
+          <image class="product-thumb" src="{{item.firstImage}}" mode="aspectFill" wx:if="{{item.firstImage}}"></image>
+          <view class="product-thumb-placeholder" wx:else>
+            <text>📦</text>
+          </view>
+          <view class="product-info">
+            <text class="product-name">{{item.name}}</text>
+            <text class="product-price">¥{{item.price}}</text>
+            <text class="product-earn" wx:if="{{item.earn_per_share > 0}}">推广佣金 ¥{{item.earn_per_share}}</text>
+          </view>
+        </view>
+        <view class="product-actions">
+          <view class="status-badge {{item.isActive ? 'active' : 'inactive'}}">
+            {{item.isActive ? '已上架' : '已下架'}}
+          </view>
+          <view class="action-btns">
+            <text class="action-btn edit-btn" data-id="{{item.id}}" bindtap="editProduct">编辑</text>
+            <text class="action-btn toggle-btn {{item.isActive ? 'off' : 'on'}}" data-id="{{item.id}}" data-active="{{item.isActive}}" bindtap="toggleStatus">
+              {{item.isActive ? '下架' : '上架'}}
+            </text>
+          </view>
+        </view>
+      </view>
+    </block>
+  </scroll-view>
+</view>

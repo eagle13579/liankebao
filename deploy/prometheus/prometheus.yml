@@ -1,0 +1,83 @@
+# ============================================================
+# 链客宝AI Prometheus 指标采集配置
+# ============================================================
+# 使用方式: 由 docker-compose.monitoring.yml 挂载
+# /etc/prometheus/prometheus.yml
+# ============================================================
+
+global:
+  # 默认15秒抓取间隔 — 满足生产级监控粒度
+  scrape_interval: 15s
+  # 规则评估间隔
+  evaluation_interval: 15s
+  # 外部标签 — 区分不同环境 (生产/预发布/测试)
+  external_labels:
+    environment: production
+    project: liankebao
+
+# ============================================================
+# 告警规则文件
+# ============================================================
+rule_files:
+  - "alerts/*.yml"
+
+# ============================================================
+# 抓取配置
+# ============================================================
+scrape_configs:
+  # -------------------------------------------------------
+  # ① 健康看板 (health_dashboard :9100)
+  #    提供 Prometheus 格式指标:
+  #      - liankebao_up              整体状态
+  #      - liankebao_db_up           数据库状态
+  #      - liankebao_api_up          后端API状态
+  #      - liankebao_uptime_seconds  运行时长
+  #      - liankebao_build_info      构建信息
+  # -------------------------------------------------------
+  - job_name: "liankebao-health"
+    scrape_interval: 15s
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["health-dashboard:9100"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: (.*)
+        replacement: health-dashboard
+
+  # -------------------------------------------------------
+  # ② FastAPI 后端 (:8001)
+  #    如果已暴露 /metrics 端点则采集
+  #    通过 Prometheus FastAPI Instrumentator 暴露:
+  #      - http_request_duration_seconds  请求耗时
+  #      - http_requests_total            请求总数
+  #      - http_requests_in_progress      进行中请求数
+  # -------------------------------------------------------
+  - job_name: "liankebao-api"
+    scrape_interval: 15s
+    metrics_path: /metrics
+    scheme: http
+    static_configs:
+      - targets: ["backend:8001"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: (.*)
+        replacement: chainke-backend
+
+  # -------------------------------------------------------
+  # ③ Prometheus 自身
+  # -------------------------------------------------------
+  - job_name: "prometheus"
+    scrape_interval: 30s
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # -------------------------------------------------------
+  # ④ Docker 容器指标 (cAdvisor)
+  #    cadvisor 需要额外部署在监控栈中
+  # -------------------------------------------------------
+  - job_name: "cadvisor"
+    scrape_interval: 30s
+    static_configs:
+      - targets: ["cadvisor:8080"]

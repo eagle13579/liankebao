@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>链客宝AI API 文档门户</title>
+<style>
+  :root {
+    --bg-primary: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-card: #1c2333;
+    --bg-hover: #252d3f;
+    --border: #30363d;
+    --text-primary: #e6edf3;
+    --text-secondary: #8b949e;
+    --text-muted: #6e7681;
+    --accent: #58a6ff;
+    --accent-green: #3fb950;
+    --accent-orange: #d29922;
+    --accent-red: #f85149;
+    --accent-purple: #bc8cff;
+    --method-get: #58a6ff;
+    --method-post: #3fb950;
+    --method-put: #d29922;
+    --method-patch: #bc8cff;
+    --method-delete: #f85149;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+  }
+  /* Header */
+  .header {
+    position: sticky; top:0; z-index:100;
+    background: var(--bg-secondary);
+    border-bottom:1px solid var(--border);
+    padding: 16px 32px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .header h1 {
+    font-size: 20px; font-weight: 600;
+    background: linear-gradient(135deg, var(--accent), var(--accent-purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .header .badge {
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    font-size: 12px; padding: 2px 10px;
+    border-radius: 12px; border:1px solid var(--border);
+  }
+  .header .links { margin-left: auto; display: flex; gap: 12px; }
+  .header .links a {
+    color: var(--accent);
+    text-decoration: none; font-size: 13px;
+  }
+  .header .links a:hover { text-decoration: underline; }
+  /* Layout */
+  .layout { display: flex; min-height: calc(100vh - 60px); }
+  /* Sidebar */
+  .sidebar {
+    width: 240px; flex-shrink: 0;
+    background: var(--bg-secondary);
+    border-right:1px solid var(--border);
+    padding: 16px 0;
+    position: sticky; top: 60px; height: calc(100vh - 60px);
+    overflow-y: auto;
+  }
+  .sidebar::-webkit-scrollbar { width: 6px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .sidebar .nav-title {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    color: var(--text-muted); padding: 8px 20px; letter-spacing: 0.5px;
+  }
+  .sidebar a {
+    display: block; padding: 8px 20px;
+    color: var(--text-secondary); text-decoration: none;
+    font-size: 13px; border-left: 3px solid transparent;
+    transition: all 0.15s;
+  }
+  .sidebar a:hover {
+    background: var(--bg-hover); color: var(--text-primary);
+  }
+  .sidebar a.active {
+    color: var(--accent); border-left-color: var(--accent);
+    background: rgba(88,166,255,0.08);
+  }
+  /* Main Content */
+  .content { flex:1; padding: 32px 48px; max-width: 960px; }
+  .section { margin-bottom: 48px; }
+  .section-title {
+    font-size: 24px; font-weight: 600; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .section-title .emoji-icon { font-size: 24px; }
+  .section-desc {
+    color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;
+    padding-bottom: 16px; border-bottom: 1px solid var(--border);
+  }
+  /* Endpoint Cards */
+  .endpoint {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .endpoint:hover { border-color: var(--accent); }
+  .endpoint-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; cursor: pointer;
+  }
+  .method {
+    font-size: 11px; font-weight: 700; padding: 2px 8px;
+    border-radius: 4px; text-transform: uppercase;
+    min-width: 56px; text-align: center; flex-shrink: 0;
+  }
+  .method.get { background: rgba(88,166,255,0.15); color: var(--method-get); }
+  .method.post { background: rgba(63,185,80,0.15); color: var(--method-post); }
+  .method.put { background: rgba(210,153,34,0.15); color: var(--method-put); }
+  .method.patch { background: rgba(188,140,255,0.15); color: var(--method-patch); }
+  .method.delete { background: rgba(248,81,73,0.15); color: var(--method-delete); }
+  .path {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 13px; color: var(--text-primary);
+    word-break: break-all;
+  }
+  .summary {
+    margin-left: auto; font-size: 13px; color: var(--text-secondary);
+    text-align: right; flex-shrink: 0; max-width: 300px;
+  }
+  .auth-badge {
+    font-size: 10px; padding: 1px 6px; border-radius: 3px;
+    background: rgba(188,140,255,0.15); color: var(--accent-purple);
+    margin-left: 8px; flex-shrink: 0;
+  }
+  .endpoint-body {
+    display: none;
+    padding: 0 16px 16px;
+    border-top: 1px solid var(--border);
+  }
+  .endpoint.open .endpoint-body { display: block; }
+  .endpoint.open .endpoint-header { background: rgba(255,255,255,0.02); }
+  .endpoint-body pre {
+    background: var(--bg-primary);
+    padding: 12px; border-radius: 6px;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 12px; color: var(--text-secondary);
+    overflow-x: auto; margin-top: 12px;
+  }
+  .endpoint-body .param {
+    font-size: 13px; color: var(--text-secondary);
+    margin: 8px 0;
+  }
+  .endpoint-body .param strong {
+    color: var(--text-primary);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+  }
+  /* Footer */
+  .footer {
+    text-align: center; padding: 32px;
+    color: var(--text-muted); font-size: 12px;
+    border-top: 1px solid var(--border);
+    margin-top: 48px;
+  }
+  /* Responsive */
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .content { padding: 16px 20px; }
+    .header { padding: 12px 16px; flex-wrap: wrap; }
+    .summary { display: none; }
+  }
+  /* Section icons */
+  .nav-icon { margin-right: 8px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🔗 链客宝AI API 文档</h1>
+  <span class="badge">v1.0.0</span>
+  <div class="links">
+    <a href="https://github.com/liankebao" target="_blank">GitHub</a>
+    <a href="/docs" target="_blank">Swagger UI</a>
+    <a href="/redoc" target="_blank">ReDoc</a>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-title">📋 模块导航</div>
+    <a href="#auth" class="active">🔐 认证</a>
+    <a href="#products">📦 产品</a>
+    <a href="#search">🔍 搜索</a>
+    <a href="#matching">🤝 供需匹配</a>
+    <a href="#recommend">⭐ 推荐</a>
+    <a href="#crm">📊 CRM 管道</a>
+    <a href="#enterprise">🏢 企业数据</a>
+    <a href="#enrich">📎 数据丰富</a>
+    <a href="#orgs">👥 多租户组织</a>
+    <a href="#growth">📈 增长引擎</a>
+    <a href="#system">⚙️ 系统</a>
+  </nav>
+
+  <main class="content">
+
+    <!-- ===== 认证 ===== -->
+    <section id="auth" class="section">
+      <h2 class="section-title"><span class="emoji-icon">🔐</span> 认证 Auth</h2>
+      <p class="section-desc">用户注册、登录、令牌刷新和微信小程序登录。认证接口无需 Bearer Token。</p>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="path">/api/auth/login</span>
+          <span class="summary">用户登录</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Body</strong>: { "username": "string", "password": "string" }</div>
+          <div class="param"><strong>Response</strong>: access_token, refresh_token, user 信息</div>
+          <pre>{
+  "code": 200,
+  "message": "登录成功",
+  "data": {
+    "access_token": "eyJ...",
+    "refresh_token": "eyJ...",
+    "token_type": "bearer",
+    "user": { "id": 1, "username": "...", "role": "..." }
+  }
+}</pre>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="path">/api/auth/register</span>
+          <span class="summary">用户注册</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Body</strong>: { "username": "string", "password": "string", "name": "string", "phone?": "string", "company?": "string", "position?": "string", "role?": "string", "pain_point?": "string" }</div>
+          <div class="param"><strong>Response</strong>: 注册成功，自动签发 token</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/auth/me</span>
+          <span class="summary">获取当前用户</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Headers</strong>: Authorization: Bearer {{token}}</div>
+          <div class="param"><strong>Response</strong>: 当前登录用户详细信息</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="path">/api/auth/refresh</span>
+          <span class="summary">刷新令牌</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Body</strong>: { "refresh_token": "string" }</div>
+          <div class="param"><strong>Response</strong>: 新的 access_token + refresh_token（轮换机制）</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="path">/api/auth/wechat</span>
+          <span class="summary">微信小程序登录</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Body</strong>: { "code": "string" } 微信临时 code</div>
+          <div class="param"><strong>Response</strong>: 登录成功，签发 token</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="path">/api/auth/logout</span>
+          <span class="summary">退出登录</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>功能</strong>: 将当前 token 加入黑名单</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="path">/api/auth/forgot-password</span>
+          <span class="summary">忘记密码</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Body</strong>: { "email": "string" }</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="path">/api/auth/reset-password</span>
+          <span class="summary">重置密码</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Body</strong>: { "token": "string", "new_password": "string" }</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 产品 ===== -->
+    <section id="products" class="section">
+      <h2 class="section-title"><span class="emoji-icon">📦</span> 产品 Products</h2>
+      <p class="section-desc">产品 CRUD、分类浏览、审核管理。支持分页浏览。</p>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/products</span>
+          <span class="summary">产品列表</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Query</strong>: category?, status?, search?, page=1, page_size=20</div>
+          <div class="param"><strong>Auth</strong>: 可选（未登录可见已上架）</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="path">/api/products</span>
+          <span class="summary">创建产品</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>角色</strong>: admin / member</div>
+          <div class="param"><strong>Body</strong>: name, description, price, category, images?, tags?, stock?, brand?</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/products/{id}</span>
+          <span class="summary">产品详情</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Response</strong>: 产品完整信息（含图片、规格等）</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method put">PUT</span>
+          <span class="path">/api/products/{id}</span>
+          <span class="summary">更新产品</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>角色</strong>: admin / member（仅限本人产品）</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method delete">DELETE</span>
+          <span class="path">/api/products/{id}</span>
+          <span class="summary">删除产品</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>功能</strong>: 软删除（is_deleted = true）</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 搜索 ===== -->
+    <section id="search" class="section">
+      <h2 class="section-title"><span class="emoji-icon">🔍</span> 搜索 Search</h2>
+      <p class="section-desc">多维产品搜索、语义向量搜索、搜索建议。支持中文分词和全文检索。</p>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/search</span>
+          <span class="summary">产品搜索</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Query</strong>: q?, category?, region?, min_price?, max_price?, sort_by=relevance, page=1, page_size=20, highlight=true</div>
+          <div class="param"><strong>排序</strong>: relevance / price_asc / price_desc / newest</div>
+          <pre>{
+  "code": 200,
+  "data": {
+    "items": [...],
+    "total": 42,
+    "page": 1,
+    "page_size": 20,
+    "query": "农产品",
+    "highlight": true
+  }
+}</pre>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/search/vector</span>
+          <span class="summary">语义向量搜索</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Query</strong>: q (搜索文本), top_k=10</div>
+          <div class="param"><strong>注意</strong>: 需启用 USE_VECTOR_SEARCH=1</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="path">/api/search/vector/rebuild</span>
+          <span class="summary">重建向量索引</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>功能</strong>: 扫描全量数据重新生成向量索引</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 匹配 ===== -->
+    <section id="matching" class="section">
+      <h2 class="section-title"><span class="emoji-icon">🤝</span> 供需匹配 Matching</h2>
+      <p class="section-desc">AI 驱动的供需智能匹配引擎，支持需求匹配产品和产品匹配需求。</p>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/matching/needs/{id}/products</span>
+          <span class="summary">需求匹配产品</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Query</strong>: strategy? (v1/v2), top_k=10</div>
+          <div class="param"><strong>Response</strong>: 匹配结果列表含 match_score 和 match_reasons</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/matching/products/{id}/needs</span>
+          <span class="summary">产品匹配需求</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Query</strong>: strategy? (v1/v2), top_k=10</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="path">/api/matching/refresh</span>
+          <span class="summary">重建匹配索引</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>功能</strong>: 刷新匹配引擎的倒排索引和 TF-IDF 模型</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 推荐 ===== -->
+    <section id="recommend" class="section">
+      <h2 class="section-title"><span class="emoji-icon">⭐</span> 推荐 Recommend</h2>
+      <p class="section-desc">个性化推荐引擎，基于用户行为 + AI 匹配，提供热门推荐和个性化推荐。</p>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/recommend/products</span>
+          <span class="summary">个性化产品推荐</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Query</strong>: user_id?, limit=8</div>
+          <div class="param"><strong>逻辑</strong>: 有行为→同类推荐，无行为→热门推荐</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/recommend/products/{user_id}</span>
+          <span class="summary">按用户ID推荐</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Query</strong>: limit=8</div>
+          <div class="param"><strong>Response</strong>: personalized / hot 策略标识</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/recommend/hot</span>
+          <span class="summary">热门推荐</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Query</strong>: limit=10</div>
+          <div class="param"><strong>算法</strong>: 过去7天浏览最多的产品</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/recommend/personalized/{user_id}</span>
+          <span class="summary">AI 个性化推荐（LLM）</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>功能</strong>: 结合 matching_engine + LLM 生成智能匹配理由</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="path">/api/recommend/feedback</span>
+          <span class="summary">推荐反馈</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Body</strong>: { "user_id": int, "product_id": int, "action": "like"|"dislike", "source?": "string" }</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== CRM ===== -->
+    <section id="crm" class="section">
+      <h2 class="section-title"><span class="emoji-icon">📊</span> CRM 管道</h2>
+      <p class="section-desc">商机管理、管道阶段追踪、活动记录。阶段：leads → qualified → proposal → negotiation → closed_won/closed_lost。</p>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/crm/deals</span>
+          <span class="summary">商机列表</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Query</strong>: stage?, search?, owner_id?, page=1, page_size=20</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="path">/api/crm/deals</span>
+          <span class="summary">创建商机</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Body</strong>: title, value, stage, owner_id?, probability?, expected_close_date?, notes?</div>
+          <pre>{
+  "code": 201,
+  "data": { "id": 1, "title": "...", "stage": "leads" }
+}</pre>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/crm/deals/{deal_id}</span>
+          <span class="summary">商机详情</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Response</strong>: 包含商机完整信息和活动记录</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method patch">PATCH</span>
+          <span class="path">/api/crm/deals/{deal_id}</span>
+          <span class="summary">更新商机</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Body</strong>: 部分更新 stage, value, probability, notes, expected_close_date 等</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/crm/deals/{deal_id}/activities</span>
+          <span class="summary">商机活动记录</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Response</strong>: 该商机的所有活动时间线</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/crm/pipeline</span>
+          <span class="summary">管道概览</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Response</strong>: 各阶段统计（商机数量、总金额）</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 企业数据 ===== -->
+    <section id="enterprise" class="section">
+      <h2 class="section-title"><span class="emoji-icon">🏢</span> 企业数据 Enterprise</h2>
+      <p class="section-desc">企业知识图谱 CRUD、搜索、关系图谱管理、公域数据采集补全。</p>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/enterprise</span>
+          <span class="summary">企业列表</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Query</strong>: search?, industry?, region?, page=1, page_size=20</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="path">/api/enterprise</span>
+          <span class="summary">创建企业</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Body</strong>: name, credit_code?, legal_person?, registered_capital?, industry?, region?</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/enterprise/{id}</span>
+          <span class="summary">企业详情</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Response</strong>: 企业基本信息 + 关系图谱</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method put">PUT</span>
+          <span class="path">/api/enterprise/{id}</span>
+          <span class="summary">更新企业</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method delete">DELETE</span>
+          <span class="path">/api/enterprise/{id}</span>
+          <span class="summary">删除企业</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 数据丰富 ===== -->
+    <section id="enrich" class="section">
+      <h2 class="section-title"><span class="emoji-icon">📎</span> 数据丰富 Enrich</h2>
+      <p class="section-desc">企业信息丰富服务，通过企查查/天眼查等数据源自动补全企业信息（24小时缓存）。</p>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/enrich/company</span>
+          <span class="summary">企业信息丰富</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Query</strong>: name (企业名称或关键词)</div>
+          <div class="param"><strong>Response</strong>: 企业基本信息、经营范围、联系人信息</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/enrich/company/basic</span>
+          <span class="summary">企业基本信息</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Query</strong>: name (企业名称)</div>
+          <div class="param"><strong>Response</strong>: 工商基本信息（名称、信用代码、法人、注册资本等）</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/enrich/company/scope</span>
+          <span class="summary">经营范围查询</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Query</strong>: name</div>
+          <div class="param"><strong>Response</strong>: 企业经营范围、所属行业</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/enrich/contacts</span>
+          <span class="summary">企业联系人</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Query</strong>: company (企业名称)</div>
+          <div class="param"><strong>Response</strong>: 企业关键联系人信息</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 多租户 ===== -->
+    <section id="orgs" class="section">
+      <h2 class="section-title"><span class="emoji-icon">👥</span> 多租户组织 Orgs</h2>
+      <p class="section-desc">组织创建、成员管理、邀请管理。支持多团队协作。</p>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="path">/api/orgs</span>
+          <span class="summary">创建组织</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Body</strong>: { "name": "string" }</div>
+          <div class="param"><strong>Response</strong>: 自动成为管理员</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/orgs</span>
+          <span class="summary">我的组织列表</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/orgs/{org_id}</span>
+          <span class="summary">组织详情</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method put">PUT</span>
+          <span class="path">/api/orgs/{org_id}</span>
+          <span class="summary">更新组织</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>角色</strong>: 仅组织管理员</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method delete">DELETE</span>
+          <span class="path">/api/orgs/{org_id}</span>
+          <span class="summary">删除组织</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>角色</strong>: 仅组织拥有者</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/orgs/{org_id}/members</span>
+          <span class="summary">成员列表</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="path">/api/orgs/{org_id}/members</span>
+          <span class="summary">添加成员</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Body</strong>: { "user_id": int, "role": "member"|"admin" }</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method delete">DELETE</span>
+          <span class="path">/api/orgs/{org_id}/members/{user_id}</span>
+          <span class="summary">移除成员</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method put">PUT</span>
+          <span class="path">/api/orgs/{org_id}/members/{user_id}/role</span>
+          <span class="summary">变更成员角色</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Body</strong>: { "role": "admin"|"member" }</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/orgs/{org_id}/invites</span>
+          <span class="summary">邀请列表</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="path">/api/orgs/{org_id}/invites</span>
+          <span class="summary">创建邀请</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Body</strong>: { "email": "string" }</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="path">/api/orgs/invites/accept</span>
+          <span class="summary">接受邀请</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Body</strong>: { "token": "string" }</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 增长引擎 ===== -->
+    <section id="growth" class="section">
+      <h2 class="section-title"><span class="emoji-icon">📈</span> 增长引擎 Growth</h2>
+      <p class="section-desc">邀请/推荐/分享机制，推广积分奖励系统。独立 SQLite 数据库。</p>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="path">/api/growth/invite</span>
+          <span class="summary">创建邀请链接</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Body</strong>: { "message": "string" }</div>
+          <div class="param"><strong>Response</strong>: code, invite_url, expires_at</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/growth/invites</span>
+          <span class="summary">邀请列表</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Query</strong>: page=1, page_size=20</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/growth/invites/{code}</span>
+          <span class="summary">邀请详情</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>说明</strong>: 无需登录，供落地页使用</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="path">/api/growth/invites/accept</span>
+          <span class="summary">接受邀请</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Body</strong>: { "code": "string" }</div>
+          <div class="param"><strong>奖励</strong>: 接受者 100 积分，邀请人 50 积分</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/growth/stats</span>
+          <span class="summary">邀请统计</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Response</strong>: total_invited, total_accepted, total_reward</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 系统 ===== -->
+    <section id="system" class="section">
+      <h2 class="section-title"><span class="emoji-icon">⚙️</span> 系统 System</h2>
+      <p class="section-desc">系统管理、Banner、通知、用户信息等通用接口。</p>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/banners</span>
+          <span class="summary">首页轮播图</span>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/notifications</span>
+          <span class="summary">通知列表</span>
+          <span class="auth-badge">Bearer</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Query</strong>: page=1, page_size=20, unread_only=false</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/api/users/{user_id}/brief</span>
+          <span class="summary">用户简要信息</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>用途</strong>: 推广落地页展示推广员姓名</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/health</span>
+          <span class="summary">健康检查</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>Response</strong>: 服务状态、数据库连接、版本信息</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/docs</span>
+          <span class="summary">Swagger UI</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>说明</strong>: FastAPI 自动生成交互式 API 文档</div>
+        </div>
+      </div>
+
+      <div class="endpoint" onclick="toggle(this)">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="path">/redoc</span>
+          <span class="summary">ReDoc</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="param"><strong>说明</strong>: FastAPI 自动生成 ReDoc 风格文档</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="footer">
+      页面生成于 2026-06-01 18:06 (CST)<br>
+      链客宝AI API 文档门户 &mdash; <a href="/docs" style="color: var(--accent);">Swagger UI</a> &mdash; <a href="/redoc" style="color: var(--accent);">ReDoc</a>
+    </div>
+  </main>
+</div>
+
+<script>
+function toggle(el) {
+  el.classList.toggle('open');
+}
+// Highlight current section in sidebar
+document.querySelectorAll('.sidebar a').forEach(link => {
+  link.addEventListener('click', function(e) {
+    document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+// Open first endpoint of each section by default
+document.querySelectorAll('.section .endpoint:first-child').forEach(el => el.classList.add('open'));
+</script>
+</body>
+</html>

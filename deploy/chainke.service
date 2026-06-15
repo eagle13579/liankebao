@@ -1,0 +1,29 @@
+[Unit]
+Description=链客宝 Backend (FastAPI + Uvicorn)
+Documentation=https://github.com/your-org/liankebao
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/liankebao/backend
+Environment="PATH=/opt/liankebao/backend/venv/bin"
+# 加载 .env 环境变量（敏感配置不硬编码）
+EnvironmentFile=/opt/liankebao/.env
+ExecStart=/opt/liankebao/backend/venv/bin/uvicorn app.main:app \
+    --host 127.0.0.1 \
+    --port 8001 \
+    --workers 4 \
+    --log-level info \
+    --access-log \
+    --proxy-headers \
+    --forwarded-allow-ips="*"
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+RestartSec=5
+StandardOutput=append:/opt/liankebao/logs/backend.log
+StandardError=append:/opt/liankebao/logs/backend-error.log
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,169 @@
+# ============================================================
+# 链客宝AI (LianKeBao) — Docker Compose 编排文件
+# ============================================================
+# 使用方式:
+#   启动所有服务:   docker compose up -d
+#   停止所有服务:   docker compose down
+#   查看日志:       docker compose logs -f
+#   重建镜像:       docker compose build
+#   重启单个服务:   docker compose restart backend
+#
+# 访问地址:
+#   前端页面:       http://localhost
+#   后端 API:       http://localhost/api/
+#   API 文档:       http://localhost/docs
+#   健康检查:       http://localhost/health
+# ============================================================
+
+services:
+  # ============================================================
+  # 后端服务 (FastAPI + Uvicorn)
+  # ============================================================
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend
+    container_name: liankebao-backend
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    environment:
+      - TZ=Asia/Shanghai
+      # Docker 环境下 PostgreSQL 连接（如使用）
+      # PG_HOST=postgres
+      # PG_PORT=5432
+    volumes:
+      # SQLite 数据库持久化（使用本地文件）
+      - db_data:/app/backend/data
+      # 日志持久化
+      - logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - liankebao-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================================
+  # 前端服务 (Nginx + React SPA)
+  # ============================================================
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend
+    container_name: liankebao-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      - TZ=Asia/Shanghai
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - liankebao-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================================
+  # SEO Meta 代理服务 (轻量级 Node.js)
+  # 为 /app/card/:token 路由注入 og:meta 标签，无需完整 SSR
+  # ============================================================
+  meta-proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile.ssr
+      target: meta-proxy
+    container_name: liankebao-meta-proxy
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=production
+      - API_BASE=http://backend:8001
+      - META_PROXY_PORT=3002
+      - SITE_URL=https://liankebao.top
+      - TZ=Asia/Shanghai
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - liankebao-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================================
+  # Redis 缓存服务（可选 — 用于会话缓存/消息队列）
+  # ============================================================
+  redis:
+    image: redis:7-alpine
+    container_name: liankebao-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --loglevel warning
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - liankebao-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    profiles:
+      - optional   # 默认不启动，使用 --profile optional 启动
+      # docker compose --profile optional up -d
+
+# ============================================================
+# 数据卷
+# ============================================================
+volumes:
+  db_data:
+    driver: local
+  logs:
+    driver: local
+  redis_data:
+    driver: local
+
+# ============================================================
+# 网络
+# ============================================================
+networks:
+  liankebao-net:
+    name: liankebao-network
+    driver: bridge

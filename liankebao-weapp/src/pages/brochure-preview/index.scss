@@ -1,0 +1,146 @@
+@import '../../styles/variables.scss';
+
+.preview-page {
+  min-height: 100vh;
+  background: $bg-gradient;
+  padding-bottom: calc(120px + $safe-bottom);
+}
+
+.preview-loading {
+  padding: 60px $spacing-xl;
+}
+
+.preview-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120px $spacing-xl;
+  min-height: 60vh;
+}
+
+.preview-empty .empty-icon {
+  font-size: 80px;
+  margin-bottom: $spacing-lg;
+}
+
+.preview-empty .empty-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: $text-primary;
+  margin-bottom: $spacing-sm;
+}
+
+.preview-empty .empty-desc {
+  font-size: 14px;
+  color: $text-tertiary;
+  margin-bottom: $spacing-xl;
+}
+
+.preview-empty .btn-primary {
+  width: 240px;
+}
+
+.preview-content {
+  padding: $spacing-lg;
+}
+
+/* 分页指示器 */
+.page-indicator {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: $spacing-lg 0;
+}
+
+.page-indicator .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  transition: all $transition-normal;
+}
+
+.page-indicator .dot.active {
+  width: 24px;
+  background: $primary-start;
+}
+
+/* 解锁栏 */
+.unlock-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-sm;
+  background: rgba(245, 87, 108, 0.1);
+  border: 1px solid rgba(245, 87, 108, 0.2);
+  border-radius: $radius-md;
+  padding: $spacing-md $spacing-lg;
+  margin-bottom: $spacing-lg;
+}
+
+.unlock-icon {
+  font-size: 18px;
+}
+
+.unlock-text {
+  font-size: 13px;
+  color: $text-tertiary;
+  flex: 1;
+}
+
+.btn-unlock {
+  background: linear-gradient(135deg, #f5576c, #ff6b6b);
+  color: #fff;
+  border: none;
+  border-radius: $radius-sm;
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.btn-unlock:active {
+  opacity: 0.85;
+}
+
+/* 底部操作栏 */
+.preview-actions {
+  display: flex;
+  gap: $spacing-md;
+  margin: $spacing-lg 0;
+}
+
+.btn-action {
+  flex: 1;
+  height: 44px;
+  line-height: 44px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: $radius-md;
+  color: $text-secondary;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.btn-action:active {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.btn-action-primary {
+  background: $primary-gradient;
+  color: #fff;
+  border: none;
+}
+
+/* 浏览统计 */
+.preview-stats {
+  text-align: center;
+  padding: $spacing-lg 0;
+}
+
+.stats-text {
+  font-size: 13px;
+  color: $text-tertiary;
+}

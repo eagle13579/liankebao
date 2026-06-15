@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "供需匹配",
+  "usingComponents": {},
+  "enablePullDownRefresh": true,
+  "backgroundTextStyle": "dark"
+}

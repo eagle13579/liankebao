@@ -1,0 +1,1175 @@
+# ============================================================================
+# 链客宝AI模块 (ChainKe) 数据契约
+# 模块名: chainke
+# 版本: 1.0
+# 契约 Schema: 2.0
+# ============================================================================
+# 链客宝AI — 跨境供应链协同平台
+# 本契约涵盖链客宝AI模块在 core schema 和自身 schema 中的所有表。
+# ============================================================================
+
+module: chainke
+version: "1.0"
+contract_schema: "2.0"
+description: "链客宝AI模块数据契约 —— 跨境供应链协同，涵盖商品库、订单、物流、关务、金融、商家管理"
+
+tables:
+  # --------------------------------------------------------------------------
+  # users — 核心用户表 (core schema)
+  # --------------------------------------------------------------------------
+  - name: users
+    description: "核心用户表 — 链客宝AI可读写的用户字段子集"
+    allowed_fields:
+      - id
+      - uuid
+      - username
+      - nickname
+      - real_name
+      - email
+      - phone
+      - avatar_url
+      - gender
+      - language
+      - timezone
+      - country
+      - province
+      - city
+      - company
+      - position
+      - bio
+      - status
+      - created_at
+      - updated_at
+      - last_login_at
+    required:
+      - uuid
+      - username
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      username:
+        regex: "^[a-zA-Z0-9_@.\\-]{3,64}$"
+        min_length: 3
+        max_length: 64
+      email:
+        format: email
+        max_length: 255
+      phone:
+        format: phone
+        max_length: 20
+      status:
+        enum: ["active", "inactive", "suspended", "deleted"]
+      nickname:
+        max_length: 100
+      real_name:
+        max_length: 100
+      company:
+        max_length: 200
+      position:
+        max_length: 200
+    not_allowed:
+      - password_hash
+      - password_salt
+      - mfa_secret
+      - api_key
+      - login_attempts
+      - locked_until
+      - deleted_at
+      - internal_notes
+
+  # --------------------------------------------------------------------------
+  # organizations — 组织表 (core schema)
+  # --------------------------------------------------------------------------
+  - name: organizations
+    description: "组织表 — 链客宝AI商家/供应商/采购商的组织信息"
+    allowed_fields:
+      - id
+      - uuid
+      - name
+      - name_en
+      - name_ko
+      - short_name
+      - logo_url
+      - industry
+      - industry_category
+      - company_type
+      - registration_number
+      - tax_number
+      - address
+      - address_en
+      - country
+      - province
+      - city
+      - district
+      - zip_code
+      - contact_phone
+      - contact_email
+      - website
+      - social_links
+      - description
+      - description_en
+      - employee_count_min
+      - employee_count_max
+      - annual_revenue
+      - credit_level
+      - business_scope
+      - certifications
+      - status
+      - verified_at
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - name
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      name:
+        max_length: 200
+        min_length: 1
+      name_en:
+        max_length: 200
+      name_ko:
+        max_length: 200
+      logo_url:
+        format: uri
+        max_length: 1024
+      industry:
+        max_length: 100
+      company_type:
+        enum: ["manufacturer", "supplier", "distributor", "retailer",
+               "logistics", "agent", "platform", "government", "other"]
+      contact_email:
+        format: email
+        max_length: 255
+      contact_phone:
+        format: phone
+        max_length: 20
+      website:
+        format: uri
+        max_length: 1024
+      status:
+        enum: ["active", "inactive", "pending", "suspended", "deleted"]
+      credit_level:
+        enum: ["AAA", "AA", "A", "B", "C", "D"]
+      address:
+        max_length: 500
+      description:
+        max_length: 2000
+    not_allowed:
+      - financial_data
+      - bank_accounts
+      - legal_representative_id
+      - kyc_documents
+      - internal_rating
+      - risk_level
+      - compliance_flags
+      - deleted_at
+
+  # --------------------------------------------------------------------------
+  # members — 成员表 (core schema)
+  # --------------------------------------------------------------------------
+  - name: members
+    description: "组织成员表 — 链客宝AI商家成员管理"
+    allowed_fields:
+      - id
+      - uuid
+      - user_id
+      - organization_id
+      - role
+      - roles
+      - department
+      - title
+      - is_primary
+      - is_admin
+      - status
+      - joined_at
+      - expired_at
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - user_id
+      - organization_id
+      - role
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      user_id:
+        min: 1
+      organization_id:
+        min: 1
+      role:
+        enum: ["owner", "admin", "manager", "operator", "finance",
+               "logistics", "sales", "purchaser", "viewer"]
+      department:
+        max_length: 200
+      title:
+        max_length: 200
+      is_primary:
+        enum: [true, false]
+      is_admin:
+        enum: [true, false]
+      status:
+        enum: ["active", "inactive", "expired", "removed"]
+    not_allowed:
+      - permissions_bitmask
+      - internal_notes
+
+  # --------------------------------------------------------------------------
+  # products — 产品表 (core schema)
+  # --------------------------------------------------------------------------
+  - name: products
+    description: "产品表 — 链客宝AI商品库产品信息"
+    allowed_fields:
+      - id
+      - uuid
+      - organization_id
+      - name
+      - name_en
+      - name_ko
+      - category
+      - sub_category
+      - description
+      - description_en
+      - description_ko
+      - keywords
+      - price_min
+      - price_max
+      - currency
+      - unit
+      - images
+      - thumbnail_url
+      - tags
+      - status
+      - is_featured
+      - sort_order
+      - created_at
+      - updated_at
+      - published_at
+    required:
+      - uuid
+      - organization_id
+      - name
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      organization_id:
+        min: 1
+      name:
+        max_length: 200
+        min_length: 1
+      category:
+        max_length: 100
+      description:
+        max_length: 4000
+      currency:
+        enum: ["CNY", "USD", "KRW", "JPY", "EUR", "GBP", "HKD", "SGD"]
+      unit:
+        max_length: 50
+      thumbnail_url:
+        format: uri
+        max_length: 1024
+      status:
+        enum: ["draft", "published", "archived", "deleted"]
+      price_min:
+        min: 0.0
+      sort_order:
+        min: 0
+    not_allowed:
+      - cost_price
+      - profit_margin
+      - inventory_quantity
+      - internal_notes
+
+  # --------------------------------------------------------------------------
+  # tags — 标签表 (core schema)
+  # --------------------------------------------------------------------------
+  - name: tags
+    description: "标签表 — 链客宝AI商品/商家标签"
+    allowed_fields:
+      - id
+      - uuid
+      - name
+      - name_en
+      - name_ko
+      - slug
+      - type
+      - category
+      - icon
+      - color
+      - description
+      - sort_order
+      - is_system
+      - status
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - name
+      - type
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      name:
+        max_length: 100
+        min_length: 1
+      slug:
+        regex: "^[a-z0-9_-]{1,100}$"
+      type:
+        enum: ["category", "brand", "material", "origin", "certification",
+               "logistics", "customs", "payment", "platform", "system",
+               "custom"]
+      status:
+        enum: ["active", "inactive", "deleted"]
+    not_allowed: []
+
+  # --------------------------------------------------------------------------
+  # user_tags — 用户标签关联表 (core schema)
+  # --------------------------------------------------------------------------
+  - name: user_tags
+    description: "用户标签关联 — 链客宝AI商家/用户标签"
+    allowed_fields:
+      - id
+      - user_id
+      - tag_id
+      - tag_type
+      - source
+      - weight
+      - created_at
+    required:
+      - user_id
+      - tag_id
+    constraints:
+      user_id:
+        min: 1
+      tag_id:
+        min: 1
+      tag_type:
+        enum: ["category", "brand", "material", "origin", "certification",
+               "logistics", "customs", "payment", "platform", "system",
+               "custom"]
+      source:
+        enum: ["user_self", "system_auto", "admin_assign", "import", "ai_infer"]
+      weight:
+        min: 0.0
+        max: 1.0
+    not_allowed: []
+
+  # --------------------------------------------------------------------------
+  # events — 事件日志表 (core schema)
+  # --------------------------------------------------------------------------
+  - name: events
+    description: "事件日志表 — 链客宝AI操作事件记录"
+    allowed_fields:
+      - id
+      - uuid
+      - event_type
+      - event_name
+      - module
+      - source
+      - user_id
+      - organization_id
+      - target_type
+      - target_id
+      - payload
+      - ip_address
+      - user_agent
+      - session_id
+      - request_id
+      - status
+      - duration_ms
+      - error_message
+      - created_at
+    required:
+      - uuid
+      - event_type
+      - event_name
+      - module
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      event_type:
+        enum: ["create", "read", "update", "delete", "login", "logout",
+               "order", "payment", "shipment", "customs", "finance",
+               "audit", "approve", "reject", "sync", "error", "other"]
+      module:
+        regex: "^[a-z_]{2,50}$"
+        max_length: 50
+      source:
+        enum: ["web", "mobile_ios", "mobile_android", "weapp", "api",
+               "admin", "system", "cron", "import", "edi"]
+      status:
+        enum: ["success", "failure", "pending", "processing"]
+      ip_address:
+        max_length: 45
+      error_message:
+        max_length: 2000
+    not_allowed:
+      - raw_request
+      - raw_response
+      - sensitive_data
+
+  # --------------------------------------------------------------------------
+  # chainke_merchants — 商家表 (module_chainke schema)
+  # --------------------------------------------------------------------------
+  - name: chainke_merchants
+    description: "链客宝AI商家 — 平台入驻商家的详细信息"
+    allowed_fields:
+      - id
+      - uuid
+      - organization_id
+      - merchant_code
+      - merchant_type
+      - merchant_level
+      - brand_name
+      - brand_name_en
+      - brand_name_ko
+      - business_license_url
+      - business_license_no
+      - legal_person
+      - legal_person_phone
+      - legal_person_id_card
+      - contact_name
+      - contact_phone
+      - contact_email
+      - service_phone
+      - service_email
+      - operation_country
+      - operation_city
+      - warehouse_address
+      - warehouse_contacts
+      - warehouse_phone
+      - main_category
+      - sub_categories
+      - total_products
+      - monthly_active_products
+      - monthly_orders
+      - monthly_revenue
+      - total_revenue
+      - commission_rate
+      - deposit_amount
+      - deposit_status
+      - settlement_cycle
+      - settlement_method
+      - bank_account_name
+      - bank_account_no
+      - bank_name
+      - bank_branch
+      - bank_country
+      - bank_currency
+      - swift_code
+      - tax_rate
+      - tax_category
+      - invoice_type
+      - credit_score
+      - credit_limit
+      - risk_level
+      - audit_status
+      - audit_comment
+      - onboarded_at
+      - status
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - organization_id
+      - merchant_code
+      - merchant_type
+      - contact_name
+      - contact_phone
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      organization_id:
+        min: 1
+      merchant_code:
+        regex: "^M[A-Z0-9]{8,20}$"
+        max_length: 32
+      merchant_type:
+        enum: ["supplier", "distributor", "agent", "manufacturer",
+               "platform", "logistics_provider", "service_provider"]
+      merchant_level:
+        enum: ["platinum", "gold", "silver", "bronze", "trial"]
+      legal_person_phone:
+        format: phone
+        max_length: 20
+      contact_phone:
+        format: phone
+        max_length: 20
+      contact_email:
+        format: email
+        max_length: 255
+      service_email:
+        format: email
+        max_length: 255
+      main_category:
+        max_length: 100
+      commission_rate:
+        min: 0.0
+        max: 100.0
+      deposit_amount:
+        min: 0.0
+      deposit_status:
+        enum: ["unpaid", "pending", "paid", "refunded"]
+      settlement_cycle:
+        enum: ["weekly", "biweekly", "monthly", "quarterly", "custom"]
+      settlement_method:
+        enum: ["bank_transfer", "alipay", "wechat", "paypal", "wise", "other"]
+      swift_code:
+        regex: "^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$"
+        max_length: 11
+      tax_rate:
+        min: 0.0
+        max: 100.0
+      credit_score:
+        min: 0
+        max: 1000
+      risk_level:
+        enum: ["low", "medium", "high", "critical"]
+      audit_status:
+        enum: ["pending", "approved", "rejected", "supplement"]
+      status:
+        enum: ["active", "inactive", "suspended", "terminated", "pending"]
+    not_allowed:
+      - legal_person_id_card_full
+      - bank_password
+      - payment_password
+      - api_secret_key
+      - internal_risk_score_detail
+
+  # --------------------------------------------------------------------------
+  # chainke_products — 链客宝AI商品库 (module_chainke schema)
+  # --------------------------------------------------------------------------
+  - name: chainke_products
+    description: "链客宝AI商品库 — 商家上架商品的详细信息与SKU管理"
+    allowed_fields:
+      - id
+      - uuid
+      - merchant_id
+      - organization_id
+      - product_code
+      - barcode
+      - hs_code
+      - hs_code_origin
+      - name
+      - name_en
+      - name_ko
+      - subtitle
+      - subtitle_en
+      - subtitle_ko
+      - brand
+      - model
+      - category_id
+      - category_path
+      - category_name
+      - category_name_en
+      - description
+      - description_en
+      - description_ko
+      - keywords
+      - attributes
+      - specifications
+      - images
+      - video_url
+      - thumbnail_url
+      - 3d_model_url
+      - unit
+      - min_order_quantity
+      - max_order_quantity
+      - moq_unit
+      - price_tiers
+      - wholesale_price
+      - retail_price
+      - currency
+      - supply_volume
+      - supply_volume_unit
+      - supply_cycle
+      - origin_country
+      - origin_city
+      - material
+      - weight_kg
+      - volume_m3
+      - package_type
+      - package_dimensions
+      - certifications
+      - certificates_images
+      - warranty_period
+      - after_sale_policy
+      - is_customizable
+      - is_sample_available
+      - sample_fee
+      - sample_lead_time
+      - production_lead_time
+      - delivery_terms
+      - payment_terms
+      - tags
+      - view_count
+      - inquiry_count
+      - order_count
+      - rating
+      - review_count
+      - status
+      - audit_status
+      - audit_comment
+      - published_at
+      - expired_at
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - merchant_id
+      - organization_id
+      - product_code
+      - name
+      - category_id
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      merchant_id:
+        min: 1
+      organization_id:
+        min: 1
+      product_code:
+        regex: "^[A-Z0-9_-]{4,32}$"
+        max_length: 32
+      barcode:
+        max_length: 128
+      hs_code:
+        regex: "^\\d{4}\\.\\d{2}(\\.\\d{2})?(\\.\\d{2})?$"
+        max_length: 20
+      name:
+        max_length: 300
+        min_length: 1
+      name_en:
+        max_length: 300
+      name_ko:
+        max_length: 300
+      brand:
+        max_length: 200
+      model:
+        max_length: 200
+      unit:
+        max_length: 50
+      min_order_quantity:
+        min: 1
+      wholesale_price:
+        min: 0.0
+      retail_price:
+        min: 0.0
+      currency:
+        enum: ["CNY", "USD", "KRW", "JPY", "EUR", "GBP", "HKD", "SGD"]
+      origin_country:
+        max_length: 100
+      material:
+        max_length: 200
+      weight_kg:
+        min: 0.0
+      volume_m3:
+        min: 0.0
+      delivery_terms:
+        enum: ["EXW", "FOB", "CIF", "DDP", "DAP", "CFR", "CIP", "FCA"]
+      status:
+        enum: ["draft", "pending", "published", "unpublished", "archived", "deleted"]
+      audit_status:
+        enum: ["pending", "approved", "rejected", "supplement"]
+      view_count:
+        min: 0
+      inquiry_count:
+        min: 0
+      order_count:
+        min: 0
+      rating:
+        min: 0.0
+        max: 5.0
+    not_allowed:
+      - cost_price_detail
+      - supplier_cost_breakdown
+      - profit_margin_detail
+      - inventory_holding_cost
+      - competitor_price
+
+  # --------------------------------------------------------------------------
+  # chainke_orders — 订单表 (module_chainke schema)
+  # --------------------------------------------------------------------------
+  - name: chainke_orders
+    description: "链客宝AI订单 — 跨境采购订单信息"
+    allowed_fields:
+      - id
+      - uuid
+      - order_no
+      - parent_order_id
+      - merchant_id
+      - buyer_organization_id
+      - seller_organization_id
+      - buyer_user_id
+      - seller_user_id
+      - product_id
+      - product_name
+      - product_code
+      - sku_id
+      - quantity
+      - unit
+      - unit_price
+      - subtotal
+      - discount_amount
+      - tax_amount
+      - shipping_fee
+      - insurance_fee
+      - customs_duty
+      - other_fees
+      - total_amount
+      - currency
+      - exchange_rate
+      - payment_method
+      - payment_terms
+      - payment_status
+      - paid_at
+      - deposit_ratio
+      - deposit_amount
+      - deposit_paid_at
+      - balance_paid_at
+      - delivery_terms
+      - delivery_method
+      - shipping_method
+      - estimated_delivery_date
+      - actual_delivery_date
+      - shipping_from
+      - shipping_to
+      - shipping_address
+      - shipping_contact
+      - shipping_phone
+      - shipping_email
+      - tracking_number
+      - logistics_company
+      - logistics_status
+      - customs_status
+      - customs_declaration_no
+      - inspection_status
+      - order_type
+      - order_source
+      - urgency
+      - special_requirements
+      - internal_notes
+      - buyer_notes
+      - seller_notes
+      - status
+      - cancelled_at
+      - cancel_reason
+      - completed_at
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - order_no
+      - merchant_id
+      - buyer_organization_id
+      - seller_organization_id
+      - status
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      order_no:
+        regex: "^ORD[A-Z0-9]{10,30}$"
+        max_length: 32
+      merchant_id:
+        min: 1
+      quantity:
+        min: 1
+      unit_price:
+        min: 0.0
+      total_amount:
+        min: 0.0
+      currency:
+        enum: ["CNY", "USD", "KRW", "JPY", "EUR", "GBP", "HKD", "SGD"]
+      payment_method:
+        enum: ["bank_transfer", "letter_of_credit", "escrow", "paypal",
+               "alipay", "wechat", "wise", "trade_assurance", "other"]
+      payment_status:
+        enum: ["unpaid", "partial", "paid", "refunded", "disputed"]
+      delivery_terms:
+        enum: ["EXW", "FOB", "CIF", "DDP", "DAP", "CFR", "CIP", "FCA"]
+      delivery_method:
+        enum: ["sea", "air", "land", "rail", "express", "multimodal", "other"]
+      shipping_method:
+        enum: ["fcl", "lcl", "air_freight", "express", "postal", "other"]
+      logistics_status:
+        enum: ["pending", "picked_up", "in_transit", "customs_clearance",
+               "delivered", "signed", "returned", "lost"]
+      customs_status:
+        enum: ["not_submitted", "submitted", "inspecting", "cleared",
+               "detained", "rejected"]
+      order_type:
+        enum: ["direct_purchase", "sample_order", "bulk_order",
+               "back_order", "drop_ship", "consignment"]
+      order_source:
+        enum: ["web", "mobile", "weapp", "api", "admin", "match", "import"]
+      status:
+        enum: ["pending", "confirmed", "processing", "shipped", "in_transit",
+               "customs_clearance", "delivered", "completed", "cancelled",
+               "refunded", "disputed"]
+      shipping_phone:
+        format: phone
+        max_length: 20
+      tracking_number:
+        max_length: 100
+    not_allowed:
+      - payment_account_detail
+      - bank_card_info
+      - invoice_content_raw
+
+  # --------------------------------------------------------------------------
+  # chainke_logistics — 物流信息表 (module_chainke schema)
+  # --------------------------------------------------------------------------
+  - name: chainke_logistics
+    description: "链客宝AI物流 — 跨境物流追踪与关务信息"
+    allowed_fields:
+      - id
+      - uuid
+      - order_id
+      - order_no
+      - logistics_no
+      - logistics_company
+      - logistics_company_code
+      - carrier
+      - carrier_contact
+      - carrier_phone
+      - shipment_type
+      - container_no
+      - seal_no
+      - vessel_name
+      - voyage_no
+      - flight_no
+      - port_of_loading
+      - port_of_discharge
+      - place_of_receipt
+      - place_of_delivery
+      - estimated_departure
+      - estimated_arrival
+      - actual_departure
+      - actual_arrival
+      - total_packages
+      - total_weight_kg
+      - total_volume_m3
+      - number_of_containers
+      - container_size
+      - cargo_description
+      - hs_code
+      - customs_declaration_no
+      - customs_broker
+      - customs_broker_contact
+      - customs_declaration_date
+      - customs_clearance_date
+      - duty_amount
+      - tax_amount_paid
+      - inspection_result
+      - inspection_date
+      - status
+      - tracking_events
+      - current_location
+      - current_status_description
+      - estimated_delivery
+      - actual_delivery
+      - signed_by
+      - signed_at
+      - delivery_photo_url
+      - exception_flag
+      - exception_reason
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - order_id
+      - logistics_no
+      - logistics_company
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      order_id:
+        min: 1
+      logistics_no:
+        max_length: 100
+      logistics_company:
+        max_length: 100
+      shipment_type:
+        enum: ["fcl", "lcl", "air_freight", "express", "multimodal", "postal", "other"]
+      container_size:
+        enum: ["20GP", "40GP", "40HQ", "45HQ", "20OT", "40OT", "20RF", "40RH", "other"]
+      total_weight_kg:
+        min: 0.0
+      total_volume_m3:
+        min: 0.0
+      total_packages:
+        min: 1
+      hs_code:
+        regex: "^\\d{4}\\.\\d{2}(\\.\\d{2})?(\\.\\d{2})?$"
+        max_length: 20
+      status:
+        enum: ["pending", "booked", "picked_up", "in_transit",
+               "port_arrival", "customs_clearance", "out_for_delivery",
+               "delivered", "signed", "returned", "exception", "lost"]
+      exception_flag:
+        enum: [true, false]
+    not_allowed:
+      - shipper_contract_detail
+      - consignee_id_copy
+      - dangerous_goods_declaration_full
+
+  # --------------------------------------------------------------------------
+  # chainke_inquiries — 询盘表 (module_chainke schema)
+  # --------------------------------------------------------------------------
+  - name: chainke_inquiries
+    description: "链客宝AI询盘 — 买家的采购意向与询价记录"
+    allowed_fields:
+      - id
+      - uuid
+      - buyer_organization_id
+      - buyer_user_id
+      - seller_organization_id
+      - seller_user_id
+      - product_id
+      - product_name
+      - product_code
+      - inquiry_type
+      - quantity
+      - unit
+      - target_price
+      - target_price_currency
+      - delivery_terms
+      - payment_terms
+      - shipping_to
+      - expected_delivery_date
+      - description
+      - attachments
+      - urgency
+      - source
+      - status
+      - responded_at
+      - response_content
+      - response_price
+      - response_currency
+      - response_delivery_date
+      - converted_to_order
+      - order_id
+      - order_no
+      - closed_at
+      - close_reason
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - buyer_organization_id
+      - product_name
+      - inquiry_type
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      buyer_organization_id:
+        min: 1
+      product_name:
+        max_length: 300
+        min_length: 1
+      inquiry_type:
+        enum: ["price_inquiry", "sample_request", "bulk_inquiry",
+               "customization", "logistics_inquiry", "general"]
+      quantity:
+        min: 1
+      target_price:
+        min: 0.0
+      target_price_currency:
+        enum: ["CNY", "USD", "KRW", "JPY", "EUR", "GBP", "HKD", "SGD"]
+      delivery_terms:
+        enum: ["EXW", "FOB", "CIF", "DDP", "DAP", "CFR", "CIP", "FCA"]
+      urgency:
+        enum: ["low", "medium", "high", "urgent"]
+      source:
+        enum: ["web", "mobile", "weapp", "match", "recommendation", "api", "admin"]
+      status:
+        enum: ["pending", "responded", "negotiating", "accepted", "rejected",
+               "converted", "closed", "expired"]
+      converted_to_order:
+        enum: [true, false]
+      description:
+        max_length: 5000
+    not_allowed:
+      - buyer_budget_limit_internal
+      - competitor_quotes
+
+  # --------------------------------------------------------------------------
+  # chainke_finance — 财务记录表 (module_chainke schema)
+  # --------------------------------------------------------------------------
+  - name: chainke_finance
+    description: "链客宝AI财务 — 交易结算与资金流记录"
+    allowed_fields:
+      - id
+      - uuid
+      - finance_no
+      - order_id
+      - order_no
+      - merchant_id
+      - organization_id
+      - finance_type
+      - direction
+      - amount
+      - currency
+      - exchange_rate
+      - amount_in_cny
+      - fee_amount
+      - net_amount
+      - balance_before
+      - balance_after
+      - payment_method
+      - transaction_id
+      - bank_receipt_url
+      - invoice_no
+      - invoice_url
+      - invoice_status
+      - tax_amount
+      - settlement_cycle
+      - settlement_date
+      - due_date
+      - actual_paid_date
+      - payer_name
+      - payer_account
+      - payee_name
+      - payee_account
+      - description
+      - operator_id
+      - approver_id
+      - approved_at
+      - status
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - finance_no
+      - order_id
+      - finance_type
+      - direction
+      - amount
+      - currency
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      finance_no:
+        regex: "^FIN[A-Z0-9]{10,30}$"
+        max_length: 32
+      order_id:
+        min: 1
+      finance_type:
+        enum: ["deposit", "payment", "refund", "commission", "fee",
+               "withdrawal", "adjustment", "settlement", "penalty"]
+      direction:
+        enum: ["in", "out"]
+      amount:
+        min: 0.0
+      currency:
+        enum: ["CNY", "USD", "KRW", "JPY", "EUR", "GBP", "HKD", "SGD"]
+      fee_amount:
+        min: 0.0
+      payment_method:
+        enum: ["bank_transfer", "alipay", "wechat", "paypal", "wise", "other"]
+      invoice_status:
+        enum: ["pending", "issued", "sent", "received", "cancelled"]
+      settlement_cycle:
+        enum: ["weekly", "biweekly", "monthly", "quarterly", "custom"]
+      status:
+        enum: ["pending", "approved", "processing", "completed", "failed",
+               "cancelled", "disputed"]
+      description:
+        max_length: 1000
+    not_allowed:
+      - bank_account_password
+      - payment_password_hash
+      - full_reconciliation_data
+
+  # --------------------------------------------------------------------------
+  # chainke_contracts — 合同表 (module_chainke schema)
+  # --------------------------------------------------------------------------
+  - name: chainke_contracts
+    description: "链客宝AI合同 — 商家间采购/合作协议"
+    allowed_fields:
+      - id
+      - uuid
+      - contract_no
+      - order_id
+      - order_no
+      - merchant_id
+      - party_a_organization_id
+      - party_b_organization_id
+      - party_a_contact
+      - party_b_contact
+      - contract_type
+      - title
+      - title_en
+      - description
+      - content_url
+      - signed_pdf_url
+      - effective_date
+      - expiry_date
+      - total_amount
+      - currency
+      - payment_terms
+      - delivery_terms
+      - arbitration_clause
+      - governing_law
+      - signatory_a_name
+      - signatory_a_title
+      - signatory_b_name
+      - signatory_b_title
+      - signed_at_a
+      - signed_at_b
+      - status
+      - rejection_reason
+      - created_by
+      - created_at
+      - updated_at
+    required:
+      - uuid
+      - contract_no
+      - party_a_organization_id
+      - party_b_organization_id
+      - contract_type
+      - title
+    constraints:
+      uuid:
+        regex: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        max_length: 36
+      contract_no:
+        regex: "^CT[A-Z0-9]{10,30}$"
+        max_length: 32
+      contract_type:
+        enum: ["purchase_agreement", "supply_agreement", "distribution_agreement",
+               "agency_agreement", "nda", "service_agreement", "framework_agreement",
+               "other"]
+      title:
+        max_length: 300
+        min_length: 1
+      total_amount:
+        min: 0.0
+      currency:
+        enum: ["CNY", "USD", "KRW", "JPY", "EUR", "GBP", "HKD", "SGD"]
+      delivery_terms:
+        enum: ["EXW", "FOB", "CIF", "DDP", "DAP", "CFR", "CIP", "FCA"]
+      governing_law:
+        enum: ["china_law", "korea_law", "japan_law", "us_law", "uk_law",
+               "singapore_law", "hong_kong_law", "international_arbitration"]
+      status:
+        enum: ["draft", "pending_signature", "signed_by_party_a",
+               "signed_by_party_b", "fully_signed", "active", "expired",
+               "terminated", "cancelled"]
+    not_allowed:
+      - legal_review_notes_internal
+      - negotiable_terms_internal

@@ -1,0 +1,20 @@
+name: recharge
+version: "1.0.0"
+description: 充值管理
+author: 链客宝
+dependencies:
+  - auth
+  - orders
+routes:
+  prefix: /api/recharge
+  auth_required: true
+frontend:
+  entry: ./frontend/RechargeModule
+  routes:
+    - /recharge
+    - /recharge/plans
+    - /recharge/history
+permissions:
+  - recharge.execute
+  - recharge.plans
+  - recharge.history

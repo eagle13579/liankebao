@@ -1,0 +1,143 @@
+# ============================================================
+# 链客宝 SSR Docker 多阶段构建
+# 用于名片分享页面的服务端渲染，提升 SEO 和分享体验
+# ============================================================
+# 构建方式:
+#   docker build -f Dockerfile.ssr -t liankebao-ssr .
+#   docker run -p 3000:3000 -e API_BASE=http://backend:8001 liankebao-ssr
+#
+# docker-compose 集成:
+#   在 docker-compose.yml 中新增 ssr 服务:
+#     ssr:
+#       build:
+#         context: .
+#         dockerfile: Dockerfile.ssr
+#       ports:
+#         - "3000:3000"
+#       environment:
+#         - API_BASE=http://backend:8001
+#         - NODE_ENV=production
+#         - IS_SSR=true
+#       depends_on:
+#         - backend
+# ============================================================
+
+# ============================================================
+# Stage 1: 前端 SPA 构建 (Vite)
+# ============================================================
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /app
+
+# 复制依赖文件并安装
+COPY package.json package-lock.json ./
+RUN npm ci --frozen-lockfile
+
+# 复制源码并构建 SPA
+COPY index.html vite.config.ts tsconfig.json ./
+COPY public/ ./public/
+COPY src/ ./src/
+
+RUN npm run build
+
+# ============================================================
+# Stage 2: SSR 构建 (Vite SSR)
+# ============================================================
+FROM node:20-alpine AS ssr-builder
+
+WORKDIR /app
+
+# 复用依赖（利用 Docker 缓存）
+COPY package.json package-lock.json ./
+RUN npm ci --frozen-lockfile
+
+# 复制源码 (包含 SSR 相关文件)
+COPY index.html vite.config.ts tsconfig.json ./
+COPY public/ ./public/
+COPY src/ ./src/
+
+# 构建 SSR bundle
+RUN SSR_BUILD=true npm run build:ssr
+
+# ============================================================
+# Stage 3: 生产镜像 (Node.js runtime)
+# ============================================================
+FROM node:20-alpine AS production
+
+LABEL maintainer="链客宝团队"
+LABEL description="链客宝 SSR 服务 — Express + Vite SSR"
+LABEL version="1.0.0"
+
+ENV NODE_ENV=production \
+    IS_SSR=true \
+    TZ=Asia/Shanghai
+
+WORKDIR /app
+
+# 安装 curl 用于健康检查
+RUN apk add --no-cache curl tini
+
+# 从 frontend-builder 复制 SPA 构建产物
+COPY --from=frontend-builder /app/dist/ ./dist/
+
+# 从 ssr-builder 复制 SSR 构建产物
+COPY --from=ssr-builder /app/dist-ssr/ ./dist-ssr/
+
+# 复制 package.json 和 node_modules（用于 serve-static 等运行时依赖）
+COPY package.json package-lock.json ./
+RUN npm ci --frozen-lockfile --production
+
+# 复制 SSR 服务器源码
+COPY server/ ./server/
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD curl -sf http://localhost:3000/app/ || exit 1
+
+# 使用 tini 作为 init 进程
+ENTRYPOINT ["/sbin/tini", "--"]
+
+# 启动 SSR 服务器（通过 tsx 运行）
+CMD ["npx", "tsx", "server/ssr.ts"]
+
+EXPOSE 3000
+
+# ============================================================
+# Stage 4: SEO Meta Proxy (轻量级，无 React SSR)
+# 为 /app/card/:token 注入 og:meta 标签
+# ============================================================
+FROM node:20-alpine AS meta-proxy
+
+LABEL maintainer="链客宝团队"
+LABEL description="链客宝 SEO Meta Proxy — 轻量级 Express 服务，仅注入 meta 标签"
+LABEL version="1.0.0"
+
+ENV NODE_ENV=production \
+    TZ=Asia/Shanghai
+
+WORKDIR /app
+
+# 安装 curl 用于健康检查
+RUN apk add --no-cache curl tini
+
+# 从 frontend-builder 复制 SPA 构建产物（用于读取 index.html 模板）
+COPY --from=frontend-builder /app/dist/ ./dist/
+
+# 复制 package.json 和 node_modules（用于 express 等运行时依赖）
+COPY package.json package-lock.json ./
+RUN npm ci --frozen-lockfile --production
+
+# 复制 meta-proxy 服务器源码
+COPY server/ ./server/
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -sf http://localhost:3002/health || exit 1
+
+# 使用 tini 作为 init 进程
+ENTRYPOINT ["/sbin/tini", "--"]
+
+# 启动 meta-proxy 服务（通过 tsx 运行）
+CMD ["npx", "tsx", "server/meta-proxy.ts"]
+
+EXPOSE 3002

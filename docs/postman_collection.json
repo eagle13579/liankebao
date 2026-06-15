@@ -1,0 +1,868 @@
+{
+  "info": {
+    "name": "链客宝AI API",
+    "description": "链客宝AI后端 API 集合 — Premium Business Network and Entrepreneur Supply-Demand Matching Platform\n\n环境变量:\n- {{base_url}}: API 基础地址 (默认: https://www.go-aiport.com)\n- {{token}}: Bearer 令牌 (登录后自动获取)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "liankebao"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://www.go-aiport.com",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "🔐 认证 Auth",
+      "description": "用户注册、登录、令牌管理",
+      "item": [
+        {
+          "name": "用户登录",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"user@example.com\",\n  \"password\": \"your_password\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "用户登录，返回 access_token 和 refresh_token。登录后请将 access_token 设为环境变量 {{token}}。"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var json = pm.response.json();",
+                  "    pm.environment.set('token', json.data.access_token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "用户注册",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"newuser@example.com\",\n  \"password\": \"SecurePass123!\",\n  \"name\": \"张三\",\n  \"phone\": \"13800138000\",\n  \"company\": \"示例科技有限公司\",\n  \"position\": \"产品经理\",\n  \"role\": \"buyer\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "description": "用户注册，支持手机号或邮箱作为用户名。自动签发 token。"
+          }
+        },
+        {
+          "name": "获取当前用户",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "me"]
+            },
+            "description": "获取当前登录用户的详细信息。"
+          }
+        },
+        {
+          "name": "刷新令牌",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"your_refresh_token_here\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "refresh"]
+            },
+            "description": "使用 refresh_token 轮换获取新的 access_token + refresh_token。"
+          }
+        },
+        {
+          "name": "微信登录",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"微信小程序临时code\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/wechat",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "wechat"]
+            },
+            "description": "微信小程序登录，使用 wx.login() 获取的临时 code。"
+          }
+        },
+        {
+          "name": "退出登录",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "logout"]
+            },
+            "description": "将当前 token 加入黑名单，实现登出。"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📦 产品 Products",
+      "description": "产品 CRUD 和分类浏览",
+      "item": [
+        {
+          "name": "获取产品列表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/products?page=1&page_size=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "products"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "page_size", "value": "20" },
+                { "key": "category", "value": null, "disabled": true },
+                { "key": "search", "value": null, "disabled": true }
+              ]
+            },
+            "description": "获取产品列表，支持分类筛选和分页。未登录用户可见已上架产品。"
+          }
+        },
+        {
+          "name": "创建产品",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"优质农产品礼盒\",\n  \"description\": \"精选有机农产品礼盒，适合节日送礼\",\n  \"price\": 299.00,\n  \"category\": \"食品/农产品\",\n  \"tags\": \"有机,礼盒,农产品\",\n  \"stock\": 100,\n  \"images\": [\"https://example.com/image1.jpg\"],\n  \"brand\": \"链客优选\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/products",
+              "host": ["{{base_url}}"],
+              "path": ["api", "products"]
+            },
+            "description": "创建新产品（需 admin 或 member 角色）。"
+          }
+        },
+        {
+          "name": "获取产品详情",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/products/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "products", "1"]
+            },
+            "description": "获取指定产品的详细信息。"
+          }
+        },
+        {
+          "name": "更新产品",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"更新后的产品名称\",\n  \"price\": 199.00,\n  \"stock\": 200\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/products/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "products", "1"]
+            },
+            "description": "更新产品信息（仅本人或管理员）。"
+          }
+        },
+        {
+          "name": "删除产品",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/products/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "products", "1"]
+            },
+            "description": "软删除产品。"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔍 搜索 Search",
+      "description": "产品搜索和语义搜索",
+      "item": [
+        {
+          "name": "产品搜索",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/search?q=有机农产品&page=1&page_size=20&sort_by=relevance",
+              "host": ["{{base_url}}"],
+              "path": ["api", "search"],
+              "query": [
+                { "key": "q", "value": "有机农产品" },
+                { "key": "page", "value": "1" },
+                { "key": "page_size", "value": "20" },
+                { "key": "sort_by", "value": "relevance" },
+                { "key": "category", "value": null, "disabled": true },
+                { "key": "min_price", "value": null, "disabled": true },
+                { "key": "max_price", "value": null, "disabled": true },
+                { "key": "highlight", "value": "true", "disabled": true }
+              ]
+            },
+            "description": "全文搜索产品，支持中文分词、分类/价格/地区筛选、多维度排序。"
+          }
+        },
+        {
+          "name": "语义向量搜索",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/search/vector?q=寻找优质供应商&top_k=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "search", "vector"],
+              "query": [
+                { "key": "q", "value": "寻找优质供应商" },
+                { "key": "top_k", "value": "10" }
+              ]
+            },
+            "description": "使用向量 embedding 做语义相似度搜索。需启用 USE_VECTOR_SEARCH=1。"
+          }
+        },
+        {
+          "name": "重建向量索引",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/search/vector/rebuild",
+              "host": ["{{base_url}}"],
+              "path": ["api", "search", "vector", "rebuild"]
+            },
+            "description": "扫描全量数据重新生成向量索引。"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🤝 供需匹配 Matching",
+      "description": "AI 供需智能匹配",
+      "item": [
+        {
+          "name": "需求匹配产品",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/matching/needs/1/products?top_k=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "matching", "needs", "1", "products"],
+              "query": [
+                { "key": "top_k", "value": "10" },
+                { "key": "strategy", "value": null, "disabled": true }
+              ]
+            },
+            "description": "根据需求ID匹配最相关的产品，返回 match_score 和匹配理由。"
+          }
+        },
+        {
+          "name": "产品匹配需求",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/matching/products/1/needs?top_k=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "matching", "products", "1", "needs"],
+              "query": [
+                { "key": "top_k", "value": "10" }
+              ]
+            },
+            "description": "根据产品ID匹配最相关的需求。"
+          }
+        },
+        {
+          "name": "刷新匹配索引",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/matching/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["api", "matching", "refresh"]
+            },
+            "description": "重建匹配引擎的倒排索引和 TF-IDF 模型。"
+          }
+        }
+      ]
+    },
+    {
+      "name": "⭐ 推荐 Recommend",
+      "description": "个性化推荐和热门推荐",
+      "item": [
+        {
+          "name": "热门推荐",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/recommend/hot?limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "recommend", "hot"],
+              "query": [
+                { "key": "limit", "value": "10" }
+              ]
+            },
+            "description": "返回过去7天浏览最多的产品。"
+          }
+        },
+        {
+          "name": "个性化推荐",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/recommend/products?user_id=1&limit=8",
+              "host": ["{{base_url}}"],
+              "path": ["api", "recommend", "products"],
+              "query": [
+                { "key": "user_id", "value": "1" },
+                { "key": "limit", "value": "8" }
+              ]
+            },
+            "description": "基于用户行为推荐产品。有行为→同类推荐，无行为→热门推荐。"
+          }
+        },
+        {
+          "name": "AI 个性化推荐（LLM）",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/recommend/personalized/1?limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "recommend", "personalized", "1"],
+              "query": [
+                { "key": "limit", "value": "10" }
+              ]
+            },
+            "description": "结合 matching_engine + LLM 生成智能匹配推荐理由。"
+          }
+        },
+        {
+          "name": "提交推荐反馈",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": 1,\n  \"product_id\": 1,\n  \"action\": \"like\",\n  \"source\": \"recommend\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/recommend/feedback",
+              "host": ["{{base_url}}"],
+              "path": ["api", "recommend", "feedback"]
+            },
+            "description": "用户对推荐结果的反馈（like/dislike），用于优化推荐质量。"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📊 CRM 管道",
+      "description": "商机管理和管道追踪",
+      "item": [
+        {
+          "name": "商机列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/crm/deals?page=1&page_size=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "crm", "deals"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "page_size", "value": "20" },
+                { "key": "stage", "value": null, "disabled": true }
+              ]
+            },
+            "description": "获取商机列表，支持按阶段筛选和搜索。"
+          }
+        },
+        {
+          "name": "创建商机",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"与XX公司合作项目\",\n  \"value\": 50000.00,\n  \"stage\": \"leads\",\n  \"probability\": 30,\n  \"notes\": \"初步接触，对方有意向\",\n  \"expected_close_date\": \"2026-09-30\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/crm/deals",
+              "host": ["{{base_url}}"],
+              "path": ["api", "crm", "deals"]
+            },
+            "description": "创建新商机，自动记录活动到管道时间线。"
+          }
+        },
+        {
+          "name": "商机详情",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/crm/deals/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "crm", "deals", "1"]
+            },
+            "description": "获取商机详情，包含活动记录时间线。"
+          }
+        },
+        {
+          "name": "更新商机",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stage\": \"negotiation\",\n  \"value\": 45000.00,\n  \"probability\": 70,\n  \"notes\": \"进入商务谈判阶段\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/crm/deals/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "crm", "deals", "1"]
+            },
+            "description": "更新商机阶段、金额、概率等信息。"
+          }
+        },
+        {
+          "name": "管道概览",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/crm/pipeline",
+              "host": ["{{base_url}}"],
+              "path": ["api", "crm", "pipeline"]
+            },
+            "description": "获取管道各阶段统计（商机数量、总金额）。"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏢 企业数据 Enterprise",
+      "description": "企业知识图谱",
+      "item": [
+        {
+          "name": "企业列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/enterprise?page=1&page_size=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "enterprise"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "page_size", "value": "20" },
+                { "key": "industry", "value": null, "disabled": true },
+                { "key": "region", "value": null, "disabled": true }
+              ]
+            },
+            "description": "获取企业列表，支持行业和地区筛选。"
+          }
+        },
+        {
+          "name": "创建企业",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"示例科技有限公司\",\n  \"credit_code\": \"91110000MA12345678\",\n  \"legal_person\": \"李四\",\n  \"registered_capital\": \"1000万元\",\n  \"industry\": \"信息技术\",\n  \"region\": \"北京\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/enterprise",
+              "host": ["{{base_url}}"],
+              "path": ["api", "enterprise"]
+            },
+            "description": "创建新的企业档案。"
+          }
+        },
+        {
+          "name": "企业详情",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/enterprise/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "enterprise", "1"]
+            },
+            "description": "获取企业详细信息及关系图谱。"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📎 数据丰富 Enrich",
+      "description": "企业数据补全服务",
+      "item": [
+        {
+          "name": "企业信息丰富",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/enrich/company?name=阿里巴巴",
+              "host": ["{{base_url}}"],
+              "path": ["api", "enrich", "company"],
+              "query": [
+                { "key": "name", "value": "阿里巴巴" }
+              ]
+            },
+            "description": "根据企业名称进行全量信息丰富，返回基本资料、经营范围、联系人等。"
+          }
+        },
+        {
+          "name": "企业基本信息",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/enrich/company/basic?name=阿里巴巴",
+              "host": ["{{base_url}}"],
+              "path": ["api", "enrich", "company", "basic"],
+              "query": [
+                { "key": "name", "value": "阿里巴巴" }
+              ]
+            },
+            "description": "仅查询企业工商基本信息（信用代码、法人、注册资本等）。"
+          }
+        },
+        {
+          "name": "经营范围查询",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/enrich/company/scope?name=阿里巴巴",
+              "host": ["{{base_url}}"],
+              "path": ["api", "enrich", "company", "scope"],
+              "query": [
+                { "key": "name", "value": "阿里巴巴" }
+              ]
+            },
+            "description": "查询企业经营范围和所属行业。"
+          }
+        },
+        {
+          "name": "企业联系人",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/enrich/contacts?company=阿里巴巴",
+              "host": ["{{base_url}}"],
+              "path": ["api", "enrich", "contacts"],
+              "query": [
+                { "key": "company", "value": "阿里巴巴" }
+              ]
+            },
+            "description": "获取企业关键联系人信息。"
+          }
+        }
+      ]
+    },
+    {
+      "name": "👥 多租户组织 Orgs",
+      "description": "组织管理和团队协作",
+      "item": [
+        {
+          "name": "创建组织",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"我的团队\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orgs",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orgs"]
+            },
+            "description": "创建新组织，创建者自动成为管理员。"
+          }
+        },
+        {
+          "name": "我的组织列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/orgs",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orgs"]
+            },
+            "description": "获取当前用户所属的所有组织。"
+          }
+        },
+        {
+          "name": "组织详情",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/orgs/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orgs", "1"]
+            },
+            "description": "获取组织详细信息。"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📈 增长引擎 Growth",
+      "description": "邀请/积分/推广系统",
+      "item": [
+        {
+          "name": "创建邀请链接",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"来链客宝AI一起做生意！\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/growth/invite",
+              "host": ["{{base_url}}"],
+              "path": ["api", "growth", "invite"]
+            },
+            "description": "创建邀请链接，有效期30天。"
+          }
+        },
+        {
+          "name": "邀请列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/growth/invites?page=1&page_size=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "growth", "invites"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "page_size", "value": "20" }
+              ]
+            },
+            "description": "获取当前用户的邀请记录列表。"
+          }
+        },
+        {
+          "name": "邀请详情",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/growth/invites/abc12345",
+              "host": ["{{base_url}}"],
+              "path": ["api", "growth", "invites", "abc12345"]
+            },
+            "description": "查看邀请详情（无需登录，供落地页使用）。"
+          }
+        },
+        {
+          "name": "接受邀请",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"abc12345\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/growth/invites/accept",
+              "host": ["{{base_url}}"],
+              "path": ["api", "growth", "invites", "accept"]
+            },
+            "description": "接受邀请码，接受者获100积分，邀请人获50积分。"
+          }
+        },
+        {
+          "name": "邀请统计",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/growth/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "growth", "stats"]
+            },
+            "description": "获取邀请统计：已邀请人数、已注册人数、累计奖励。"
+          }
+        }
+      ]
+    },
+    {
+      "name": "⚙️ 系统 System",
+      "description": "系统通用接口",
+      "item": [
+        {
+          "name": "首页轮播图",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/banners",
+              "host": ["{{base_url}}"],
+              "path": ["banners"]
+            },
+            "description": "获取小程序首页轮播图列表。"
+          }
+        },
+        {
+          "name": "通知列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/notifications?page=1&page_size=20&unread_only=false",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "page_size", "value": "20" },
+                { "key": "unread_only", "value": "false" }
+              ]
+            },
+            "description": "获取当前用户的通知列表，支持分页和未读筛选。"
+          }
+        },
+        {
+          "name": "健康检查",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "服务健康检查，返回状态、数据库连接、版本信息。"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+# ============================================================
+# 链客宝AI — 后端 Service (ClusterIP)
+# ============================================================
+# 说明: 内部 ClusterIP 服务，供 Ingress 和前端 Pod 访问。
+#       端口 8001 对应 FastAPI/Uvicorn 服务端口。
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: chainke-backend
+  namespace: chainke
+  labels:
+    app: chainke
+    component: backend
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8001
+      targetPort: 8001
+      protocol: TCP
+  selector:
+    app: chainke
+    component: backend

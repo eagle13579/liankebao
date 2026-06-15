@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "liankebao-payment-sdk"
+version = "0.1.0"
+description = "链客宝支付模块独立SDK — 微信支付V2/V3、支付宝（预留）"
+readme = "README.md"
+license = {text = "Proprietary"}
+requires-python = ">=3.11"
+authors = [
+    {name = "链客宝团队", email = "support@go-aiport.com"},
+]
+keywords = ["payment", "wechat", "alipay", "sdk", "liankebao"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Office/Business :: Financial",
+]
+
+dependencies = [
+    "httpx>=0.27.0",
+    "cryptography>=42.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+]
+
+[project.urls]
+Homepage = "https://github.com/liankebao/payment-sdk"
+Documentation = "https://liankebao-payment-sdk.nousresearch.com"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["payment_sdk*"]
+
+[tool.pytest.ini_options]
+testpaths = ["payment_sdk/tests"]
+python_files = ["test_*.py"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]

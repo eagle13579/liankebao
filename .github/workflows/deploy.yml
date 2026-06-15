@@ -1,0 +1,67 @@
+name: 链客宝 CI/CD
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      skip_build:
+        description: '跳过前端构建（只拉代码+重启）'
+        type: boolean
+        default: false
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      
+      # 阶段1: 前端构建（除非手动跳过）
+      - name: Build frontend
+        if: ${{ inputs.skip_build != true }}
+        run: |
+          npm install && npm run build -- --logLevel error
+      
+      # 阶段2: 部署到阿里云（带重试）
+      - name: Deploy via SSH retry (max 5次)
+        env:
+          SSHPASS: ${{ secrets.DEPLOY_PASSWORD }}
+        run: |
+          sudo apt-get install -y -qq sshpass
+          for attempt in $(seq 1 5); do
+            echo "--- SSH attempt $attempt/5 ---"
+            sshpass -e ssh -o StrictHostKeyChecking=no \
+              -o ConnectTimeout=15 \
+              -o ServerAliveInterval=10 \
+              -o ServerAliveCountMax=5 \
+              -o TCPKeepAlive=yes \
+              -o LogLevel=ERROR \
+              root@47.116.116.87 '
+              echo "[1/5] Pulling code..."
+              cd /var/www/liankebao
+              git fetch origin master
+              git reset --hard origin/master
+              git clean -fd
+              echo "[2/5] Installing deps..."
+              cd backend && source .venv/bin/activate && pip install -r requirements.txt -q && cd ..
+              echo "[3/5] Configuring env..."
+              grep -q "WECHAT_APP_SECRET" .env 2>/dev/null || echo "WECHAT_APP_SECRET=d1eebc8db44579b05fce5c335a35ecca" >> .env
+              echo "[4/5] Restarting service..."
+              systemctl daemon-reload
+              systemctl restart chainke
+              sleep 10
+              echo "[5/5] Health check..."
+              curl -sf http://127.0.0.1:8001/health > /dev/null && echo "DEPLOY_OK" || echo "HEALTH_CHECK_FAILED"
+            ' 2>&1
+            if [ $? -eq 0 ]; then
+              echo "✅ SSH attempt $attempt/5 succeeded"
+              break
+            else
+              echo "❌ SSH attempt $attempt/5 failed, retrying in 10s..."
+              sleep 10
+            fi
+          done

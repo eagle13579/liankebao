@@ -1,0 +1,133 @@
+/* 链客宝微信小程序全局样式 - AI数字名片主题 */
+@import './styles/variables.scss';
+
+page {
+  background-color: #0f0c29;
+  background: $bg-gradient;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  color: $text-primary;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* 通用容器 */
+.container {
+  min-height: 100vh;
+  padding-bottom: calc(120px + $safe-bottom);
+}
+
+/* 毛玻璃卡片 */
+.glass {
+  background: $glass-bg;
+  backdrop-filter: $glass-blur;
+  -webkit-backdrop-filter: $glass-blur;
+  border: 1px solid $glass-border;
+  border-radius: $radius-lg;
+  box-shadow: $glass-shadow;
+}
+
+/* 渐变色主按钮 */
+.btn-primary {
+  background: $primary-gradient;
+  color: #fff;
+  border: none;
+  border-radius: $radius-md;
+  padding: 14px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+  transition: opacity $transition-fast;
+}
+
+.btn-primary:active {
+  opacity: 0.9;
+}
+
+.btn-primary[disabled] {
+  opacity: 0.5;
+}
+
+/* 次要按钮 */
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: $text-secondary;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: $radius-md;
+  padding: 14px 32px;
+  font-size: 15px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.btn-secondary:active {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* 加载动画 */
+.loading {
+  text-align: center;
+  padding: 40px 0;
+  color: $text-tertiary;
+  font-size: 14px;
+}
+
+/* 空状态 */
+.empty {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: $text-secondary;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.empty-desc {
+  font-size: 13px;
+  color: $text-tertiary;
+  display: block;
+}
+
+/* 骨架屏 */
+.skeleton {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: $radius-sm;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+/* 标签样式 */
+.tag {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  margin: 2px 4px;
+}
+
+.tag-provide {
+  background: rgba(102, 126, 234, 0.2);
+  color: #8b9eff;
+  border: 1px solid rgba(102, 126, 234, 0.3);
+}
+
+.tag-need {
+  background: rgba(245, 87, 108, 0.2);
+  color: #f5576c;
+  border: 1px solid rgba(245, 87, 108, 0.3);
+}

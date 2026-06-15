@@ -1,0 +1,548 @@
+{
+  "title": "链客宝AI 生产监控总览",
+  "uid": "chainke_overview",
+  "version": 1,
+  "description": "链客宝AI生产环境监控仪表盘 — 服务健康、API性能、数据库状态、请求量总览",
+  "tags": ["liankebao", "production", "monitoring"],
+  "timezone": "asia/shanghai",
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 1,
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h", "2h", "1d"],
+    "time_options": ["5m", "15m", "1h", "6h", "12h", "24h", "2d", "7d", "30d"]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "instance",
+        "type": "query",
+        "query": "label_values(liankebao_up, instance)",
+        "refresh": 1,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": false,
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "服务在线状态",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 4, "x": 0, "y": 0 },
+      "description": "链客宝AI整体健康状态 (1=在线, 0=离线)",
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "red", "value": 0 },
+              { "color": "green", "value": 1 }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": { "text": "宕机", "color": "red" },
+                "1": { "text": "在线", "color": "green" }
+              }
+            }
+          ],
+          "unit": "none",
+          "decimals": 0,
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "liankebao_up{instance=~\"$instance\"}",
+          "legendFormat": "整体状态",
+          "refId": "A"
+        }
+      ],
+      "pluginVersion": "11.4.0"
+    },
+    {
+      "id": 2,
+      "title": "API 在线状态",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 4, "x": 4, "y": 0 },
+      "description": "FastAPI 后端可达性 (1=正常, 0=不可达)",
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "red", "value": 0 },
+              { "color": "green", "value": 1 }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": { "text": "宕机", "color": "red" },
+                "1": { "text": "正常", "color": "green" }
+              }
+            }
+          ],
+          "unit": "none",
+          "decimals": 0,
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "liankebao_api_up{instance=~\"$instance\"}",
+          "legendFormat": "API状态",
+          "refId": "A"
+        }
+      ],
+      "pluginVersion": "11.4.0"
+    },
+    {
+      "id": 3,
+      "title": "数据库状态",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 4, "x": 8, "y": 0 },
+      "description": "SQLite 数据库可达性 (1=正常, 0=不可达)",
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "red", "value": 0 },
+              { "color": "green", "value": 1 }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": { "text": "宕机", "color": "red" },
+                "1": { "text": "正常", "color": "green" }
+              }
+            }
+          ],
+          "unit": "none",
+          "decimals": 0,
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "liankebao_db_up{instance=~\"$instance\"}",
+          "legendFormat": "数据库状态",
+          "refId": "A"
+        }
+      ],
+      "pluginVersion": "11.4.0"
+    },
+    {
+      "id": 4,
+      "title": "API 响应时间 (P50/P95/P99)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 6 },
+      "description": "FastAPI 请求响应时间百分位分布 (需要 http_request_duration_seconds 指标)",
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1.0 },
+              { "color": "red", "value": 3.0 }
+            ]
+          },
+          "unit": "s",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max", "last"],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{job=\"liankebao-api\"}[5m])) by (le))",
+          "legendFormat": "P50",
+          "refId": "A",
+          "hide": false
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"liankebao-api\"}[5m])) by (le))",
+          "legendFormat": "P95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=\"liankebao-api\"}[5m])) by (le))",
+          "legendFormat": "P99",
+          "refId": "C"
+        }
+      ],
+      "pluginVersion": "11.4.0"
+    },
+    {
+      "id": 5,
+      "title": "API 请求数 (RPM)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 6 },
+      "description": "每分钟 API 请求总数和分状态码统计 (需要 http_requests_total 指标)",
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          },
+          "unit": "cpm",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max", "last"],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{job=\"liankebao-api\"}[1m]))",
+          "legendFormat": "总请求数",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(http_requests_total{job=\"liankebao-api\", status_code=~\"2..\"}[1m]))",
+          "legendFormat": "2xx 成功",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(http_requests_total{job=\"liankebao-api\", status_code=~\"4..\"}[1m]))",
+          "legendFormat": "4xx 客户端错误",
+          "refId": "C"
+        },
+        {
+          "expr": "sum(rate(http_requests_total{job=\"liankebao-api\", status_code=~\"5..\"}[1m]))",
+          "legendFormat": "5xx 服务端错误",
+          "refId": "D"
+        }
+      ],
+      "pluginVersion": "11.4.0"
+    },
+    {
+      "id": 6,
+      "title": "服务运行时长",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 14 },
+      "description": "健康看板进程连续运行时长",
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 30,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          },
+          "unit": "s",
+          "decimals": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "运行时长"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "dtdhms"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max", "last"],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "liankebao_uptime_seconds{instance=~\"$instance\"}",
+          "legendFormat": "运行时长",
+          "refId": "A"
+        }
+      ],
+      "pluginVersion": "11.4.0"
+    },
+    {
+      "id": 7,
+      "title": "测试通过率",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 4, "x": 8, "y": 14 },
+      "description": "最近一次测试运行的通过率 (需自定义 metric 或从 CI 上报)",
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "red", "value": 80 },
+              { "color": "yellow", "value": 90 },
+              { "color": "green", "value": 100 }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "match": "null",
+                "value": "null",
+                "result": { "text": "暂无数据" }
+              }
+            }
+          ],
+          "unit": "percent",
+          "decimals": 1,
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "liankebao_test_pass_rate{instance=~\"$instance\"}",
+          "legendFormat": "通过率",
+          "refId": "A"
+        }
+      ],
+      "pluginVersion": "11.4.0",
+      "hide": false
+    },
+    {
+      "id": 8,
+      "title": "告警状态",
+      "type": "text",
+      "gridPos": { "h": 6, "w": 4, "x": 12, "y": 14 },
+      "description": "当前活跃告警摘要",
+      "datasource": "Prometheus",
+      "options": {
+        "mode": "html",
+        "content": "<div style=\"padding: 12px; background: #1b1b2f; border-radius: 4px;\">\n  <h3 style=\"margin-top: 0; color: #e0e0e0;\">📊 链客宝AI监控摘要</h3>\n  <table style=\"width: 100%; font-size: 13px; line-height: 1.8;\">\n    <tr><td style=\"color: #888;\">🔹 整体状态:</td><td id=\"overall-status\"><b>liankebao_up</b></td></tr>\n    <tr><td style=\"color: #888;\">🔹 后端 API:</td><td id=\"api-status\"><b>liankebao_api_up</b></td></tr>\n    <tr><td style=\"color: #888;\">🔹 数据库:</td><td id=\"db-status\"><b>liankebao_db_up</b></td></tr>\n    <tr><td style=\"color: #888;\">🕐 评估周期:</td><td>15秒</td></tr>\n    <tr><td style=\"color: #888;\">⏰ 告警延迟:</td><td>5分钟</td></tr>\n    <tr><td style=\"color: #888;\">📡 指标端点:</td><td>:9100/metrics</td></tr>\n    <tr><td style=\"color: #888;\">📋 告警规则:</td><td>alerts/liankebao_alerts.yml</td></tr>\n  </table>\n</div>"
+      },
+      "pluginVersion": "11.4.0",
+      "transparent": false
+    }
+  ],
+  "schemaVersion": 39,
+  "refresh": "15s"
+}

@@ -1,0 +1,15 @@
+name: search
+version: "1.0.0"
+description: 搜索引擎
+author: 链客宝
+dependencies:
+  - products
+routes:
+  prefix: /api/search
+  auth_required: false
+frontend:
+  entry: ./frontend/SearchModule
+  routes:
+    - /search
+permissions:
+  - search.query

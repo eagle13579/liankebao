@@ -1,0 +1,200 @@
+@import '../../styles/variables.scss';
+
+.flip-page {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  padding: $spacing-xl;
+  transition: transform $transition-normal, opacity $transition-normal;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.flip-page.active {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.flip-page.prev {
+  opacity: 0.5;
+  transform: scale(0.92) translateX(-30px);
+}
+
+.flip-page.next {
+  opacity: 0.5;
+  transform: scale(0.92) translateX(30px);
+}
+
+.card-inner {
+  padding: $spacing-xl $spacing-lg;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 420px;
+}
+
+/* 封面页 */
+.fp-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: $radius-full;
+  background: $primary-gradient;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: $spacing-lg;
+}
+
+.fp-avatar-text {
+  font-size: 36px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.fp-name {
+  font-size: 24px;
+  font-weight: 700;
+  color: $text-primary;
+  margin-bottom: $spacing-xs;
+}
+
+.fp-company {
+  font-size: 14px;
+  color: $text-secondary;
+  margin-bottom: $spacing-md;
+}
+
+.fp-bio {
+  font-size: 13px;
+  color: $text-tertiary;
+  text-align: center;
+  line-height: 1.6;
+  margin-bottom: $spacing-lg;
+  padding: 0 $spacing-md;
+}
+
+.fp-purpose {
+  font-size: 13px;
+  color: $accent-pink;
+  background: rgba(245, 87, 108, 0.15);
+  padding: 6px 16px;
+  border-radius: 20px;
+  margin-bottom: $spacing-lg;
+  display: inline-block;
+}
+
+.fp-tags {
+  width: 100%;
+}
+
+.tag-label {
+  font-size: 12px;
+  color: $text-tertiary;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.fp-tag-group {
+  margin-bottom: $spacing-sm;
+}
+
+/* 联系方式页 */
+.fp-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: $text-primary;
+  margin-bottom: $spacing-xl;
+  display: block;
+}
+
+.contact-item {
+  display: flex;
+  align-items: center;
+  padding: $spacing-md 0;
+  width: 100%;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.contact-icon {
+  font-size: 20px;
+  margin-right: $spacing-md;
+}
+
+.contact-item Text:last-child {
+  font-size: 15px;
+  color: $text-secondary;
+}
+
+/* 产品展示页 */
+.fp-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+  justify-content: center;
+}
+
+.fp-image {
+  width: 200px;
+  height: 200px;
+  border-radius: $radius-md;
+}
+
+.fp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 0;
+}
+
+.fp-empty .empty-icon {
+  font-size: 48px;
+  margin-bottom: $spacing-md;
+}
+
+/* 二维码页 */
+.fp-qrcode {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0;
+}
+
+.fp-qrcode-placeholder {
+  width: 180px;
+  height: 180px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: $radius-md;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: $spacing-lg;
+}
+
+.fp-qrcode-text {
+  font-size: 12px;
+  color: $text-tertiary;
+}
+
+/* 企业信息页 */
+.fp-company-info {
+  width: 100%;
+}
+
+.fp-info-row {
+  display: flex;
+  padding: $spacing-md 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.fp-info-label {
+  font-size: 13px;
+  color: $text-tertiary;
+  width: 80px;
+  flex-shrink: 0;
+}
+
+.fp-info-value {
+  font-size: 14px;
+  color: $text-secondary;
+  flex: 1;
+}

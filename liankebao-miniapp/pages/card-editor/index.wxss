@@ -1,0 +1,286 @@
+/* pages/card-editor/index.wxss */
+.editor-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+  padding-bottom: 160rpx;
+}
+
+/* 导航栏 */
+.editor-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 100rpx 32rpx 16rpx;
+}
+.nav-back { font-size: 32rpx; color: #94a3b8; padding: 8rpx; width: 120rpx; }
+.nav-step { font-size: 28rpx; color: #64748b; }
+.nav-placeholder { width: 120rpx; }
+
+/* 步骤指示器 */
+.step-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 32rpx;
+  margin-bottom: 8rpx;
+}
+.step-dot {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 22rpx;
+  background: rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22rpx;
+  color: #64748b;
+  font-weight: 600;
+}
+.step-dot.active {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+  box-shadow: 0 4rpx 16rpx rgba(102,126,234,0.3);
+}
+.step-line {
+  flex: 1;
+  height: 4rpx;
+  background: rgba(255,255,255,0.1);
+  margin: 0 12rpx;
+  border-radius: 2rpx;
+}
+.step-line.active { background: linear-gradient(90deg, #667eea, #764ba2); }
+.step-label {
+  display: block;
+  text-align: center;
+  font-size: 24rpx;
+  color: #94a3b8;
+  margin-bottom: 24rpx;
+}
+
+.step-content { padding: 0 32rpx; }
+
+/* 上传区 */
+.upload-section { margin-bottom: 32rpx; }
+.upload-zone {
+  height: 280rpx;
+  border: 2rpx dashed rgba(255,255,255,0.15);
+  border-radius: 24rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.04);
+}
+.upload-zone.has-image {
+  border-style: solid;
+  border-color: rgba(102,126,234,0.3);
+  padding: 8rpx;
+}
+.upload-preview {
+  width: 100%;
+  height: 100%;
+  border-radius: 16rpx;
+}
+.upload-icon { font-size: 64rpx; margin-bottom: 12rpx; }
+.upload-text { font-size: 28rpx; color: #94a3b8; }
+.upload-hint { font-size: 22rpx; color: #64748b; margin-top: 8rpx; }
+.upload-status { text-align: center; font-size: 24rpx; color: #22c55e; margin-top: 12rpx; display: block; }
+
+/* 用途选择 */
+.purpose-section { margin-bottom: 32rpx; }
+.section-title { font-size: 28rpx; font-weight: 600; color: #e2e8f0; margin-bottom: 16rpx; display: block; }
+.purpose-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16rpx;
+}
+.purpose-card {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20rpx;
+  padding: 24rpx;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all 0.2s;
+}
+.purpose-card.active {
+  border-color: #667eea;
+  background: rgba(102,126,234,0.12);
+  box-shadow: 0 0 0 2rpx rgba(102,126,234,0.3);
+}
+.purpose-icon { font-size: 48rpx; margin-bottom: 8rpx; }
+.purpose-label { font-size: 26rpx; color: #e2e8f0; }
+.purpose-card:active { transform: scale(0.96); }
+
+/* 表单区域 */
+.form-section {
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 24rpx;
+  backdrop-filter: blur(8px);
+}
+.form-section-title { font-size: 28rpx; font-weight: 600; color: #667eea; margin-bottom: 24rpx; display: block; }
+.form-group { margin-bottom: 20rpx; }
+.form-label { font-size: 24rpx; color: #94a3b8; margin-bottom: 8rpx; display: block; }
+.input-field {
+  width: 100%;
+  height: 80rpx;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12rpx;
+  padding: 0 24rpx;
+  font-size: 28rpx;
+  color: #f1f5f9;
+  box-sizing: border-box;
+}
+.input-field.textarea {
+  height: 140rpx;
+  padding: 16rpx 24rpx;
+  line-height: 1.5;
+}
+.input-field::placeholder { color: #475569; }
+
+.ai-hint {
+  background: rgba(102,126,234,0.1);
+  border: 1px solid rgba(102,126,234,0.2);
+  border-radius: 16rpx;
+  padding: 16rpx 24rpx;
+  margin-bottom: 24rpx;
+  font-size: 24rpx;
+  color: #818cf8;
+}
+
+/* 图片选择器 */
+.image-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+.image-item {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 12rpx;
+  overflow: hidden;
+  position: relative;
+}
+.image-thumb {
+  width: 100%;
+  height: 100%;
+}
+.image-remove {
+  position: absolute;
+  top: 4rpx;
+  right: 4rpx;
+  width: 36rpx;
+  height: 36rpx;
+  background: rgba(0,0,0,0.6);
+  border-radius: 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20rpx;
+  color: #fff;
+}
+.image-add {
+  width: 160rpx;
+  height: 160rpx;
+  border: 2rpx dashed rgba(255,255,255,0.15);
+  border-radius: 12rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.add-icon { font-size: 40rpx; color: #64748b; }
+.add-text { font-size: 20rpx; color: #64748b; margin-top: 4rpx; }
+.image-hint { font-size: 22rpx; color: #64748b; margin-top: 12rpx; display: block; }
+
+/* 步骤按钮 */
+.step-actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 32rpx;
+  padding-bottom: 40rpx;
+}
+.step-actions .btn-primary,
+.step-actions .btn-secondary {
+  flex: 1;
+}
+
+/* 预览 */
+.preview-header { text-align: center; margin-bottom: 24rpx; }
+.preview-name { font-size: 36rpx; font-weight: 700; color: #f1f5f9; display: block; }
+.preview-purpose { font-size: 24rpx; color: #f5576c; margin-top: 8rpx; display: inline-block; padding: 4rpx 16rpx; background: rgba(245,87,108,0.1); border-radius: 16rpx; }
+
+.preview-card {
+  padding: 40rpx;
+  text-align: center;
+}
+.preview-avatar {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 60rpx;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16rpx;
+}
+.preview-avatar-text { font-size: 52rpx; font-weight: 700; color: #fff; }
+.preview-user-name { font-size: 36rpx; font-weight: 600; color: #f1f5f9; display: block; }
+.preview-company { font-size: 24rpx; color: #94a3b8; display: block; margin-bottom: 12rpx; }
+.preview-bio { font-size: 24rpx; color: #64748b; display: block; margin-bottom: 16rpx; }
+
+.preview-tags { margin: 16rpx 0; text-align: left; }
+.preview-tag-group { margin-bottom: 12rpx; }
+.tags { display: flex; flex-wrap: wrap; }
+.tag-provide { background: rgba(102,126,234,0.15); color: #818cf8; }
+.tag-need { background: rgba(245,87,108,0.15); color: #f5576c; }
+
+.preview-contact {
+  text-align: left;
+  padding: 16rpx 0;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  margin-top: 16rpx;
+}
+.preview-contact text { display: block; font-size: 26rpx; color: #cbd5e1; padding: 6rpx 0; }
+.contact-title { font-size: 28rpx; font-weight: 600; color: #f1f5f9; margin-bottom: 8rpx; }
+
+.preview-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  margin-top: 16rpx;
+}
+.preview-image {
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: 12rpx;
+}
+
+/* Step 4 发布 */
+.step4 { text-align: center; }
+.publish-section { padding: 40rpx 0; }
+.publish-icon { font-size: 120rpx; display: block; margin-bottom: 16rpx; }
+.publish-title { font-size: 40rpx; font-weight: 700; color: #f1f5f9; display: block; margin-bottom: 12rpx; }
+.publish-desc { font-size: 26rpx; color: #94a3b8; display: block; margin-bottom: 40rpx; line-height: 1.5; }
+
+.publish-summary {
+  padding: 32rpx;
+  text-align: left;
+  margin-bottom: 40rpx;
+}
+.summary-row {
+  display: flex;
+  padding: 12rpx 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.summary-row:last-child { border-bottom: none; }
+.summary-label { font-size: 24rpx; color: #94a3b8; width: 120rpx; flex-shrink: 0; }
+.summary-value { font-size: 26rpx; color: #e2e8f0; flex: 1; }
+
+.publish-btn { width: 100%; }

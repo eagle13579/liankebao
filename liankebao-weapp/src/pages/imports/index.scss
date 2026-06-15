@@ -1,0 +1,253 @@
+/* 导入联系人页面样式 */
+.imports-page {
+  min-height: 100vh;
+  background-color: #f5f5f5;
+}
+
+/* Header */
+.ip-header {
+  display: flex;
+  align-items: center;
+  padding: 50px 16px 14px;
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+}
+
+.ip-back {
+  font-size: 22px;
+  color: #ffffff;
+  padding: 4px 8px 4px 0;
+}
+
+.ip-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-left: 8px;
+}
+
+/* Import methods */
+.ip-methods {
+  padding: 16px;
+}
+
+.ip-method-card {
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 20px 16px;
+  margin-bottom: 12px;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.ip-method-card:active {
+  transform: scale(0.98);
+  transition: transform 0.15s;
+}
+
+.ip-method-icon {
+  font-size: 32px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0f9ff;
+  border-radius: 12px;
+  margin-right: 14px;
+  flex-shrink: 0;
+}
+
+.ip-method-info {
+  flex: 1;
+}
+
+.ip-method-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a2e;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.ip-method-desc {
+  font-size: 12px;
+  color: #94a3b8;
+  display: block;
+}
+
+.ip-method-arrow {
+  font-size: 18px;
+  color: #cbd5e1;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+/* History section */
+.ip-section {
+  padding: 0 16px;
+  margin-bottom: 12px;
+}
+
+.ip-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #64748b;
+  margin-bottom: 10px;
+  display: block;
+  padding: 0 4px;
+}
+
+/* Loading skeleton */
+.ip-loading {
+  padding: 16px;
+}
+
+.ip-skel-card {
+  display: flex;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 10px;
+  border: 1px solid #f1f5f9;
+}
+
+.ip-skel-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #e2e8f0;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.ip-skel-body {
+  flex: 1;
+}
+
+.ip-skel-line {
+  height: 12px;
+  background: #e2e8f0;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.ip-skel-line:last-child {
+  margin-bottom: 0;
+}
+
+.w-60 { width: 60%; }
+.w-40 { width: 40%; }
+
+/* Error */
+.ip-error, .ip-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+}
+
+.ip-error-icon, .ip-empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.ip-error-text, .ip-empty-text {
+  font-size: 14px;
+  color: #64748b;
+  margin-bottom: 16px;
+}
+
+.ip-error-retry {
+  font-size: 14px;
+  color: #0ea5e9;
+  font-weight: 600;
+  padding: 8px 24px;
+  border: 1px solid #0ea5e9;
+  border-radius: 20px;
+}
+
+.ip-error-retry:active {
+  background: #f0f9ff;
+}
+
+/* History list */
+.ip-history-list {
+  padding: 0 16px 80px;
+}
+
+.ip-history-card {
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+}
+
+.ip-history-icon {
+  font-size: 20px;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.ip-history-info {
+  flex: 1;
+}
+
+.ip-history-filename {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a2e;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.ip-history-meta {
+  font-size: 11px;
+  color: #94a3b8;
+  display: block;
+}
+
+.ip-history-status {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.ip-status-success {
+  color: #059669;
+  background: #ecfdf5;
+}
+
+.ip-status-pending {
+  color: #d97706;
+  background: #fffbeb;
+}
+
+.ip-status-failed {
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+/* Quick import tips */
+.ip-tips {
+  margin: 8px 16px 0;
+  padding: 12px 16px;
+  background: #fffbeb;
+  border-radius: 12px;
+  border-left: 3px solid #f59e0b;
+}
+
+.ip-tips-text {
+  font-size: 12px;
+  color: #92400e;
+  line-height: 1.6;
+  display: block;
+}

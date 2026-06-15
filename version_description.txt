@@ -1,0 +1,15 @@
+链客宝 v1.0.0 — 版本描述
+
+中文:
+- 企业家供需匹配平台MVP上线
+- 产品上架/搜索/浏览/下单/支付完整交易链路
+- 推广员分销 + 分润结算系统
+- 微信登录 + 微信支付集成
+- 管理后台：产品审核/订单管理/结算
+
+English:
+- MVP launch of entrepreneur supply-demand matching platform
+- Full trade flow: listing, search, browse, order, payment
+- Promoter distribution & commission settlement system
+- WeChat login + WeChat Pay integration
+- Admin panel: product review, order mgmt, settlement

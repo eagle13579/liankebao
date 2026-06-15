@@ -1,0 +1,251 @@
+@import '../../styles/variables.scss';
+
+.home-page {
+  min-height: 100vh;
+  background: $bg-gradient;
+  padding-bottom: calc(120px + $safe-bottom);
+}
+
+.navbar-share {
+  font-size: 20px;
+  padding: $spacing-xs;
+}
+
+/* 加载 */
+.home-loading {
+  padding: 60px $spacing-xl;
+}
+
+/* 未登录引导页 */
+.home-guide {
+  padding: $spacing-lg;
+}
+
+.guide-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 0 32px;
+}
+
+.guide-logo {
+  width: 80px;
+  height: 80px;
+  border-radius: 24px;
+  background: $primary-gradient;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: $spacing-lg;
+  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+}
+
+.guide-logo-text {
+  font-size: 36px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.guide-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: $text-primary;
+  margin-bottom: $spacing-sm;
+}
+
+.guide-subtitle {
+  font-size: 15px;
+  color: $text-tertiary;
+}
+
+/* 功能卡片 */
+.guide-features {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+  margin-bottom: $spacing-xl;
+}
+
+.guide-feature {
+  padding: $spacing-lg;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.feature-icon {
+  font-size: 36px;
+  margin-bottom: $spacing-sm;
+}
+
+.feature-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: $text-primary;
+  margin-bottom: $spacing-xs;
+}
+
+.feature-desc {
+  font-size: 13px;
+  color: $text-tertiary;
+  line-height: 1.5;
+}
+
+/* 引导操作 */
+.guide-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.guide-login-btn {
+  width: 100%;
+  height: 50px;
+  line-height: 50px;
+  font-size: 17px;
+  margin-bottom: $spacing-md;
+}
+
+.guide-note {
+  font-size: 11px;
+  color: $text-tertiary;
+  text-align: center;
+}
+
+/* 空状态 */
+.home-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120px $spacing-xl;
+  min-height: 60vh;
+}
+
+.home-empty .empty-icon {
+  font-size: 80px;
+  margin-bottom: $spacing-lg;
+}
+
+.home-empty .empty-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: $text-primary;
+  margin-bottom: $spacing-sm;
+}
+
+.home-empty .empty-desc {
+  font-size: 14px;
+  color: $text-tertiary;
+  margin-bottom: $spacing-xl;
+}
+
+.home-empty .btn-primary {
+  width: 240px;
+}
+
+.home-content {
+  padding: $spacing-lg;
+}
+
+/* 首页头部 */
+.home-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: $spacing-xl;
+}
+
+.home-hero-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: $primary-gradient;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: $spacing-md;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+}
+
+.home-hero-avatar-text {
+  font-size: 32px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.home-hero-name {
+  font-size: 22px;
+  font-weight: 700;
+  color: $text-primary;
+  margin-bottom: $spacing-xs;
+}
+
+.home-hero-company {
+  font-size: 14px;
+  color: $text-secondary;
+}
+
+/* 分页指示器 */
+.page-indicator {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: $spacing-lg 0;
+}
+
+.page-indicator .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  transition: all $transition-normal;
+}
+
+.page-indicator .dot.active {
+  width: 24px;
+  background: $primary-start;
+}
+
+/* 底部操作栏 */
+.home-actions {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+  margin: $spacing-lg 0;
+}
+
+.btn-action {
+  width: 100%;
+  height: 46px;
+  line-height: 46px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: $radius-md;
+  color: $text-secondary;
+  font-size: 15px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.btn-action:active {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.btn-action-primary {
+  background: $primary-gradient;
+  color: #fff;
+  border: none;
+}
+
+/* 浏览统计 */
+.home-stats {
+  text-align: center;
+  padding: $spacing-lg 0;
+}
+
+.stats-text {
+  font-size: 13px;
+  color: $text-tertiary;
+}

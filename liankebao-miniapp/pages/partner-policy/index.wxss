@@ -1,0 +1,108 @@
+.policy { min-height: 100vh; background: #f5f5f5; padding-bottom: 60rpx; }
+
+.header {
+  background: linear-gradient(135deg, #0ea5e9, #0284c7);
+  padding: 80rpx 48rpx 60rpx;
+  text-align: center;
+}
+.header-title {
+  font-size: 44rpx;
+  font-weight: 700;
+  color: #fff;
+  display: block;
+  margin-bottom: 12rpx;
+}
+.header-sub {
+  font-size: 26rpx;
+  color: rgba(255,255,255,0.85);
+  display: block;
+}
+
+.section {
+  margin: 32rpx 24rpx;
+}
+.section-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #1a1a2e;
+  display: block;
+  margin-bottom: 20rpx;
+}
+
+/* 等级卡片 */
+.tier-list { display: flex; flex-direction: column; gap: 20rpx; }
+.tier-card {
+  background: #fff;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  position: relative;
+  overflow: hidden;
+}
+.tier-l1 { border-left: 8rpx solid #94a3b8; }
+.tier-l2 { border-left: 8rpx solid #0ea5e9; }
+.tier-l3 { border-left: 8rpx solid #f59e0b; }
+
+.tier-badge {
+  display: inline-block;
+  font-size: 24rpx;
+  font-weight: 700;
+  padding: 4rpx 20rpx;
+  border-radius: 20rpx;
+  margin-bottom: 12rpx;
+}
+.tier-l1 .tier-badge { color: #64748b; background: #f1f5f9; }
+.tier-l2 .tier-badge { color: #0ea5e9; background: #f0f9ff; }
+.tier-l3 .tier-badge { color: #f59e0b; background: #fffbeb; }
+
+.tier-name {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #1a1a2e;
+  display: block;
+  margin-bottom: 12rpx;
+}
+.tier-condition {
+  font-size: 24rpx;
+  color: #64748b;
+  display: block;
+  margin-bottom: 8rpx;
+}
+.tier-benefit {
+  font-size: 24rpx;
+  color: #0ea5e9;
+  display: block;
+  line-height: 1.5;
+}
+
+/* 排行榜 */
+.rank-list { display: flex; flex-direction: column; gap: 16rpx; }
+.rank-item {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border-radius: 20rpx;
+  padding: 28rpx 32rpx;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.rank-badge { font-size: 52rpx; margin-right: 24rpx; flex-shrink: 0; }
+.rank-body { flex: 1; }
+.rank-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1a1a2e;
+  display: block;
+  margin-bottom: 6rpx;
+}
+.rank-prize {
+  font-size: 24rpx;
+  color: #f59e0b;
+  display: block;
+}
+
+/* 权益列表 */
+.benefit-list { background: #fff; border-radius: 24rpx; padding: 32rpx; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.benefit-item { display: flex; align-items: flex-start; margin-bottom: 20rpx; }
+.benefit-item:last-child { margin-bottom: 0; }
+.benefit-icon { font-size: 28rpx; margin-right: 16rpx; flex-shrink: 0; }
+.benefit-text { font-size: 26rpx; color: #1a1a2e; line-height: 1.5; }

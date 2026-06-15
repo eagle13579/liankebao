@@ -1,0 +1,25 @@
+# 链客宝技术债配置
+thresholds:
+  file_lines: 1000
+  function_lines: 100
+  max_todos: 10
+  max_cyclomatic: 10
+  min_health_score: 70
+
+scan:
+  exclude_dirs:
+    - __pycache__
+    - venv
+    - node_modules
+    - .git
+    - migrations
+  include_extensions:
+    - .py
+
+report:
+  formats:
+    - json
+    - markdown
+  outputs:
+    json: "reports/tech_debt/tech_debt_report.json"
+    markdown: "reports/tech_debt/tech_debt_report.md"

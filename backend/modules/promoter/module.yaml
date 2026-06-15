@@ -1,0 +1,20 @@
+name: promoter
+version: "1.0.0"
+description: 推广分润管理
+author: 链客宝
+dependencies:
+  - auth
+  - orders
+routes:
+  prefix: /api/promoter
+  auth_required: true
+frontend:
+  entry: ./frontend/PromoterModule
+  routes:
+    - /promoter
+    - /promoter/commission
+    - /promoter/team
+permissions:
+  - promoter.view
+  - promoter.commission
+  - promoter.team

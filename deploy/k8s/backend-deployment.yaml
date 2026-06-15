@@ -1,0 +1,130 @@
+# ============================================================
+# 链客宝AI — 后端 Deployment (FastAPI + Uvicorn)
+# ============================================================
+# 说明: 生产级后端部署配置，3 副本 + 滚动更新 + 健康探针。
+#       镜像推送至阿里云容器镜像服务 (ACR)。
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chainke-backend
+  namespace: chainke
+  labels:
+    app: chainke
+    component: backend
+    version: stable
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: chainke
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: chainke
+        component: backend
+        version: stable
+    spec:
+      # 优雅关闭：给 Uvicorn 足够时间处理完进行中的请求
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: backend
+          image: registry.cn-hangzhou.aliyuncs.com/chainke/backend:{VERSION}
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8001
+              protocol: TCP
+          # ==================================================
+          # 存活探针 — 检测进程是否存活
+          # ==================================================
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+              scheme: HTTP
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          # ==================================================
+          # 就绪探针 — 检测服务是否可接收流量
+          # ==================================================
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          # ==================================================
+          # 资源限制
+          # ==================================================
+          resources:
+            requests:
+              cpu: "256m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+          # ==================================================
+          # 环境变量来源
+          # ==================================================
+          envFrom:
+            # 通用非敏感配置
+            - configMapRef:
+                name: chainke-config
+            # 敏感信息（密码、密钥、Token）
+            - secretRef:
+                name: chainke-secret
+                optional: false
+          # ==================================================
+          # 独立环境变量（覆盖 ConfigMap/Secret）
+          # ==================================================
+          env:
+            - name: TZ
+              value: "Asia/Shanghai"
+          # ==================================================
+          # 数据卷挂载
+          # ==================================================
+          volumeMounts:
+            # SQLite 数据持久化（如使用 SQLite）
+            - name: data
+              mountPath: /app/backend/data
+            # 日志持久化
+            - name: logs
+              mountPath: /app/logs
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: chainke-data-pvc
+        - name: logs
+          emptyDir: {}
+      # ==================================================
+      # 调度策略
+      # ==================================================
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: component
+                      operator: In
+                      values:
+                        - backend
+                topologyKey: kubernetes.io/hostname
+      # 镜像拉取密钥（如需私有仓库认证）
+      # imagePullSecrets:
+      #   - name: aliyun-acr-secret

@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "created_at": 1780058542.028246,
+  "updated_at": 1780058542.028246,
+  "write_count": 1,
+  "frequencies": [
+    1780058542.028246
+  ],
+  "field_stats": {
+    "ref_id": {
+      "types": {
+        "str": 1
+      },
+      "lengths": [
+        3
+      ],
+      "special_char_ratios": [
+        0.0
+      ],
+      "values": {
+        "123": 1
+      }
+    }
+  },
+  "semantic_types": {
+    "ref_id": {
+      "phone": 0,
+      "email": 0,
+      "url": 0,
+      "ip": 0,
+      "plain": 1
+    }
+  },
+  "violation_history": [],
+  "violation_field_dist": {},
+  "foreign_keys": {},
+  "total_writes": 1,
+  "history_scores": [
+    0.0
+  ]
+}

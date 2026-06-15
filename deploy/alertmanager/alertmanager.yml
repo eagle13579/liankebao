@@ -1,0 +1,140 @@
+# ============================================================
+# 链客宝AI Alertmanager 配置
+# ============================================================
+# 告警路由、抑制、通知渠道
+# ============================================================
+
+global:
+  # 告警解决后自动发送 resolved 通知
+  resolve_timeout: 5m
+  # 企业微信 Webhook (需替换为实际 URL)
+  # wechat_api_url: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY"
+
+route:
+  group_by: ["alertname", "job", "severity"]
+  # 同一组告警等待 10s 后发送（可聚合更多告警）
+  group_wait: 10s
+  # 同一组告警至少间隔 5m 重复发送
+  group_interval: 5m
+  # 重复发送间隔
+  repeat_interval: 4h
+  # 默认接收器
+  receiver: "webhook-default"
+
+  # 子路由 — 按严重级别分发
+  routes:
+    # 严重告警 → 企业微信 + 电话 (示例)
+    - match:
+        severity: critical
+      receiver: "webhook-critical"
+      continue: true
+
+    # 警告级别 → 默认 webhook
+    - match:
+        severity: warning
+      receiver: "webhook-default"
+
+# ============================================================
+# 接收器
+# ============================================================
+receivers:
+  # 默认 Webhook (通用告警通知)
+  - name: "webhook-default"
+    webhook_configs:
+      - url: "http://webhook:5000/alert"
+        send_resolved: true
+        http_config:
+          timeout: 10s
+
+  # 严重告警 Webhook （高优先级通道）
+  - name: "webhook-critical"
+    webhook_configs:
+      - url: "http://webhook:5000/alert/critical"
+        send_resolved: true
+        http_config:
+          timeout: 10s
+
+# ============================================================
+# 抑制规则 — 防止告警风暴
+# ============================================================
+inhibit_rules:
+  # 如果整体服务已 down，抑制该服务的子组件告警
+  - source_matchers:
+      - alertname = "ChainKeServiceDown"
+    target_matchers:
+      - alertname = "ChainKeApiDown"
+      - alertname = "ChainKeDbDown"
+    equal: ["instance"]
+
+  # metrics 不可达时抑制所有派生告警
+  - source_matchers:
+      - alertname = "ChainKeMetricsUnreachable"
+    target_matchers:
+      - alertname = "ChainKeApiDown"
+      - alertname = "ChainKeDbDown"
+      - alertname = "ChainKeHighLatency"
+    equal: ["instance", "job"]
+
+# ============================================================
+# 告警规则 (由 Prometheus rule_files 引用)
+# ============================================================
+# 以下规则应写入独立文件,由 prometheus.yml 的 rule_files 加载:
+#   deploy/prometheus/alerts/liankebao_alerts.yml
+#
+# groups:
+#   - name: liankebao_alerts
+#     interval: 15s
+#     rules:
+#
+#       # --- ① 健康看板离线 ---
+#       - alert: ChainKeMetricsUnreachable
+#         expr: up{job="liankebao-health"} == 0
+#         for: 5m
+#         labels:
+#           severity: critical
+#         annotations:
+#           summary: "健康看板离线 (job={{ $labels.job }})"
+#           description: "Prometheus 已连续5分钟无法抓取 {{ $labels.job }}/{{ $labels.instance }} 指标"
+#
+#       # --- ② 后端 API 不可用 ---
+#       - alert: ChainKeApiDown
+#         expr: liankebao_api_up == 0
+#         for: 5m
+#         labels:
+#           severity: critical
+#         annotations:
+#           summary: "后端 API 不可用"
+#           description: "FastAPI 后端连续5分钟返回非正常状态 (instance={{ $labels.instance }})"
+#
+#       # --- ③ 数据库不可用 ---
+#       - alert: ChainKeDbDown
+#         expr: liankebao_db_up == 0
+#         for: 5m
+#         labels:
+#           severity: critical
+#         annotations:
+#           summary: "数据库不可用"
+#           description: "数据库连续5分钟响应异常 (db_path={{ $labels.db }})"
+#
+#       # --- ④ 服务整体宕机 ---
+#       - alert: ChainKeServiceDown
+#         expr: liankebao_up == 0
+#         for: 2m
+#         labels:
+#           severity: critical
+#         annotations:
+#           summary: "链客宝AI服务整体宕机"
+#           description: "核心服务不可用，需立即处理"
+#
+#       # --- ⑤ 高延迟 (使用 API 响应时间 > 3s) ---
+#       - alert: ChainKeHighLatency
+#         expr: |
+#           histogram_quantile(0.95,
+#             sum(rate(http_request_duration_seconds_bucket{job="liankebao-api"}[5m])) by (le)
+#           ) > 3
+#         for: 2m
+#         labels:
+#           severity: warning
+#         annotations:
+#           summary: "API 高延迟 (P95 > 3s)"
+#           description: "API 响应时间 P95 超过 3 秒，需要关注"

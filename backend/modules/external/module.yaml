@@ -1,0 +1,19 @@
+name: external
+version: "1.0.0"
+description: 外部模块接入框架 - 提供标准化的外部模块适配器与Webhook事件接收系统
+author: 链客宝
+dependencies:
+  - auth
+routes:
+  prefix: /api/external
+  auth_required: false
+frontend:
+  entry: null
+  routes: []
+permissions:
+  - external.register
+  - external.unregister
+  - external.webhook.receive
+secrets:
+  webhook_signing_secret: ""
+  webhook_signing_algo: "hmac-sha256"

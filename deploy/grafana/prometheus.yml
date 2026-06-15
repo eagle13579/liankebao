@@ -1,0 +1,26 @@
+# Prometheus 配置 — 链客宝AI指标采集
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Tempo 指标生成器
+  - job_name: tempo
+    static_configs:
+      - targets: ["tempo:3200"]
+
+  # 链客宝AI后端应用 (需暴露 /metrics 端点)
+  - job_name: chainke-backend
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["host.docker.internal:7800"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: (.*)
+        replacement: chainke-backend
+
+  # Prometheus 自身
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

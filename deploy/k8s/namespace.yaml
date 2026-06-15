@@ -1,0 +1,10 @@
+# ============================================================
+# 链客宝AI — Namespace
+# ============================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: chainke
+  labels:
+    app: chainke
+    name: chainke

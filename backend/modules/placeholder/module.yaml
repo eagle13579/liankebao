@@ -1,0 +1,13 @@
+name: placeholder
+version: "1.0.0"
+description: 占位图与工具类
+author: 链客宝
+dependencies: []
+routes:
+  prefix: /api/placeholder
+  auth_required: false
+frontend:
+  entry: ./frontend/PlaceholderModule
+  routes:
+    - /placeholder
+permissions: []

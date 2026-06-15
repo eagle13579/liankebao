@@ -1,0 +1,25 @@
+[flake8]
+max-line-length = 100
+extend-ignore =
+    # E203: whitespace before ':' (black compatible)
+    E203,
+    # W503: line break before binary operator (black compatible)
+    W503,
+    # E501: line too long (handled by max-line-length)
+    E501,
+exclude =
+    .git,
+    __pycache__,
+    build,
+    dist,
+    venv,
+    venv_new,
+    alembic,
+    migrations,
+    .ruff_cache,
+    node_modules,
+    *.pyc
+per-file-ignores =
+    __init__.py:F401
+max-complexity = 18
+docstring-convention = google

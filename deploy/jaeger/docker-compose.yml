@@ -1,0 +1,45 @@
+# ============================================================
+# Jaeger AllInOne — 链客宝AI本地分布式追踪
+# ============================================================
+# 一键启动:
+#   docker compose -f deploy/jaeger/docker-compose.yml up -d
+#
+# 访问入口:
+#   Jaeger UI:    http://localhost:16686
+#   OTLP gRPC:    localhost:4317
+#   OTLP HTTP:    localhost:4318
+#
+# 环境变量配置 (在 backend/.env 或 shell 中设置):
+#   OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+#   OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+# ============================================================
+
+services:
+  jaeger:
+    image: jaegertracing/all-in-one:1.65
+    container_name: chainke-jaeger
+    restart: unless-stopped
+    ports:
+      # Jaeger UI (Web 控制台)
+      - "16686:16686"
+      # OTLP gRPC (OpenTelemetry 协议 — gRPC)
+      - "4317:4317"
+      # OTLP HTTP (OpenTelemetry 协议 — HTTP/Protobuf)
+      - "4318:4318"
+      # Jaeger gRPC query (用于 Grafana Tempo 数据源代理)
+      - "16685:16685"
+      # Jaeger 兼容端口 (已弃用，保留兼容)
+      - "14268:14268"
+      - "14250:14250"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+      - METRICS_STORAGE_TYPE=prometheus
+      - LOG_LEVEL=info
+    networks:
+      - chainke-observability
+
+networks:
+  chainke-observability:
+    name: chainke-observability
+    driver: bridge

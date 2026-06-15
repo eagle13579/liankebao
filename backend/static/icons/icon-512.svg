@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#3B82F6"/>
+  <g transform="translate(256,256)">
+    <!-- 左半握手 -->
+    <path d="M-20,-52 C-20,-78 -52,-90 -72,-72 C-92,-54 -88,-20 -66,-6 L-26,20 C-16,26 -4,20 -4,10 L-4,-16 C-4,-30 -10,-40 -20,-52Z"
+          fill="white" opacity="0.9"/>
+    <!-- 右半握手 -->
+    <path d="M20,-52 C20,-78 52,-90 72,-72 C92,-54 88,-20 66,-6 L26,20 C16,26 4,20 4,10 L4,-16 C4,-30 10,-40 20,-52Z"
+          fill="white" opacity="0.9"/>
+    <!-- 链接链环 -->
+    <circle cx="-46" cy="-20" r="10" fill="none" stroke="white" stroke-width="6"/>
+    <circle cx="46" cy="-20" r="10" fill="none" stroke="white" stroke-width="6"/>
+    <line x1="-36" y1="-20" x2="-16" y2="-20" stroke="white" stroke-width="6"/>
+    <line x1="36" y1="-20" x2="16" y2="-20" stroke="white" stroke-width="6"/>
+  </g>
+</svg>

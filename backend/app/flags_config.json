@@ -1,0 +1,54 @@
+{
+  "new_ai_pipeline": {
+    "key": "new_ai_pipeline",
+    "description": "新AI名片智能处理管线（替代旧pipeline）",
+    "default": false,
+    "strategy": "percentage",
+    "rollout_percentage": 10,
+    "org_whitelist": [],
+    "environments": ["dev", "staging"],
+    "enabled": false,
+    "owner": "AI团队",
+    "created_at": "2025-05-01T00:00:00Z",
+    "updated_at": "2025-05-01T00:00:00Z"
+  },
+  "vector_search_v2": {
+    "key": "vector_search_v2",
+    "description": "向量搜索v2（改进版语义匹配+重排序）",
+    "default": false,
+    "strategy": "percentage",
+    "rollout_percentage": 5,
+    "org_whitelist": [],
+    "environments": ["dev", "staging"],
+    "enabled": false,
+    "owner": "搜索团队",
+    "created_at": "2025-05-01T00:00:00Z",
+    "updated_at": "2025-05-01T00:00:00Z"
+  },
+  "new_checkout": {
+    "key": "new_checkout",
+    "description": "新版结算页面（优化支付流程）",
+    "default": false,
+    "strategy": "percentage",
+    "rollout_percentage": 20,
+    "org_whitelist": [1, 5, 10],
+    "environments": ["dev", "staging", "prod"],
+    "enabled": false,
+    "owner": "支付团队",
+    "created_at": "2025-05-01T00:00:00Z",
+    "updated_at": "2025-05-01T00:00:00Z"
+  },
+  "dark_mode": {
+    "key": "dark_mode",
+    "description": "暗色模式UI（仅前端样式切换）",
+    "default": true,
+    "strategy": "environment",
+    "rollout_percentage": 0,
+    "org_whitelist": [],
+    "environments": ["dev"],
+    "enabled": true,
+    "owner": "前端团队",
+    "created_at": "2025-05-01T00:00:00Z",
+    "updated_at": "2025-05-01T00:00:00Z"
+  }
+}
