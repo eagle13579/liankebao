@@ -100,7 +100,7 @@ export function LoginPage() {
                   value={username}
                   onChange={e => setUsername(e.target.value)}
                   className="w-full h-12 bg-slate-50/80 border border-slate-200 rounded-xl pl-12 pr-4 text-sm text-slate-700 placeholder:text-slate-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all"
-                  placeholder="请输入账号"
+                  placeholder="请输入登录名或手机号"
                 />
               </div>
               <div className="relative group">
@@ -242,6 +242,7 @@ export function UserRegistration() {
   const [role, setRole] = useState('buyer');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [loginName, setLoginName] = useState('');
   const [company, setCompany] = useState('');
   const [position, setPosition] = useState('');
   const [password, setPassword] = useState('');
@@ -296,7 +297,7 @@ export function UserRegistration() {
     setError('');
     try {
       const res = await api.post<{token: string; user: any}>('/api/auth/register', {
-        username: phone, password, name, phone, company, position, role
+        username: loginName || phone, password, name, phone, company, position, role
       });
       if (res.code === 200) {
         // 注册成功后保存token，用于后续保存痛点偏好
@@ -389,6 +390,10 @@ export function UserRegistration() {
             ) : (
               <input value={phone} onChange={e => setPhone(e.target.value)} className="w-full h-12 bg-white border border-slate-200 rounded-xl px-4 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all text-sm" placeholder="请输入11位手机号" />
             )}
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-slate-500 font-medium px-1">登录名</label>
+            <input value={loginName} onChange={e => setLoginName(e.target.value)} className="w-full h-12 bg-white border border-slate-200 rounded-xl px-4 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all text-sm" placeholder="请设置登录名（用于登录）" />
           </div>
           <div className="space-y-1">
             <label className="text-xs text-slate-500 font-medium px-1">姓名</label>
