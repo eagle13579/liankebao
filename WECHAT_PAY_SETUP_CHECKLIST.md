@@ -1,456 +1,411 @@
-# 链客宝AI微信支付商户号注册 + 证书配置操作指南
+# 链客宝微信支付 V3 接入 — 设置检查清单
 
-> **目标**: 从 mock 模式切换到真实微信支付
-> **前提**: 小程序已注册（AppID: wxb4f6d89904200fd2），后端代码已统一（P0-1完成）
-> **预计总耗时**: 注册审核 1-3 工作日 + 配置部署 30 分钟
-> **最后更新**: 2026-05-24
+本文档指导完成 **微信支付商户号注册 → APIv3 密钥配置 → 证书上传 → 回调 URL 配置** 全流程，从零到生产可用。
 
 ---
 
 ## 目录
 
-1. [注册微信支付商户号](#1-注册微信支付商户号)
-2. [获取 APIv3 密钥和证书](#2-获取-apiv3-密钥和证书)
-3. [部署证书到服务器](#3-部署证书到服务器)
-4. [配置环境变量](#4-配置环境变量)
-5. [验证支付流程](#5-验证支付流程)
-6. [附录：常见问题](#6-附录常见问题)
+1. [前置条件](#1-前置条件)
+2. [注册微信商户号](#2-注册微信商户号)
+3. [开通 JSAPI 支付能力](#3-开通-jsapi-支付能力)
+4. [配置 APIv3 密钥](#4-配置-apiv3-密钥)
+5. [申请并下载商户证书](#5-申请并下载商户证书)
+6. [配置回调 URL](#6-配置回调-url)
+7. [配置链客宝环境变量](#7-配置链客宝环境变量)
+8. [验证配置](#8-验证配置)
+9. [生产上线检查清单](#9-生产上线检查清单)
+10. [排错指南](#10-排错指南)
+11. [附录: 证书序列号获取](#附录-证书序列号获取)
 
 ---
 
-## 1. 注册微信支付商户号
+## 1. 前置条件
 
-> 详细步骤已在 `微信支付商户号注册SOP.md` 中说明，这里给出精简版。
+| 条件 | 说明 |
+|------|------|
+| ✅ 已认证的微信公众号 或 小程序 | 用于获取 AppID |
+| ✅ 企业营业执照 | 个体户/企业均可，必须是已完成微信认证的 |
+| ✅ 对公银行账户（可选） | 企业商户需要，个体户可用法人银行卡 |
+| ✅ 公网 HTTPS 域名 | 用于接收微信支付回调通知 |
 
-### 1.1 准备材料清单
-
-| 材料 | 说明 | 注意事项 |
-|:-----|:-----|:---------|
-| 营业执照 | 彩色照片或扫描件 | 四角完整、无反光 |
-| 法人身份证 | 正反面彩色照片 | 在有效期内 |
-| 对公银行账户 | 开户行、账号 | 个体户可用法人个人银行卡 |
-| 法人实名手机号 | 接收验证码 | 必须运营商实名认证 |
-| 邮箱 | 未注册过微信支付的邮箱 | 接收审核通知 |
-| 小程序 AppID | `wxb4f6d89904200fd2` | 已注册，直接使用 |
-
-### 1.2 注册操作
-
-```bash
-# 打开浏览器访问
-https://pay.weixin.qq.com/
-
-# 点击右上角「注册微信支付商户号」
-# 选择「我是普通商户」→「微信小程序」
-# 输入 AppID: wxb4f6d89904200fd2
-```
-
-### 1.3 关键填写项
-
-| 字段 | 填写值 |
-|:-----|:-------|
-| 商户简称 | 链客宝AI |
-| 经营类目 | 综合电商/电子商务平台（费率 0.6%） |
-| 经营场景 | 小程序 |
-| 结算周期 | T+1 |
-| 绑定 AppID | `wxb4f6d89904200fd2` |
-
-### 1.4 审核通过后绑定小程序
-
-1. 登录 pay.weixin.qq.com → **产品中心** → **AppID账号管理**
-2. 点击「关联AppID」，输入 `wxb4f6d89904200fd2`
-3. 小程序管理员微信确认同意
-4. 登录 mp.weixin.qq.com → **功能** → **微信支付** → 确认关联
+> **注意**: 微信支付商户号与公众号/小程序是**不同主体**也可以（服务商模式），但建议同一主体以减少审核问题。
 
 ---
 
-## 2. 获取 APIv3 密钥和证书
+## 2. 注册微信商户号
 
-> 微信支付 V3 API 需要：APIv3 密钥（32位） + 商户API证书（apiclient_key.pem）
+### 2.1 访问商户平台
 
-### 2.1 设置 APIv3 密钥
+打开 [微信支付商户平台](https://pay.weixin.qq.com/) → 点击 **"注册成为商户"**
 
-```
-登录 pay.weixin.qq.com → 账户中心 → API安全 → APIv3密钥
-```
+### 2.2 选择主体类型
 
-- 点击「设置密钥」
-- 输入一个 **32位随机字符串**（字母+数字，大小写敏感）
-- 建议用密码管理器生成，或执行：
-  ```bash
-  # 生成 32 位随机密钥（在本地终端执行）
-  openssl rand -hex 16
-  ```
-- **保存好！此密钥只在设置时可见一次**
+- **企业**: 需提供营业执照、法人身份证、对公账户
+- **个体户**: 需提供营业执照、经营者身份证、法人银行卡
 
-### 2.2 获取商户证书（apiclient_key.pem + apiclient_cert.pem）
+### 2.3 提交资料
 
-```
-登录 pay.weixin.qq.com → 账户中心 → API安全 → 证书管理
-```
+按照页面指引填写:
+1. 联系信息（管理员手机号、邮箱）
+2. 经营信息（商户简称、经营类目）
+3. 资质信息（上传营业执照照片）
+4. 银行账户（对公账户验证）
 
-操作步骤：
-1. 点击「下载证书」
-2. 下载得到一个 `cert.zip` 压缩包
-3. 解压后包含以下文件：
-   ```
-   cert/
-   ├── apiclient_cert.pem    # 商户证书（公钥）
-   ├── apiclient_key.pem     # 商户私钥（⚠️ 绝对保密！）
-   └── ── 其他文件
-   ```
+### 2.4 审核
 
-### 2.3 查看证书序列号
+通常 1-3 个工作日审核完成，审核通过后登录商户平台。
 
-```
-登录 pay.weixin.qq.com → 账户中心 → API安全 → 证书管理
-```
+### 2.5 获取商户号
 
-- 在证书列表中查看「证书序列号」
-- 或者通过 openssl 查看：
-  ```bash
-  # 在解压后的 cert/ 目录中执行
-  openssl x509 -in apiclient_cert.pem -noout -serial
-  # 输出: serial=XXXXXXXXXXXX   ← 这就是证书序列号
-  ```
-
-### 2.4 下载微信支付平台证书
-
-平台证书用于回调验签。有两种方式获取：
-
-**方式一（推荐）：启动后自动下载**
-代码中的 `WxPayCallback` 会在首次处理回调时尝试从微信服务器拉取平台证书并缓存。
-
-**方式二（手动下载）**：
-```bash
-# 使用微信官方工具（需安装 Python）
-pip install wechatpayv3
-python -c "
-from wechatpayv3 import WeChatPay
-pay = WeChatPay(
-    appid='wxb4f6d89904200fd2',
-    mchid='你的商户号',
-    private_key_path='./apiclient_key.pem',
-    cert_serial_no='你的证书序列号',
-    api_v3_key='你的APIv3密钥'
-)
-certs = pay.get_certificates()
-print(certs)
-"
-```
-或从商户平台 → 账户中心 → API安全 → 证书管理 → 下载平台证书（PKCS#12/pem格式）。
+登录后 → **账户中心** → **商户信息** → 查看 **"微信支付商户号"**（一串数字，如 `1230000109`）
 
 ---
 
-## 3. 部署证书到服务器
+## 3. 开通 JSAPI 支付能力
 
-### 3.1 创建证书目录
+> JSAPI 支付 = 公众号/小程序内 H5 支付，是链客宝最常用的支付方式。
+
+### 3.1 产品中心
+
+商户平台 → **产品中心** → **JSAPI支付** → 点击 **"开通"**
+
+### 3.2 关联 AppID
+
+1. 在 JSAPI 支付详情页 → **"开发配置"**
+2. 点击 **"关联 AppID"**
+3. 输入你的公众号/小程序的 AppID
+4. 提交后需在公众平台确认授权
+
+### 3.3 公众平台确认授权
+
+1. 登录 [微信公众平台](https://mp.weixin.qq.com/) 或 [小程序后台](https://mp.weixin.qq.com/)
+2. 进入 **功能** → **微信支付**
+3. 找到商户号关联请求，点击 **"确认"**
+
+### 3.4 设置支付目录（重要）
+
+在 JSAPI 支付开发配置中:
+- **支付授权目录**: 填写你前端页面的 URL 目录
+  - 例如: `https://yourdomain.com/wxpay/`
+  - 支持通配符，但必须是 HTTPS
+
+---
+
+## 4. 配置 APIv3 密钥
+
+APIv3 密钥用于:
+- 回调通知 resource 的 AES-256-GCM 解密
+- 平台证书的加密传输
+
+### 4.1 设置密钥
+
+商户平台 → **账户中心** → **API安全** → **设置APIv3密钥**
+
+### 4.2 密钥规则
+
+- 32 位十六进制字符（0-9, a-f）
+- 例如: `a1b2c3d4e5f6789012345678abcdef90`
+- **务必保存好**，设置后无法找回，只能重置
+
+### 4.3 保存到安全位置
+
+将密钥记录到密码管理器或安全文件中。
+
+---
+
+## 5. 申请并下载商户证书
+
+### 5.1 申请证书
+
+商户平台 → **账户中心** → **API安全** → **申请API证书**
+
+三种方式:
+1. **自动生成**（推荐）: 使用"证书工具"一键生成
+2. **手动生成**: 使用 OpenSSL 生成 CSR
+3. **已有证书**: 直接上传
+
+### 5.2 使用证书工具（推荐）
+
+1. 下载并运行 "微信支付证书工具"
+2. 输入商户号，点击 "生成证书"
+3. 工具会在当前目录生成:
+   - `apiclient_cert.pem` — 商户证书（公钥）
+   - `apiclient_key.pem` — 商户私钥（**非常重要，勿泄露**）
+
+### 5.3 下载证书到服务器
+
+将 `apiclient_key.pem` 安全地传输到链客宝服务器:
 
 ```bash
-# 本地开发环境
-mkdir -p /d/链客宝AI/backend/certs/
+# 示例: 放到 /etc/wechat_certs/ 目录
+scp apiclient_key.pem root@your-server:/etc/wechat_certs/
 ```
 
-### 3.2 复制证书文件
+> **安全建议**: 
+> - 设置文件权限 `chmod 600 apiclient_key.pem`
+> - 不要将私钥文件提交到 Git 仓库
+> - 定期轮换证书（通常有效期 5 年）
 
-将以下两个文件复制到 `certs/` 目录：
+### 5.4 获取证书序列号
+
+商户平台 → **账户中心** → **API安全** → 查看已安装证书的 **"证书序列号"**
+
+或使用命令行读取:
 
 ```bash
-# 从解压后的目录复制
-cp /path/to/apiclient_key.pem    /d/链客宝AI/backend/certs/
-cp /path/to/apiclient_cert.pem   /d/链客宝AI/backend/certs/
-
-# 如果有平台证书，也复制过来
-cp /path/to/platform_cert.pem    /d/链客宝AI/backend/certs/
+openssl x509 -in apiclient_cert.pem -noout -serial
 ```
 
-最终 `certs/` 目录结构：
+输出类似: `serial=1234ABCD5678EF90` → 取 `=` 后面的部分: `1234ABCD5678EF90`
+
+---
+
+## 6. 配置回调 URL
+
+### 6.1 确定回调地址
+
+链客宝的微信支付回调地址为:
+
 ```
-backend/certs/
-├── apiclient_key.pem        # 商户私钥（⚠️ 不要提交到 Git）
-├── apiclient_cert.pem       # 商户公钥证书
-└── platform_cert.pem        # 微信平台证书（下载后放入）
+https://yourdomain.com/api/payment/wechat/notify
 ```
 
-### 3.3 添加到 .gitignore
+### 6.2 配置到商户平台
 
-确保私钥不被提交到 Git 仓库：
+商户平台 → **产品中心** → **开发配置** → **支付配置** → **支付回调通知**
+
+填写完整 URL（必须是 HTTPS）。
+
+### 6.3 配置到代码
+
+在 `.env` 文件中设置:
 
 ```bash
-# 检查 .gitignore 是否包含
-echo "certs/apiclient_key.pem" >> /d/链客宝AI/.gitignore
-echo "certs/*.pem" >> /d/链客宝AI/.gitignore
-```
-
-### 3.4 生产环境部署
-
-生产环境服务器路径：`/opt/liankebao/certs/`
-
-```bash
-# 通过 scp 上传到生产服务器
-scp /d/链客宝AI/backend/certs/apiclient_key.pem     user@your-server:/opt/liankebao/certs/
-scp /d/链客宝AI/backend/certs/apiclient_cert.pem    user@your-server:/opt/liankebao/certs/
-scp /d/链客宝AI/backend/certs/platform_cert.pem     user@your-server:/opt/liankebao/certs/
-
-# 设置文件权限（安全考虑）
-ssh user@your-server "chmod 600 /opt/liankebao/certs/apiclient_key.pem"
-ssh user@your-server "chmod 644 /opt/liankebao/certs/*.pem"
+WECHAT_NOTIFY_URL=https://yourdomain.com/api/payment/wechat/notify
 ```
 
 ---
 
-## 4. 配置环境变量
+## 7. 配置链客宝环境变量
 
-### 4.1 编辑 .env 文件
+### 7.1 编辑 .env 文件
+
+打开 `D:/链客宝/.env`，找到 `[支付] 微信支付 V3 SDK` 部分，取消注释并填写:
 
 ```bash
-# 编辑本地 .env
-vim /d/链客宝AI/.env
-```
-
-### 4.2 填写以下配置项
-
-```ini
 # =============================================================================
-# [支付] 微信支付 (V3) — 全部填写后开启真实支付
+# [支付] 微信支付 V3 SDK — 取消注释并填入实际值
 # =============================================================================
 
-# 支付模式：real 为真实支付，mock 为模拟支付
-PAYMENT_MODE=real
-
-# 小程序 AppID（已固定）
-WXPAY_APPID=wxb4f6d89904200fd2
-
-# 微信支付商户号（审核通过后获得）
-WXPAY_MCHID=你的商户号
-
-# APIv3 密钥（32位，在商户平台设置的）
-WXPAY_API_V3_KEY=你的32位APIv3密钥
-
-# 证书序列号（在商户平台证书管理中查看）
-WXPAY_CERT_SERIAL_NO=你的证书序列号
-
-# 商户 API 证书私钥路径（相对于 backend/ 或绝对路径）
-WXPAY_CERT_PATH=certs/apiclient_key.pem
-
-# 微信支付平台证书路径（用于回调验签）
-WXPAY_PLATFORM_CERT_PATH=certs/platform_cert.pem
-
-# 微信支付回调通知 URL（需公网可访问）
-WXPAY_NOTIFY_URL=https://www.go-aiport.com/api/recharge/callback/wxpay
-
-# 退款回调通知 URL
-WXPAY_REFUND_NOTIFY_URL=https://www.go-aiport.com/api/recharge/callback/wxpay
-
-# 小程序 AppSecret（在 mp.weixin.qq.com 获取）
-WECHAT_APP_SECRET=你的小程序AppSecret
+WECHAT_APPID=wx1234567890abcdef          # 改: 你的公众号/小程序 AppID
+WECHAT_MCHID=1230000109                   # 改: 你的商户号
+WECHAT_API_V3_KEY=a1b2c3d4e5f6789012345678abcdef90  # 改: 你的 APIv3 密钥
+WECHAT_CERT_SERIAL=1234ABCD5678EF90       # 改: 你的证书序列号
+WECHAT_CERT_PATH=/etc/wechat_certs/apiclient_key.pem  # 改: 你的私钥路径
+WECHAT_NOTIFY_URL=https://yourdomain.com/api/payment/wechat/notify  # 改: 你的回调URL
 ```
 
-> **注意**：代码同时支持 `WXPAY_*` 和 `WECHAT_*` 两种前缀，`WXPAY_*` 优先。
-> 如果使用 `WECHAT_*` 前缀，命名规则是 `WECHAT_APPID`, `WECHAT_MCH_ID` 等。
-> 建议统一使用 `WXPAY_*` 前缀。
+### 7.2 可选配置
 
-### 4.3 配置字段对照表
-
-| .env 字段 | 从哪里获取 | 用途 |
-|:----------|:----------|:-----|
-| `WXPAY_MCHID` | 商户平台首页「商户号」 | 商户身份标识 |
-| `WXPAY_API_V3_KEY` | 账户中心→API安全→APIv3密钥 | 支付签名(AES-GCM解密) |
-| `WXPAY_CERT_SERIAL_NO` | 账户中心→API安全→证书管理 | V3鉴权头中标识证书 |
-| `apiclient_key.pem` | 下载的证书zip包 | V3请求签名(RSA-SHA256) |
-| `platform_cert.pem` | 微信平台证书 | 回调响应验签 |
-| `WXPAY_NOTIFY_URL` | https://www.go-aiport.com/api/recharge/callback/wxpay | 支付结果通知 |
-| `WECHAT_APP_SECRET` | mp.weixin.qq.com → 开发 → 开发管理 | 获取 openid / session_key |
+```bash
+WECHAT_API_KEY=                           # APIv2 密钥 (如需 V2 兼容)
+WECHAT_REFUND_NOTIFY_URL=                 # 退款回调 URL (可选)
+WECHAT_PLATFORM_CERT_DIR=/tmp/wechat_certs   # 平台证书缓存目录
+```
 
 ---
 
-## 5. 验证支付流程
+## 8. 验证配置
 
-### 5.1 启动后端服务
+### 8.1 运行配置检查脚本
 
 ```bash
-cd /d/链客宝AI/backend
-
-# 激活虚拟环境并启动
-source venv_new/Scripts/activate  # Windows git-bash
-# 或: .\venv_new\Scripts\activate  # Windows cmd/powershell
-
-python start_chainke.py
-# 默认监听 http://0.0.0.0:8001
+cd /path/to/liankebao
+python check_wechat_config.py --verbose
 ```
 
-### 5.2 检查配置是否加载
+预期输出:
 
-```bash
-# 用 curl 检查支付配置（无需认证）
-curl -s http://localhost:8001/api/payment/config | python -m json.tool
+```
+============================================================
+  链客宝 — 微信支付配置检查
+============================================================
 
-# 预期输出中包含 wxpay.configured=true
-# 示例：
-# {
-#   "code": 200,
-#   "message": "success",
-#   "data": {
-#     "wxpay": {
-#       "app_id": "wxb4f6d89904200fd2",
-#       "mch_id": "你的商户号",
-#       "configured": true
-#     }
-#   }
-# }
+【必需配置项】
+----------------------------------------
+  ✓ 公众号/小程序 AppID: wx1234567890abcdef
+  ✓ 微信商户号 ID: 1230000109
+  ✓ APIv3 密钥: a1b2c3****
+  ✓ 商户私钥证书路径: /etc/wechat_certs/apiclient_key.pem
+  ✓ 支付回调通知 URL: https://yourdomain.com/api/payment/wechat/notify
+
+【可选配置项】
+----------------------------------------
+  ...
+
+【证书检查】
+----------------------------------------
+  ✓ 商户私钥证书存在: /etc/wechat_certs/apiclient_key.pem
+  ℹ  证书序列号 (从文件读取): 1234ABCD5678EF90
+
+【回调 URL 检查】
+----------------------------------------
+  ✓ 回调 URL 使用 HTTPS: https://yourdomain.com/api/payment/wechat/notify
+
+============================================================
+  ✅ 微信支付配置完整, 可以启用真实支付!
+============================================================
 ```
 
-### 5.3 检查支付模式
+### 8.2 首次启动时初始化平台证书
 
-```bash
-# 查看服务端日志是否打印了支付模式
-# 期望看到类似：
-# INFO 支付模式: real (微信支付已配置)
-# 或
-# WARNING 支付模式: mock (微信支付未配置或配置不完整)
+启动链客宝后端服务后，调用一次证书下载接口（或在代码初始化时调用）:
+
+```python
+from app.payment.wechat_pay import WeChatPay
+
+wxpay = WeChatPay.from_env()
+await wxpay.download_platform_certs()
 ```
 
-### 5.4 测试统一下单接口
+> 平台证书用于验证微信回调签名的真实性。证书会自动缓存到 `WECHAT_PLATFORM_CERT_DIR` 目录，有效期内无需重复下载。
 
+### 8.3 测试下单
+
+调用统一下单接口:
 ```bash
-# 需要先获取一个有效的 JWT token（登录后获得）
-# 然后用 token 测试下单
-
-# 1. 先登录获取 token（替换为实际账号）
-curl -s -X POST http://localhost:8001/api/auth/login \
+curl -X POST https://yourdomain.com/api/payment/wxpay/unified-order \
   -H "Content-Type: application/json" \
-  -d '{"username": "test_user", "password": "test_pass"}' \
-  | python -m json.tool
-
-# 2. 从响应中提取 token，然后测试充值预创建
-# 替换 {token} 为实际 token
-curl -s -X POST http://localhost:8001/api/recharge/precreate \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer {token}" \
-  -d '{"amount": 0.01, "platform": "wxpay"}' \
-  | python -m json.tool
-
-# 预期输出（real模式）：
-# {
-#   "code": 200,
-#   "message": "success",
-#   "data": {
-#     "order_id": 1,
-#     "order_no": "RC1...",
-#     "amount": 0.01,
-#     "prepay_id": "wx...",
-#     "payment_params": { ... }
-#   }
-# }
+  -H "Authorization: Bearer <token>" \
+  -d '{"order_id": 1, "openid": "用户openid"}'
 ```
 
-### 5.5 测试 mock 回调（验证回调逻辑）
+---
 
-```bash
-# 先获取一个 order_no（从上一步获取）
-# 然后测试 mock 回调
-curl -s -X POST http://localhost:8001/api/recharge/callback/mock \
-  -H "Content-Type: application/json" \
-  -d '{"out_trade_no": "RC1...", "transaction_id": "test_tx_001"}' \
-  | python -m json.tool
+## 9. 生产上线检查清单
 
-# 预期输出：
-# {"code": "SUCCESS", "message": "Mock 支付成功"}
-```
+| # | 检查项 | 状态 |
+|---|--------|------|
+| 1 | 微信商户号已注册并通过审核 | ☐ |
+| 2 | JSAPI 支付已开通，AppID 已关联 | ☐ |
+| 3 | APIv3 密钥已设置 | ☐ |
+| 4 | 商户证书已申请，`apiclient_key.pem` 已部署到服务器 | ☐ |
+| 5 | 证书文件权限设置为 `600` | ☐ |
+| 6 | 回调 URL 已配置到商户平台 | ☐ |
+| 7 | `.env` 中配置已取消注释并填入正确值 | ☐ |
+| 8 | `check_wechat_config.py` 运行通过 | ☐ |
+| 9 | 平台证书已下载（首次调用） | ☐ |
+| 10 | 回调 URL 公网可达 (用 curl 测试) | ☐ |
+| 11 | HTTPS 证书有效（微信要求 TLS 1.2+） | ☐ |
 
-### 5.6 用 1 分钱测试真实支付
+---
 
-> 微信支付支持 0.01 元=1分测试金额，验证完整链路的正确性。
+## 10. 排错指南
 
-**测试流程**：
+### 10.1 回调验签失败
 
-1. 确保服务器绑定了公网域名（如 `www.go-aiport.com`），或使用内网穿透工具
-2. 确认 `WXPAY_NOTIFY_URL` 配置的域名能正确访问到服务器
-3. 在小程序端发起充值（前端调用 `/api/recharge/precreate`）
-4. 微信弹出支付确认框 → 输入支付密码
-5. 支付成功后跳转回小程序
-6. 检查回调日志：
+**表现**: 支付成功但系统未更新订单状态
+
+**排查步骤**:
+
+1. **检查回调日志**
    ```bash
-   # 查看服务端日志，期望看到：
-   # INFO  充值支付成功: order_no=RC..., user_id=..., amount=0.01, balance_after=0.01
-   ```
-7. 查询余额是否增加：
-   ```bash
-   curl -s http://localhost:8001/api/recharge/balance \
-     -H "Authorization: Bearer {token}" | python -m json.tool
+   grep "wechat_notify" /var/log/liankebao/app.log
    ```
 
-### 5.7 验证回调的完整测试
+2. **检查平台证书**
+   - 确保已调用 `download_platform_certs()`
+   - 检查证书缓存目录是否存在正确的 PEM 文件
+   - 微信平台证书会定期轮换，SDK 会自动处理
 
-如果微信回调暂时无法触发，可以用 curl 模拟微信 V3 回调：
+3. **序列号不匹配**
+   - 回调头的 `Wechatpay-Serial` 与缓存的证书 serial 不一致
+   - 重新下载平台证书即可
 
-```bash
-# 构造一个模拟的微信支付回调请求
-# 注意：实际 V3 回调需要 Wechatpay-Signature 等头，微信服务器会带
-# 这是模拟请求，仅用于测试路由可达
+4. **手动验证签名** (通过微信官方工具):
+   https://pay.weixin.qq.com/wiki/doc/apiv3/wechatpay/wechatpay4_1.shtml
 
-curl -v -X POST https://www.go-aiport.com/api/recharge/callback/wxpay \
-  -H "Content-Type: application/json" \
-  -H "Wechatpay-Signature: test_signature" \
-  -H "Wechatpay-Serial: test_serial" \
-  -H "Wechatpay-Timestamp: 1234567890" \
-  -H "Wechatpay-Nonce: test_nonce" \
-  -d '{"resource":{"ciphertext":"...","nonce":"...","associated_data":"..."}}'
-```
+### 10.2 下单返回签名错误
 
-**注意**: 微信回调的 `WxPayCallback.verify_and_decrypt()` 中，平台证书路径硬编码为 `/certs/wechat_platform_{serial}.pem`。如果回调验签时报错找不到平台证书，有两种方案：
+**表现**: 调用下单接口返回 `SIGN_ERROR`
 
-**方案A**（推荐）：在 `payment/wxpay/__init__.py` 的 `_get_platform_cert` 方法中，加载 `WXPAY_PLATFORM_CERT_PATH` 指向的文件作为平台证书。
+**排查步骤**:
 
-**方案B**：将平台证书按 `wechat_platform_{serial}.pem` 命名格式放到项目根 `/certs/` 目录下。
+1. **检查商户证书序列号**:
+   - 确保 `WECHAT_CERT_SERIAL` 与商户平台显示的序列号一致
+   - 序列号格式为大写十六进制，不含空格
 
----
+2. **检查私钥文件**:
+   - 确认 `WECHAT_CERT_PATH` 指向 `apiclient_key.pem`（不是 `apiclient_cert.pem`）
+   - 文件格式为 PEM（`-----BEGIN PRIVATE KEY-----`）
 
-## 6. 附录：常见问题
+3. **检查商户号**:
+   - `WECHAT_MCHID` 必须是纯数字字符串
 
-### Q1: 如何从 mock 切换到 real？
+### 10.3 回调 URL 收不到通知
 
-答：只需设置 `PAYMENT_MODE=real` 并填充完整的微信支付环境变量。代码的 `is_real_mode()` 和 `has_config()` 两个条件都满足时会自动走真实支付。
+**可能原因**:
 
-### Q2: 证书过期怎么办？
+1. 回调 URL 未在商户平台配置
+2. URL 必须是 HTTPS（微信强制要求）
+3. 服务器防火墙拦截了微信 IP 段
+4. 返回给微信的 HTTP 状态码不是 200
 
-商户 API 证书有效期通常为 5 年。过期前微信会发通知。续期流程：
-1. 登录 pay.weixin.qq.com → 账户中心 → API安全 → 证书管理
-2. 重新下载证书，更新 `apiclient_key.pem`
-3. 更新 `WXPAY_CERT_SERIAL_NO` 为新证书序列号
-4. 重启后端服务
+**微信服务器 IP 段** (请加入白名单):
+- 所有微信支付回调来自固定的 IP 段，可在商户平台查询
+- 建议先放行全部，稳定后再限制
 
-### Q3: 回调验签失败？
+### 10.4 AES-GCM 解密失败
 
-| 可能原因 | 检查项 |
-|:---------|:-------|
-| 平台证书未下载/未放到正确位置 | 确认 `WXPAY_PLATFORM_CERT_PATH` 路径正确 |
-| 证书序列号不匹配 | 确认 `WXPAY_CERT_SERIAL_NO` 与商户平台一致 |
-| APIv3 密钥错误 | 确认 `WXPAY_API_V3_KEY` 为32位正确密钥 |
+**表现**: 收到回调但解密 resource 失败
 
-### Q4: 微信支付报错 "商户号未配置 APIv3 密钥"？
+**原因**: `WECHAT_API_V3_KEY` 与商户平台配置的不一致
 
-答：登录 pay.weixin.qq.com → 账户中心 → API安全 → APIv3密钥 → 设置密钥。
-
-### Q5: 生产环境需要 HTTPS 吗？
-
-答：**必须**。微信支付回调通知只接受 HTTPS 地址。链客宝AI生产域名 `www.go-aiport.com` 已配置 HTTPS。
-
-### Q6: 调试日志怎么看？
-
-为便于调试支付流程，可将日志级别设为 DEBUG：
-
-```bash
-# 通过 API 动态切换（需管理员 token）
-curl -X PUT "http://localhost:8001/api/system/log-level?level=DEBUG" \
-  -H "Authorization: Bearer {admin_token}"
-```
+**解决**:
+1. 在商户平台 → API安全 → APIv3密钥 → 重置密钥
+2. 更新 `.env` 中的 `WECHAT_API_V3_KEY`
+3. 重新下载平台证书
 
 ---
 
-## 参考文档
+## 附录: 证书序列号获取
 
-- [微信支付商户平台](https://pay.weixin.qq.com/)
-- [微信支付 V3 API 文档](https://pay.weixin.qq.com/wiki/doc/apiv3/wxpay/pages/JSAPI.shtml)
-- [微信公众平台](https://mp.weixin.qq.com/)
-- [链客宝AI支付实现代码](backend/payment/) — 代码见 `payment/` 目录
-- [微信支付商户号注册SOP](微信支付商户号注册SOP.md) — 更详细的注册步骤
+### 方法一: 商户平台查看
+
+商户平台 → 账户中心 → API安全 → 已安装证书 → **证书序列号**
+
+### 方法二: OpenSSL 命令行
+
+```bash
+openssl x509 -in /path/to/apiclient_cert.pem -noout -serial
+# 输出: serial=1234ABCD5678EF90
+```
+
+### 方法三: Python 读取
+
+```python
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+
+with open("apiclient_cert.pem", "rb") as f:
+    cert = x509.load_pem_x509_certificate(f.read(), default_backend())
+    serial = format(cert.serial_number, "X")
+    print(f"证书序列号: {serial}")
+```
+
+---
+
+## 参考链接
+
+| 资源 | 链接 |
+|------|------|
+| 微信支付商户平台 | https://pay.weixin.qq.com/ |
+| APIv3 文档 | https://pay.weixin.qq.com/wiki/doc/apiv3/wxpay/pages/api.shtml |
+| 签名验证 | https://pay.weixin.qq.com/wiki/doc/apiv3/wechatpay/wechatpay4_0.shtml |
+| 回调通知 | https://pay.weixin.qq.com/wiki/doc/apiv3/wechatpay/wechatpay7_0.shtml |
+| 证书管理 | https://pay.weixin.qq.com/wiki/doc/apiv3/wechatpay/wechatpay3_1.shtml |
+
+---
+
+> **提示**: 配置过程中如有问题，请先运行 `python check_wechat_config.py -v` 查看详细诊断信息。

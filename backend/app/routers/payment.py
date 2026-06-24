@@ -936,4 +936,231 @@ def _mock_payment(order: Order, total_fee: int = 0, description: str = "") -> di
     }
 
 
+# ============================================================
+# 微信支付 V3 — 统一通知回调
+# /api/payment/wechat/notify
+# ============================================================
+
+
+@router.post("/wechat/notify")
+async def wechat_notify(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """
+    微信支付 V3 统一回调通知
+
+    接收微信支付异步通知, 处理:
+      1. 验签 + 解密 (AES-256-GCM)
+      2. 更新订单/合同状态
+      3. 触发 Webhook 事件
+
+    回调签名验证失败时返回 200 + {"code": "FAIL"}
+    避免微信重试导致重复处理。
+    """
+    body = await request.body()
+    logger.info(f"收到微信支付回调: {body[:300]}")
+
+    with tracer.start_as_current_span("payment.wechat_notify") as span:
+        wechat_signature = request.headers.get("Wechatpay-Signature", "")
+        wechat_serial = request.headers.get("Wechatpay-Serial", "")
+        wechat_timestamp = request.headers.get("Wechatpay-Timestamp", "")
+        wechat_nonce = request.headers.get("Wechatpay-Nonce", "")
+
+        span.set_attribute("has_v3_headers", bool(wechat_signature and wechat_serial))
+
+        # 尝试用新 SDK 验证 (V3)
+        notify_data = None
+        try:
+            from app.payment.wechat_pay import WeChatPay
+
+            wxpay = WeChatPay.from_env()
+            if wxpay.config.is_ready()[0]:  # 配置完整 => 真实验签
+                notify_data = wxpay.verify_callback(
+                    body=body,
+                    wechatpay_signature=wechat_signature,
+                    wechatpay_serial=wechat_serial,
+                    wechatpay_timestamp=wechat_timestamp,
+                    wechatpay_nonce=wechat_nonce,
+                )
+                if notify_data is None:
+                    logger.error("V3 回调验签失败")
+                    span.set_attribute("verify_result", "failed")
+                    _enqueue_retry(body, request)
+                    return {"code": "FAIL", "message": "验签失败"}
+                span.set_attribute("verify_result", "success")
+        except ImportError:
+            logger.debug("app.payment.wechat_pay 未安装, 使用兼容模式")
+        except Exception as e:
+            logger.warning(f"V3 SDK 回调处理异常: {e}, 降级兼容模式")
+
+        # 降级: 使用现有 IJPay 回调逻辑
+        if notify_data is None:
+            logger.info("使用兼容模式处理微信回调")
+            return await _legacy_wechat_notify(body, request, db, span)
+
+        # ===== V3 回调处理 =====
+        out_trade_no = notify_data.get("out_trade_no", "")
+        transaction_id = notify_data.get("transaction_id", "")
+        trade_state = notify_data.get("trade_state", "")
+        success = trade_state in ("SUCCESS",)
+
+        span.set_attribute("out_trade_no", out_trade_no)
+        span.set_attribute("trade_state", trade_state)
+        span.set_attribute("success", success)
+
+        if not success:
+            logger.warning(f"支付未成功: out_trade_no={out_trade_no}, state={trade_state}")
+            return {"code": "FAIL", "message": "支付未成功"}
+
+        # 更新订单 + 合同 + Webhook
+        _process_successful_payment(out_trade_no, transaction_id, db, span)
+
+        # 触发 webhook
+        _fire_payment_webhook("payment.succeeded", {
+            "out_trade_no": out_trade_no,
+            "transaction_id": transaction_id,
+            "trade_state": trade_state,
+        })
+
+        return {"code": "SUCCESS", "message": "成功"}
+
+
+async def _legacy_wechat_notify(
+    body: bytes, request: Request, db: Session, span
+) -> dict:
+    """降级使用现有 IJPay 回调逻辑"""
+    body_str = body.decode("utf-8")
+    try:
+        notify_data = json.loads(body_str)
+    except json.JSONDecodeError:
+        import xml.etree.ElementTree as ET
+        try:
+            root = ET.fromstring(body_str)
+            notify_data = {child.tag: child.text for child in root}
+        except Exception as e:
+            logger.error(f"回调解析失败: {e}")
+            span.set_attribute("parse_error", str(e))
+            _enqueue_retry(body, request)
+            return {"code": "FAIL", "message": "解析失败"}
+
+    out_trade_no = notify_data.get("out_trade_no", "")
+    transaction_id = notify_data.get("transaction_id", "") or notify_data.get(
+        "wx_transaction_id", f"mock_tx_{int(time.time())}"
+    )
+    success = notify_data.get("result_code", "") in ("SUCCESS", "OK", "")
+
+    if not success:
+        return {"code": "FAIL", "message": "支付未成功"}
+
+    _process_successful_payment(out_trade_no, transaction_id, db, span)
+    return {"code": "SUCCESS", "message": "成功"}
+
+
+def _process_successful_payment(
+    out_trade_no: str, transaction_id: str, db: Session, span
+) -> None:
+    """
+    支付成功处理:
+    1. 解析订单号
+    2. 更新订单状态 → paid
+    3. 更新合同状态 → paid
+    4. 记录支付交易流水
+    """
+    if out_trade_no.startswith("LK") or out_trade_no.startswith("LKM"):
+        is_membership = out_trade_no.startswith("LKM")
+        offset = 3 if is_membership else 2
+        try:
+            order_id = int(out_trade_no[offset:offset + 8])
+        except (ValueError, IndexError):
+            order_id = None
+    else:
+        order_id = None
+        is_membership = False
+
+    if order_id is None:
+        logger.warning(f"无法从 out_trade_no 解析订单ID: {out_trade_no}")
+        return
+
+    span.set_attribute("order_id", order_id)
+    span.set_attribute("is_membership", is_membership)
+
+    if is_membership:
+        membership_order = (
+            db.query(MembershipOrder)
+            .filter(MembershipOrder.id == order_id, MembershipOrder.status == "pending")
+            .first()
+        )
+        if membership_order:
+            membership_order.status = "paid"
+            membership_order.transaction_id = transaction_id
+            membership_order.paid_at = datetime.utcnow()
+            if not membership_order.payment_platform:
+                membership_order.payment_platform = PLATFORM_WXPAY
+            db.commit()
+            _process_membership_payment(membership_order, db)
+            _log_payment_transaction(
+                order_id=order_id,
+                user_id=membership_order.user_id,
+                transaction_id=transaction_id,
+                platform=PLATFORM_WXPAY,
+                amount=float(membership_order.amount),
+                status="success",
+                description=f"会员升级-{membership_order.tier}",
+                contract_id=membership_order.contract_id if hasattr(membership_order, "contract_id") else None,
+                db=db,
+            )
+            span.set_attribute("membership_updated", True)
+    else:
+        order = (
+            db.query(Order)
+            .filter(Order.id == order_id, Order.is_deleted == False)
+            .first()
+        )
+        if order and order.status == "pending":
+            order.status = "paid"
+            order.transaction_id = transaction_id
+            order.wx_transaction_id = transaction_id
+            order.payment_time = datetime.utcnow()
+            order.pay_time = datetime.utcnow()
+            if not order.payment_platform:
+                order.payment_platform = PLATFORM_WXPAY
+            db.commit()
+            logger.info(f"订单 {order_id} 支付成功")
+            _log_payment_transaction(
+                order_id=order.id,
+                user_id=order.user_id,
+                transaction_id=transaction_id,
+                platform=PLATFORM_WXPAY,
+                amount=float(order.total_price),
+                status="success",
+                description=f"订单 #{order.id}",
+                db=db,
+            )
+            # 更新关联合同
+            _update_contract_by_order(order.id, db)
+            span.set_attribute("order_updated", True)
+
+    # 记录支付事件回调成功
+    span.set_attribute("payment_processed", True)
+    logger.info(f"支付回调处理完成: out_trade_no={out_trade_no}, tx={transaction_id}")
+
+
+def _fire_payment_webhook(event_type: str, payload: dict) -> None:
+    """触发支付 Webhook 事件"""
+    try:
+        from app.webhook_v2 import EventType, dispatch_event
+
+        dispatch_event(
+            event_type=EventType(event_type),
+            data=payload,
+            source="payment",
+        )
+        logger.info(f"Webhook 事件已触发: {event_type}")
+    except ImportError:
+        logger.debug("webhook_v2 未加载, 跳过 webhook 触发")
+    except Exception as e:
+        logger.error(f"Webhook 触发失败: {e}")
+
+
 import os

@@ -21,6 +21,11 @@ logger = logging.getLogger(__name__)
 # ============================================================
 DB_TYPE = os.environ.get("DB_TYPE", "").strip().lower()
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
+USE_POSTGRES = os.environ.get("USE_POSTGRES", "0").strip().lower() in ("1", "true", "yes")
+
+# USE_POSTGRES=1 覆盖 DB_TYPE，强制启用 PostgreSQL
+if USE_POSTGRES:
+    DB_TYPE = "postgres"
 
 # 若 DB_TYPE 未设置，尝试从 DATABASE_URL 自动判断
 if not DB_TYPE:

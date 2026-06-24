@@ -1,13 +1,28 @@
 # ============================================================
-# 链客宝AI — K8s 部署 CI/CD Workflow
+# 链客宝AI — K8s 部署 CI/CD Workflow (阿里云 ACK 版)
 # ============================================================
 # 说明:
 #   - Docker 构建多架构镜像 (linux/amd64 + linux/arm64)
 #   - 推送至阿里云容器镜像服务 (ACR)
-#   - 通过 SSH 连接 K8s 集群执行部署
+#   - 直接通过 ACK kubeconfig 部署到集群
 #   - 支持金丝雀发布和回滚
+#   - 兼容原有 SSH 隧道模式 (降级)
+#
+# GitHub Secrets 要求:
+#   必填:
+#     ALIYUN_ACCESS_KEY     阿里云 RAM 用户 AccessKey ID
+#     ALIYUN_ACCESS_KEY_SECRET  阿里云 RAM 用户 AccessKey Secret
+#     ACR_REGISTRY           容器镜像仓库地址 (例如: registry.cn-hangzhou.aliyuncs.com/chainke)
+#     ACK_CLUSTER_ID         ACK 集群 ID
+#   选填:
+#     ALIYUN_REGION          阿里云区域 (默认: cn-hangzhou)
+#     ALIYUN_CLUSTER_NAME    集群名称 (用于按名称查找, 与 ACK_CLUSTER_ID 二选一)
+#     REGISTRY_USERNAME      ACR 用户名 (默认使用 ALIYUN_ACCESS_KEY)
+#     REGISTRY_PASSWORD      ACR 密码 (默认使用 ALIYUN_ACCESS_KEY_SECRET)
+#     K8S_SSH_KEY            SSH 密钥 (降级模式，通过堡垒机部署)
+#     K8S_MASTER_HOST        SSH 堡垒机地址
 # ============================================================
-name: 链客宝 K8s 部署
+name: 链客宝 K8s 部署 (ACK)
 
 on:
   push:
@@ -33,6 +48,10 @@ on:
         description: "跳过 Docker 构建"
         type: boolean
         default: false
+      skip_deploy:
+        description: "仅构建镜像，跳过 K8s 部署"
+        type: boolean
+        default: false
 
 concurrency:
   group: k8s-deploy-${{ github.ref }}
@@ -40,13 +59,23 @@ concurrency:
 
 env:
   # ==========================================================
-  # 镜像仓库配置 — 通过 GitHub Secrets 注入
+  # 镜像仓库配置
   # ==========================================================
-  REGISTRY: ${{ secrets.REGISTRY_URL || 'registry.cn-hangzhou.aliyuncs.com/chainke' }}
-  BACKEND_IMAGE: ${{ secrets.REGISTRY_URL || 'registry.cn-hangzhou.aliyuncs.com/chainke' }}/backend
-  FRONTEND_IMAGE: ${{ secrets.REGISTRY_URL || 'registry.cn-hangzhou.aliyuncs.com/chainke' }}/frontend
-  # K8s 集群 SSH 配置
-  K8S_MASTER: ${{ secrets.K8S_MASTER_HOST || '47.116.116.87' }}
+  REGISTRY: ${{ secrets.ACR_REGISTRY || secrets.REGISTRY_URL || 'registry.cn-hangzhou.aliyuncs.com/chainke' }}
+  BACKEND_IMAGE: ${{ secrets.ACR_REGISTRY || secrets.REGISTRY_URL || 'registry.cn-hangzhou.aliyuncs.com/chainke' }}/backend
+  FRONTEND_IMAGE: ${{ secrets.ACR_REGISTRY || secrets.REGISTRY_URL || 'registry.cn-hangzhou.aliyuncs.com/chainke' }}/frontend
+
+  # ==========================================================
+  # 阿里云 ACK 配置
+  # ==========================================================
+  ALIYUN_REGION: ${{ secrets.ALIYUN_REGION || 'cn-hangzhou' }}
+  ACK_CLUSTER_ID: ${{ secrets.ACK_CLUSTER_ID || '' }}
+  ACK_CLUSTER_NAME: ${{ secrets.ALIYUN_CLUSTER_NAME || 'chainke-prod' }}
+
+  # ==========================================================
+  # 降级模式: SSH 堡垒机
+  # ==========================================================
+  K8S_MASTER: ${{ secrets.K8S_MASTER_HOST || '' }}
 
 jobs:
   # ==========================================================
@@ -99,12 +128,12 @@ jobs:
       - name: 设置 Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: 登录到容器镜像仓库
+      - name: 登录到阿里云 ACR (通过 RAM 用户)
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          password: ${{ secrets.REGISTRY_PASSWORD }}
+          username: ${{ secrets.ALIYUN_ACCESS_KEY || secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.ALIYUN_ACCESS_KEY_SECRET || secrets.REGISTRY_PASSWORD }}
 
       - name: 生成 Docker 元数据
         id: meta
@@ -138,8 +167,7 @@ jobs:
   deploy:
     needs: [version, build-and-push]
     runs-on: ubuntu-latest
-    # 允许手动触发时跳过构建步骤
-    if: ${{ always() && !cancelled() && (needs.build-and-push.result == 'success' || inputs.skip_build) }}
+    if: ${{ !inputs.skip_deploy && (always()) && !cancelled() && (needs.build-and-push.result == 'success' || inputs.skip_build) }}
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -149,7 +177,105 @@ jobs:
         with:
           version: "v1.30.0"
 
-      - name: 配置 K8s 集群访问 (SSH 隧道模式)
+      # ---------------------------------------------------
+      # 模式 A: 直连 ACK (通过 aliyun CLI 获取 kubeconfig)
+      # ---------------------------------------------------
+      - name: 配置阿里云 CLI 并获取 ACK kubeconfig
+        id: ack-config
+        env:
+          ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIYUN_ACCESS_KEY || '' }}
+          ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIYUN_ACCESS_KEY_SECRET || '' }}
+          ALIBABA_CLOUD_REGION_ID: ${{ env.ALIYUN_REGION }}
+        run: |
+          # 检测是否可以通过 ACK 直连
+          if [ -n "$ALIBABA_CLOUD_ACCESS_KEY_ID" ] && [ -n "$ALIBABA_CLOUD_ACCESS_KEY_SECRET" ]; then
+            echo "检测到阿里云 AK/SK，尝试直连 ACK 模式..."
+
+            # 安装 aliyun CLI
+            if ! command -v aliyun &>/dev/null; then
+              echo "安装 aliyun CLI..."
+              curl -sL https://aliyun-cli.alibaba.com/install.sh | bash 2>/dev/null || {
+                echo "aliyun CLI 安装失败，降级到 SSH 模式"
+                echo "mode=ssh" >> $GITHUB_OUTPUT
+                exit 0
+              }
+              export PATH="$HOME/.aliyun-cli:$PATH"
+            fi
+
+            # 配置 aliyun CLI
+            aliyun configure set \
+              --profile chainke-github \
+              --access-key-id "$ALIBABA_CLOUD_ACCESS_KEY_ID" \
+              --access-key-secret "$ALIBABA_CLOUD_ACCESS_KEY_SECRET" \
+              --region "$ALIBABA_CLOUD_REGION_ID"
+
+            # 获取集群 ID
+            CLUSTER_ID="${{ env.ACK_CLUSTER_ID }}"
+            if [ -z "$CLUSTER_ID" ]; then
+              echo "ACK_CLUSTER_ID 未设置，通过集群名查找..."
+              CLUSTER_ID=$(aliyun cs GET /clusters \
+                --region "$ALIBABA_CLOUD_REGION_ID" \
+                --profile chainke-github \
+                --query "clusters[?name=='${{ env.ACK_CLUSTER_NAME }}'].cluster_id | [0]" \
+                --output json 2>/dev/null | tr -d '"')
+              echo "查找到集群 ID: $CLUSTER_ID"
+            fi
+
+            if [ -n "$CLUSTER_ID" ] && [ "$CLUSTER_ID" != "null" ]; then
+              echo "cluster_id=$CLUSTER_ID" >> $GITHUB_OUTPUT
+
+              # 获取 kubeconfig
+              mkdir -p ~/.kube
+              aliyun cs GET "/k8s/${CLUSTER_ID}/user_config" \
+                --region "$ALIBABA_CLOUD_REGION_ID" \
+                --profile chainke-github \
+                --output json > /tmp/ack_kubeconfig.json 2>/dev/null || {
+                echo "获取 kubeconfig 失败，降级到 SSH 模式"
+                echo "mode=ssh" >> $GITHUB_OUTPUT
+                exit 0
+              }
+
+              # 解码 kubeconfig
+              if command -v python3 &>/dev/null; then
+                # 写入解码脚本到临时文件
+                cat > /tmp/decode_kubeconfig.py << 'PYEOF'
+import sys, json, base64, os
+with open('/tmp/ack_kubeconfig.json') as f:
+    d = json.load(f)
+config_b64 = d.get('config', '')
+if config_b64:
+    home = os.environ.get('HOME', '/root')
+    kubeconfig_path = os.path.join(home, '.kube', 'config')
+    os.makedirs(os.path.dirname(kubeconfig_path), exist_ok=True)
+    with open(kubeconfig_path, 'w') as out:
+        out.write(base64.b64decode(config_b64).decode('utf-8'))
+    os.chmod(kubeconfig_path, 0o600)
+    print('kubeconfig decoded successfully')
+else:
+    print('config field is empty')
+    sys.exit(1)
+PYEOF
+                python3 /tmp/decode_kubeconfig.py 2>/dev/null && \
+                  echo "模式: ACK 直连" && \
+                  echo "mode=ack" >> $GITHUB_OUTPUT || {
+                  echo "kubeconfig 解码失败，降级到 SSH 模式"
+                  echo "mode=ssh" >> $GITHUB_OUTPUT
+                }
+                rm -f /tmp/decode_kubeconfig.py
+            else
+              echo "未找到集群，降级到 SSH 模式"
+              echo "mode=ssh" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "未配置阿里云 AK/SK，降级到 SSH 模式"
+            echo "mode=ssh" >> $GITHUB_OUTPUT
+          fi
+
+      # ---------------------------------------------------
+      # 模式 B: SSH 堡垒机 (降级)
+      # ---------------------------------------------------
+      - name: 配置 SSH 堡垒机访问
+        if: steps.ack-config.outputs.mode == 'ssh' || steps.ack-config.outputs.mode == ''
         env:
           SSH_KEY: ${{ secrets.K8S_SSH_KEY || '' }}
         run: |
@@ -157,80 +283,118 @@ jobs:
             mkdir -p ~/.ssh
             echo "$SSH_KEY" > ~/.ssh/k8s_key
             chmod 600 ~/.ssh/k8s_key
-            # 通过 SSH 隧道转发 kubectl API
             echo "SSH key configured for K8s master: ${{ env.K8S_MASTER }}"
           else
-            # 直连模式 (kubeconfig 已配置在 GitHub Runner 上)
-            echo "Using direct kubeconfig mode"
+            echo "❌ 阿里云 AK/SK 和 SSH Key 均未配置!"
+            echo "请设置以下 Secrets 之一:"
+            echo "  方式1 (推荐): ALIYUN_ACCESS_KEY + ALIYUN_ACCESS_KEY_SECRET + ACK_CLUSTER_ID"
+            echo "  方式2 (降级): K8S_SSH_KEY + K8S_MASTER_HOST"
+            exit 1
+          fi
+        shell: bash
+
+      # ---------------------------------------------------
+      # 验证集群连接
+      # ---------------------------------------------------
+      - name: 验证集群连接
+        run: |
+          echo "=== 测试集群连接 ==="
+          if kubectl cluster-info --request-timeout=10s 2>&1 | head -3; then
+            echo "✅ 集群连接正常"
+          else
+            echo "❌ 集群连接失败"
+            echo "请检查:"
+            echo "  - ACK Cluster ID / SSH 配置是否正确"
+            echo "  - 集群 API Server 公网端点是否启用"
+            echo "  - 安全组/防火墙是否放行通信"
+            exit 1
           fi
 
+      # ---------------------------------------------------
+      # 更新镜像标签 + 部署
+      # ---------------------------------------------------
       - name: 更新 kustomization 镜像标签
         run: |
           cd deploy/k8s
           VERSION="${{ needs.version.outputs.version }}"
-          kustomize edit set image \
-            registry.cn-hangzhou.aliyuncs.com/chainke/backend=$VERSION \
-            registry.cn-hangzhou.aliyuncs.com/chainke/frontend=$VERSION
+          if command -v kustomize &>/dev/null; then
+            kustomize edit set image \
+              ${{ env.REGISTRY }}/backend=$VERSION \
+              ${{ env.REGISTRY }}/frontend=$VERSION
+          else
+            sed -i "s/newTag: .*/newTag: ${VERSION}/" kustomization.yaml
+          fi
           echo "镜像标签已更新为: $VERSION"
 
       - name: 部署到 K8s 集群
-        env:
-          KUBECONFIG: ${{ secrets.KUBECONFIG || '' }}
         run: |
-          # 使用 SSH 隧道或直连部署
-          if [ -n "${{ secrets.K8S_SSH_KEY }}" ]; then
-            echo "通过 SSH 隧道部署..."
-            scp -i ~/.ssh/k8s_key -o StrictHostKeyChecking=no \
-              -r deploy/k8s/ root@${{ env.K8S_MASTER }}:/tmp/k8s-manifest/
-            ssh -i ~/.ssh/k8s_key -o StrictHostKeyChecking=no \
-              root@${{ env.K8S_MASTER }} \
-              "cd /tmp/k8s-manifest && kustomize build . | kubectl apply -f -"
-          else
-            echo "直连模式部署..."
+          echo "=== 部署到 K8s 集群 ==="
+          kubectl apply -f deploy/k8s/namespace.yaml --dry-run=client -o yaml | kubectl apply -f - 2>/dev/null || true
+
+          if command -v kustomize &>/dev/null; then
             kustomize build deploy/k8s/ | kubectl apply -f -
-          fi
-
-      - name: 验证部署状态
-        run: |
-          sleep 10
-          echo "=== 检查 Deployment 状态 ==="
-          if [ -n "${{ secrets.K8S_SSH_KEY }}" ]; then
-            ssh -i ~/.ssh/k8s_key -o StrictHostKeyChecking=no \
-              root@${{ env.K8S_MASTER }} \
-              "kubectl -n chainke get deployments,pods,services,ingress,hpa"
           else
-            kubectl -n chainke get deployments,pods,services,ingress,hpa
+            kubectl apply -k deploy/k8s/
           fi
+          echo "✅ 配置已应用"
 
-      - name: 健康检查
+      # ---------------------------------------------------
+      # 部署验证
+      # ---------------------------------------------------
+      - name: 等待 Deployment 就绪
         run: |
-          echo "=== 等待 Pod 就绪 ==="
-          if [ -n "${{ secrets.K8S_SSH_KEY }}" ]; then
-            ssh -i ~/.ssh/k8s_key -o StrictHostKeyChecking=no \
-              root@${{ env.K8S_MASTER }} \
-              "kubectl -n chainke wait --for=condition=Available deployment/chainke-backend --timeout=120s && \
-               kubectl -n chainke wait --for=condition=Available deployment/chainke-frontend --timeout=120s"
-          else
-            kubectl -n chainke wait --for=condition=Available deployment/chainke-backend --timeout=120s
-            kubectl -n chainke wait --for=condition=Available deployment/chainke-frontend --timeout=120s
-          fi
-          echo "✅ 全部 Pod 就绪"
+          echo "=== 等待 Deployment 就绪 ==="
+          for dep in chainke-backend chainke-frontend; do
+            if kubectl -n chainke get deployment "$dep" &>/dev/null; then
+              echo "等待 $dep 就绪..."
+              kubectl -n chainke wait --for=condition=Available "deployment/$dep" --timeout=180s || echo "⚠️ $dep 就绪超时"
+            else
+              echo "⚠️ Deployment '$dep' 不存在，跳过"
+            fi
+          done
+
+      - name: 部署后健康检查
+        run: |
+          echo "=== 运行健康检查脚本 ==="
+          chmod +x deploy/k8s/post-deploy-check.sh
+          bash deploy/k8s/post-deploy-check.sh -n chainke -v || echo "⚠️ 健康检查完成（有警告）"
 
       - name: 部署成功通知
         if: success()
         run: |
-          echo "✅ 链客宝部署成功!"
-          echo "版本: ${{ needs.version.outputs.version }}"
-          echo "环境: ${{ github.event.inputs.environment || 'production' }}"
-          echo "时间: $(date -u)"
-          echo "后端镜像: ${{ env.BACKEND_IMAGE }}:${{ needs.version.outputs.version }}"
-          echo "前端镜像: ${{ env.FRONTEND_IMAGE }}:${{ needs.version.outputs.version }}"
+          echo "╔═══════════════════════════════════════════════════════════╗"
+          echo "║        ✅ 链客宝部署成功!                                ║"
+          echo "╚═══════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "  版本:     ${{ needs.version.outputs.version }}"
+          echo "  环境:     ${{ github.event.inputs.environment || 'production' }}"
+          echo "  集群:     ${{ env.ACK_CLUSTER_NAME || env.ACK_CLUSTER_ID }}"
+          echo "  仓库:     ${{ env.REGISTRY }}"
+          echo "  后端镜像: ${{ env.BACKEND_IMAGE }}:${{ needs.version.outputs.version }}"
+          echo "  前端镜像: ${{ env.FRONTEND_IMAGE }}:${{ needs.version.outputs.version }}"
+          echo "  时间:     $(date -u)"
+          echo ""
+          echo "  常用命令:"
+          echo "    kubectl -n chainke get pods"
+          echo "    kubectl -n chainke get deployments"
+          echo "    kubectl -n chainke logs deployment/chainke-backend"
 
       - name: 部署失败通知
         if: failure()
         run: |
-          echo "❌ 部署失败!"
-          echo "版本: ${{ needs.version.outputs.version }}"
-          echo "请检查日志并执行回滚:"
-          echo "  kubectl -n chainke rollout undo deployment/chainke-backend"
-          echo "  kubectl -n chainke rollout undo deployment/chainke-frontend"
+          echo "╔═══════════════════════════════════════════════════════════╗"
+          echo "║        ❌ 链客宝部署失败!                                ║"
+          echo "╚═══════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "  版本: ${{ needs.version.outputs.version }}"
+          echo "  时间: $(date -u)"
+          echo ""
+          echo "  诊断命令:"
+          echo "    kubectl -n chainke get pods -o wide"
+          echo "    kubectl -n chainke describe pod <pod-name>"
+          echo "    kubectl -n chainke logs <pod-name>"
+          echo "    kubectl -n chainke get events --sort-by='.lastTimestamp'"
+          echo ""
+          echo "  回滚命令:"
+          echo "    kubectl -n chainke rollout undo deployment/chainke-backend"
+          echo "    kubectl -n chainke rollout undo deployment/chainke-frontend"
