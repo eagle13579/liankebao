@@ -15,7 +15,12 @@ from app.database import get_db
 from app.models import User
 
 # JWT配置
-SECRET_KEY = os.environ.get("SECRET_KEY", "liankebao-jwt-secret-key-2024-nous")
+SECRET_KEY = os.environ.get("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError(
+        "SECRET_KEY 环境变量未设置！生产环境必须使用强随机密钥。\n"
+        '生成: python -c "import secrets; print(secrets.token_urlsafe(32))"'
+    )
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30  # access token 有效期 30 分钟
 REFRESH_TOKEN_EXPIRE_MINUTES = 30 * 24 * 7  # refresh token 有效期 7 天

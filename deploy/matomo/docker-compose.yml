@@ -1,0 +1,75 @@
+# ============================================================
+# Matomo 自建部署 — Docker Compose 配置
+# 适用环境: 阿里云/腾讯云 ECS (国内服务器)
+# 推荐镜像源: 阿里云镜像加速器 https://<your-id>.mirror.aliyuncs.com
+# ============================================================
+version: "3.9"
+
+services:
+  # ---------- MariaDB 数据库 ----------
+  db:
+    image: mariadb:10.11
+    container_name: matomo-db
+    restart: always
+    command:
+      - --max-allowed-packet=64MB
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - ./data/db:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=CHANGE_ME_ROOT_PASSWORD      # ← 必改: 数据库 root 密码
+      - MYSQL_DATABASE=matomo                             # 数据库名
+      - MYSQL_USER=matomo                                 # Matomo 专用用户
+      - MYSQL_PASSWORD=CHANGE_ME_MATOMO_PASSWORD         # ← 必改: Matomo 用户密码
+    ports:
+      - "127.0.0.1:3307:3306"                            # 仅本地访问，避免暴露公网
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - matomo-net
+
+  # ---------- Matomo 主服务 ----------
+  matomo:
+    image: matomo:5-apache
+    container_name: matomo-app
+    restart: always
+    volumes:
+      - ./data/matomo:/var/www/html                        # Matomo 程序文件 + 插件
+      - ./config/config.ini.php:/var/www/html/config/config.ini.php:ro  # 自定义配置
+    environment:
+      - MATOMO_DATABASE_HOST=db
+      - MATOMO_DATABASE_ADAPTER=mysql
+      - MATOMO_DATABASE_TABLES_PREFIX=matomo_
+      - MATOMO_DATABASE_USERNAME=matomo
+      - MATOMO_DATABASE_PASSWORD=CHANGE_ME_MATOMO_PASSWORD  # ← 与上面一致
+      - MATOMO_DATABASE_DBNAME=matomo
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - matomo-net
+
+  # ---------- phpMyAdmin (可选管理工具) ----------
+  phpmyadmin:
+    image: phpmyadmin:5
+    container_name: matomo-phpmyadmin
+    restart: always
+    environment:
+      - PMA_HOST=db
+      - PMA_PORT=3306
+      - UPLOAD_LIMIT=64M
+    depends_on:
+      - db
+    networks:
+      - matomo-net
+    # 建议通过 Nginx 限制访问或仅在排障时启动
+    profiles:
+      - admin
+
+networks:
+  matomo-net:
+    driver: bridge

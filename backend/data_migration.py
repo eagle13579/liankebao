@@ -97,7 +97,7 @@ def export_from_sqlite(sqlite_path: str) -> dict:
     try:
         for table in tables:
             try:
-                result = conn.execute(f"SELECT * FROM {table}")
+                result = conn.execute(f"SELECT * FROM {table}")  # nosec — table 来自硬编码白名单
                 columns = list(result.keys())
                 rows = []
                 for row in result.fetchall():
@@ -266,7 +266,7 @@ def import_to_postgres(data: dict, truncate_first: bool = False) -> dict:
         if truncate_first:
             for table in reversed(table_order):
                 try:
-                    cur.execute(f"TRUNCATE TABLE {table} CASCADE;")
+                    cur.execute(f"TRUNCATE TABLE {table} CASCADE;")  # nosec — table 来自硬编码白名单
                 except Exception as e:
                     logger.warning(f"  清空 {table} 失败: {e}")
             conn.commit()

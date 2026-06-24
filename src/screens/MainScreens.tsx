@@ -3,12 +3,16 @@ import {
   Search, Home, Grid, User, ChevronRight, Bell, ShoppingBag, Receipt, TrendingUp,
   Users, Database, BarChart3, Target, Globe, FileText, HelpCircle, Package,
   Settings, Crown, GraduationCap, Share2, CheckCircle2, X, Image, Copy, Link,
-  TableProperties, FolderKanban, HandCoins, Shapes, Sparkles, QrCode
+  TableProperties, FolderKanban, HandCoins, Shapes, Sparkles, QrCode, Code
 } from 'lucide-react';
 import { useState, useEffect, memo } from 'react';
 import { api } from '../api/client';
 import { ProductItem } from '../types';
 import { useApi, ErrorBlock, Empty } from '../components/StatusComponents';
+import SplashCursor from '../components/SplashCursor';
+import DecryptedText from '../components/DecryptedText';
+import SpotlightCard from '../components/SpotlightCard';
+import SocialProofSection from '../components/social-proof/SocialProofSection';
 
 // ==============================
 //  Shared Bottom Nav
@@ -17,6 +21,7 @@ function BottomNav({ active }: { active: string }) {
   const navigate = useNavigate();
   const items = [
     { id: 'home', icon: Home, label: '首页', path: '/home' },
+    { id: 'contracts', icon: FileText, label: '交易', path: '/contracts' },
     { id: 'product', icon: ShoppingBag, label: '产品池', path: '/product-pool' },
     { id: 'business-card', icon: QrCode, label: 'AI名片', path: '/business-card' },
     { id: 'membership', icon: Crown, label: '会员中心', path: '/membership' },
@@ -150,6 +155,7 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
 
   // 二级菜单功能列表（深色主题配色）
   const secondaryFeatures = [
+    { icon: FileText, label: '交易合同', desc: '合同管理与交易履约', path: '/contracts', color: 'text-sky-400', bg: 'bg-sky-500/15' },
     { icon: Database, label: '产品池', desc: '精选优质货源', path: '/product-pool', color: 'text-sky-400', bg: 'bg-sky-500/15' },
     { icon: ShoppingBag, label: '推广中心', desc: '赚取高额分润', path: '/promotion-center', color: 'text-emerald-400', bg: 'bg-emerald-500/15' },
     { icon: Users, label: '人脉管理', desc: '高效触达客户', path: '/contacts', color: 'text-violet-400', bg: 'bg-violet-500/15' },
@@ -167,11 +173,12 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-dark-bg font-sans pb-20">
-      {/* Decorative mesh background */}
+      {/* SplashCursor 鼠标动效 */}
+      <SplashCursor />
+      {/* Decorative mesh background - Emerald brand */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-gradient-to-br from-sky-500/8 to-blue-600/5 rounded-full blur-[120px]" />
-        <div className="absolute top-1/3 right-0 w-[400px] h-[400px] bg-gradient-to-bl from-violet-500/6 to-purple-600/4 rounded-full blur-[100px]" />
-        <div className="absolute bottom-0 left-1/3 w-[500px] h-[500px] bg-gradient-to-tr from-emerald-500/5 to-teal-600/3 rounded-full blur-[100px]" />
+        <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-gradient-to-br from-emerald-500/8 to-teal-600/5 rounded-full blur-[120px]" />
+        <div className="absolute top-1/3 right-0 w-[400px] h-[400px] bg-gradient-to-bl from-emerald-500/6 to-teal-600/4 rounded-full blur-[100px]" />
       </div>
 
       {/* Top Navigation Bar - clean minimal */}
@@ -199,7 +206,7 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
           </div>
         </div>
       </header>
-      
+
       {/* ====== 全局搜索栏 ====== */}
       <div className="fixed top-14 w-full z-40 px-4 pt-2 pb-2 bg-dark-bg/95 max-w-3xl mx-auto left-0 right-0">
         <div className="flex items-center gap-2 bg-dark-surface border border-dark-border/60 rounded-xl px-3 h-10 shadow-sm">
@@ -457,6 +464,11 @@ export const LiankebaoHomepage = memo(function LiankebaoHomepage() {
           </div>
         </div>
       </main>
+
+      {/* ====== 社交证明区块（Logo墙 + 案例展示 + 数据看板） ====== */}
+      <div className="px-4 max-w-3xl mx-auto w-full mt-6 relative z-10">
+        <SocialProofSection />
+      </div>
 
       {/* Site Footer — 公司信息 */}
       <footer className="px-4 py-6 mt-2 border-t border-dark-border/40">

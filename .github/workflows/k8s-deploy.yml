@@ -1,0 +1,236 @@
+# ============================================================
+# 链客宝AI — K8s 部署 CI/CD Workflow
+# ============================================================
+# 说明:
+#   - Docker 构建多架构镜像 (linux/amd64 + linux/arm64)
+#   - 推送至阿里云容器镜像服务 (ACR)
+#   - 通过 SSH 连接 K8s 集群执行部署
+#   - 支持金丝雀发布和回滚
+# ============================================================
+name: 链客宝 K8s 部署
+
+on:
+  push:
+    branches: [master, main]
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+      - ".gitignore"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "部署版本号 (留空自动从 git tag 获取)"
+        required: false
+        default: ""
+      environment:
+        description: "部署环境"
+        type: choice
+        options:
+          - production
+          - staging
+        default: production
+      skip_build:
+        description: "跳过 Docker 构建"
+        type: boolean
+        default: false
+
+concurrency:
+  group: k8s-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # ==========================================================
+  # 镜像仓库配置 — 通过 GitHub Secrets 注入
+  # ==========================================================
+  REGISTRY: ${{ secrets.REGISTRY_URL || 'registry.cn-hangzhou.aliyuncs.com/chainke' }}
+  BACKEND_IMAGE: ${{ secrets.REGISTRY_URL || 'registry.cn-hangzhou.aliyuncs.com/chainke' }}/backend
+  FRONTEND_IMAGE: ${{ secrets.REGISTRY_URL || 'registry.cn-hangzhou.aliyuncs.com/chainke' }}/frontend
+  # K8s 集群 SSH 配置
+  K8S_MASTER: ${{ secrets.K8S_MASTER_HOST || '47.116.116.87' }}
+
+jobs:
+  # ==========================================================
+  # Job 1: 版本号计算
+  # ==========================================================
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      timestamp: ${{ steps.version.outputs.timestamp }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 计算版本号
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [ -n "$(git tag --points-at HEAD)" ]; then
+            VERSION="$(git tag --points-at HEAD)"
+          elif [ -n "${{ github.event.pull_request.head.sha }}" ]; then
+            VERSION="pr-${{ github.event.pull_request.number }}-$(git rev-parse --short HEAD)"
+          else
+            VERSION="$(git rev-parse --short HEAD)"
+          fi
+          TIMESTAMP="$(date -u +'%Y%m%d%H%M%S')"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
+          echo "版本: $VERSION, 时间戳: $TIMESTAMP"
+
+  # ==========================================================
+  # Job 2: Docker 构建 + 推送
+  # ==========================================================
+  build-and-push:
+    needs: version
+    runs-on: ubuntu-latest
+    if: ${{ !inputs.skip_build }}
+    strategy:
+      matrix:
+        service: [backend, frontend]
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 QEMU (多架构支持)
+        uses: docker/setup-qemu-action@v3
+
+      - name: 设置 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 登录到容器镜像仓库
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: 生成 Docker 元数据
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ matrix.service == 'backend' && env.BACKEND_IMAGE || env.FRONTEND_IMAGE }}
+          tags: |
+            type=raw,value=${{ needs.version.outputs.version }}
+            type=raw,value=latest
+            type=sha,format=short
+
+      - name: 构建并推送 Docker 镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: ${{ matrix.service }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_VERSION=${{ needs.version.outputs.version }}
+            BUILD_TIMESTAMP=${{ needs.version.outputs.timestamp }}
+
+  # ==========================================================
+  # Job 3: K8s 部署
+  # ==========================================================
+  deploy:
+    needs: [version, build-and-push]
+    runs-on: ubuntu-latest
+    # 允许手动触发时跳过构建步骤
+    if: ${{ always() && !cancelled() && (needs.build-and-push.result == 'success' || inputs.skip_build) }}
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "v1.30.0"
+
+      - name: 配置 K8s 集群访问 (SSH 隧道模式)
+        env:
+          SSH_KEY: ${{ secrets.K8S_SSH_KEY || '' }}
+        run: |
+          if [ -n "$SSH_KEY" ]; then
+            mkdir -p ~/.ssh
+            echo "$SSH_KEY" > ~/.ssh/k8s_key
+            chmod 600 ~/.ssh/k8s_key
+            # 通过 SSH 隧道转发 kubectl API
+            echo "SSH key configured for K8s master: ${{ env.K8S_MASTER }}"
+          else
+            # 直连模式 (kubeconfig 已配置在 GitHub Runner 上)
+            echo "Using direct kubeconfig mode"
+          fi
+
+      - name: 更新 kustomization 镜像标签
+        run: |
+          cd deploy/k8s
+          VERSION="${{ needs.version.outputs.version }}"
+          kustomize edit set image \
+            registry.cn-hangzhou.aliyuncs.com/chainke/backend=$VERSION \
+            registry.cn-hangzhou.aliyuncs.com/chainke/frontend=$VERSION
+          echo "镜像标签已更新为: $VERSION"
+
+      - name: 部署到 K8s 集群
+        env:
+          KUBECONFIG: ${{ secrets.KUBECONFIG || '' }}
+        run: |
+          # 使用 SSH 隧道或直连部署
+          if [ -n "${{ secrets.K8S_SSH_KEY }}" ]; then
+            echo "通过 SSH 隧道部署..."
+            scp -i ~/.ssh/k8s_key -o StrictHostKeyChecking=no \
+              -r deploy/k8s/ root@${{ env.K8S_MASTER }}:/tmp/k8s-manifest/
+            ssh -i ~/.ssh/k8s_key -o StrictHostKeyChecking=no \
+              root@${{ env.K8S_MASTER }} \
+              "cd /tmp/k8s-manifest && kustomize build . | kubectl apply -f -"
+          else
+            echo "直连模式部署..."
+            kustomize build deploy/k8s/ | kubectl apply -f -
+          fi
+
+      - name: 验证部署状态
+        run: |
+          sleep 10
+          echo "=== 检查 Deployment 状态 ==="
+          if [ -n "${{ secrets.K8S_SSH_KEY }}" ]; then
+            ssh -i ~/.ssh/k8s_key -o StrictHostKeyChecking=no \
+              root@${{ env.K8S_MASTER }} \
+              "kubectl -n chainke get deployments,pods,services,ingress,hpa"
+          else
+            kubectl -n chainke get deployments,pods,services,ingress,hpa
+          fi
+
+      - name: 健康检查
+        run: |
+          echo "=== 等待 Pod 就绪 ==="
+          if [ -n "${{ secrets.K8S_SSH_KEY }}" ]; then
+            ssh -i ~/.ssh/k8s_key -o StrictHostKeyChecking=no \
+              root@${{ env.K8S_MASTER }} \
+              "kubectl -n chainke wait --for=condition=Available deployment/chainke-backend --timeout=120s && \
+               kubectl -n chainke wait --for=condition=Available deployment/chainke-frontend --timeout=120s"
+          else
+            kubectl -n chainke wait --for=condition=Available deployment/chainke-backend --timeout=120s
+            kubectl -n chainke wait --for=condition=Available deployment/chainke-frontend --timeout=120s
+          fi
+          echo "✅ 全部 Pod 就绪"
+
+      - name: 部署成功通知
+        if: success()
+        run: |
+          echo "✅ 链客宝部署成功!"
+          echo "版本: ${{ needs.version.outputs.version }}"
+          echo "环境: ${{ github.event.inputs.environment || 'production' }}"
+          echo "时间: $(date -u)"
+          echo "后端镜像: ${{ env.BACKEND_IMAGE }}:${{ needs.version.outputs.version }}"
+          echo "前端镜像: ${{ env.FRONTEND_IMAGE }}:${{ needs.version.outputs.version }}"
+
+      - name: 部署失败通知
+        if: failure()
+        run: |
+          echo "❌ 部署失败!"
+          echo "版本: ${{ needs.version.outputs.version }}"
+          echo "请检查日志并执行回滚:"
+          echo "  kubectl -n chainke rollout undo deployment/chainke-backend"
+          echo "  kubectl -n chainke rollout undo deployment/chainke-frontend"

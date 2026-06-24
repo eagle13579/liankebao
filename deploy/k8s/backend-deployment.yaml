@@ -1,8 +1,8 @@
 # ============================================================
 # 链客宝AI — 后端 Deployment (FastAPI + Uvicorn)
 # ============================================================
-# 说明: 生产级后端部署配置，3 副本 + 滚动更新 + 健康探针。
-#       镜像推送至阿里云容器镜像服务 (ACR)。
+# 说明: 生产级后端部署配置，2 副本 + HPA 自动扩缩容。
+#       镜像推送至容器镜像服务 (ACR/ECR/DockerHub)。
 # ============================================================
 apiVersion: apps/v1
 kind: Deployment
@@ -14,7 +14,7 @@ metadata:
     component: backend
     version: stable
 spec:
-  replicas: 3
+  replicas: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -33,6 +33,12 @@ spec:
     spec:
       # 优雅关闭：给 Uvicorn 足够时间处理完进行中的请求
       terminationGracePeriodSeconds: 60
+      # 安全上下文
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
         - name: backend
           image: registry.cn-hangzhou.aliyuncs.com/chainke/backend:{VERSION}
@@ -68,15 +74,28 @@ spec:
             successThreshold: 1
             failureThreshold: 3
           # ==================================================
-          # 资源限制
+          # 启动探针 — 慢启动容器保护
+          # ==================================================
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8001
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 12
+          # ==================================================
+          # 资源限制 — 与 docker-compose.yml 兼容
           # ==================================================
           resources:
             requests:
               cpu: "256m"
               memory: "512Mi"
             limits:
-              cpu: "1"
-              memory: "1Gi"
+              cpu: "2"
+              memory: "2Gi"
           # ==================================================
           # 环境变量来源
           # ==================================================
@@ -98,18 +117,34 @@ spec:
           # 数据卷挂载
           # ==================================================
           volumeMounts:
-            # SQLite 数据持久化（如使用 SQLite）
+            # 数据持久化
             - name: data
               mountPath: /app/backend/data
             # 日志持久化
             - name: logs
               mountPath: /app/logs
+            # Pod 元数据 (用于服务发现)
+            - name: pod-info
+              mountPath: /etc/pod-info
+              readOnly: true
       volumes:
         - name: data
           persistentVolumeClaim:
             claimName: chainke-data-pvc
         - name: logs
           emptyDir: {}
+        - name: pod-info
+          downwardAPI:
+            items:
+              - path: "labels"
+                fieldRef:
+                  fieldPath: metadata.labels
+              - path: "name"
+                fieldRef:
+                  fieldPath: metadata.name
+              - path: "namespace"
+                fieldRef:
+                  fieldPath: metadata.namespace
       # ==================================================
       # 调度策略
       # ==================================================
@@ -125,6 +160,25 @@ spec:
                       values:
                         - backend
                 topologyKey: kubernetes.io/hostname
+        # 节点亲和性 — 优先选择 SSD 节点
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - key: disk-type
+                    operator: In
+                    values:
+                      - ssd
+      # Pod 中断预算保护
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: chainke
+              component: backend
       # 镜像拉取密钥（如需私有仓库认证）
       # imagePullSecrets:
       #   - name: aliyun-acr-secret

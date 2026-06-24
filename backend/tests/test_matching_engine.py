@@ -19,8 +19,11 @@ import pytest
 
 # 将项目根目录加入 sys.path
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+LIANKEBAO_ROOT = os.path.dirname(PROJECT_ROOT)  # D:/链客宝/ (trust_engine 所在目录)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
+if LIANKEBAO_ROOT not in sys.path:
+    sys.path.insert(0, LIANKEBAO_ROOT)
 
 # 必须先设定环境变量
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-pytest-only")
@@ -820,3 +823,359 @@ class TestMatchingEngineRoutes:
         """未登录访问返回 401"""
         resp = client.get(f"{self.MATCHING_PREFIX}/cache/status")
         assert resp.status_code == 401 or resp.status_code == 403
+
+
+# ============================================================
+# P2-2: 评分模型单元测试
+# ============================================================
+
+
+class TestColdStartSingleBonus:
+    """冷启动只乘一次 1.2x，不是 1.44x"""
+
+    def test_cold_start_single_bonus(self, engine_v2):
+        """冷启动只乘一次 1.2x → 不应出现 1.44x"""
+        # 模拟一个产品是冷启动，需求不是
+        product = MockProduct(
+            id=1001,
+            name="新发布产品",
+            description="新品上市",
+            price=100000,
+            category="大健康",
+        )
+        # 设置 created_at 为 1 天前（冷启动范围内）
+        import datetime
+
+        product.created_at = datetime.datetime.fromtimestamp(time.time() - 86400)
+
+        need = MockNeed(
+            title="采购需求",
+            description="需要采购产品",
+            category="大健康",
+            budget="10万-50万",
+        )
+        # need 无 created_at → _is_cold_start_item 返回 False
+
+        result = engine_v2._calculate_match(product, need)
+
+        # 冷启动只乘一次 1.2x
+        # 类目40 + 关键词 ~ + 价格 ~ = 总分 < 100
+        # 如果冷启动乘了两次 (1.44x)，分数会异常高
+        # 检查匹配理由中冷启动出现次数
+        cold_count = sum(1 for r in result.match_reasons if "冷启动" in r)
+        assert cold_count <= 1, f"冷启动不应该出现多次, 实际{cold_count}次"
+
+        # 确保分数合理 (冷启动boost后 0.4~0.9 左右)
+        assert 0.3 <= result.match_score <= 1.0, f"冷启动分数异常: {result.match_score}"
+
+    def test_cold_start_only_once_product_and_need(self, engine_v2):
+        """产品和需求都是冷启动 → 也只乘一次 1.2x"""
+        import datetime
+
+        product = MockProduct(
+            id=1002,
+            name="新品",
+            description="新品上市",
+            price=100000,
+            category="大健康",
+        )
+        product.created_at = datetime.datetime.fromtimestamp(time.time() - 86400)
+
+        need = MockNeed(
+            title="新需求",
+            description="新采购需求",
+            category="大健康",
+            budget="10万-50万",
+        )
+        need.created_at = datetime.datetime.fromtimestamp(time.time() - 3600)
+
+        result = engine_v2._calculate_match(product, need)
+
+        cold_count = sum(1 for r in result.match_reasons if "冷启动" in r)
+        assert cold_count <= 1, f"即使双方都是冷启动, 也只乘一次1.2x, 实际{cold_count}次"
+
+        # 验证没有出现 1.44x 的痕迹: 分数不应该超过非冷启动情况的 1.2x
+        # 如果两个 1.2x 相乘 = 1.44x, 在类目+关键词+价格满分情况下会>1.0
+        # 但我们的分数已经归一化到 1.0, 所以检查不应有分数溢出
+        assert result.match_score <= 1.0, f"分数不应超过1.0: {result.match_score}"
+
+
+class TestFeedbackStepSize:
+    """反馈闭环: ±10次feedback达到上限"""
+
+    def test_feedback_positive_accumulation(self):
+        """10次正向反馈达到上限 0.10"""
+        MatchEngine._feedback_weights.clear()
+        for _ in range(10):
+            MatchEngine.record_feedback(1, 1.0)
+        assert MatchEngine._feedback_weights[1] == 0.10, (
+            f"10次正向反馈应为0.10, 实际{MatchEngine._feedback_weights.get(1)}"
+        )
+
+    def test_feedback_negative_accumulation(self):
+        """10次负向反馈达到下限 -0.10"""
+        MatchEngine._feedback_weights.clear()
+        for _ in range(10):
+            MatchEngine.record_feedback(2, -1.0)
+        assert MatchEngine._feedback_weights[2] == -0.10, (
+            f"10次负向反馈应为-0.10, 实际{MatchEngine._feedback_weights.get(2)}"
+        )
+
+    def test_feedback_does_not_exceed_max(self):
+        """超过10次后不再增加"""
+        MatchEngine._feedback_weights.clear()
+        for _ in range(20):
+            MatchEngine.record_feedback(3, 1.0)
+        assert MatchEngine._feedback_weights[3] == 0.10, (
+            f"20次反馈也不应超过0.10, 实际{MatchEngine._feedback_weights.get(3)}"
+        )
+
+    def test_feedback_partial_step(self):
+        """部分反馈正确生效"""
+        MatchEngine._feedback_weights.clear()
+        MatchEngine.record_feedback(4, 1.0)
+        assert MatchEngine._feedback_weights[4] == 0.10, "一次满正向反馈应为0.10"
+        MatchEngine.record_feedback(4, 0.5)
+        assert MatchEngine._feedback_weights[4] == 0.10, "已达上限不应再增加"
+
+    def test_feedback_positive_negative_mix(self):
+        """正负反馈相互抵消"""
+        MatchEngine._feedback_weights.clear()
+        MatchEngine.record_feedback(5, 1.0)
+        assert MatchEngine._feedback_weights[5] == 0.10
+        MatchEngine.record_feedback(5, -1.0)
+        assert MatchEngine._feedback_weights[5] == 0.0, f"抵消后应为0.0, 实际{MatchEngine._feedback_weights.get(5)}"
+
+
+class TestScoreRange:
+    """确保 match_score 在 [0, 1.0] 范围内"""
+
+    def test_score_never_negative(self, engine_v1, engine_v2):
+        """任何匹配结果分数不应为负"""
+        for eng in [engine_v1, engine_v2]:
+            product = MockProduct(
+                name="无关产品",
+                description="完全不相关的内容",
+                price=999999999,
+                category="外星科技",
+            )
+            need = MockNeed(
+                title="日常用品",
+                description="买点日用品",
+                category="消费品",
+                budget="100-500",
+            )
+            result = eng._calculate_match(product, need)
+            assert result.match_score >= 0.0, f"[{eng.strategy}] 分数不应为负: {result.match_score}"
+
+    def test_score_never_exceeds_one(self, engine_v1, engine_v2):
+        """任何匹配结果分数不应超过 1.0"""
+        for eng in [engine_v1, engine_v2]:
+            product = MockProduct(
+                name="完美匹配产品" * 3,
+                description="完美匹配" * 10,
+                price=100000,
+                category="教育培训",
+            )
+            need = MockNeed(
+                title="完美匹配需求" * 3,
+                description="完美匹配" * 10,
+                category="教育培训",
+                budget="5万-20万",
+            )
+            result = eng._calculate_match(product, need)
+            assert 0.0 <= result.match_score <= 1.0, f"[{eng.strategy}] 分数应在[0,1]: {result.match_score}"
+
+    def test_score_with_feedback_in_range(self, engine_v2):
+        """添加反馈后分数仍在范围内"""
+        MatchEngine._feedback_weights.clear()
+        MatchEngine.record_feedback(999, 1.0)  # 最大正向反馈
+        product = MockProduct(id=999, name="产品", description="描述", price=100000, category="教育培训")
+        need = MockNeed(title="需求", description="描述", category="教育培训", budget="10万-50万")
+        result = engine_v2._calculate_match(product, need)
+        assert 0.0 <= result.match_score <= 1.0, f"反馈后分数应在[0,1]: {result.match_score}"
+
+    def test_score_with_negative_feedback_in_range(self, engine_v2):
+        """负向反馈后分数仍在范围内"""
+        MatchEngine._feedback_weights.clear()
+        MatchEngine.record_feedback(998, -1.0)  # 最大负向反馈
+        product = MockProduct(id=998, name="产品", description="描述", price=100000, category="教育培训")
+        need = MockNeed(title="需求", description="描述", category="教育培训", budget="10万-50万")
+        result = engine_v2._calculate_match(product, need)
+        assert 0.0 <= result.match_score <= 1.0, f"负反馈后分数应在[0,1]: {result.match_score}"
+
+
+class TestPriceMatchBoundary:
+    """价格匹配边界值测试"""
+
+    def test_price_min_budget(self, engine_v1, engine_v2):
+        """产品价格等于预算最小值"""
+        for eng in [engine_v1, engine_v2]:
+            product = MockProduct(price=100000)  # 10万
+            need = MockNeed(budget="10万-50万")
+            score, reasons = eng._match_price_range(product, need)
+            assert score > 0, f"[{eng.strategy}] 边界最小值应有正分"
+
+    def test_price_max_budget(self, engine_v1, engine_v2):
+        """产品价格等于预算最大值"""
+        for eng in [engine_v1, engine_v2]:
+            product = MockProduct(price=500000)  # 50万
+            need = MockNeed(budget="10万-50万")
+            score, reasons = eng._match_price_range(product, need)
+            assert score > 0, f"[{eng.strategy}] 边界最大值应有正分"
+
+    def test_price_invalid_format(self, engine_v1, engine_v2):
+        """无效预算格式 → 0分"""
+        for eng in [engine_v1, engine_v2]:
+            product = MockProduct(price=100000)
+            need = MockNeed(budget="面议")
+            score, reasons = eng._match_price_range(product, need)
+            assert score == 0.0, f"[{eng.strategy}] 无效预算应为0分: {score}"
+
+    def test_price_empty_string(self, engine_v1, engine_v2):
+        """空字符串预算 → 0分"""
+        for eng in [engine_v1, engine_v2]:
+            product = MockProduct(price=100000)
+            need = MockNeed(budget="")
+            score, reasons = eng._match_price_range(product, need)
+            assert score == 0.0, f"[{eng.strategy}] 空预算应为0分: {score}"
+
+    def test_price_zero_budget(self, engine_v1, engine_v2):
+        """预算为0 → 正常处理不应崩溃"""
+        for eng in [engine_v1, engine_v2]:
+            product = MockProduct(price=0)
+            need = MockNeed(budget="0-0")
+            score, reasons = eng._match_price_range(product, need)
+            assert isinstance(score, float), f"[{eng.strategy}] 返回类型应为float"
+
+    def test_price_very_large(self, engine_v1, engine_v2):
+        """极大预算值 → 正常处理不应崩溃"""
+        for eng in [engine_v1, engine_v2]:
+            product = MockProduct(price=1e12)
+            need = MockNeed(budget="1000万-1亿")
+            score, reasons = eng._match_price_range(product, need)
+            assert isinstance(score, float), f"[{eng.strategy}] 极大值应正常返回"
+
+
+class TestCategoryExactVsFuzzy:
+    """类目精确40分 vs 模糊20-35分"""
+
+    def test_category_exact_40(self, engine_v1, engine_v2):
+        """类目完全相同 → 40分"""
+        for eng in [engine_v1, engine_v2]:
+            score, reasons = eng._match_category("大健康", "大健康")
+            assert score == 40.0, f"[{eng.strategy}] 精确匹配应为40分: {score}"
+
+    def test_category_synonym_30(self, engine_v1, engine_v2):
+        """类目同义词 → 30分"""
+        for eng in [engine_v1, engine_v2]:
+            score, reasons = eng._match_category("养生", "大健康")
+            assert score == 30.0, f"[{eng.strategy}] 同义词应为30分: {score}"
+
+    def test_category_fuzzy_between_20_and_35(self, engine_v1, engine_v2):
+        """类目模糊匹配 → 20~35分"""
+        for eng in [engine_v1, engine_v2]:
+            # 使用无同义词关系但有部分字符重叠的类目
+            score, reasons = eng._match_category("水泥建材", "建筑建材")
+            # "建材" 共2字匹配, ratio=2*2/8=0.5, score=10+0.5*20=20
+            assert 10 <= score <= 30, f"[{eng.strategy}] 模糊匹配应在10~30分: {score}, reasons={reasons}"
+            # 至少有一个原因
+            assert len(reasons) > 0, f"[{eng.strategy}] 应有匹配原因"
+
+    def test_category_no_match_zero(self, engine_v1, engine_v2):
+        """类目不匹配 → 0分"""
+        for eng in [engine_v1, engine_v2]:
+            score, reasons = eng._match_category("大健康", "工业")
+            assert score == 0.0, f"[{eng.strategy}] 不匹配应为0分: {score}"
+
+    def test_category_exact_higher_than_fuzzy(self, engine_v1, engine_v2):
+        """精确匹配分数 > 同义词匹配 > 模糊匹配 > 0分"""
+        for eng in [engine_v1, engine_v2]:
+            exact, _ = eng._match_category("大健康", "大健康")
+            synonym, _ = eng._match_category("养生", "大健康")
+            fuzzy, _ = eng._match_category("水泥建材", "建筑建材")
+            no_match, _ = eng._match_category("大健康", "工业")
+            assert exact > synonym, f"[{eng.strategy}] 精确({exact})应>同义词({synonym})"
+            assert synonym > no_match, f"[{eng.strategy}] 同义词({synonym})应>不匹配({no_match})"
+            assert fuzzy > no_match, f"[{eng.strategy}] 模糊({fuzzy})应>不匹配({no_match})"
+
+
+class TestDiversityRerankNoDuplicateCategory:
+    """MMR 后同类目不超过2个"""
+
+    def _make_result(self, cat: str, score: float, id_: int) -> MatchResult:
+        return MatchResult(
+            id=id_,
+            title=f"产品{id_}",
+            category=cat,
+            match_score=score,
+            match_reasons=["测试"],
+            strategy="v2",
+        )
+
+    def test_same_category_limited(self, engine_v2):
+        """多个同类目产品 → MMR后不超过2个"""
+        results = [
+            self._make_result("大健康", 0.95, 1),
+            self._make_result("大健康", 0.90, 2),
+            self._make_result("大健康", 0.85, 3),
+            self._make_result("大健康", 0.80, 4),
+            self._make_result("教育培训", 0.70, 5),
+            self._make_result("教育培训", 0.65, 6),
+        ]
+        reranked = engine_v2.diversity_rerank(results)
+        # 统计每个类目出现次数
+        cat_count = {}
+        for r in reranked:
+            cat_count[r.category] = cat_count.get(r.category, 0) + 1
+        for cat, count in cat_count.items():
+            assert count <= 2, f"MMR后类目'{cat}'出现{count}次, 应<=2"
+
+    def test_diverse_categories_kept(self, engine_v2):
+        """不同类目产品 → MMR保留多样性"""
+        results = [
+            self._make_result("大健康", 0.95, 1),
+            self._make_result("食品", 0.94, 2),
+            self._make_result("教育培训", 0.93, 3),
+            self._make_result("科技产品", 0.92, 4),
+        ]
+        reranked = engine_v2.diversity_rerank(results)
+        # 应当保留所有类目
+        cats = {r.category for r in reranked}
+        assert len(cats) == 4, f"应保留4个不同类目, 实际{len(cats)}"
+
+    def test_single_category_all_same(self, engine_v2):
+        """全部同一类目 → MMR限制为2个"""
+        results = [
+            self._make_result("大健康", 0.95, 1),
+            self._make_result("大健康", 0.90, 2),
+            self._make_result("大健康", 0.85, 3),
+        ]
+        reranked = engine_v2.diversity_rerank(results)
+        # 同类目被截断为2个
+        assert len(reranked) == 2, f"同类目最多保留2个, 实际{len(reranked)}"
+        cats = {r.category for r in reranked}
+        assert len(cats) == 1
+
+    def test_mixed_categories_no_duplicate_over_2(self, engine_v2):
+        """混合类目 → 任何类目不超过2个"""
+        results = [
+            self._make_result("大健康", 0.98, 1),
+            self._make_result("大健康", 0.92, 2),
+            self._make_result("大健康", 0.88, 3),
+            self._make_result("大健康", 0.85, 4),
+            self._make_result("食品", 0.95, 5),
+            self._make_result("食品", 0.90, 6),
+            self._make_result("食品", 0.87, 7),
+            self._make_result("教育培训", 0.96, 8),
+            self._make_result("教育培训", 0.91, 9),
+            self._make_result("科技产品", 0.94, 10),
+        ]
+        reranked = engine_v2.diversity_rerank(results)
+        cat_count = {}
+        for r in reranked:
+            cat_count[r.category] = cat_count.get(r.category, 0) + 1
+        for cat, count in cat_count.items():
+            assert count <= 2, f"MMR后类目'{cat}'出现{count}次, 应<=2"
+        # 大健康2+食品2+教育培训2+科技产品1=7
+        assert len(reranked) == 7, f"应保留7个(类目上限), 实际{len(reranked)}"

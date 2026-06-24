@@ -2,7 +2,6 @@
 
 import logging
 from datetime import datetime, timedelta
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import BaseModel
@@ -27,7 +26,7 @@ def _make_cache_key(product_id: int, need_id: int) -> str:
     return f"{product_id}:{need_id}"
 
 
-def _get_cached_reason(product_id: int, need_id: int) -> Optional[str]:
+def _get_cached_reason(product_id: int, need_id: int) -> str | None:
     """从缓存中获取 AI 理由，过期条目自动失效"""
     key = _make_cache_key(product_id, need_id)
     entry = _AI_REASON_CACHE.get(key)
@@ -53,6 +52,7 @@ def _evict_expired_cache() -> int:
     for k in expired_keys:
         del _AI_REASON_CACHE[k]
     return len(expired_keys)
+
 
 router = APIRouter(prefix="/api/recommend", tags=["recommend"])
 recommend_router = router  # 显式别名，满足外部引用约定
@@ -338,7 +338,7 @@ def recommend_hot(
     return {
         "code": 200,
         "message": "success",
-        "data": {"items": items, "total": len(items)},
+        "data": {"items": items, "total": len(items), "strategy": "hot"},
     }
 
 
@@ -480,7 +480,7 @@ def recommend_personalized(
         return {
             "code": 200,
             "message": "success",
-            "data": {"items": all_items[:limit], "total": len(all_items[:limit])},
+            "data": {"items": all_items[:limit], "total": len(all_items[:limit]), "strategy": "personalized"},
         }
     except ImportError:
         logger.warning("matching_engine 不可用，降级为行为推荐")

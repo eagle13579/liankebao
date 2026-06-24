@@ -190,6 +190,9 @@ def init_db():
         except ImportError:
             TenantMembership = None  # noqa: F841,N806
 
+    # === 三层信任体系：确保信任相关表被创建 ===
+    from app.models import Review, TrustScore, VerificationRequest  # noqa: F401
+
     # === 创建表（如果不存在） ===
     Base.metadata.create_all(bind=engine)
 

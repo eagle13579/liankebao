@@ -69,6 +69,15 @@ class User(Base):
     membership_expires_at = Column(DateTime, nullable=True, comment="会员过期时间")
     match_credits = Column(Integer, nullable=False, default=3, comment="对接券数量")
 
+    # === 三层信任体系 L1: 身份认证 ===
+    email_verified = Column(Boolean, default=False, comment="邮箱已验证")
+    phone_verified = Column(Boolean, default=False, comment="手机号已验证")
+    enterprise_verified = Column(Boolean, default=False, comment="企业认证通过")
+    wechat_verified = Column(Boolean, default=False, comment="微信已绑定验证")
+    verification_tier = Column(
+        String(20), nullable=False, default="none", comment="认证层级: none/basic/standard/verified"
+    )
+
     # 关系（仅多租户模式启用 ForeignKey 关系）
     if _IS_MULTI_TENANT:
         organization = relationship("Organization", foreign_keys=[organization_id])
@@ -818,3 +827,292 @@ class EsignContract(Base):
     # 关系
     template = relationship("EsignTemplate", foreign_keys=[template_id])
     user = relationship("User", foreign_keys=[user_id])
+
+
+# ============================================================
+# 三层信任体系 — L1: 身份认证 / L2: 交互信誉 / L3: 信任评分
+# ============================================================
+
+
+class VerificationRequest(Base):
+    """认证申请模型"""
+
+    __tablename__ = "verification_requests"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    type = Column(String(20), nullable=False, comment="认证类型: email/phone/enterprise")
+    status = Column(String(20), nullable=False, default="pending", comment="pending/verified/rejected")
+    evidence = Column(Text, nullable=True, comment="认证证明材料(JSON)")
+    verified_at = Column(DateTime, nullable=True, comment="审核通过时间")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # 关系
+    user = relationship("User", foreign_keys=[user_id])
+
+    # 多租户
+    organization_id = _org_fk()
+
+
+# ============================================================
+# 开发者门户模型
+# ============================================================
+
+
+class ApiKey(Base):
+    """API Key模型 — 开发者门户"""
+
+    __tablename__ = "api_keys"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    key_id = Column(String(64), unique=True, index=True, nullable=False, comment="公开标识ID (lk_xxx)")
+    key_hash = Column(String(128), nullable=False, comment="API Key的SHA256哈希")
+    key_prefix = Column(String(16), nullable=False, comment="Key前8位用于显示")
+    name = Column(String(100), nullable=False, comment="Key名称")
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    scopes = Column(String(500), nullable=False, default="read", comment="权限范围 JSON数组")
+    tier = Column(String(20), nullable=False, default="free", comment="API等级: free/pro/enterprise")
+    rate_limit_per_hour = Column(Integer, nullable=False, default=100)
+    is_active = Column(Boolean, nullable=False, default=True)
+    last_used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    revoked_at = Column(DateTime, nullable=True)
+
+    # 关系
+    user = relationship("User", foreign_keys=[user_id])
+
+
+class WebhookSubscriptionDB(Base):
+    """Webhook订阅模型 — 数据库持久化"""
+
+    __tablename__ = "webhook_subscriptions"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    sub_id = Column(String(64), unique=True, index=True, nullable=False, comment="订阅标识 (wh_xxx)")
+    url = Column(String(1024), nullable=False, comment="回调URL")
+    events = Column(String(500), nullable=False, comment="订阅事件类型 JSON数组")
+    secret = Column(String(128), nullable=False, comment="HMAC签名密钥")
+    active = Column(Boolean, nullable=False, default=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    retry_count = Column(Integer, nullable=False, default=0)
+    last_delivery_at = Column(DateTime, nullable=True)
+    last_delivery_status = Column(String(100), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # 关系
+    user = relationship("User", foreign_keys=[user_id])
+
+
+class ApiUsageLog(Base):
+    """API调用日志 — 按API Key统计"""
+
+    __tablename__ = "api_usage_logs"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    api_key_id = Column(Integer, ForeignKey("api_keys.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    endpoint = Column(String(255), nullable=False)
+    method = Column(String(10), nullable=False)
+    status_code = Column(Integer, nullable=False)
+    latency_ms = Column(Integer, nullable=False, default=0)
+    ip_address = Column(String(45), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class WebhookDeliveryLog(Base):
+    """Webhook投递日志"""
+
+    __tablename__ = "webhook_delivery_logs"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    subscription_id = Column(Integer, ForeignKey("webhook_subscriptions.id"), nullable=False, index=True)
+    event_type = Column(String(50), nullable=False)
+    event_id = Column(String(64), nullable=False)
+    status = Column(String(20), nullable=False, comment="success/failed/retrying")
+    attempt = Column(Integer, nullable=False, default=1)
+    response_code = Column(Integer, nullable=True)
+
+
+# ============================================================
+# 社交证明 — Logo墙 / 成功案例 / 数据看板
+# ============================================================
+
+
+class PartnerLogo(Base):
+    """合作企业Logo"""
+
+    __tablename__ = "partner_logos"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    name = Column(String(200), nullable=False, comment="企业名称")
+    logo_url = Column(String(500), nullable=False, comment="Logo图片URL")
+    website = Column(String(500), nullable=True, comment="企业官网")
+    sort_order = Column(Integer, nullable=False, default=0, comment="排序权重")
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class CaseStudy(Base):
+    """成功案例"""
+
+    __tablename__ = "case_studies"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    title = Column(String(200), nullable=False, comment="案例标题")
+    description = Column(Text, nullable=True, comment="案例描述")
+    image_url = Column(String(500), nullable=True, comment="案例图片URL")
+    link_url = Column(String(500), nullable=True, comment="跳转链接")
+    company_name = Column(String(200), nullable=True, comment="企业名称")
+    tags = Column(String(500), nullable=True, comment="标签（逗号分隔）")
+    sort_order = Column(Integer, nullable=False, default=0, comment="排序权重")
+    is_active = Column(Boolean, nullable=False, default=True)
+    is_featured = Column(Boolean, nullable=False, default=False, comment="是否精选")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Contract(Base):
+    """合同模型 — 交易履约核心"""
+
+    __tablename__ = "contracts"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    title = Column(String(200), nullable=False, comment="合同标题")
+    template_id = Column(String(100), nullable=True, comment="关联模板ID")
+    status = Column(
+        String(20),
+        nullable=False,
+        default="draft",
+        comment="合同状态: draft/pending_sign/signed/in_progress/completed/terminated",
+    )
+    party_a_name = Column(String(200), nullable=False, comment="甲方名称（链客宝方）")
+    party_b_name = Column(String(200), nullable=False, comment="乙方名称（签约方）")
+    party_a_id_number = Column(String(100), nullable=True, comment="甲方证件号")
+    party_b_id_number = Column(String(100), nullable=True, comment="乙方证件号")
+    party_a_contact = Column(String(100), nullable=True, comment="甲方联系人")
+    party_b_contact = Column(String(100), nullable=True, comment="乙方联系人")
+    contract_amount = Column(Float, nullable=False, default=0.0, comment="合同金额")
+    variables = Column(Text, nullable=True, comment="模板变量（JSON）")
+    contract_text = Column(Text, nullable=True, comment="合同正文")
+    esign_contract_id = Column(String(100), nullable=True, comment="e签宝合同流程ID")
+    esign_template_id = Column(String(100), nullable=True, comment="e签宝模板ID")
+    sign_url = Column(String(500), nullable=True, comment="签署链接")
+    payment_status = Column(
+        String(20), nullable=False, default="unpaid", comment="支付状态: unpaid/partial/paid/refunded"
+    )
+    related_order_id = Column(Integer, nullable=True, comment="关联订单ID")
+    signed_at = Column(DateTime, nullable=True, comment="签署完成时间")
+    started_at = Column(DateTime, nullable=True, comment="履行开始时间")
+    completed_at = Column(DateTime, nullable=True, comment="完成时间")
+    terminated_at = Column(DateTime, nullable=True, comment="终止时间")
+    notes = Column(Text, nullable=True, comment="备注")
+
+    # 乐观锁 + 软删除
+    version = Column(BigInteger, nullable=False, default=1, comment="乐观锁版本号")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    deleted_at = Column(DateTime, nullable=True)
+    is_deleted = Column(Boolean, default=False)
+
+    # 多租户
+    organization_id = _org_fk()
+
+    # 关系
+    user = relationship("User", foreign_keys=[user_id])
+
+
+class PaymentTransaction(Base):
+    """支付交易记录 — 统一流水表"""
+
+    __tablename__ = "payment_transactions"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    order_id = Column(Integer, nullable=True, comment="关联订单ID")
+    contract_id = Column(Integer, nullable=True, comment="关联合同ID")
+    transaction_no = Column(String(100), unique=True, nullable=False, comment="商户交易号")
+    platform = Column(String(10), nullable=False, comment="支付平台: wxpay/alipay")
+    platform_trade_no = Column(String(100), nullable=True, comment="平台交易号")
+    amount = Column(Float, nullable=False, comment="交易金额（元）")
+    fee = Column(Float, nullable=False, default=0.0, comment="手续费")
+    status = Column(String(20), nullable=False, default="pending", comment="pending/success/failed/refunded")
+    trade_type = Column(String(20), nullable=False, default="payment", comment="payment/refund")
+    description = Column(String(200), nullable=True, comment="交易描述")
+    buyer_payee = Column(String(100), nullable=True, comment="付款方账号")
+    paid_at = Column(DateTime, nullable=True, comment="支付完成时间")
+    raw_data = Column(Text, nullable=True, comment="原始回调数据（JSON）")
+
+    version = Column(BigInteger, nullable=False, default=1, comment="乐观锁版本号")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # 多租户
+    organization_id = _org_fk()
+
+    # 关系
+    user = relationship("User", foreign_keys=[user_id])
+
+
+class SocialMetric(Base):
+    """社交证明数据指标"""
+
+    __tablename__ = "social_metrics"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    key = Column(String(100), unique=True, nullable=False, comment="指标键名，如 total_matches")
+    label = Column(String(200), nullable=False, comment="显示标签，如 '累计匹配数'")
+    value = Column(String(100), nullable=False, comment="显示值，如 '10,000+'")
+    icon = Column(String(50), nullable=True, comment="图标名称（emoji或lucide图标名）")
+    suffix = Column(String(50), nullable=True, comment="后缀，如 '+' / '家'")
+    sort_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    error_message = Column(String(500), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Review(Base):
+    """互评模型 (L2 交互信誉层)"""
+
+    __tablename__ = "reviews"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    reviewer_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True, comment="评价人")
+    reviewee_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True, comment="被评价人")
+    match_id = Column(Integer, nullable=True, index=True, comment="关联匹配事件ID")
+    response_speed = Column(Integer, nullable=False, default=5, comment="响应速度 1-5")
+    cooperation_willingness = Column(Integer, nullable=False, default=5, comment="合作意愿 1-5")
+    info_accuracy = Column(Integer, nullable=False, default=5, comment="信息准确度 1-5")
+    overall_rating = Column(Float, nullable=False, default=5.0, comment="综合评分(三字段均值)")
+    comment = Column(Text, nullable=True, comment="评价内容")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # 关系
+    reviewer = relationship("User", foreign_keys=[reviewer_id])
+    reviewee = relationship("User", foreign_keys=[reviewee_id])
+
+    # 多租户
+    organization_id = _org_fk()
+
+
+class TrustScore(Base):
+    """信任评分模型 (L3 行为信号层)"""
+
+    __tablename__ = "trust_scores"
+
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True, index=True, comment="用户ID")
+    total_score = Column(Integer, nullable=False, default=0, comment="信任总分 0-1000")
+    completed_matches = Column(Integer, nullable=False, default=0, comment="已完成匹配数")
+    response_rate = Column(Float, nullable=False, default=0.0, comment="响应率 0-100")
+    avg_response_time = Column(Float, nullable=False, default=0.0, comment="平均响应时间(小时)")
+    trust_tier = Column(String(20), nullable=False, default="bronze", comment="信任等级: bronze/silver/gold/platinum")
+    last_calculated_at = Column(DateTime, nullable=True, comment="最后计算时间")
+
+    # 关系
+    user = relationship("User", foreign_keys=[user_id])
+
+    # 多租户
+    organization_id = _org_fk()

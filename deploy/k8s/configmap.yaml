@@ -1,8 +1,9 @@
 # ============================================================
-# 链客宝AI — ConfigMap (环境变量配置)
+# 链客宝AI — ConfigMap (环境配置)
 # ============================================================
 # 说明: 通过 ConfigMap 注入非敏感环境变量到 Pod 中。
 #       敏感信息（密码、密钥、Token）应使用 Secret 管理。
+#       与 docker-compose.yml 和 .env.example 保持兼容。
 # ============================================================
 apiVersion: v1
 kind: ConfigMap
@@ -23,17 +24,11 @@ data:
   PYTHONPATH: "/app/backend"
 
   # ==========================================================
-  # 数据库配置
+  # 数据库配置 — 与 docker-compose.yml 兼容
   # ==========================================================
-  DB_TYPE: "mysql"
-  # PostgreSQL 示例:
-  # DB_TYPE: "postgres"
-  # SQLite 示例:
-  # DB_TYPE: "sqlite"
-
-  # MySQL/PostgreSQL 连接参数（DATABASE_URL 优先）
-  PG_HOST: "chainke-mysql.chainke.svc.cluster.local"
-  PG_PORT: "3306"
+  DB_TYPE: "postgres"
+  PG_HOST: "chainke-postgres.chainke.svc.cluster.local"
+  PG_PORT: "5432"
   PG_DATABASE: "chainke"
 
   # ==========================================================
@@ -42,12 +37,34 @@ data:
   LOG_LEVEL: "INFO"
 
   # ==========================================================
-  # Sentry 错误追踪配置（DSN 本身建议存入 Secret）
+  # Sentry 错误追踪
   # ==========================================================
   SENTRY_TRACES_SAMPLE_RATE: "0.2"
   SENTRY_ENVIRONMENT: "production"
 
   # ==========================================================
-  # CORS 配置
+  # CORS 配置 — 与 .env.example 兼容
   # ==========================================================
-  CORS_ORIGINS: "https://liankebao.top,https://api.liankebao.top"
+  CORS_ORIGINS: "https://liankebao.top,https://api.liankebao.top,https://cdn.liankebao.top"
+
+  # ==========================================================
+  # JWT 配置 (非敏感部分)
+  # ==========================================================
+  ACCESS_TOKEN_EXPIRE_MINUTES: "1440"
+  REFRESH_TOKEN_EXPIRE_DAYS: "7"
+
+  # ==========================================================
+  # 向量搜索/功能开关
+  # ==========================================================
+  USE_VECTOR_SEARCH: "0"
+
+  # ==========================================================
+  # 前端配置
+  # ==========================================================
+  VITE_API_BASE: "/lkapi"
+
+  # ==========================================================
+  # 支付相关配置 (域名级)
+  # ==========================================================
+  WXPAY_NOTIFY_URL: "https://api.liankebao.top/lkapi/wechat/pay/notify"
+  WXPAY_REFUND_NOTIFY_URL: "https://api.liankebao.top/lkapi/wechat/refund/notify"

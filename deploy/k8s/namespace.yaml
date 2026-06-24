@@ -8,3 +8,6 @@ metadata:
   labels:
     app: chainke
     name: chainke
+    environment: production
+    team: chainke-dev
+    managed-by: kustomize

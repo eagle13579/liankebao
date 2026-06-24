@@ -1,8 +1,11 @@
 # ============================================================
-# 链客宝AI — 前端 Deployment (Nginx + React SPA)
+# 链客宝AI — 前端 Deployment (Nginx + React SPA + CDN)
 # ============================================================
-# 说明: Nginx 容器提供静态文件服务和 API 反向代理。
-#       前端构建产物在 Dockerfile 中复制到 Nginx 镜像。
+# 说明:
+#   - Nginx 容器提供静态文件服务和 API 反向代理
+#   - 前端构建产物在 Dockerfile 中复制到 Nginx 镜像
+#   - CDN 配置通过注解实现（阿里云 CDN / CloudFront）
+#   - 多副本 + HPA 自动扩缩容
 # ============================================================
 apiVersion: apps/v1
 kind: Deployment
@@ -30,8 +33,22 @@ spec:
         app: chainke
         component: frontend
         version: stable
+      annotations:
+        # CDN 缓存刷新标记 — CI/CD 中根据此标记刷新 CDN 缓存
+        cdn.chainke.io/last-build: "{BUILD_TIMESTAMP}"
+        cdn.chainke.io/version: "{VERSION}"
+        # Prometheus 监控
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "80"
+        prometheus.io/path: "/nginx-status"
     spec:
+      # 优雅关闭
       terminationGracePeriodSeconds: 30
+      # 安全上下文
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
       containers:
         - name: frontend
           image: registry.cn-hangzhou.aliyuncs.com/chainke/frontend:{VERSION}
@@ -67,7 +84,20 @@ spec:
             successThreshold: 1
             failureThreshold: 3
           # ==================================================
-          # 资源限制
+          # 启动探针
+          # ==================================================
+          startupProbe:
+            httpGet:
+              path: /
+              port: 80
+              scheme: HTTP
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 6
+          # ==================================================
+          # 资源限制 — 与 docker-compose.yml 兼容
           # ==================================================
           resources:
             requests:
@@ -82,6 +112,50 @@ spec:
           env:
             - name: TZ
               value: "Asia/Shanghai"
+            # 后端 API 地址 (K8s 内部 DNS)
+            - name: API_BASE_URL
+              value: "http://chainke-backend.chainke.svc.cluster.local:8001"
+            # 前端 CDN 基础 URL (生产环境)
+            - name: CDN_BASE_URL
+              value: "https://cdn.liankebao.top"
+          # ==================================================
+          # 卷挂载
+          # ==================================================
+          volumeMounts:
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-logs
+              mountPath: /var/log/nginx
+      volumes:
+        - name: nginx-cache
+          emptyDir:
+            sizeLimit: 100Mi
+        - name: nginx-logs
+          emptyDir:
+            sizeLimit: 50Mi
+      # ==================================================
+      # 调度策略
+      # ==================================================
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: component
+                      operator: In
+                      values:
+                        - frontend
+                topologyKey: kubernetes.io/hostname
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: chainke
+              component: frontend
       # 镜像拉取密钥（如需私有仓库认证）
       # imagePullSecrets:
       #   - name: aliyun-acr-secret

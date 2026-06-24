@@ -1,36 +1,73 @@
-/* 链客宝主题系统 — 亮色/暗色双主题 */
-/* 使用 data-theme 属性切换 */
+/* 链客宝主题系统 v2 — 亮色/暗色双主题 + Taste-Skill Anti-Slop 注入 */
+/* 解决: 蓝色默认渐变("The LILA RULE")、Inter默认字体 */
+/* 替代: Emerald accent 替代 blue, Geist 字体优先 */
 
 /* ===== 暗色主题（默认） ===== */
 :root,
 [data-theme="dark"] {
-  --bg-primary: #0f172a;
-  --bg-secondary: #1e293b;
-  --bg-surface: #1e293b;
-  --bg-card: #1e293b;
-  --bg-muted: #0f172a;
+  --bg-primary: #0c0e19;
+  --bg-secondary: #151929;
+  --bg-surface: #1a1f33;
+  --bg-card: #1e2438;
+  --bg-muted: #0c0e19;
 
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-primary: #e8ecf4;
+  --text-secondary: #949bb8;
+  --text-muted: #5c6380;
 
-  --border-primary: #334155;
-  --border-secondary: #1e293b;
+  --border-primary: #2a2f45;
+  --border-secondary: #1a1f33;
 
-  --accent-primary: #3b82f6;
-  --accent-secondary: #6366f1;
+  /* Emerald accent 替代蓝色 AI 默认 */
+  --accent-primary: #10b981;
+  --accent-secondary: #059669;
+  --accent-tertiary: #34d399;
   --accent-success: #22c55e;
   --accent-warning: #f59e0b;
   --accent-danger: #ef4444;
 
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
-  --shadow-md: 0 4px 6px rgba(0,0,0,0.3);
-  --shadow-lg: 0 10px 15px rgba(0,0,0,0.3);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.4);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.4);
 
-  --gradient-brand: linear-gradient(135deg, #3b82f6, #6366f1);
+  /* 品牌渐变: emerald → teal 替代 blue → indigo */
+  --gradient-brand: linear-gradient(135deg, #10b981, #0d9488);
+  --gradient-subtle: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(13,148,136,0.05));
+  --gradient-glow: radial-gradient(ellipse at 50% 0%, rgba(16,185,129,0.15), transparent 70%);
 }
 
-/* Body background based on theme */
+/* ===== 亮色主题 ===== */
+[data-theme="light"] {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #f1f5f9;
+  --bg-surface: #ffffff;
+  --bg-card: #ffffff;
+  --bg-muted: #f1f5f9;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+
+  --border-primary: #e2e8f0;
+  --border-secondary: #f1f5f9;
+
+  --accent-primary: #059669;
+  --accent-secondary: #10b981;
+  --accent-tertiary: #34d399;
+  --accent-success: #16a34a;
+  --accent-warning: #d97706;
+  --accent-danger: #dc2626;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+
+  --gradient-brand: linear-gradient(135deg, #059669, #0d9488);
+  --gradient-subtle: linear-gradient(135deg, rgba(5,150,105,0.08), rgba(13,148,136,0.04));
+  --gradient-glow: radial-gradient(ellipse at 50% 0%, rgba(5,150,105,0.08), transparent 70%);
+}
+
+/* ===== 全局覆盖 ===== */
 [data-theme="dark"] body,
 [data-theme="dark"] #root {
   background-color: var(--bg-primary);
@@ -43,12 +80,70 @@
   color: var(--text-primary);
 }
 
-/* ===== Login/Register page dark mode override ===== */
+/* ===== 组件样式 Token ===== */
+@layer components {
+  .card-glass {
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    border-radius: 16px;
+    box-shadow: var(--shadow-md);
+  }
+  .card-glass:hover {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 1px var(--accent-primary), var(--shadow-lg);
+  }
+
+  .btn-primary {
+    background: var(--gradient-brand);
+    color: white;
+    border-radius: 12px;
+    padding: 12px 24px;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+  .btn-primary:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16,185,129,0.3);
+  }
+
+  .nav-blur {
+    background: color-mix(in srgb, var(--bg-surface) 85%, transparent);
+    backdrop-filter: blur(20px) saturate(1.5);
+    border-top: 1px solid var(--border-primary);
+  }
+
+  .text-gradient {
+    background: var(--gradient-brand);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .glow-card {
+    position: relative;
+    overflow: hidden;
+  }
+  .glow-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--gradient-glow);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .glow-card:hover::before {
+    opacity: 1;
+  }
+}
+
+/* ===== Login/Register 暗色适配 ===== */
 [data-theme="dark"] .login-mesh {
   background: var(--bg-primary) !important;
 }
-[data-theme="dark"] .login-mesh .bg-white\\/80,
-[data-theme="dark"] .login-mesh .bg-white\\/70 {
+[data-theme="dark"] .login-mesh .bg-white\/\80,
+[data-theme="dark"] .login-mesh .bg-white\/\70 {
   background: var(--bg-surface) !important;
   border-color: var(--border-primary) !important;
 }
@@ -57,165 +152,9 @@
 [data-theme="dark"] .login-mesh .text-slate-600 {
   color: var(--text-secondary) !important;
 }
-[data-theme="dark"] .login-mesh .text-slate-400,
-[data-theme="dark"] .login-mesh .text-slate-300 {
-  color: var(--text-muted) !important;
-}
 
-/* ===== 亮色主题 ===== */
-[data-theme="light"] {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f8fafc;
-  --bg-surface: #ffffff;
-  --bg-card: #ffffff;
-  --bg-muted: #f1f5f9;
-
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
-
-  --border-primary: #e2e8f0;
-  --border-secondary: #f1f5f9;
-
-  --accent-primary: #3b82f6;
-  --accent-secondary: #6366f1;
-  --accent-success: #22c55e;
-  --accent-warning: #f59e0b;
-  --accent-danger: #ef4444;
-
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-  --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
-  --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
-
-  --gradient-brand: linear-gradient(135deg, #3b82f6, #6366f1);
-}
-
-/* ===== 全局页面深色覆盖（前端工业化统一） ===== */
-[data-theme="dark"] .bg-neutral-bg,
-[data-theme="dark"] .bg-white,
-[data-theme="dark"] .bg-slate-50 {
-  background-color: var(--bg-primary) !important;
-}
-
-[data-theme="dark"] .bg-white\\/80,
-[data-theme="dark"] .bg-white\\/70,
-[data-theme="dark"] .bg-white\\/90 {
-  background-color: var(--bg-secondary) !important;
-}
-
-[data-theme="dark"] .border-border-light,
-[data-theme="dark"] .border-slate-100,
-[data-theme="dark"] .border-slate-200 {
-  border-color: var(--border-primary) !important;
-}
-
-[data-theme="dark"] .text-on-surface,
-[data-theme="dark"] .text-slate-700,
-[data-theme="dark"] .text-slate-800 {
-  color: var(--text-primary) !important;
-}
-
-[data-theme="dark"] .text-text-muted,
-[data-theme="dark"] .text-slate-400,
-[data-theme="dark"] .text-slate-500 {
-  color: var(--text-muted) !important;
-}
-
-[data-theme="dark"] .bg-slate-50\\/80 {
-  background-color: var(--bg-muted) !important;
-}
-
-[data-theme="dark"] .hover\\:bg-slate-100:hover {
-  background-color: var(--bg-secondary) !important;
-}
-
-/* ===== 表单元素暗色覆盖 ===== */
-[data-theme="dark"] input,
-[data-theme="dark"] textarea,
-[data-theme="dark"] select,
-[data-theme="dark"] .field-input {
-  background-color: var(--bg-secondary) !important;
-  color: var(--text-primary) !important;
-  border-color: var(--border-primary) !important;
-}
-
-[data-theme="dark"] input::placeholder,
-[data-theme="dark"] textarea::placeholder {
-  color: var(--text-muted) !important;
-}
-
-[data-theme="dark"] .bg-slate-50\\/80,
-[data-theme="dark"] .bg-white\\/60 {
-  background-color: var(--bg-muted) !important;
-}
-
-/* ===== 卡片容器暗色统一 ===== */
-[data-theme="dark"] .rounded-xl.border,
-[data-theme="dark"] .rounded-2xl.border,
-[data-theme="dark"] .rounded-lg.border {
-  border-color: var(--border-primary) !important;
-}
-
-[data-theme="dark"] .shadow-sm,
-[data-theme="dark"] .shadow-md,
-[data-theme="dark"] .shadow-lg {
-  box-shadow: var(--shadow-sm) !important;
-}
-
-/* ===== 品牌设计Token统一 ===== */
-:root {
-  --brand-radius-sm: 0.5rem;
-  --brand-radius-md: 0.75rem;
-  --brand-radius-lg: 1rem;
-  --brand-radius-xl: 1.25rem;
-  --brand-font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --brand-font-display: 'Inter', system-ui, -apple-system, sans-serif;
-  --brand-transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  --brand-transition-slow: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --brand-shadow-card: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
-  --brand-shadow-elevated: 0 10px 25px rgba(0,0,0,0.12);
-}
-
-/* 统一卡片hover交互 */
-.card-hover {
-  transition: all var(--brand-transition);
-}
-.card-hover:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--brand-shadow-elevated);
-}
-
-/* 空状态动画 */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@keyframes bounce-subtle {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
-}
-.animate-fadeIn { animation: fadeIn 0.4s ease-out; }
-.animate-bounce-subtle { animation: bounce-subtle 2s ease-in-out infinite; }
-
-/* 社交证明滚动 */
-@keyframes scroll-up {
-  0% { transform: translateY(0); }
-  100% { transform: translateY(-50%); }
-}
-.animate-scroll-up {
-  animation: scroll-up 20s linear infinite;
-}
-.animate-scroll-up:hover {
-  animation-play-state: paused;
-}
-
-[data-theme="dark"] {
-  --brand-shadow-card: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
-  --brand-shadow-elevated: 0 10px 25px rgba(0,0,0,0.4);
-}
-
-/* 统一点击按钮动画 */
-button:active {
-  transform: scale(0.97);
-  transition: transform var(--brand-transition);
-}
+/* ===== 滚动条 ===== */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-primary); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }

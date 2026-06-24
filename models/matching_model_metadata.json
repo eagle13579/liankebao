@@ -1,0 +1,33 @@
+{
+  "is_fitted": false,
+  "feature_count": 10,
+  "feature_names": [
+    "category_sim",
+    "text_sim",
+    "price_budget_sim",
+    "recency_prod",
+    "recency_need",
+    "price_norm",
+    "budget_mid_norm",
+    "feature_sim",
+    "is_cold_prod",
+    "is_cold_need"
+  ],
+  "training_metrics": {},
+  "feature_importance": [],
+  "cv_results": {},
+  "lgb_params": {
+    "n_estimators": 200,
+    "learning_rate": 0.05,
+    "max_depth": 5,
+    "num_leaves": 31,
+    "min_child_samples": 5,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "reg_alpha": 0.1,
+    "reg_lambda": 0.1,
+    "random_state": 42,
+    "verbose": -1
+  },
+  "has_lightgbm": true
+}

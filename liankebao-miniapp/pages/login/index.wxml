@@ -1,5 +1,22 @@
 <!-- pages/login/index.wxml -->
 <view class="login-page">
+  <!-- 隐私政策弹窗（微信2023.09.15新规必需） -->
+  <view class="privacy-popup-mask" wx:if="{{showPrivacyPopup}}">
+    <view class="privacy-popup">
+      <view class="privacy-popup-title">隐私政策提示</view>
+      <view class="privacy-popup-content">
+        <text>感谢您信任并使用链客宝AI！我们非常重视您的个人信息和隐私保护。为了提供更好的服务，我们将按照</text>
+        <text class="privacy-popup-link" data-type="user" bindtap="viewPolicy">《用户服务协议》</text>
+        <text>和</text>
+        <text class="privacy-popup-link" data-type="privacy" bindtap="viewPolicy">《隐私政策》</text>
+        <text>收集和使用您的信息。\n\n我们将收集：\n• 微信昵称、头像（用于展示）\n• 手机号（用于注册认证）\n• 名片信息（用于供需匹配）\n• 订单信息（用于交易履约）\n\n我们承诺不会出售您的个人信息。</text>
+      </view>
+      <view class="privacy-popup-buttons">
+        <button class="privacy-btn-reject" id="reject-privacy-btn" bindtap="handleRejectPrivacy">不同意</button>
+        <button class="privacy-btn-agree" id="agree-privacy-btn" bindtap="handleAgreePrivacy">同意并继续</button>
+      </view>
+    </view>
+  </view>
   <!-- 主界面：微信一键登录 -->
   <block wx:if="{{mode === 'main'}}">
     <view class="login-brand">

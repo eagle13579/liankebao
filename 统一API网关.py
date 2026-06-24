@@ -24,23 +24,30 @@ import http.server
 import urllib.request
 import os
 import json
-import re
 import socketserver
 
-import os, json
 from functools import wraps
 
 JWT_SECRET = os.environ.get("JWT_SECRET", "")
 
-ALLOWED_EXTERNAL_HOSTS = {"api.deepseek.com", "api.weixin.qq.com", "openapi.alipay.com", "127.0.0.1", "localhost"}
+ALLOWED_EXTERNAL_HOSTS = {
+    "api.deepseek.com",
+    "api.weixin.qq.com",
+    "openapi.alipay.com",
+    "127.0.0.1",
+    "localhost",
+}
+
 
 def isAllowedExternalUrl(url: str) -> bool:
     from urllib.parse import urlparse
+
     try:
         host = urlparse(url).hostname
         return host in ALLOWED_EXTERNAL_HOSTS
     except:
         return False
+
 
 def require_jwt(func):
     @wraps(func)
@@ -50,42 +57,84 @@ def require_jwt(func):
             self.send_response(401)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps({"error": "Missing or invalid Authorization header"}).encode())
+            self.wfile.write(
+                json.dumps(
+                    {"error": "Missing or invalid Authorization header"}
+                ).encode()
+            )
             return
         return func(self, *args, **kwargs)
+
     return wrapper
 
 
-
 # ── 配置 ──────────────────────────────────────────────────
-DIST = r'D:\向海容的知识库\wiki\wiki\记忆宫殿\L5孵化室\产品开发\战略合作\链客宝\linkbao\frontend\dist'
-BROCHURE_H5 = r'D:\向海容的知识库\wiki\wiki\记忆宫殿\L5孵化室\产品开发\AI数字名片\code\frontend\h5'
+DIST = r"D:\向海容的知识库\wiki\wiki\记忆宫殿\L5孵化室\产品开发\战略合作\链客宝\linkbao\frontend\dist"
+BROCHURE_H5 = r"D:\向海容的知识库\wiki\wiki\记忆宫殿\L5孵化室\产品开发\AI数字名片\code\frontend\h5"
 PORT = 5136
 
 ROUTES = [
     # (前缀, 目标基础URL, 路径重写函数或None)
-    ("/lkapi/",           "http://localhost:8000",  lambda p: p[6:]),
-    ("/lkapi",            "http://localhost:8000",  lambda p: p[5:] if len(p) > 5 else "/"),
-    ("/api/orders",       "http://localhost:8000",  lambda p: "/api/orders" + ("?" + p.split("?")[1] if "?" in p else "")),
-    ("/api/orders/",      "http://localhost:8000",  None),
-    ("/api/brochures/",   "http://localhost:8003",  lambda p: "/api/brochure/" + p.split("/api/brochures/", 1)[1]),
-    ("/api/brochure/",    "http://localhost:8003",  None),
-    ("/api/tag/",         "http://localhost:8003",  None),
-    ("/api/match/",       "http://localhost:8003",  None),
-    ("/api/external/",    "http://localhost:8003",  None),
-    ("/api/digital-brochure/auth/", "http://localhost:8003",  lambda p: "/api/auth/" + p.split("/api/digital-brochure/auth/", 1)[1]),
-    ("/api/geo/diagnose", "http://localhost:5061",  lambda p: "/api/diagnose"),
-    ("/api/geo/diagnosis/", "http://localhost:5061", lambda p: "/" + p.split("/api/geo/diagnosis/", 1)[1]),
-    ("/api/geo/positioning/", "http://localhost:5062", lambda p: "/" + p.split("/api/geo/positioning/", 1)[1]),
-    ("/api/geo/content/",    "http://localhost:5063", lambda p: "/" + p.split("/api/geo/content/", 1)[1]),
-    ("/geo-diagnosis",      "http://localhost:5061",  lambda p: "/"),
-    ("/geo-diagnosis/",     "http://localhost:5061",  lambda p: "/"),
-    ("/tianji",            "http://localhost:5070",  lambda p: "/" + p.split("/tianji", 1)[1].lstrip("/") if len(p) > len("/tianji") else "/"),
-    ("/tianji/",           "http://localhost:5070",  lambda p: "/" + p.split("/tianji/", 1)[1].lstrip("/") if len(p) > len("/tianji/") else "/"),
-    ("/health",           "http://localhost:8000",  lambda p: "/health"),
+    ("/lkapi/", "http://localhost:8000", lambda p: p[6:]),
+    ("/lkapi", "http://localhost:8000", lambda p: p[5:] if len(p) > 5 else "/"),
+    (
+        "/api/orders",
+        "http://localhost:8000",
+        lambda p: "/api/orders" + ("?" + p.split("?")[1] if "?" in p else ""),
+    ),
+    ("/api/orders/", "http://localhost:8000", None),
+    (
+        "/api/brochures/",
+        "http://localhost:8003",
+        lambda p: "/api/brochure/" + p.split("/api/brochures/", 1)[1],
+    ),
+    ("/api/brochure/", "http://localhost:8003", None),
+    ("/api/tag/", "http://localhost:8003", None),
+    # 修复: /api/matching/* → 主匹配引擎(8001)，/api/match/* → 数字名片(8003)
+    ("/api/matching/", "http://localhost:8001", None),
+    ("/api/match/", "http://localhost:8003", None),
+    ("/api/external/", "http://localhost:8003", None),
+    (
+        "/api/digital-brochure/auth/",
+        "http://localhost:8003",
+        lambda p: "/api/auth/" + p.split("/api/digital-brochure/auth/", 1)[1],
+    ),
+    ("/api/geo/diagnose", "http://localhost:5061", lambda p: "/api/diagnose"),
+    (
+        "/api/geo/diagnosis/",
+        "http://localhost:5061",
+        lambda p: "/" + p.split("/api/geo/diagnosis/", 1)[1],
+    ),
+    (
+        "/api/geo/positioning/",
+        "http://localhost:5062",
+        lambda p: "/" + p.split("/api/geo/positioning/", 1)[1],
+    ),
+    (
+        "/api/geo/content/",
+        "http://localhost:5063",
+        lambda p: "/" + p.split("/api/geo/content/", 1)[1],
+    ),
+    ("/geo-diagnosis", "http://localhost:5061", lambda p: "/"),
+    ("/geo-diagnosis/", "http://localhost:5061", lambda p: "/"),
+    (
+        "/tianji",
+        "http://localhost:5070",
+        lambda p: "/" + p.split("/tianji", 1)[1].lstrip("/")
+        if len(p) > len("/tianji")
+        else "/",
+    ),
+    (
+        "/tianji/",
+        "http://localhost:5070",
+        lambda p: "/" + p.split("/tianji/", 1)[1].lstrip("/")
+        if len(p) > len("/tianji/")
+        else "/",
+    ),
+    ("/health", "http://localhost:8000", lambda p: "/health"),
     # 会员体系 API → 链客宝后端
     ("/api/v1/membership/", "http://localhost:8000", None),
-    ("/api/v1/membership",  "http://localhost:8000", lambda p: "/api/v1/membership"),
+    ("/api/v1/membership", "http://localhost:8000", lambda p: "/api/v1/membership"),
 ]
 
 
@@ -155,7 +204,9 @@ class GatewayHandler(http.server.SimpleHTTPRequestHandler):
         """提供静态文件（自动判断 MIME type）"""
         # 安全检查：防止目录穿越
         clean_path = path.split("?")[0]
-        file_path = os.path.normpath(os.path.join(self.directory, clean_path.lstrip("/")))
+        file_path = os.path.normpath(
+            os.path.join(self.directory, clean_path.lstrip("/"))
+        )
         if not file_path.startswith(os.path.normpath(self.directory)):
             self.send_response(403)
             self.end_headers()
@@ -192,7 +243,23 @@ class GatewayHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Content-Type", content_type)
         self.send_header("Access-Control-Allow-Origin", "*")
         # 静态文件强缓存：JS/CSS/字体/图片缓存1年
-        if ext in (".js", ".css", ".woff", ".woff2", ".ttf", ".eot", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp", ".avif", ".wasm"):
+        if ext in (
+            ".js",
+            ".css",
+            ".woff",
+            ".woff2",
+            ".ttf",
+            ".eot",
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".gif",
+            ".svg",
+            ".ico",
+            ".webp",
+            ".avif",
+            ".wasm",
+        ):
             self.send_header("Cache-Control", "public, max-age=31536000, immutable")
         else:
             self.send_header("Cache-Control", "public, max-age=3600")
@@ -208,10 +275,10 @@ class GatewayHandler(http.server.SimpleHTTPRequestHandler):
         # 调试日志
         with open(r"D:\chainke_gw_debug.log", "a") as df:
             df.write(f"PATH: method={method} path={path} full={full_path} qs={qs}\n")
-        
+
         # AI数字名片 H5 静态文件
         if path.startswith("/digital-brochure/"):
-            relative = path[len("/digital-brochure/"):]
+            relative = path[len("/digital-brochure/") :]
             if relative == "" or relative == "/":
                 relative = "index.html"
             # 安全检查：禁止跳出目录
@@ -240,9 +307,20 @@ class GatewayHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_header("Content-Type", content_type)
                 self.send_header("Access-Control-Allow-Origin", "*")
                 # 缓存策略：JS/CSS/图片/字体强缓存1年，HTML缓存1小时
-                cache_exts = {".js", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico"}
+                cache_exts = {
+                    ".js",
+                    ".css",
+                    ".png",
+                    ".jpg",
+                    ".jpeg",
+                    ".gif",
+                    ".svg",
+                    ".ico",
+                }
                 if ext in cache_exts:
-                    self.send_header("Cache-Control", "public, max-age=31536000, immutable")
+                    self.send_header(
+                        "Cache-Control", "public, max-age=31536000, immutable"
+                    )
                 else:
                     self.send_header("Cache-Control", "public, max-age=3600")
                 self.end_headers()
@@ -254,7 +332,7 @@ class GatewayHandler(http.server.SimpleHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(b"File not found")
             return
-        
+
         target_url, is_api = _match_route(path)
         if is_api:
             # 保留查询参数
@@ -302,7 +380,9 @@ class GatewayHandler(http.server.SimpleHTTPRequestHandler):
         """CORS preflight"""
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+        self.send_header(
+            "Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS"
+        )
         self.send_header("Access-Control-Allow-Headers", "*")
         self.end_headers()
 
@@ -324,6 +404,7 @@ class GatewayHandler(http.server.SimpleHTTPRequestHandler):
 
 class ThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     """多线程HTTP服务器 — 解决单线程同步阻塞问题"""
+
     daemon_threads = True
     allow_reuse_address = True
 
@@ -331,11 +412,11 @@ class ThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
 if __name__ == "__main__":
     print(f"🚀 链客宝统一API网关 :{PORT} (多线程)")
     print(f"   📦 静态文件: {DIST}")
-    print(f"   🔗 链客宝  → :8001")
-    print(f"   🔗 数字名片 → :8003")
-    print(f"   🔗 GEO诊断  → :5061")
-    print(f"   🔗 GEO定位  → :5062")
-    print(f"   🔗 GEO内容  → :5063")
-    print(f"   🔗 天机预测 → :5070")
-    print(f"   ⚡ 线程池: ThreadingMixIn (自动扩展)")
+    print("   🔗 链客宝  → :8001")
+    print("   🔗 数字名片 → :8003")
+    print("   🔗 GEO诊断  → :5061")
+    print("   🔗 GEO定位  → :5062")
+    print("   🔗 GEO内容  → :5063")
+    print("   🔗 天机预测 → :5070")
+    print("   ⚡ 线程池: ThreadingMixIn (自动扩展)")
     ThreadedHTTPServer(("0.0.0.0", PORT), GatewayHandler).serve_forever()

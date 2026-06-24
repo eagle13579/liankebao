@@ -2,25 +2,29 @@
 站内消息通知系统
 使用独立 SQLite 存储通知记录
 """
+
+import logging
 import os
 import sqlite3
-import json
-import logging
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
 # 通知数据库路径
-_NOTIFY_DB_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"
-)
+_NOTIFY_DB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 _NOTIFY_DB_PATH = os.path.join(_NOTIFY_DB_DIR, "notifications.db")
 
 # 有效通知类型
-VALID_TYPES = frozenset({
-    "order_status", "payment", "withdrawal", "review_result", "system",
-})
+VALID_TYPES = frozenset(
+    {
+        "order_status",
+        "payment",
+        "withdrawal",
+        "review_result",
+        "system",
+        "match_alert",
+    }
+)
 
 
 def _get_connection() -> sqlite3.Connection:
@@ -71,7 +75,7 @@ class NotificationManager:
         type_: str,
         title: str,
         content: str = "",
-        related_id: Optional[int] = None,
+        related_id: int | None = None,
     ) -> dict:
         """
         创建通知
@@ -90,11 +94,9 @@ class NotificationManager:
             ValueError: 通知类型不合法
         """
         if type_ not in VALID_TYPES:
-            raise ValueError(
-                f"无效的通知类型 '{type_}'，有效值：{', '.join(sorted(VALID_TYPES))}"
-            )
+            raise ValueError(f"无效的通知类型 '{type_}'，有效值：{', '.join(sorted(VALID_TYPES))}")
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         conn = _get_connection()
         try:
             cursor = conn.execute(
@@ -211,16 +213,18 @@ class NotificationManager:
 
             notifications = []
             for r in rows:
-                notifications.append({
-                    "id": r["id"],
-                    "user_id": r["user_id"],
-                    "type": r["type"],
-                    "title": r["title"],
-                    "content": r["content"],
-                    "related_id": r["related_id"],
-                    "is_read": bool(r["is_read"]),
-                    "created_at": r["created_at"],
-                })
+                notifications.append(
+                    {
+                        "id": r["id"],
+                        "user_id": r["user_id"],
+                        "type": r["type"],
+                        "title": r["title"],
+                        "content": r["content"],
+                        "related_id": r["related_id"],
+                        "is_read": bool(r["is_read"]),
+                        "created_at": r["created_at"],
+                    }
+                )
 
             return {
                 "total": total,
@@ -281,9 +285,7 @@ class NotificationManager:
         """删除单条通知"""
         conn = _get_connection()
         try:
-            cursor = conn.execute(
-                "DELETE FROM notifications WHERE id=?", (notification_id,)
-            )
+            cursor = conn.execute("DELETE FROM notifications WHERE id=?", (notification_id,))
             conn.commit()
             return cursor.rowcount > 0
         finally:

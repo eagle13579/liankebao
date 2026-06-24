@@ -1,15 +1,15 @@
 # ============================================================
 # 链客宝AI — HorizontalPodAutoscaler (HPA)
 # ============================================================
-# 说明: 基于 CPU 利用率的自动弹性伸缩。
-#       后端 CPU > 70% 自动扩容至最大 5 副本。
-#       前端 CPU > 80% 自动扩容至最大 4 副本。
-#       缩容冷却期 60 秒，避免频繁抖动。
+# 说明: 基于 CPU/内存利用率的自动弹性伸缩。
+#       后端: 2~8 副本，CPU > 70% 或 内存 > 80% 触发扩容。
+#       前端: 2~6 副本，CPU > 80% 触发扩容。
+#       支持快速扩容 + 慢速缩容，避免频繁抖动。
 # ============================================================
 
 ---
 # ============================================================
-# 后端 HPA
+# 后端 HPA — 2~8 副本
 # ============================================================
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -24,8 +24,8 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: chainke-backend
-  minReplicas: 3
-  maxReplicas: 5
+  minReplicas: 2
+  maxReplicas: 8
   metrics:
     - type: Resource
       resource:
@@ -33,27 +33,35 @@ spec:
         target:
           type: Utilization
           averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
   behavior:
     scaleDown:
-      stabilizationWindowSeconds: 60
+      # 缩容冷却期 5 分钟，避免频繁抖动
+      stabilizationWindowSeconds: 300
       policies:
         - type: Percent
-          value: 50
+          value: 10
           periodSeconds: 60
     scaleUp:
+      # 快速扩容 — 立即响应流量高峰
       stabilizationWindowSeconds: 0
       policies:
         - type: Percent
           value: 100
-          periodSeconds: 30
+          periodSeconds: 15
         - type: Pods
-          value: 2
-          periodSeconds: 30
+          value: 4
+          periodSeconds: 15
       selectPolicy: Max
 
 ---
 # ============================================================
-# 前端 HPA
+# 前端 HPA — 2~6 副本
 # ============================================================
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -69,7 +77,7 @@ spec:
     kind: Deployment
     name: chainke-frontend
   minReplicas: 2
-  maxReplicas: 4
+  maxReplicas: 6
   metrics:
     - type: Resource
       resource:
@@ -77,16 +85,26 @@ spec:
         target:
           type: Utilization
           averageUtilization: 80
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 85
   behavior:
     scaleDown:
-      stabilizationWindowSeconds: 60
+      stabilizationWindowSeconds: 300
       policies:
         - type: Percent
-          value: 50
+          value: 25
           periodSeconds: 60
     scaleUp:
       stabilizationWindowSeconds: 0
       policies:
         - type: Percent
           value: 100
-          periodSeconds: 30
+          periodSeconds: 15
+        - type: Pods
+          value: 2
+          periodSeconds: 15
+      selectPolicy: Max

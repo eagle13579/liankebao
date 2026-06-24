@@ -160,3 +160,60 @@ export interface NeedItem {
   updated_at: string
   user?: { id: number; name: string; company?: string; avatar?: string }
 }
+
+// ===== 交易履约类型 =====
+
+export interface ContractItem {
+  id: number
+  user_id: number
+  title: string
+  template_id?: string
+  status: string
+  status_label: string
+  party_a_name: string
+  party_b_name: string
+  party_a_id_number?: string
+  party_b_id_number?: string
+  party_a_contact?: string
+  party_b_contact?: string
+  contract_amount: number
+  variables?: Record<string, any>
+  contract_text?: string
+  esign_contract_id?: string
+  sign_url?: string
+  payment_status?: string
+  related_order_id?: number
+  signed_at?: string
+  started_at?: string
+  completed_at?: string
+  terminated_at?: string
+  notes?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ContractListResponse {
+  total: number
+  page: number
+  page_size: number
+  items: ContractItem[]
+}
+
+export interface PaymentTransactionItem {
+  id: number
+  transaction_no?: string
+  platform?: string
+  amount: number
+  status: string
+  trade_type?: string
+  description?: string
+  paid_at?: string
+  created_at: string
+}
+
+export interface ContractTransactionsResponse {
+  contract_id: number
+  contract_title: string
+  total: number
+  items: PaymentTransactionItem[]
+}

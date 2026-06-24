@@ -13,36 +13,26 @@
 # =============================================================================
 
 import hashlib
-import json
 import logging
 from datetime import date, datetime, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from trust_engine.scoring import (
     TrustScorer,
-    QualificationSubscores,
-    TransactionSubscores,
-    ComplianceSubscores,
 )
 from trust_engine.tier import (
     TrustTier,
-    TrustLevel,
     TIER_DEFINITIONS,
-    validate_score,
-    is_diamond_eligible,
-    is_board_eligible,
 )
 from trust_models import (
     TrustQualification,
     TrustScoreSnapshot,
     TrustAuditReport,
     TrustReview,
-    TrustScoreLog,
     QualificationStatus,
 )
 
@@ -60,31 +50,36 @@ _scorer = TrustScorer()
 
 # ── 信任评分响应 ───────────────────────────────────────────────────────────
 
+
 class ScoreResponse(BaseModel):
     """信任评分响应 (公开)"""
+
     user_id: str
     total_score: float = Field(..., ge=0, le=100)
     breakdown: dict[str, Any]
     tier: dict[str, object]
     snapshot_date: str
 
-    model_config = {"json_schema_extra": {
-        "example": {
-            "user_id": "uuid-xxx",
-            "total_score": 86.5,
-            "breakdown": {
-                "qualification": {"raw_total": 85.0, "weighted": 34.0},
-                "transaction": {"raw_total": 92.0, "weighted": 32.2},
-                "compliance": {"raw_total": 78.0, "weighted": 19.5},
-            },
-            "tier": {"level": "excellent", "label_cn": "优秀级", "icon": "⭐"},
-            "snapshot_date": "2026-06-07",
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "user_id": "uuid-xxx",
+                "total_score": 86.5,
+                "breakdown": {
+                    "qualification": {"raw_total": 85.0, "weighted": 34.0},
+                    "transaction": {"raw_total": 92.0, "weighted": 32.2},
+                    "compliance": {"raw_total": 78.0, "weighted": 19.5},
+                },
+                "tier": {"level": "excellent", "label_cn": "优秀级", "icon": "⭐"},
+                "snapshot_date": "2026-06-07",
+            }
         }
-    }}
+    }
 
 
 class ScoreHistoryItem(BaseModel):
     """评分历史单项"""
+
     snapshot_date: str
     total_score: float
     trust_level: str
@@ -92,25 +87,34 @@ class ScoreHistoryItem(BaseModel):
 
 class ScoreHistoryResponse(BaseModel):
     """评分历史响应"""
+
     user_id: str
     history: list[ScoreHistoryItem]
 
 
 # ── 资质管理请求 ───────────────────────────────────────────────────────────
 
+
 class QualificationCreate(BaseModel):
     """上传资质请求"""
+
     qualification_type: str = Field(
-        ..., min_length=1, max_length=64,
-        description="资质类型: business_license / iso_cert / icp / patent / ..."
+        ...,
+        min_length=1,
+        max_length=64,
+        description="资质类型: business_license / iso_cert / icp / patent / ...",
     )
     qualification_name: str = Field(..., min_length=1, max_length=256)
     cert_number: Optional[str] = Field(None, max_length=128)
     issuing_authority: Optional[str] = Field(None, max_length=256)
     issue_date: str = Field(..., description="发证日期 YYYY-MM-DD")
-    expiry_date: Optional[str] = Field(None, description="有效期 YYYY-MM-DD 或无期传 null")
+    expiry_date: Optional[str] = Field(
+        None, description="有效期 YYYY-MM-DD 或无期传 null"
+    )
     file_url: str = Field(..., min_length=1, max_length=1024)
-    file_hash: Optional[str] = Field(None, max_length=64, description="SHA-256, 不传则自动计算")
+    file_hash: Optional[str] = Field(
+        None, max_length=64, description="SHA-256, 不传则自动计算"
+    )
 
     @field_validator("issue_date", "expiry_date")
     @classmethod
@@ -125,6 +129,7 @@ class QualificationCreate(BaseModel):
 
 class QualificationUpdate(BaseModel):
     """更新资质请求"""
+
     qualification_name: Optional[str] = Field(None, max_length=256)
     cert_number: Optional[str] = Field(None, max_length=128)
     issuing_authority: Optional[str] = Field(None, max_length=256)
@@ -145,8 +150,10 @@ class QualificationUpdate(BaseModel):
 
 # ── 审计报告请求 ───────────────────────────────────────────────────────────
 
+
 class AuditReportCreate(BaseModel):
     """上传审计报告请求"""
+
     report_type: str = Field(..., pattern="^(financial|security|compliance)$")
     audit_firm: str = Field(..., min_length=1, max_length=256)
     audit_conclusion: str = Field(..., min_length=1, max_length=512)
@@ -160,8 +167,10 @@ class AuditReportCreate(BaseModel):
 
 # ── 评价请求 ───────────────────────────────────────────────────────────────
 
+
 class ReviewCreate(BaseModel):
     """提交评价请求"""
+
     to_user_id: str = Field(..., min_length=1, max_length=36)
     order_id: Optional[str] = Field(None, max_length=36)
     rating: int = Field(..., ge=1, le=5)
@@ -172,8 +181,10 @@ class ReviewCreate(BaseModel):
 
 # ── 合规中心响应 ───────────────────────────────────────────────────────────
 
+
 class PlatformQualificationItem(BaseModel):
     """平台资质单项"""
+
     name: str
     cert_number: Optional[str] = None
     status: str
@@ -182,6 +193,7 @@ class PlatformQualificationItem(BaseModel):
 
 class TrustFormulaResponse(BaseModel):
     """信任评分公式公开 (H08 阳光下行走)"""
+
     version: str = "1.0"
     dimensions: list[dict[str, object]]
     tiers: list[dict[str, object]]
@@ -192,6 +204,7 @@ class TrustFormulaResponse(BaseModel):
 # =============================================================================
 # 辅助函数
 # =============================================================================
+
 
 def _get_current_user_id(authorization: Optional[str] = None) -> str:
     """从请求头中提取当前用户ID（简版，实际应使用JWT验证）
@@ -219,6 +232,7 @@ def _today_str() -> str:
 # =============================================================================
 # 信任评分 API (3个端点)
 # =============================================================================
+
 
 @router.get(
     "/score/{user_id}",
@@ -343,6 +357,7 @@ def get_trust_score_breakdown(
 # 资质管理 API (5个端点)
 # =============================================================================
 
+
 @router.post(
     "/qualifications",
     status_code=status.HTTP_201_CREATED,
@@ -372,7 +387,8 @@ def create_qualification(
             issue_date=datetime.strptime(body.issue_date, "%Y-%m-%d").date(),
             expiry_date=(
                 datetime.strptime(body.expiry_date, "%Y-%m-%d").date()
-                if body.expiry_date else None
+                if body.expiry_date
+                else None
             ),
             file_url=body.file_url,
             file_hash=file_hash,
@@ -385,7 +401,7 @@ def create_qualification(
         return {
             "code": 201,
             "message": "资质上传成功，等待审核",
-            "data": qual.to_dict() if hasattr(qual, 'to_dict') else {"id": qual.id},
+            "data": qual.to_dict() if hasattr(qual, "to_dict") else {"id": qual.id},
         }
     except Exception as exc:
         logger.error("资质上传失败: %s", exc)
@@ -401,7 +417,9 @@ def create_qualification(
     description="PRD §5.2: 返回当前用户的所有资质证书。",
 )
 def list_qualifications(
-    status_filter: Optional[str] = Query(None, description="筛选状态: active/pending/expired/rejected"),
+    status_filter: Optional[str] = Query(
+        None, description="筛选状态: active/pending/expired/rejected"
+    ),
     authorization: Optional[str] = None,
     db: Session = Depends(lambda: None),
 ):
@@ -444,9 +462,11 @@ def get_qualification(
     """获取资质详情"""
     try:
         # TODO: 替换为实际数据库查询
-        qual = db.query(TrustQualification).filter(
-            TrustQualification.id == qual_id
-        ).first()
+        qual = (
+            db.query(TrustQualification)
+            .filter(TrustQualification.id == qual_id)
+            .first()
+        )
 
         if not qual:
             raise HTTPException(
@@ -485,10 +505,14 @@ def update_qualification(
 
     try:
         # TODO: 替换为实际数据库查询
-        qual = db.query(TrustQualification).filter(
-            TrustQualification.id == qual_id,
-            TrustQualification.user_id == current_user,
-        ).first()
+        qual = (
+            db.query(TrustQualification)
+            .filter(
+                TrustQualification.id == qual_id,
+                TrustQualification.user_id == current_user,
+            )
+            .first()
+        )
 
         if not qual:
             raise HTTPException(
@@ -540,10 +564,14 @@ def delete_qualification(
 
     try:
         # TODO: 替换为实际数据库查询
-        qual = db.query(TrustQualification).filter(
-            TrustQualification.id == qual_id,
-            TrustQualification.user_id == current_user,
-        ).first()
+        qual = (
+            db.query(TrustQualification)
+            .filter(
+                TrustQualification.id == qual_id,
+                TrustQualification.user_id == current_user,
+            )
+            .first()
+        )
 
         if not qual:
             raise HTTPException(
@@ -572,6 +600,7 @@ def delete_qualification(
 # 审计报告 API (3个端点)
 # =============================================================================
 
+
 @router.post(
     "/audit-reports",
     status_code=status.HTTP_201_CREATED,
@@ -595,8 +624,12 @@ def create_audit_report(
             audit_conclusion=body.audit_conclusion,
             report_url=body.report_url,
             report_hash=body.report_hash,
-            audit_period_start=datetime.strptime(body.audit_period_start, "%Y-%m-%d").date(),
-            audit_period_end=datetime.strptime(body.audit_period_end, "%Y-%m-%d").date(),
+            audit_period_start=datetime.strptime(
+                body.audit_period_start, "%Y-%m-%d"
+            ).date(),
+            audit_period_end=datetime.strptime(
+                body.audit_period_end, "%Y-%m-%d"
+            ).date(),
             is_public=body.is_public,
             view_permission=body.view_permission,
             status="pending",
@@ -667,9 +700,9 @@ def get_audit_report(
     """获取审计报告详情"""
     try:
         # TODO: 替换为实际数据库查询
-        report = db.query(TrustAuditReport).filter(
-            TrustAuditReport.id == report_id
-        ).first()
+        report = (
+            db.query(TrustAuditReport).filter(TrustAuditReport.id == report_id).first()
+        )
 
         if not report:
             raise HTTPException(
@@ -696,6 +729,7 @@ def get_audit_report(
 # =============================================================================
 # 评价系统 API (2个端点)
 # =============================================================================
+
 
 @router.post(
     "/reviews",
@@ -734,7 +768,10 @@ def create_review(
 
         logger.info(
             "评价提交: from=%s to=%s rating=%d order=%s",
-            current_user, body.to_user_id, body.rating, body.order_id,
+            current_user,
+            body.to_user_id,
+            body.rating,
+            body.order_id,
         )
         return {
             "code": 201,
@@ -763,9 +800,11 @@ def list_reviews(
     """查看用户评价列表"""
     try:
         # TODO: 替换为实际数据库查询
-        query = db.query(TrustReview).filter(
-            TrustReview.to_user_id == user_id
-        ).order_by(TrustReview.created_at.desc())
+        query = (
+            db.query(TrustReview)
+            .filter(TrustReview.to_user_id == user_id)
+            .order_by(TrustReview.created_at.desc())
+        )
 
         total = query.count()
         reviews = query.offset((page - 1) * page_size).limit(page_size).all()
@@ -795,6 +834,7 @@ def list_reviews(
 # =============================================================================
 # 合规中心 API (2个端点)
 # =============================================================================
+
 
 @router.get(
     "/compliance/platform-qualifications",
@@ -867,11 +907,31 @@ def get_trust_formula():
             "name": "资质可信度",
             "weight": "40%",
             "sub_indicators": [
-                {"name": "认证等级", "range": "0-30", "description": "基础认证=10, 企业认证=20, 高级认证=25, 钻石=30"},
-                {"name": "资质种类数", "range": "0-25", "description": "每上传1项有效资质+5分，上限25分（5项满分）"},
-                {"name": "资质时效性", "range": "0-20", "description": "全部有效=20, 1项过期-5, 2项过期-10, 3项+=0"},
-                {"name": "实名深度", "range": "0-15", "description": "手机号=3, 身份证=8, 法定代表人视频认证=15"},
-                {"name": "平台验证时长", "range": "0-10", "description": "<1年=3, 1-2年=5, 2-3年=8, 3年+=10"},
+                {
+                    "name": "认证等级",
+                    "range": "0-30",
+                    "description": "基础认证=10, 企业认证=20, 高级认证=25, 钻石=30",
+                },
+                {
+                    "name": "资质种类数",
+                    "range": "0-25",
+                    "description": "每上传1项有效资质+5分，上限25分（5项满分）",
+                },
+                {
+                    "name": "资质时效性",
+                    "range": "0-20",
+                    "description": "全部有效=20, 1项过期-5, 2项过期-10, 3项+=0",
+                },
+                {
+                    "name": "实名深度",
+                    "range": "0-15",
+                    "description": "手机号=3, 身份证=8, 法定代表人视频认证=15",
+                },
+                {
+                    "name": "平台验证时长",
+                    "range": "0-10",
+                    "description": "<1年=3, 1-2年=5, 2-3年=8, 3年+=10",
+                },
             ],
             "formula": "资质可信度 = (认证等级 + 资质种类数 + 资质时效性 + 实名深度 + 平台验证时长) × 0.40",
         },
@@ -879,11 +939,31 @@ def get_trust_formula():
             "name": "交易可信度",
             "weight": "35%",
             "sub_indicators": [
-                {"name": "成交笔数", "range": "0-30", "description": "0笔=0, 1-5笔=10, 6-20笔=20, 21笔+=30"},
-                {"name": "成交金额", "range": "0-25", "description": "<10万=5, 10-100万=15, 100-500万=20, 500万+=25"},
-                {"name": "好评率", "range": "0-20", "description": "<80%=0, 80-90%=10, 90-95%=15, 95%+=20"},
-                {"name": "纠纷率", "range": "0-15", "description": "纠纷率>10%=0, 5-10%=5, 1-5%=10, 0%=15"},
-                {"name": "复购率", "range": "0-10", "description": "首单=3, 2次=5, 3次=7, 5次+=10"},
+                {
+                    "name": "成交笔数",
+                    "range": "0-30",
+                    "description": "0笔=0, 1-5笔=10, 6-20笔=20, 21笔+=30",
+                },
+                {
+                    "name": "成交金额",
+                    "range": "0-25",
+                    "description": "<10万=5, 10-100万=15, 100-500万=20, 500万+=25",
+                },
+                {
+                    "name": "好评率",
+                    "range": "0-20",
+                    "description": "<80%=0, 80-90%=10, 90-95%=15, 95%+=20",
+                },
+                {
+                    "name": "纠纷率",
+                    "range": "0-15",
+                    "description": "纠纷率>10%=0, 5-10%=5, 1-5%=10, 0%=15",
+                },
+                {
+                    "name": "复购率",
+                    "range": "0-10",
+                    "description": "首单=3, 2次=5, 3次=7, 5次+=10",
+                },
             ],
             "formula": "交易可信度 = (成交笔数 + 成交金额 + 好评率 + (15 - 纠纷率惩罚) + 复购率) × 0.35",
             "decay": "时间衰减: score × exp(-0.1 × 距最近成交月数)",
@@ -892,11 +972,31 @@ def get_trust_formula():
             "name": "合规健康度",
             "weight": "25%",
             "sub_indicators": [
-                {"name": "资质完整度", "range": "0-30", "description": "已上传资质数/建议资质数(7) × 30"},
-                {"name": "证书过期风险", "range": "0-25", "description": "无过期=25, 1项即将过期=15, 1项已过期=5, 2项+=0"},
-                {"name": "合规证书数", "range": "0-20", "description": "ISO/等保/ICP等，每项+5分，上限20"},
-                {"name": "审计报告", "range": "0-15", "description": "有有效第三方审计报告=15, 有过期=5, 无=0"},
-                {"name": "合规更新频率", "range": "0-10", "description": "近3月有更新=10, 近6月=7, 近1年=4, >1年=0"},
+                {
+                    "name": "资质完整度",
+                    "range": "0-30",
+                    "description": "已上传资质数/建议资质数(7) × 30",
+                },
+                {
+                    "name": "证书过期风险",
+                    "range": "0-25",
+                    "description": "无过期=25, 1项即将过期=15, 1项已过期=5, 2项+=0",
+                },
+                {
+                    "name": "合规证书数",
+                    "range": "0-20",
+                    "description": "ISO/等保/ICP等，每项+5分，上限20",
+                },
+                {
+                    "name": "审计报告",
+                    "range": "0-15",
+                    "description": "有有效第三方审计报告=15, 有过期=5, 无=0",
+                },
+                {
+                    "name": "合规更新频率",
+                    "range": "0-10",
+                    "description": "近3月有更新=10, 近6月=7, 近1年=4, >1年=0",
+                },
             ],
             "formula": "合规健康度 = (资质完整度 + 证书过期风险 + 合规证书数 + 审计报告 + 合规更新频率) × 0.25",
         },
@@ -931,7 +1031,7 @@ def get_trust_formula():
 # 会员体系 API — 会员等级、升级购买、状态查询
 # =============================================================================
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Optional
 
 _membership_router = APIRouter(prefix="/api/v1/membership", tags=["会员体系"])
@@ -1027,6 +1127,7 @@ def _generate_order_no() -> str:
 
 # ── 会员等级列表 ──────────────────────────────────────────────────────────
 
+
 @_membership_router.get(
     "/tiers",
     summary="会员等级列表",
@@ -1044,6 +1145,7 @@ def list_membership_tiers():
 
 
 # ── 当前会员状态 ──────────────────────────────────────────────────────────
+
 
 @_membership_router.get(
     "/status",
@@ -1064,11 +1166,14 @@ def get_membership_status(
 
     # 尝试从内存订单中查找最近的已支付订单
     user_orders = [
-        o for o in _membership_orders.values()
+        o
+        for o in _membership_orders.values()
         if o.get("user_id") == current_user and o.get("status") == "paid"
     ]
     if user_orders:
-        latest = sorted(user_orders, key=lambda o: o.get("paid_at", ""), reverse=True)[0]
+        latest = sorted(user_orders, key=lambda o: o.get("paid_at", ""), reverse=True)[
+            0
+        ]
         tier_id = latest.get("tier", "free")
         expires_at = latest.get("expires_at")
         match_credits = 999 if tier_id in ("gold", "diamond", "board") else 3
@@ -1093,11 +1198,14 @@ def get_membership_status(
 
 # ── 创建会员订单 ──────────────────────────────────────────────────────────
 
+
 class MembershipOrderCreate(BaseModel):
     tier: str = Field(..., pattern="^(gold|diamond|board)$", description="会员等级")
     period: str = Field("annual", pattern="^(monthly|annual)$", description="付费周期")
     amount: float = Field(..., gt=0, description="支付金额")
-    pay_method: str = Field("alipay", pattern="^(alipay|wxpay)$", description="支付方式")
+    pay_method: str = Field(
+        "alipay", pattern="^(alipay|wxpay)$", description="支付方式"
+    )
 
 
 class MembershipOrderResponse(BaseModel):
@@ -1129,7 +1237,8 @@ def create_membership_order(
 
     # 校验金额
     expected_amount = (
-        tier_info["price_annual"] if body.period == "annual"
+        tier_info["price_annual"]
+        if body.period == "annual"
         else tier_info["price_monthly"]
     )
     if expected_amount is None:
@@ -1155,7 +1264,9 @@ def create_membership_order(
     }
     _membership_orders[order_no] = order
 
-    logger.info("会员订单创建: user=%s tier=%s order=%s", current_user, body.tier, order_no)
+    logger.info(
+        "会员订单创建: user=%s tier=%s order=%s", current_user, body.tier, order_no
+    )
 
     return {
         "code": 201,
@@ -1176,6 +1287,7 @@ def create_membership_order(
 
 
 # ── 查询订单 ──────────────────────────────────────────────────────────────
+
 
 @_membership_router.get(
     "/orders/{order_no}",
@@ -1202,6 +1314,7 @@ def get_membership_order(
 
 # ── 订单列表 ──────────────────────────────────────────────────────────────
 
+
 @_membership_router.get(
     "/orders",
     summary="会员订单列表",
@@ -1214,8 +1327,7 @@ def list_membership_orders(
     current_user = _get_current_user_id(authorization)
 
     user_orders = [
-        o for o in _membership_orders.values()
-        if o.get("user_id") == current_user
+        o for o in _membership_orders.values() if o.get("user_id") == current_user
     ]
     user_orders.sort(key=lambda o: o.get("created_at", ""), reverse=True)
 
@@ -1228,6 +1340,7 @@ def list_membership_orders(
 
 
 # ── 支付回调（模拟） ───────────────────────────────────────────────────────
+
 
 class PaymentCallback(BaseModel):
     order_no: str
@@ -1282,6 +1395,7 @@ def payment_callback(
 # 内部辅助函数（TODO: 替换为真实数据库查询）
 # =============================================================================
 
+
 def _get_latest_snapshot(db, user_id: str) -> Optional[TrustScoreSnapshot]:
     """获取用户最新的评分快照"""
     # TODO: 替换为真实数据库查询
@@ -1302,9 +1416,7 @@ def _query_score_history(
     return []
 
 
-def _aggregate_review_stats(
-    reviews: list[TrustReview], total: int
-) -> dict[str, Any]:
+def _aggregate_review_stats(reviews: list[TrustReview], total: int) -> dict[str, Any]:
     """聚合评价统计"""
     if total == 0:
         return {

@@ -1,0 +1,111 @@
+# ============================================================
+# 链客宝AI PostgreSQL 数据库 — Docker Compose
+# ============================================================
+# 启动: docker compose -f docker-compose.postgres.yml up -d
+# 停止: docker compose -f docker-compose.postgres.yml down
+# 连接: psql -h localhost -p 5432 -U chainke -d chainke
+# ============================================================
+
+networks:
+  chainke_pg_net:
+    driver: bridge
+
+volumes:
+  pg_chainke_data:
+    driver: local
+  pg_chainke_crm_data:
+    driver: local
+  pg_chainke_growth_data:
+    driver: local
+
+services:
+  postgres-chainke:
+    image: postgres:16-alpine
+    container_name: chainke-postgres
+    restart: unless-stopped
+    networks:
+      - chainke_pg_net
+    ports:
+      - "5442:5432"
+    environment:
+      POSTGRES_USER: chainke
+      POSTGRES_PASSWORD: Chainke888!
+      POSTGRES_DB: chainke
+      TZ: Asia/Shanghai
+    volumes:
+      - pg_chainke_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chainke -d chainke"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: "1G"
+        reservations:
+          cpus: "0.25"
+          memory: "256M"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 辅助数据库 - CRM
+  postgres-chainke-crm:
+    image: postgres:16-alpine
+    container_name: chainke-postgres-crm
+    restart: unless-stopped
+    networks:
+      - chainke_pg_net
+    ports:
+      - "5443:5432"
+    environment:
+      POSTGRES_USER: chainke
+      POSTGRES_PASSWORD: Chainke888!
+      POSTGRES_DB: chainke_crm
+      TZ: Asia/Shanghai
+    volumes:
+      - pg_chainke_crm_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chainke -d chainke_crm"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "512M"
+
+  # 辅助数据库 - Growth
+  postgres-chainke-growth:
+    image: postgres:16-alpine
+    container_name: chainke-postgres-growth
+    restart: unless-stopped
+    networks:
+      - chainke_pg_net
+    ports:
+      - "5444:5432"
+    environment:
+      POSTGRES_USER: chainke
+      POSTGRES_PASSWORD: Chainke888!
+      POSTGRES_DB: chainke_growth
+      TZ: Asia/Shanghai
+    volumes:
+      - pg_chainke_growth_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chainke -d chainke_growth"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "512M"

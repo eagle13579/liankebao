@@ -40,20 +40,13 @@ from app.schemas import (
 router = APIRouter(prefix="/api/auth", tags=["认证"])
 
 # 微信小程序配置
-WECHAT_APPID = "wxb4f6d89904200fd2"
-# 优先用环境变量，否则读 .env 文件
-_env_secret = os.environ.get("WECHAT_APP_SECRET", "")
-if not _env_secret:
-    try:
-        _env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
-        with open(_env_path) as _f:
-            for _line in _f:
-                if _line.strip().startswith("WECHAT_APP_SECRET="):
-                    _env_secret = _line.strip().split("=", 1)[1]
-                    break
-    except Exception:
-        pass
-WECHAT_SECRET = _env_secret
+WECHAT_APPID = os.environ.get("WECHAT_APPID", "")
+WECHAT_SECRET = os.environ.get("WECHAT_APP_SECRET", "")
+if not WECHAT_APPID:
+    logger.warning("WECHAT_APPID 环境变量未设置！微信登录功能将不可用")
+if not WECHAT_SECRET:
+    logger.warning("WECHAT_APP_SECRET 环境变量未设置！微信登录功能将不可用")
+
 WECHAT_LOGIN_URL = "https://api.weixin.qq.com/sns/jscode2session"
 
 # ===== 登录频率限制 =====
@@ -125,6 +118,7 @@ def login(
 
     # 兼容旧SHA256密码：如果是旧格式密码，自动升级为bcrypt
     import hashlib as _hl
+
     _old_hash = _hl.sha256(f"{HASH_SALT_OLD}:{req.password}".encode()).hexdigest()
     if _old_hash == user.password_hash:
         user.password_hash = hash_password(req.password)
@@ -192,25 +186,28 @@ def register(
 
     # ── 注册成功后自动创建数字名片记录（数据真实化） ──
     try:
-        import urllib.request as _urllib, json as _json
-        _brochure_data = _json.dumps({
-            "user_id": str(user.id),
-            "name": user.name or req.name or "",
-            "company": user.company or req.company or "",
-            "position": user.position or req.position or "",
-            "phone": user.phone or req.phone or "",
-            "avatar": user.avatar or "",
-            "title": f"{user.name or req.name or ''} 的数字名片",
-            "bio": "",
-            "tags": [],
-            "email": "",
-            "wechat": "",
-        }).encode()
+        import json as _json
+        import urllib.request as _urllib
+
+        _brochure_data = _json.dumps(
+            {
+                "user_id": str(user.id),
+                "name": user.name or req.name or "",
+                "company": user.company or req.company or "",
+                "position": user.position or req.position or "",
+                "phone": user.phone or req.phone or "",
+                "avatar": user.avatar or "",
+                "title": f"{user.name or req.name or ''} 的数字名片",
+                "bio": "",
+                "tags": [],
+                "email": "",
+                "wechat": "",
+            }
+        ).encode()
         _req = _urllib.Request(
             "http://localhost:8003/api/v1/brochures",
             data=_brochure_data,
-            headers={"Content-Type": "application/json",
-                     "Authorization": f"Bearer {access_token}"},
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {access_token}"},
             method="POST",
         )
         _urllib.urlopen(_req, timeout=5)
@@ -242,22 +239,30 @@ def register(
 
     # ── 注册成功后自动创建数字名片记录（数据真实化） ──
     try:
-        import urllib.request as _urllib, json as _json
-        _brochure_data = _json.dumps({
-            "user_id": str(user.id),
-            "name": user.name or req.name or "",
-            "company": user.company or req.company or "",
-            "position": user.position or req.position or "",
-            "phone": user.phone or req.phone or "",
-            "avatar": user.avatar or "",
-            "title": f"{user.name or req.name or ''} 的数字名片",
-            "bio": "", "tags": [], "email": "", "wechat": "",
-        }).encode()
-        _req = _urllib.Request("http://localhost:8003/api/v1/brochures",
+        import json as _json
+        import urllib.request as _urllib
+
+        _brochure_data = _json.dumps(
+            {
+                "user_id": str(user.id),
+                "name": user.name or req.name or "",
+                "company": user.company or req.company or "",
+                "position": user.position or req.position or "",
+                "phone": user.phone or req.phone or "",
+                "avatar": user.avatar or "",
+                "title": f"{user.name or req.name or ''} 的数字名片",
+                "bio": "",
+                "tags": [],
+                "email": "",
+                "wechat": "",
+            }
+        ).encode()
+        _req = _urllib.Request(
+            "http://localhost:8003/api/v1/brochures",
             data=_brochure_data,
-            headers={"Content-Type": "application/json",
-                     "Authorization": f"Bearer {access_token}"},
-            method="POST")
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {access_token}"},
+            method="POST",
+        )
         _urllib.urlopen(_req, timeout=5)
     except Exception:
         pass

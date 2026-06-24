@@ -48,11 +48,21 @@ resources:
   - hpa.yaml
 
 # ============================================================
+# Secret 资源 (通过 kubectl 或外部工具管理)
+# ============================================================
+# 注意: secrets.yaml 不在此处引用，因为包含敏感数据。
+#       请通过以下方式之一管理:
+#         (1) kubectl create secret generic chainke-secret ...
+#         (2) External Secrets Operator
+#         (3) Sealed Secrets
+#       参见 secrets.yaml 模板文件。
+
+# ============================================================
 # 镜像标签 — 通过 CI/CD 动态注入 {VERSION}
 # ============================================================
 # 用法: kustomize edit set image \
-#         registry.cn-hangzhou.aliyuncs.com/chainke/backend:<version> \
-#         registry.cn-hangzhou.aliyuncs.com/chainke/frontend:<version>
+#         registry.cn-hangzhou.aliyuncs.com/chainke/backend=<version> \
+#         registry.cn-hangzhou.aliyuncs.com/chainke/frontend=<version>
 #
 # 示例:
 #   kustomize edit set image \
@@ -65,9 +75,15 @@ images:
     newTag: latest
 
 # ============================================================
-# Secret 生成器 (占位 — 实际应使用外部 Secret 管理)
+# ConfigMap 生成器
 # ============================================================
-# secretGenerator:
-#   - name: chainke-secret
-#     envs:
-#       - .env.secret
+# 如果需要在部署时动态生成 ConfigMap，可在此处配置。
+# 当前使用静态 configmap.yaml 文件。
+
+# ============================================================
+# 补丁策略
+# ============================================================
+# 以下为不同环境的补丁示例，取消注释并使用:
+# patches:
+#   - path: patches/production.yaml
+#   - path: patches/staging.yaml

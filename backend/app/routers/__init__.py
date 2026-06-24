@@ -5,7 +5,9 @@
 """
 
 from app.routers import enterprise_enrich as enterprise_enrich_module
+from app.routers import social_proof as social_proof_module
 
 __all__ = [
     "enterprise_enrich_module",
+    "social_proof_module",
 ]

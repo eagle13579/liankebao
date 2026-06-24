@@ -3,7 +3,7 @@ import { AnimatePresence } from 'motion/react';
 import ErrorBoundary from './components/ErrorBoundary';
 import PageTransition from './components/PageTransition';
 import PwaUpdatePrompt from './pwa';
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { I18nProvider } from './i18n';
 import FloatingLangSwitcher from './components/FloatingLangSwitcher';
 import { Globe } from 'lucide-react';
@@ -63,10 +63,21 @@ const NeedDetailLazy = lazy(() => import('./screens/SupplyDemandScreens').then(m
 const PostNeedLazy = lazy(() => import('./screens/PostNeedScreen').then(m => ({ default: m.PostNeed })));
 const PromoterPageLazy = lazy(() => import('./screens/PromoterScreen').then(m => ({ default: m.PromoterPage })));
 const ActivityLogLazy = lazy(() => import('./screens/ActivityScreens').then(m => ({ default: m.ActivityLog })));
+const DeveloperPortalPageLazy = lazy(() => import('./pages/developer/DeveloperPortalPage'));
+const ContractsPageLazy = lazy(() => import('./pages/contracts/ContractsPage'));
+const ContractDetailPageLazy = lazy(() => import('./pages/contracts/ContractDetailPage'));
+const PaymentHistoryPageLazy = lazy(() => import('./pages/contracts/PaymentHistoryPage'));
 
 function LazyPage({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen text-on-surface"><div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" /></div>}>
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-[var(--bg-primary)]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-2 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin" />
+          <span className="text-[var(--text-muted)] text-sm font-medium tracking-wide">加载中...</span>
+        </div>
+      </div>
+    }>
       {children}
     </Suspense>
   );
@@ -124,12 +135,17 @@ function AnimatedRoutes() {
         <Route path="/private-board" element={<PageTransition><LazyPage><PrivateBoardPageLazy /></LazyPage></PageTransition>} />
         <Route path="/promoter" element={<PageTransition><LazyPage><PromoterPageLazy /></LazyPage></PageTransition>} />
         <Route path="/activities" element={<PageTransition><LazyPage><ActivityLogLazy /></LazyPage></PageTransition>} />
+        <Route path="/developer" element={<PageTransition><LazyPage><DeveloperPortalPageLazy /></LazyPage></PageTransition>} />
         {/* ===== P0心智模型注入路由 ===== */}
         <Route path="/admin/hypothesis-gate" element={<PageTransition><LazyPage><HypothesisGatePageLazy /></LazyPage></PageTransition>} />
         <Route path="/admin/unit-economics" element={<PageTransition><LazyPage><UnitEconomicsPageLazy /></LazyPage></PageTransition>} />
         <Route path="/admin/retro-board" element={<PageTransition><LazyPage><RetroBoardPageLazy /></LazyPage></PageTransition>} />
         <Route path="/admin/retention" element={<PageTransition><LazyPage><RetentionDashboardPageLazy /></LazyPage></PageTransition>} />
         <Route path="/learning-center" element={<PageTransition><LazyPage><LearningCenterPageLazy /></LazyPage></PageTransition>} />
+        {/* ===== 交易履约路由 ===== */}
+        <Route path="/contracts" element={<PageTransition><LazyPage><ContractsPageLazy /></LazyPage></PageTransition>} />
+        <Route path="/contracts/:id" element={<PageTransition><LazyPage><ContractDetailPageLazy /></LazyPage></PageTransition>} />
+        <Route path="/contracts/:id/payments" element={<PageTransition><LazyPage><PaymentHistoryPageLazy /></LazyPage></PageTransition>} />
       </Routes>
     </AnimatePresence>
   );
@@ -147,21 +163,29 @@ export default function App() {
 
 function AppContent() {
   const { locale, setLocale } = useLocale();
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   return (
     <ErrorBoundary>
-    <div className="bg-neutral-bg min-h-screen text-on-surface select-none">
+    <div className="bg-[var(--bg-primary)] min-h-screen text-[var(--text-primary)] select-none">
       <AnimatedRoutes />
       <PwaUpdatePrompt />
 
       {/* Floating draggable language switcher */}
       <FloatingLangSwitcher />
 
-      {/* Hidden toggle for Admin vs User experience - not in spec but useful for preview */}
-      <div className="fixed bottom-20 left-4 z-[9999] flex gap-2 opacity-5 pointer-events-none hover:opacity-100 hover:pointer-events-auto transition-opacity">
-        <Link to="/" className="p-2 bg-white rounded shadow text-[10px]">User</Link>
-        <Link to="/admin" className="p-2 bg-white rounded shadow text-[10px]">Admin</Link>
-      </div>
+      {/* Theme toggle - bottom right */}
+      <button
+        onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+        className="fixed bottom-24 right-4 z-[9999] w-10 h-10 rounded-full bg-[var(--bg-card)] border border-[var(--border-primary)] flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+        title="切换主题"
+      >
+        {theme === 'dark' ? '☀️' : '🌙'}
+      </button>
     </div>
     </ErrorBoundary>
   );

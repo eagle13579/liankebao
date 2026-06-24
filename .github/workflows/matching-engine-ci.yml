@@ -1,0 +1,51 @@
+# ============================================================
+# 链客宝 AI 匹配引擎 CI 流水线 (P0-2)
+# 触发条件:
+#   - push 到 master 分支
+#   - PR 到 master 分支
+# ============================================================
+name: 匹配引擎 CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+# 总超时控制
+concurrency:
+  group: matching-engine-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  matching-engine-tests:
+    name: 🧪 匹配引擎单元测试
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx scikit-learn numpy jieba
+
+      - name: Run matching engine tests
+        run: pytest tests/test_matching_engine.py -v --tb=short
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
+          DB_TYPE: sqlite
+          SECRET_KEY: ci-secret-key-for-testing
+          PAYMENT_MODE: mock

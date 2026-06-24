@@ -125,6 +125,7 @@ async def health():
 def permission_guard_role_store():
     """Borrow the role store from permission_guard without side effects."""
     from permission_guard import _roles
+
     return _roles
 
 
@@ -135,11 +136,13 @@ def _enumerate_routes() -> list[dict]:
         if hasattr(route, "methods") and hasattr(route, "path"):
             for method in route.methods:
                 if method in ("GET", "POST", "PUT", "DELETE", "PATCH"):
-                    routes.append({
-                        "method": method,
-                        "path": route.path,
-                        "name": route.name if hasattr(route, "name") else "",
-                    })
+                    routes.append(
+                        {
+                            "method": method,
+                            "path": route.path,
+                            "name": route.name if hasattr(route, "name") else "",
+                        }
+                    )
     routes.sort(key=lambda r: r["path"])
     return routes
 
@@ -164,8 +167,9 @@ async def root():
 # ── Standalone entry point ──────────────────────────────────────
 if __name__ == "__main__":
     import uvicorn
+
     print(f"🚀 {APP_TITLE}")
-    print(f"📄 Docs:      http://127.0.0.1:8000/docs")
-    print(f"📄 ReDoc:     http://127.0.0.1:8000/redoc")
-    print(f"❤️  Health:    http://127.0.0.1:8000/health")
+    print("📄 Docs:      http://127.0.0.1:8000/docs")
+    print("📄 ReDoc:     http://127.0.0.1:8000/redoc")
+    print("❤️  Health:    http://127.0.0.1:8000/health")
     uvicorn.run("fastapi_payment:app", host="0.0.0.0", port=8000, reload=True)

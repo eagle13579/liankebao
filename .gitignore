@@ -12,7 +12,11 @@ state.db-wal
 .venv_linux/
 .venv/
 venv/
+venv_new/
 env/
+backend/venv/
+backend/venv_new/
+coverage/
 *.egg-info/
 .eggs/
 *.egg

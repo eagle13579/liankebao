@@ -42,8 +42,13 @@ services:
       - PYTHONPATH=/app/backend
       - TZ=Asia/Shanghai
       - ENV=production
-      # 数据库配置
-      - DATABASE_URL=sqlite:///data/chainke.db
+      # 数据库配置 — 生产环境使用 PostgreSQL
+      - DB_TYPE=postgres
+      - PG_HOST=postgres
+      - PG_PORT=5432
+      - PG_USER=chainke
+      - PG_PASSWORD=${PG_PASSWORD:-链客宝2024}
+      - PG_DATABASE=chainke
       # 安全配置
       - SECRET_KEY=${SECRET_KEY:-changeme-in-production}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
@@ -59,6 +64,9 @@ services:
     volumes:
       - chainke_db_data:/app/backend/data
       - chainke_logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8001/health"]
       interval: 30s

@@ -12,17 +12,16 @@
   供 brochure_bridge 实时读取。
 """
 
-import json
 import uuid
-from typing import Optional
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import BusinessCard, sync_brochure_from_card, init_models
+from app.models import BusinessCard
+from app.sync_brochure import sync_brochure_from_card
 
 # ===================================================================
 # Pydantic 请求/响应模型
@@ -31,6 +30,7 @@ from app.models import BusinessCard, sync_brochure_from_card, init_models
 
 class CardFields(BaseModel):
     """名片字段（JSON 结构体）"""
+
     name: str = ""
     company: str = ""
     position: str = ""
@@ -46,29 +46,32 @@ class CardFields(BaseModel):
 
 class CardCreate(BaseModel):
     """创建名片请求"""
+
     user_id: str
     fields: CardFields
-    cover_image: Optional[str] = None
-    album_meta: Optional[dict] = None
+    cover_image: str | None = None
+    album_meta: dict | None = None
 
 
 class CardUpdate(BaseModel):
     """更新名片请求"""
-    fields: Optional[CardFields] = None
-    cover_image: Optional[str] = None
-    album_meta: Optional[dict] = None
+
+    fields: CardFields | None = None
+    cover_image: str | None = None
+    album_meta: dict | None = None
 
 
 class CardResponse(BaseModel):
     """名片响应"""
+
     id: int
     user_id: str
     fields: dict
-    share_token: Optional[str] = None
-    cover_image: Optional[str] = None
-    album_meta: Optional[dict] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    share_token: str | None = None
+    cover_image: str | None = None
+    album_meta: dict | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
 
     class Config:
         from_attributes = True
@@ -91,7 +94,7 @@ async def create_card(card_in: CardCreate, db: Session = Depends(get_db)):
 
     card = BusinessCard(
         user_id=card_in.user_id,
-        fields=card_in.fields.model_dump() if hasattr(card_in.fields, 'model_dump') else card_in.fields.dict(),
+        fields=card_in.fields.model_dump() if hasattr(card_in.fields, "model_dump") else card_in.fields.dict(),
         share_token=share_token,
         cover_image=card_in.cover_image,
         album_meta=card_in.album_meta or {},
@@ -112,7 +115,7 @@ async def create_card(card_in: CardCreate, db: Session = Depends(get_db)):
 
 @router.get("/cards", summary="获取名片列表")
 async def list_cards(
-    user_id: Optional[str] = Query(None),
+    user_id: str | None = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
@@ -157,7 +160,7 @@ async def update_card(card_id: int, card_in: CardUpdate, db: Session = Depends(g
         raise HTTPException(status_code=404, detail="名片不存在")
 
     if card_in.fields is not None:
-        fields_data = card_in.fields.model_dump() if hasattr(card_in.fields, 'model_dump') else card_in.fields.dict()
+        fields_data = card_in.fields.model_dump() if hasattr(card_in.fields, "model_dump") else card_in.fields.dict()
         # 合并而非覆盖
         current = card.fields if isinstance(card.fields, dict) else {}
         current.update({k: v for k, v in fields_data.items() if v})
@@ -192,6 +195,7 @@ async def delete_card(card_id: int, db: Session = Depends(get_db)):
 
     # 可选：同步桥中清除该用户数据
     from app.models import BROCHURE_SYNC_STORE
+
     BROCHURE_SYNC_STORE.pop(card.user_id, None)
 
     return {"message": "名片已删除", "id": card_id}
@@ -202,14 +206,16 @@ async def delete_card(card_id: int, db: Session = Depends(get_db)):
 
 class GenerateCardRequest(BaseModel):
     """AI 生成名片请求"""
+
     user_id: str
     raw_text: str = Field(..., description="用户输入的原始文本（公司介绍、个人信息等）")
-    template: Optional[str] = "standard"
-    source: Optional[str] = "web_upload"
+    template: str | None = "standard"
+    source: str | None = "web_upload"
 
 
 class GenerateCardResponse(BaseModel):
     """AI 生成名片响应"""
+
     card: CardResponse
     ai_summary: str = ""
     suggestions: list[str] = []
@@ -283,9 +289,7 @@ async def generate_card(
 @router.get("/share/{share_token}", summary="通过分享令牌获取名片", response_model=CardResponse)
 async def get_card_by_token(share_token: str, db: Session = Depends(get_db)):
     """通过 share_token 公开查询名片"""
-    card = db.query(BusinessCard).filter(
-        BusinessCard.share_token == share_token
-    ).first()
+    card = db.query(BusinessCard).filter(BusinessCard.share_token == share_token).first()
     if not card:
         raise HTTPException(status_code=404, detail="名片不存在或链接已失效")
     return card
@@ -326,15 +330,31 @@ def _extract_fields_from_text(text: str) -> dict:
             val = parts[1].strip()
 
             mapping = {
-                "姓名": "name", "名字": "name", "名称": "name",
-                "公司": "company", "企业": "company", "单位": "company",
-                "职位": "position", "职务": "position", "岗位": "position",
-                "手机": "phone", "电话": "phone", "手机号": "phone",
-                "邮箱": "email", "邮件": "email", "email": "email",
-                "微信": "wechat", "微信号": "wechat",
-                "网站": "website", "网址": "website", "官网": "website",
-                "地址": "address", "地址": "address",
-                "简介": "description", "介绍": "description", "描述": "description",
+                "姓名": "name",
+                "名字": "name",
+                "名称": "name",
+                "公司": "company",
+                "企业": "company",
+                "单位": "company",
+                "职位": "position",
+                "职务": "position",
+                "岗位": "position",
+                "手机": "phone",
+                "电话": "phone",
+                "手机号": "phone",
+                "邮箱": "email",
+                "邮件": "email",
+                "email": "email",
+                "微信": "wechat",
+                "微信号": "wechat",
+                "网站": "website",
+                "网址": "website",
+                "官网": "website",
+                "地址": "address",
+                "地址": "address",
+                "简介": "description",
+                "介绍": "description",
+                "描述": "description",
                 "标签": "tags",
             }
 
@@ -365,7 +385,9 @@ def _generate_suggestions(fields: dict) -> list[str]:
     essential = ["company", "phone", "name"]
     for field in essential:
         if not fields.get(field):
-            missing.append({"name": "公司名称", "company": "公司", "phone": "手机号", "position": "职位"}.get(field, field))
+            missing.append(
+                {"name": "公司名称", "company": "公司", "phone": "手机号", "position": "职位"}.get(field, field)
+            )
 
     if missing:
         suggestions.append(f"建议补充: {'、'.join(missing)}，让名片更完整")

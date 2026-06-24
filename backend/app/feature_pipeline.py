@@ -17,7 +17,6 @@
 """
 
 import logging
-import re
 import time
 from datetime import UTC, datetime
 from typing import Any
@@ -26,6 +25,8 @@ import jieba
 import numpy as np
 
 from app.models import BusinessNeed, Product
+from app.stop_words import STOP_WORDS  # 已迁移到共享模块
+from app.utils import normalize_text, parse_budget  # 已迁移到共享模块
 
 logger = logging.getLogger(__name__)
 
@@ -45,118 +46,9 @@ DEFAULT_WEIGHTS = {
 TFIDF_MAX_FEATURES = 1000
 TFIDF_NGRAM_RANGE = (1, 2)
 
-# 停用词表（与 matching_engine 共享同一套，独立维护避免跨模块耦合）
-STOP_WORDS: set[str] = {
-    "的",
-    "了",
-    "在",
-    "是",
-    "我",
-    "有",
-    "和",
-    "就",
-    "不",
-    "人",
-    "都",
-    "一",
-    "一个",
-    "上",
-    "也",
-    "很",
-    "到",
-    "说",
-    "要",
-    "去",
-    "你",
-    "会",
-    "着",
-    "没有",
-    "看",
-    "好",
-    "自己",
-    "这",
-    "他",
-    "她",
-    "它",
-    "们",
-    "为",
-    "与",
-    "及",
-    "等",
-    "或",
-    "之",
-    "以",
-    "被",
-    "让",
-    "给",
-    "对",
-    "从",
-    "把",
-    "向",
-    "能",
-    "做",
-    "用",
-    "买",
-    "卖",
-    "找",
-    "寻",
-    "求",
-    "供",
-    "需",
-    "可以",
-    "需要",
-    "能够",
-    "应该",
-    "这个",
-    "那个",
-    "什么",
-    "如何",
-    "怎么",
-    "我们",
-    "他们",
-    "你们",
-    "已经",
-    "还是",
-    "因为",
-    "所以",
-    "如果",
-    "虽然",
-    "但是",
-    "而且",
-    "或者",
-    "并且",
-    "不仅",
-    "以及",
-    "关于",
-    "对于",
-    "根据",
-    "按照",
-    "通过",
-    "经过",
-    "进行",
-    "例如",
-    "比如",
-    "希望",
-    "想要",
-    "目前",
-    "现在",
-    "未来",
-    "主要",
-    "相关",
-    "包括",
-    "具有",
-    "提供",
-    "支持",
-    "实现",
-    "开发",
-    "服务",
-    "系统",
-    "平台",
-    "方案",
-    "项目",
-    "产品",
-    "品牌",
-}
+# 停用词表（已迁移到 app.stop_words — 保持兼容）
+# 原硬编码停用词表已移至 app/stop_words.py
+STOP_WORDS: set[str] = STOP_WORDS  # type: ignore  # 保持原变量名对外兼容
 
 # 已知类目列表（用于 one-hot / multi-label 编码）
 KNOWN_CATEGORIES: list[str] = [
@@ -184,12 +76,10 @@ KNOWN_CATEGORIES: list[str] = [
 
 
 def _normalize_text(text: str | None) -> str:
-    """规范化文本：去空格、去标点、转小写"""
-    if not text:
-        return ""
-    text = text.strip().lower()
-    text = re.sub(r"[^\w\u4e00-\u9fff\s]", " ", text)
-    return re.sub(r"\s+", " ", text).strip()
+    """规范化文本：去空格、去标点、转小写
+    已迁移到 app.utils — 保持兼容
+    """
+    return normalize_text(text)
 
 
 def _extract_keywords(text: str | None) -> list[str]:
@@ -276,59 +166,9 @@ def _recency_score(created_at: datetime | None, decay_days: float = 90.0) -> flo
 
 def _parse_budget(budget_str: str | None) -> tuple[float, float] | None:
     """解析预算字符串，返回 (min, max) 元组
-
-    与 matching_engine 中 _parse_budget 逻辑一致。
+    已迁移到 app.utils — 保持兼容
     """
-    if not budget_str:
-        return None
-    budget_str = budget_str.strip()
-
-    # 匹配 "10万-50万" / "10万~50万" / "10-50万"
-    pattern = r"(\d+(?:\.\d+)?)\s*(?:万|w)?\s*[-~至到]\s*(\d+(?:\.\d+)?)\s*(?:万|w)?"
-    m = re.search(pattern, budget_str)
-    if m:
-        min_val = float(m.group(1))
-        max_val = float(m.group(2))
-        if "万" in budget_str or "w" in budget_str.lower():
-            min_val *= 10000
-            max_val *= 10000
-        return (min_val, max_val)
-
-    # 匹配 "10万以上" / "不低于10万"
-    pattern2 = r"(?:不低于|以上|>|大于)\s*(\d+(?:\.\d+)?)\s*(?:万|w)?"
-    m = re.search(pattern2, budget_str)
-    if m:
-        val = float(m.group(1))
-        if "万" in budget_str or "w" in budget_str.lower():
-            val *= 10000
-        return (val, float("inf"))
-
-    pattern2b = r"(\d+(?:\.\d+)?)\s*(?:万|w)?\s*(?:以上|>|大于|不低于)"
-    m = re.search(pattern2b, budget_str)
-    if m:
-        val = float(m.group(1))
-        if "万" in budget_str or "w" in budget_str.lower():
-            val *= 10000
-        return (val, float("inf"))
-
-    # 匹配 "5万以内" / "不超过10万"
-    pattern3 = r"(?:不超过|以内|<|小于)\s*(\d+(?:\.\d+)?)\s*(?:万|w)?"
-    m = re.search(pattern3, budget_str)
-    if m:
-        val = float(m.group(1))
-        if "万" in budget_str or "w" in budget_str.lower():
-            val *= 10000
-        return (0, val)
-
-    pattern3b = r"(\d+(?:\.\d+)?)\s*(?:万|w)?\s*(?:以内|<|小于|不超过)"
-    m = re.search(pattern3b, budget_str)
-    if m:
-        val = float(m.group(1))
-        if "万" in budget_str or "w" in budget_str.lower():
-            val *= 10000
-        return (0, val)
-
-    return None
+    return parse_budget(budget_str)
 
 
 def _build_text_corpus(
@@ -364,14 +204,19 @@ def _get_tfidf_vectorizer():
 
 
 def _compute_tfidf_vector(text_a: str, text_b: str) -> tuple[np.ndarray, np.ndarray]:
-    """计算两段文本的 TF-IDF 向量
+    """计算两段文本的 TF-IDF 向量（使用缓存的向量器，首次调用时 fit）
 
     Returns:
         (vec_a, vec_b): 两个 TF-IDF 向量
     """
+    global _TFIDF_FITTED
     vectorizer = _get_tfidf_vectorizer()
     corpus = [text_a, text_b]
-    tfidf_matrix = vectorizer.fit_transform(corpus)
+    if not _TFIDF_FITTED:
+        tfidf_matrix = vectorizer.fit_transform(corpus)
+        _TFIDF_FITTED = True
+    else:
+        tfidf_matrix = vectorizer.transform(corpus)
     return tfidf_matrix[0:1].toarray()[0], tfidf_matrix[1:2].toarray()[0]
 
 

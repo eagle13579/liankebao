@@ -48,13 +48,49 @@ from typing import Any
 
 import jieba
 import numpy as np
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
 from app.database import get_db
 from app.models import BusinessNeed, Product, User
+from app.stop_words import STOP_WORDS  # 已迁移到共享模块
+from app.utils import normalize_text, parse_budget  # 已迁移到共享模块
+from trust_engine.matching import TrustMatchingEnhancer
+from trust_engine.scoring import TrustScorer
+
+# ---- P1-1: CTR 预估模型 / P2-1: Item2Vec / P2-2: Thompson / P3-1: DSSM / P3-3: OnlineLambdaRank (可选集成) ----
+try:
+    from app.ml_models import EXPLORE_SCALE as TS_EXPLORE_SCALE
+    from app.ml_models import (
+        DSSMModel,
+        Item2VecEmbedding,
+        MatchCTRModel,
+        OnlineLambdaRank,
+        ThompsonSamplingExplorer,
+        get_ctr_model,
+        get_dssm_model,
+        get_item2vec,
+        get_online_lambdarank,
+        get_thompson_explorer,
+    )
+
+    _HAS_CTR_MODEL = True
+except ImportError:
+    _HAS_CTR_MODEL = False
+    MatchCTRModel = None
+    Item2VecEmbedding = None
+    get_item2vec = None
+    ThompsonSamplingExplorer = None
+    get_thompson_explorer = None
+    DSSMModel = None
+    get_dssm_model = None
+    OnlineLambdaRank = None
+    get_online_lambdarank = None
+    TS_EXPLORE_SCALE = 0.20
+    logger = logging.getLogger(__name__)
+    logger.info("ml_models 未就绪, CTR 模型 / Item2Vec / Thompson / DSSM / OnlineLambdaRank 集成跳过")
 
 logger = logging.getLogger(__name__)
 
@@ -72,12 +108,42 @@ class MatchResult(BaseModel):
     match_score: float  # 0.0 ~ 1.0
     match_reasons: list[str]
     strategy: str | None = None  # 标注使用哪个版本
+    trust_tier: str | None = None  # P0-1: 对方信任等级
+    match_level: str | None = None  # P0-1: 匹配模式(instant/assisted/manual)
 
 
 class MatchResponse(BaseModel):
     code: int = 200
     message: str = "success"
     data: list[MatchResult]
+
+
+class TestCaseItem(BaseModel):
+    """单个测试案例（用于批量评估）"""
+
+    need_id: int | None = None
+    product_id: int | None = None
+    direction: str = "need_to_product"  # need_to_product / product_to_need
+    relevant_item_ids: list[int] = []
+    relevance_scores: list[float] | None = None
+    label: str | None = None
+    strategy: str = "v2"
+
+
+class EvaluateRequest(BaseModel):
+    """批量评估请求体"""
+
+    test_cases: list[TestCaseItem]
+    top_k: int = 20
+    strategy: str = "v2"
+
+
+class EvaluateResponse(BaseModel):
+    """批量评估响应"""
+
+    code: int = 200
+    message: str = "success"
+    data: dict
 
 
 # ===== 缓存层 (GAP 2) =====
@@ -101,14 +167,18 @@ _cache: dict[str, CacheEntry] = {}
 _CACHE_TTL = 60  # 秒
 
 
-def get_cached(key: str, fetch_func: Callable, ttl: float = _CACHE_TTL) -> Any:
-    """获取缓存，过期则自动刷新"""
+def get_cached(key: str, fetch_func: Callable, ttl: float = _CACHE_TTL) -> tuple[Any, bool]:
+    """获取缓存，过期则自动刷新
+
+    Returns:
+        (data, was_hit): 数据和是否命中缓存的标志
+    """
     entry = _cache.get(key)
     if entry is not None and not entry.is_expired():
-        return entry.data
+        return entry.data, True
     data = fetch_func()
     _cache[key] = CacheEntry(data, ttl=ttl)
-    return data
+    return data, False
 
 
 def clear_cache(key: str | None = None) -> None:
@@ -213,119 +283,48 @@ class MatchMetrics:
 match_metrics = MatchMetrics()
 
 
-# ===== 停用词表 =====
+# ===== 速率限制 (P0-安全) =====
 
-STOP_WORDS: set = {
-    "的",
-    "了",
-    "在",
-    "是",
-    "我",
-    "有",
-    "和",
-    "就",
-    "不",
-    "人",
-    "都",
-    "一",
-    "一个",
-    "上",
-    "也",
-    "很",
-    "到",
-    "说",
-    "要",
-    "去",
-    "你",
-    "会",
-    "着",
-    "没有",
-    "看",
-    "好",
-    "自己",
-    "这",
-    "他",
-    "她",
-    "它",
-    "们",
-    "为",
-    "与",
-    "及",
-    "等",
-    "或",
-    "之",
-    "以",
-    "被",
-    "让",
-    "给",
-    "对",
-    "从",
-    "把",
-    "向",
-    "能",
-    "做",
-    "用",
-    "买",
-    "卖",
-    "找",
-    "寻",
-    "求",
-    "供",
-    "需",
-    "可以",
-    "需要",
-    "能够",
-    "应该",
-    "这个",
-    "那个",
-    "什么",
-    "如何",
-    "怎么",
-    "我们",
-    "他们",
-    "你们",
-    "已经",
-    "还是",
-    "因为",
-    "所以",
-    "如果",
-    "虽然",
-    "但是",
-    "而且",
-    "或者",
-    "并且",
-    "不仅",
-    "以及",
-    "关于",
-    "对于",
-    "根据",
-    "按照",
-    "通过",
-    "经过",
-    "进行",
-    "例如",
-    "比如",
-    "希望",
-    "想要",
-    "目前",
-    "现在",
-    "未来",
-    "主要",
-    "相关",
-    "包括",
-    "具有",
-    "提供",
-    "支持",
-    "实现",
-    "开发",
-    "服务",
-    "系统",
-    "平台",
-    "方案",
-    "项目",
-    "产品",
-    "品牌",
-}
+
+class RateLimiter:
+    """内存速率限制器 — 滑动窗口计数"""
+
+    def __init__(self, max_requests: int = 60, window_seconds: float = 60.0):
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self._buckets: dict[str, list[float]] = {}  # {key: [timestamp, ...]}
+
+    def check(self, key: str) -> bool:
+        """检查 key 是否超过限制，返回 True=允许, False=拒绝"""
+        now = time.time()
+        cutoff = now - self.window_seconds
+        timestamps = self._buckets.get(key, [])
+        # 清理过期时间戳
+        timestamps = [t for t in timestamps if t > cutoff]
+        if len(timestamps) >= self.max_requests:
+            self._buckets[key] = timestamps
+            return False
+        timestamps.append(now)
+        self._buckets[key] = timestamps
+        return True
+
+
+_rate_limiter = RateLimiter(max_requests=60, window_seconds=60.0)
+
+
+def rate_limit_dependency(request: Request) -> None:
+    """FastAPI 依赖：对匹配接口进行速率限制"""
+    client_ip = request.client.host if request.client else "unknown"
+    route_key = f"{client_ip}:{request.url.path}"
+    if not _rate_limiter.check(route_key):
+        logger.warning(f"速率限制触发: {route_key}")
+        raise HTTPException(status_code=429, detail="请求过于频繁，请稍后再试")
+
+
+# ===== 停用词表 (已迁移到 app.stop_words — 保持兼容) =====
+
+# 保持原变量名对外兼容，实际数据已在模块顶部通过 import 加载
+# 原硬编码停用词表已移至 app/stop_words.py
 
 # ===== COLD_START 冷启动 (P1-2) =====
 
@@ -333,6 +332,10 @@ COLD_START_DAYS = 7  # 新用户/新商品的定义天数
 COLD_START_BOOST = 1.2  # 冷启动加权系数
 MIN_MATCHES_FOR_HOT_FALLBACK = 3  # 不足此数量时补充热门
 HOT_FALLBACK_COUNT = 5  # 补充的热门数量
+
+# ---- P2-2: 汤普森采样冷启动探索 ----
+THOMPSON_BOOST_WEIGHT = 0.5  # Thompson boost vs cold_start_boost 混合权重
+EMBEDDING_WEIGHT = 0.10  # embedding 相似度在最终分数中的权重
 
 # ===== DIVERSITY 多样性重排序 (P2-1) =====
 
@@ -382,7 +385,227 @@ class MatchEngine:
     # TF-IDF 向量器（类级别共享，懒加载）
     _tfidf_vectorizer = None
     _tfidf_fitted = False
-    _tfidf_vocab = None
+
+    # ---- ANN 近似最近邻索引 (P2-1: 向量检索替代O(n²)) ----
+    _ann_index = None
+    _ann_products = None
+
+    @classmethod
+    def _get_tfidf_vectorizer(cls):
+        """获取 TF-IDF 向量器（单例懒加载）"""
+        if cls._tfidf_vectorizer is None:
+            from sklearn.feature_extraction.text import TfidfVectorizer
+
+            cls._tfidf_vectorizer = TfidfVectorizer(
+                max_features=1000,
+                analyzer="word",
+                token_pattern=r"(?u)\b\w+\b",
+                ngram_range=(1, 2),
+                sublinear_tf=True,
+            )
+        return cls._tfidf_vectorizer
+
+    # ---- P2-1: ANN 近似最近邻索引 ----
+
+    @classmethod
+    def _build_ann_index(cls, db: Session | None = None):
+        """构建 ANN 近似最近邻索引，对所有 approved products 预计算 TF-IDF 向量
+
+        优先使用 Faiss (IndexFlatIP, 内积索引, O(log n)),
+        Faiss 不可用时回退到 sklearn NearestNeighbors (brute force, O(n²)).
+
+        Returns:
+            (faiss.Index or NearestNeighbors, list[Product]) 或 (None, None)
+        """
+        try:
+            if db is None:
+                logger.warning("ANN 索引构建跳过: 无数据库会话")
+                return None, None
+
+            products = cls._get_all_approved_products_static(db)
+            if not products:
+                logger.info("ANN 索引构建跳过: 无已上架产品")
+                return None, None
+
+            vectorizer = cls._get_tfidf_vectorizer()
+            texts = [
+                f"{p.name or ''} {p.description or ''} {p.tags or ''} {p.brand or ''} {p.category or ''}"
+                for p in products
+            ]
+
+            # 用所有产品文本拟合向量器（增量拟合）
+            vectors = vectorizer.fit_transform(texts)
+            cls._tfidf_fitted = True
+
+            # ---- 优先使用 Faiss (近似最近邻, O(log n)) ----
+            try:
+                import faiss
+                import numpy as np
+
+                # 转为 dense float32 并 L2 归一化（归一化后内积 = 余弦相似度）
+                vectors_dense = vectors.toarray().astype(np.float32)
+                faiss.normalize_L2(vectors_dense)
+                dim = vectors_dense.shape[1]
+                index = faiss.IndexFlatIP(dim)
+                index.add(vectors_dense)
+
+                logger.info(f"ANN Faiss 索引构建完成: {len(products)} 个产品, dim={dim}, index_ntotal={index.ntotal}")
+                return index, products
+            except ImportError:
+                logger.info("faiss 不可用, 回退到 sklearn NearestNeighbors")
+            except Exception as faiss_err:
+                logger.warning(f"Faiss 索引构建失败 ({faiss_err}), 回退 sklearn")
+
+            # ---- Fallback: sklearn NearestNeighbors ----
+            from sklearn.neighbors import NearestNeighbors
+
+            n_neighbors = min(200, len(products))
+            nn = NearestNeighbors(n_neighbors=n_neighbors, metric="cosine", algorithm="brute")
+            nn.fit(vectors)
+
+            logger.info(f"ANN sklearn 索引构建完成: {len(products)} 个产品, top-{n_neighbors}")
+            return nn, products
+        except Exception as e:
+            logger.warning(f"ANN 索引构建失败: {e}")
+            return None, None
+
+    @classmethod
+    def _get_all_approved_products_static(cls, db: Session):
+        """静态方法: 获取所有已上架产品（无缓存，用于 ANN 索引构建）"""
+        try:
+            page_size = 500
+            results: list[Product] = []
+            offset = 0
+            while True:
+                batch = db.query(Product).filter(Product.status == "approved").offset(offset).limit(page_size).all()
+                if not batch:
+                    break
+                results.extend(batch)
+                offset += page_size
+            return results
+        except Exception as e:
+            logger.warning(f"获取已上架产品失败: {e}")
+            return []
+
+    def _ensure_ann_index(self):
+        """确保 ANN 索引已构建（懒加载 + 缓存）"""
+        if self._ann_index is None or self._ann_products is None:
+            self.__class__._ann_index, self.__class__._ann_products = self._build_ann_index(self.db)
+        return self._ann_index, self._ann_products
+
+    def _ann_recall(self, need: BusinessNeed, top_k: int = 200) -> list[Product]:
+        """使用 ANN 召回 top-K 候选产品
+
+        先用 TF-IDF 向量做近似最近邻搜索，召回 top-K 候选，
+        替代原先的全表扫描 O(n²) 匹配。
+        支持 Faiss (IndexFlatIP) 和 sklearn NearestNeighbors 两种索引后端。
+
+        Args:
+            need: 需求对象
+            top_k: 召回数量上限（默认 200）
+
+        Returns:
+            候选产品列表（按近似相似度降序）
+        """
+        nn_index, ann_products = self._ensure_ann_index()
+        if nn_index is None or not ann_products:
+            # 兜底: 回退到全表扫描
+            return self._get_all_approved_products()
+
+        # 构建需求文本向量
+        need_text = f"{need.title or ''} {need.description or ''} {need.category or ''}"
+        vectorizer = self._get_tfidf_vectorizer()
+        try:
+            need_vec = vectorizer.transform([need_text])
+            actual_k = min(top_k, len(ann_products))
+
+            # 判断索引类型: Faiss (有 .search 方法) vs sklearn (有 .kneighbors 方法)
+            import numpy as np
+
+            if hasattr(nn_index, "search"):
+                # ---- Faiss 索引 ----
+                import faiss
+
+                need_dense = need_vec.toarray().astype(np.float32)
+                faiss.normalize_L2(need_dense)
+                distances, indices = nn_index.search(need_dense, actual_k)
+                logger.debug(f"ANN Faiss 召回: {len(indices[0])} 个候选 (top-{actual_k})")
+            else:
+                # ---- sklearn NearestNeighbors ----
+                distances, indices = nn_index.kneighbors(need_vec, n_neighbors=actual_k)
+                logger.debug(f"ANN sklearn 召回: {len(indices[0])} 个候选 (top-{actual_k})")
+
+            candidates = [ann_products[i] for i in indices[0]]
+            return candidates
+        except Exception as e:
+            logger.debug(f"ANN 召回失败, 回退全表扫描: {e}")
+            return self._get_all_approved_products()
+
+    def _fts5_recall(self, need: BusinessNeed, top_k: int = 200) -> list[Product]:
+        """使用 FTS5 搜索引擎按需求文本召回产品
+
+        用需求的 title + description + category 作为查询语句，
+        调用搜索引擎召回 top-K 产品。
+
+        Args:
+            need: 需求对象
+            top_k: 召回数量上限
+
+        Returns:
+            产品列表（按搜索引擎相关性降序）
+        """
+        if not need:
+            return []
+        try:
+            from app.search_index import get_search_engine
+
+            # 构建查询: title + description 的前 200 字
+            query_parts = []
+            if need.title:
+                query_parts.append(need.title)
+            if need.description:
+                query_parts.append(need.description[:200])
+            if need.category:
+                query_parts.append(need.category)
+            query = " ".join(query_parts)
+            if not query.strip():
+                return []
+
+            engine = get_search_engine()
+            result = engine.search(
+                query=query,
+                page=1,
+                page_size=top_k,
+                sort_by="relevance",
+            )
+            items = result.get("items", [])
+            if not items:
+                logger.debug(f"FTS5 召回: 无结果 (query='{query[:50]}')")
+                return []
+
+            # 将搜索结果的 product_id 转为 Product ORM 对象
+            product_ids = [item["id"] for item in items if "id" in item]
+            if not product_ids:
+                return []
+
+            # 批量查询（保持搜索排序顺序）
+            id_order = {pid: idx for idx, pid in enumerate(product_ids)}
+            products = self.db.query(Product).filter(Product.id.in_(product_ids), Product.status == "approved").all()
+            # 按搜索排序
+            products.sort(key=lambda p: id_order.get(p.id, 9999))
+
+            logger.debug(f"FTS5 召回: {len(products)} 个产品 (query='{query[:50]}', top={top_k})")
+            return products
+        except Exception as e:
+            logger.debug(f"FTS5 召回失败, 回退: {e}")
+            return []
+
+    @classmethod
+    def clear_ann_index(cls):
+        """清除 ANN 索引（产品变更时调用）"""
+        cls._ann_index = None
+        cls._ann_products = None
+        logger.info("ANN 索引已清除")
 
     def __init__(self, db: Session, strategy: str = "v2"):
         """
@@ -399,6 +622,73 @@ class MatchEngine:
         self._synonyms_config_path = os.path.join(engine_dir, "config", "category_synonyms.json")
         # 类目同义词（懒加载）
         self._synonyms = None
+        # 信任引擎增强器
+        self._trust_enhancer = TrustMatchingEnhancer()
+        # ---- P2-1: Item2Vec 嵌入初始化 ----
+        self._item2vec = None
+        self._has_item2vec = False
+        if Item2VecEmbedding is not None and get_item2vec is not None:
+            try:
+                self._item2vec = get_item2vec()
+                if self._item2vec.is_fitted:
+                    logger.info("Item2Vec 嵌入已加载 (已训练)")
+                    self._has_item2vec = True
+                else:
+                    logger.info("Item2Vec 嵌入已加载 (未训练, 将使用纯规则)")
+            except Exception as e:
+                self._item2vec = None
+                logger.debug(f"Item2Vec 初始化跳过: {e}")
+        # ---- P2-2: 汤普森采样探索器初始化 ----
+        self._thompson = None
+        self._has_thompson = False
+        if ThompsonSamplingExplorer is not None and get_thompson_explorer is not None:
+            try:
+                self._thompson = get_thompson_explorer()
+                self._has_thompson = True
+                logger.info("Thompson 采样探索器已加载")
+            except Exception as e:
+                self._thompson = None
+                logger.debug(f"Thompson 探索器初始化跳过: {e}")
+        # ---- P1-1: CTR 模型初始化 ----
+        self._ctr_model = None
+        if _HAS_CTR_MODEL:
+            try:
+                self._ctr_model = get_ctr_model()
+                if self._ctr_model.is_fitted:
+                    logger.info("CTR 模型已加载 (已训练)")
+                else:
+                    logger.info("CTR 模型已加载 (未训练, 将使用纯规则)")
+            except Exception as e:
+                self._ctr_model = None
+                logger.debug(f"CTR 模型初始化跳过: {e}")
+        # ---- P3-1: DSSM 双塔初始化 ----
+        self._dssm = None
+        self._has_dssm = False
+        if DSSMModel is not None and get_dssm_model is not None:
+            try:
+                self._dssm = get_dssm_model()
+                if self._dssm.is_fitted:
+                    logger.info("DSSM 模型已加载 (已训练)")
+                    self._has_dssm = True
+                else:
+                    logger.info("DSSM 模型已加载 (未训练, 将使用纯规则匹配+CTR)")
+            except Exception as e:
+                self._dssm = None
+                logger.debug(f"DSSM 模型初始化跳过: {e}")
+        # ---- P3-3: OnlineLambdaRank 增量学习初始化 ----
+        self._online_lambdarank = None
+        self._has_online_lr = False
+        if OnlineLambdaRank is not None and get_online_lambdarank is not None:
+            try:
+                self._online_lambdarank = get_online_lambdarank()
+                if self._online_lambdarank.model is not None:
+                    logger.info("OnlineLambdaRank 已加载 (已训练)")
+                else:
+                    logger.info("OnlineLambdaRank 已加载 (未训练, 将使用纯规则+CTR)")
+                self._has_online_lr = True
+            except Exception as e:
+                self._online_lambdarank = None
+                logger.debug(f"OnlineLambdaRank 初始化跳过: {e}")
 
     # ---- 配置化同义词 (GAP 4) ----
 
@@ -427,12 +717,10 @@ class MatchEngine:
 
     @staticmethod
     def _normalize_text(text_str: str | None) -> str:
-        """规范化文本：转小写、去标点"""
-        if not text_str:
-            return ""
-        text_str = text_str.lower().strip()
-        text_str = re.sub(r"[^\w\u4e00-\u9fff\s]", " ", text_str)
-        return text_str.strip()
+        """规范化文本：转小写、去标点
+        已迁移到 app.utils — 保持兼容
+        """
+        return normalize_text(text_str)
 
     # ---- GAP 1: jieba 分词（v2） ----
 
@@ -517,20 +805,17 @@ class MatchEngine:
         return prod_text, need_text
 
     def _compute_tfidf_similarity(self, prod_text: str, need_text: str) -> float:
-        """用 TF-IDF 计算产品与需求的文本相似度"""
-        from sklearn.feature_extraction.text import TfidfVectorizer
+        """用 TF-IDF 计算产品与需求的文本相似度（使用缓存的向量器）"""
         from sklearn.metrics.pairwise import cosine_similarity
 
         corpus = [prod_text, need_text]
         try:
-            vectorizer = TfidfVectorizer(
-                max_features=1000,
-                analyzer="word",
-                token_pattern=r"(?u)\b\w+\b",
-                ngram_range=(1, 2),
-                sublinear_tf=True,
-            )
-            tfidf_matrix = vectorizer.fit_transform(corpus)
+            vectorizer = self._get_tfidf_vectorizer()
+            if not self._tfidf_fitted:
+                tfidf_matrix = vectorizer.fit_transform(corpus)
+                self._tfidf_fitted = True
+            else:
+                tfidf_matrix = vectorizer.transform(corpus)
             sim = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
             return float(sim)
         except Exception as e:
@@ -672,54 +957,10 @@ class MatchEngine:
 
     @staticmethod
     def _parse_budget(budget_str: str | None) -> tuple[float, float] | None:
-        if not budget_str:
-            return None
-        budget_str = budget_str.strip()
-        pattern = r"(\d+(?:\.\d+)?)\s*(?:万|w)?\s*[-~至到]\s*(\d+(?:\.\d+)?)\s*(?:万|w)?"
-        m = re.search(pattern, budget_str)
-        if m:
-            min_val = float(m.group(1))
-            max_val = float(m.group(2))
-            if "万" in budget_str or "w" in budget_str.lower():
-                min_val *= 10000
-                max_val *= 10000
-            return (min_val, max_val)
-
-        pattern2 = r"(?:>|大于|不低于|以上)\s*(\d+(?:\.\d+)?)\s*(?:万|w)?"
-        m = re.search(pattern2, budget_str)
-        if m:
-            val = float(m.group(1))
-            if "万" in budget_str or "w" in budget_str.lower():
-                val *= 10000
-            return (val, float("inf"))
-
-        # 匹配 "10万以上"（数字在前，关键词在后）
-        pattern2b = r"(\d+(?:\.\d+)?)\s*(?:万|w)?\s*(?:以上|>|大于|不低于)"
-        m = re.search(pattern2b, budget_str)
-        if m:
-            val = float(m.group(1))
-            if "万" in budget_str or "w" in budget_str.lower():
-                val *= 10000
-            return (val, float("inf"))
-
-        pattern3 = r"(?:<|小于|不超过|以内)\s*(\d+(?:\.\d+)?)\s*(?:万|w)?"
-        m = re.search(pattern3, budget_str)
-        if m:
-            val = float(m.group(1))
-            if "万" in budget_str or "w" in budget_str.lower():
-                val *= 10000
-            return (0, val)
-
-        # 匹配 "5万以内"（数字在前，关键词在后）
-        pattern3b = r"(\d+(?:\.\d+)?)\s*(?:万|w)?\s*(?:以内|<|小于|不超过)"
-        m = re.search(pattern3b, budget_str)
-        if m:
-            val = float(m.group(1))
-            if "万" in budget_str or "w" in budget_str.lower():
-                val *= 10000
-            return (0, val)
-
-        return None
+        """解析预算字符串
+        已迁移到 app.utils — 保持兼容
+        """
+        return parse_budget(budget_str)
 
     @staticmethod
     def _match_price_range(product: Product, need: BusinessNeed) -> tuple[float, list[str]]:
@@ -809,18 +1050,88 @@ class MatchEngine:
     # ---- FEEDBACK 反馈闭环方法 ----
 
     @classmethod
-    def record_feedback(cls, product_id: int, weight_delta: float) -> None:
-        """记录用户反馈，调整产品权重
+    def record_feedback(
+        cls, product_id: int, weight_delta: float, features: list | np.ndarray | None = None, label: float | None = None
+    ) -> None:
+        """记录用户反馈，调整产品权重，并触发在线LambdaRank增量学习
 
         Args:
             product_id: 产品 ID
             weight_delta: 权重增量 [-1.0, 1.0]，正数=正向反馈，负数=负向反馈
+            features: 特征向量 (可选, 用于在线LambdaRank增量学习)
+            label: 相关度标签 (可选, 1.0=喜欢, 0.0=不喜欢, 用于在线LambdaRank)
         """
         current = cls._feedback_weights.get(product_id, 0.0)
         # 累积权重，限制在 [-_FEEDBACK_BOOST_MAX, _FEEDBACK_BOOST_MAX]
-        new_weight = max(-cls._FEEDBACK_BOOST_MAX, min(cls._FEEDBACK_BOOST_MAX, current + weight_delta * 0.01))
+        new_weight = max(-cls._FEEDBACK_BOOST_MAX, min(cls._FEEDBACK_BOOST_MAX, current + weight_delta * 0.10))
         cls._feedback_weights[product_id] = new_weight
         logger.debug(f"反馈记录: product_id={product_id}, delta={weight_delta}, new_weight={new_weight:.4f}")
+
+        # P3-3: 在线LambdaRank增量学习
+        if features is not None and label is not None and get_online_lambdarank is not None:
+            try:
+                online_lr = get_online_lambdarank()
+                online_lr.partial_fit(features, label)
+                logger.debug(f"OnlineLambdaRank 增量更新: product_id={product_id}, label={label}")
+            except Exception as e:
+                logger.debug(f"OnlineLambdaRank 增量更新跳过: {e}")
+
+    def record_ranking_feedback(self, product_id: int, need_id: int, feedback_type: str) -> None:
+        """记录反馈并自动提取特征用于在线LambdaRank增量学习（实例方法）
+
+        从产品/需求对象自动提取特征，然后调用 record_feedback 完成反馈闭环。
+
+        Args:
+            product_id: 产品 ID
+            need_id: 需求 ID
+            feedback_type: 反馈类型, 'like'/'click'/'adopt'/'positive' → label=1.0
+                           'dislike'/'skip'/'close'/'negative' → label=0.0
+        """
+        try:
+            product = self.db.query(Product).filter(Product.id == product_id).first()
+            need = self.db.query(BusinessNeed).filter(BusinessNeed.id == need_id).first()
+            if not product or not need:
+                logger.debug(f"record_ranking_feedback 跳过: 产品或需求不存在 (product={product_id}, need={need_id})")
+                return
+
+            positive_types = {"like", "click", "adopt", "positive", "recommend_like"}
+            label = 1.0 if feedback_type in positive_types else 0.0
+            weight_delta = 1.0 if label > 0.5 else -1.0
+
+            # 提取特征
+            features = None
+            if self._ctr_model is not None:
+                partial_scores = {
+                    "category_score": 0.0,
+                    "keyword_score": 0.0,
+                    "price_score": 0.0,
+                    "feedback_weight": self._feedback_weights.get(product_id, 0.0),
+                    "cold_start_boost": False,
+                    "trust_score": 0.0,
+                    "category_match_type": 0.0,
+                    "embedding_sim": 0.0,
+                    "thompson_explore": self._thompson.get_explore_score(product_id)
+                    if (self._has_thompson and self._thompson is not None)
+                    else 0.0,
+                }
+                features = self._ctr_model.extract_features(
+                    product=product,
+                    need=need,
+                    partial_scores=partial_scores,
+                )
+
+            MatchEngine.record_feedback(product_id, weight_delta, features=features, label=label)
+            logger.info(
+                "ranking_feedback_recorded",
+                extra={
+                    "product_id": product_id,
+                    "need_id": need_id,
+                    "feedback_type": feedback_type,
+                    "label": label,
+                },
+            )
+        except Exception as e:
+            logger.warning(f"record_ranking_feedback 失败: {e}")
 
     # ---- DIVERSITY 多样性重排序方法 ----
 
@@ -828,9 +1139,18 @@ class MatchEngine:
         """MMR (Maximum Marginal Relevance) 重排序
 
         在相关性和多样性之间做权衡，避免返回结果过于相似。
+        后处理强制同类目不超过2个。
         """
         if len(ranked_results) <= 3:
-            return ranked_results
+            # 小列表不跑MMR但仍应用类目上限
+            cat_count: dict[str, int] = {}
+            filtered: list[MatchResult] = []
+            for r in ranked_results:
+                cat = r.category or ""
+                if cat_count.get(cat, 0) < 2:
+                    filtered.append(r)
+                    cat_count[cat] = cat_count.get(cat, 0) + 1
+            return filtered
 
         selected: list[MatchResult] = []
         candidate_pool = list(ranked_results)
@@ -857,7 +1177,15 @@ class MatchEngine:
             best_idx = int(np.argmax(mmr_scores))
             selected.append(candidate_pool.pop(best_idx))
 
-        return selected
+        # ---- 后处理: 强制同类目不超过2个 ----
+        cat_count: dict[str, int] = {}
+        filtered: list[MatchResult] = []
+        for r in selected:
+            cat = r.category or ""
+            if cat_count.get(cat, 0) < 2:
+                filtered.append(r)
+                cat_count[cat] = cat_count.get(cat, 0) + 1
+        return filtered
 
     @staticmethod
     def _category_similarity(a: MatchResult, b: MatchResult) -> float:
@@ -896,28 +1224,104 @@ class MatchEngine:
     # ---- GAP 2: 缓存层 ----
 
     def _get_all_approved_products(self):
-        """获取所有已上架产品（带缓存）"""
+        """获取所有已上架产品（带缓存，分页加载避免全量查询）"""
 
         def fetch():
             match_metrics.record_cache_miss()
-            return self.db.query(Product).filter(Product.status == "approved").all()
+            page_size = 500
+            results: list[Product] = []
+            offset = 0
+            while True:
+                batch = (
+                    self.db.query(Product).filter(Product.status == "approved").offset(offset).limit(page_size).all()
+                )
+                if not batch:
+                    break
+                results.extend(batch)
+                offset += page_size
+            return results
 
-        result = get_cached("approved_products", fetch)
-        match_metrics.record_cache_hit()
+        result, was_hit = get_cached("approved_products", fetch)
+        if was_hit:
+            match_metrics.record_cache_hit()
         return result
 
     def _get_all_open_needs(self):
-        """获取所有 open 状态需求（带缓存）"""
+        """获取所有 open 状态需求（带缓存，正确记录命中/未命中）"""
 
         def fetch():
             match_metrics.record_cache_miss()
             return self.db.query(BusinessNeed).filter(BusinessNeed.status == "open").all()
 
-        result = get_cached("open_needs", fetch)
-        match_metrics.record_cache_hit()
+        result, was_hit = get_cached("open_needs", fetch)
+        if was_hit:
+            match_metrics.record_cache_hit()
         return result
 
     # ---- GAP 6: 监控埋点 + 增强功能 ----
+
+    def _get_product_owner_trust_score(self, product: Product) -> float:
+        """获取产品所有者的信任评分 (P1-3: 信任引擎集成)
+
+        依次尝试:
+          1. 从 trust_score_snapshots 表查询最近快照
+          2. 使用 TrustScorer 从原始数据实时计算
+          3. 兜底: 返回 0.0 (无信任数据)
+
+        Returns:
+            trust_score: [0, 100] 范围的信任评分，0 表示无数据
+        """
+        owner_id = product.owner_id
+        if not owner_id:
+            return 0.0
+
+        try:
+            # 策略1: 查 trust_score_snapshots 表
+            from trust_models import TrustScoreSnapshot
+
+            snapshot = (
+                self.db.query(TrustScoreSnapshot)
+                .filter(
+                    TrustScoreSnapshot.user_id == str(owner_id),
+                )
+                .order_by(TrustScoreSnapshot.snapshot_date.desc())
+                .first()
+            )
+            if snapshot is not None and snapshot.score_total > 0:
+                return snapshot.score_total
+        except Exception:
+            logger.debug("trust_score_snapshots 表不可用，尝试 TrustScorer 实时计算")
+
+        try:
+            # 策略2: 使用 TrustScorer 实时计算
+            scorer = TrustScorer()
+            from trust_engine.scoring import (
+                ComplianceData,
+                QualificationData,
+                TransactionData,
+            )
+
+            qual_data = QualificationData(
+                qualification_type="default",
+                is_active=True,
+            )
+            txn_data = TransactionData()
+            comp_data = ComplianceData()
+
+            breakdown = scorer.calculate_from_raw_data(
+                qual_data=qual_data,
+                txn_data=txn_data,
+                comp_data=comp_data,
+                cert_level="none",
+                id_level="phone",
+                months_on_platform=1.0,
+            )
+            if breakdown.total > 0:
+                return breakdown.total
+        except Exception as e:
+            logger.debug(f"TrustScorer 实时计算跳过: {e}")
+
+        return 0.0
 
     def _calculate_match(self, product: Product, need: BusinessNeed, trust_weight: float = 0.0) -> MatchResult:
         """计算单个产品-需求对的匹配分数和原因（带监控 + 冷启动 + 反馈 + 特征集成 + 信任加权）
@@ -946,17 +1350,25 @@ class MatchEngine:
         total_score += price_score
         all_reasons.extend(price_reasons)
 
-        # 4. COLD_START: 冷启动加权
+        # 4. COLD_START / THOMPSON: 冷启动加权 + 汤普森采样探索
         cold_start_bonus = False
+        thompson_boost = 0.0
         if self.strategy == "v2":
-            if self._is_cold_start_item(product):
-                total_score *= COLD_START_BOOST
+            is_cold = self._is_cold_start_item(product) or self._is_cold_start_item(need)
+            if is_cold:
                 cold_start_bonus = True
-            if self._is_cold_start_item(need):
+            # 汤普森采样探索得分
+            if self._has_thompson and self._thompson is not None:
+                thompson_boost = self._thompson.get_explore_boost(product.id)
+                if is_cold:
+                    self._thompson.mark_cold_start(product.id)
+                if thompson_boost > 0:
+                    all_reasons.append(f"探索加权 (+{thompson_boost:.4f})")
+            # 混合: 冷启动固定加权 + Thompson 自适应探索
+            if cold_start_bonus:
                 total_score *= COLD_START_BOOST
-                cold_start_bonus = True
-        if cold_start_bonus:
-            all_reasons.append(f"冷启动加权 (x{COLD_START_BOOST})")
+                all_reasons.append(f"冷启动加权 (x{COLD_START_BOOST})")
+            total_score += thompson_boost * 20.0  # Thompson boost 映射到 0~4 分
 
         # 5. FEATURE: 特征集成
         feature_sim = 0.0
@@ -974,11 +1386,24 @@ class MatchEngine:
         final_score = round(total_score / 100.0, 2)
         final_score = min(max(final_score, 0.0), 1.0)
 
-        # FEATURE: 特征相似度加权
-        if feature_sim > 0 and self.strategy == "v2":
-            final_score = final_score * (1.0 - FEATURE_WEIGHT) + feature_sim * FEATURE_WEIGHT
+        # P2-1: Embedding 相似度
+        embedding_sim = 0.0
+        if self._has_item2vec and self._item2vec is not None and self.strategy == "v2":
+            try:
+                embedding_sim = self._item2vec.embedding_similarity(product, need)
+            except Exception as e:
+                logger.debug(f"Embedding 相似度计算跳过: {e}")
+
+        # FEATURE + EMBEDDING: 特征 + 嵌入相似度加权
+        sim_weight = FEATURE_WEIGHT
+        if embedding_sim > 0 and self.strategy == "v2":
+            sim_weight += EMBEDDING_WEIGHT
+            all_reasons.append(f"用户Embedding匹配 (相似度 {embedding_sim:.2f})")
+        total_feat_sim = (feature_sim * FEATURE_WEIGHT + embedding_sim * EMBEDDING_WEIGHT) / max(sim_weight, 1e-8)
+        if total_feat_sim > 0 and self.strategy == "v2":
+            final_score = final_score * (1.0 - sim_weight) + total_feat_sim * sim_weight
             final_score = min(max(final_score, 0.0), 1.0)
-            if feature_sim > 0.3:
+            if feature_sim > 0.3 and embedding_sim <= 0:
                 all_reasons.append(f"特征匹配 (相似度 {feature_sim:.2f})")
 
         # FEEDBACK: 反馈权重调整
@@ -988,12 +1413,93 @@ class MatchEngine:
             direction = "正向" if feedback_weight > 0 else "负向"
             all_reasons.append(f"反馈{direction}调整 ({feedback_weight:+.4f})")
 
-        # ⭐ TRUST: 信任加权（Phase 0）
-        if trust_weight > 0:
-            original_score = final_score
-            final_score = min(final_score * (1.0 + trust_weight * 0.3), 1.0)
-            if final_score > original_score:
-                all_reasons.append(f"信任加权 (x{1.0 + trust_weight * 0.3:.2f})")
+        # ⭐ TRUST: 信任加权（Phase 0）— P1-3: 信任引擎集成
+        if trust_weight <= 0:
+            try:
+                trust_score = self._get_product_owner_trust_score(product)
+                if trust_score > 0:
+                    # 使用 TrustMatchingEnhancer 计算加权修正
+                    enhancer_result = self._trust_enhancer.enhance(
+                        candidate_id=product.id,
+                        original_match_score=final_score,
+                        trust_score=trust_score,
+                    )
+                    if enhancer_result.pre_filter.passed:
+                        trust_weight = trust_score / 100.0
+                        final_score = enhancer_result.adjusted_score
+                        boost = enhancer_result.post_weight.boost_applied
+                        if boost > 1.0:
+                            all_reasons.append(f"信任加权 (x{boost:.2f}, 信任分{trust_score:.0f})")
+            except Exception as e:
+                logger.debug(f"信任引擎加权跳过: {e}")
+
+        # ---- P1-1: CTR 模型融合评分 ----
+        if self._ctr_model is not None and self._ctr_model.is_fitted:
+            try:
+                # 收集规则引擎中间评分
+                partial_scores = {
+                    "category_score": cat_score / 40.0 if cat_score > 0 else 0.0,
+                    "keyword_score": kw_score / 40.0 if kw_score > 0 else 0.0,
+                    "price_score": price_score / 20.0 if price_score > 0 else 0.0,
+                    "feedback_weight": feedback_weight if "feedback_weight" in dir() else 0.0,
+                    "cold_start_boost": cold_start_bonus,
+                    "trust_score": trust_score if "trust_score" in dir() and trust_weight > 0 else 0.0,
+                    "category_match_type": 2.0
+                    if any("完全匹配" in r for r in all_reasons)
+                    else (1.0 if any("类目匹配" in r for r in all_reasons) else 0.0),
+                    "embedding_sim": embedding_sim,
+                    "thompson_explore": self._thompson.get_explore_score(product.id)
+                    if (self._has_thompson and self._thompson is not None)
+                    else 0.0,
+                }
+                features = self._ctr_model.extract_features(
+                    product=product,
+                    need=need,
+                    partial_scores=partial_scores,
+                )
+                ml_score = self._ctr_model.predict_ctr(features)
+                # 加权融合: 0.7 规则 + 0.3 ML
+                final_score = 0.7 * final_score + 0.3 * ml_score
+                final_score = min(max(final_score, 0.0), 1.0)
+                if ml_score > 0.3:
+                    all_reasons.append(f"AI CTR预估 (ML评分 {ml_score:.2f})")
+            except Exception as e:
+                logger.debug(f"CTR 模型评分跳过 (fallback 纯规则): {e}")
+
+        # ---- P3-3: OnlineLambdaRank 在线排序分融合 ----
+        if self._has_online_lr and self._online_lambdarank is not None:
+            try:
+                # 确保 features 已定义（CTR 模型可能未训练）
+                if "features" not in dir() or features is None:
+                    # 独立提取特征
+                    partial_scores = {
+                        "category_score": cat_score / 40.0 if cat_score > 0 else 0.0,
+                        "keyword_score": kw_score / 40.0 if kw_score > 0 else 0.0,
+                        "price_score": price_score / 20.0 if price_score > 0 else 0.0,
+                        "feedback_weight": feedback_weight if "feedback_weight" in dir() else 0.0,
+                        "cold_start_boost": cold_start_bonus,
+                        "trust_score": trust_score if "trust_score" in dir() and trust_weight > 0 else 0.0,
+                        "category_match_type": 2.0
+                        if any("完全匹配" in r for r in all_reasons)
+                        else (1.0 if any("类目匹配" in r for r in all_reasons) else 0.0),
+                        "embedding_sim": embedding_sim,
+                        "thompson_explore": self._thompson.get_explore_score(product.id)
+                        if (self._has_thompson and self._thompson is not None)
+                        else 0.0,
+                    }
+                    features = self._ctr_model.extract_features(
+                        product=product,
+                        need=need,
+                        partial_scores=partial_scores,
+                    )
+                online_score = self._online_lambdarank.predict(features)
+                # 浅融合: 0.8 * 现有分数 + 0.2 * 在线排序分
+                final_score = 0.8 * final_score + 0.2 * online_score
+                final_score = min(max(final_score, 0.0), 1.0)
+                if online_score > 0.3:
+                    all_reasons.append(f"在线LambdaRank排序分 ({online_score:.2f})")
+            except Exception as e:
+                logger.debug(f"OnlineLambdaRank 评分跳过: {e}")
 
         # 监控记录（增强：传入类目）
         elapsed = time.time() - start_time
@@ -1023,23 +1529,124 @@ class MatchEngine:
 
     # ---- 公共匹配方法（含冷启动补充 + 多样性重排序） ----
 
+    def _send_match_alerts(self, need: BusinessNeed, matched_results: list[MatchResult], top_k: int = 5) -> None:
+        """匹配成功后，向 top-K 匹配产品的 owner 发送 match_alert 通知
+
+        Args:
+            need: 被匹配的需求对象
+            matched_results: 已排序的匹配结果列表（按分数降序）
+            top_k: 通知前几个产品的 owner（默认 5）
+        """
+        try:
+            from app.notifications import NotificationManager
+
+            top_results = matched_results[:top_k]
+            for result in top_results:
+                # 查产品 owner_id
+                product = self.db.query(Product).filter(Product.id == result.id).first()
+                if not product or not product.owner_id:
+                    continue
+                owner_id = product.owner_id
+                NotificationManager.create_notification(
+                    user_id=owner_id,
+                    type_="match_alert",
+                    title=f"您的产品「{product.name}」被需求方匹配",
+                    content=(
+                        f"需求: {need.title} | "
+                        f"匹配度: {round(result.match_score * 100)}% | "
+                        f"理由: {'; '.join(result.match_reasons[:2])}"
+                    ),
+                    related_id=need.id,
+                )
+            if top_results:
+                logger.info(
+                    "match_alerts_sent",
+                    extra={
+                        "need_id": need.id,
+                        "need_title": need.title,
+                        "alert_count": len(top_results),
+                    },
+                )
+        except Exception as e:
+            logger.warning(f"发送匹配通知失败: {e}")
+
     def match_needs_to_products(self, need_id: int, top_k: int = 20) -> list[MatchResult]:
         need = self.db.query(BusinessNeed).filter(BusinessNeed.id == need_id).first()
         if not need:
             return []
 
-        products = self._get_all_approved_products()
-        results = []
-        for product in products:
+        # ============================================================
+        # P3-2: 双召回融合 — ANN (匹配) + FTS5 (搜索)
+        # ============================================================
+        # 1. ANN 召回: 基于 TF-IDF 近似最近邻 (匹配侧, 权重 1.0)
+        ann_products = self._ann_recall(need, top_k=200)
+        # 2. FTS5 召回: 基于需求文本全文搜索 (搜索侧, 权重 0.9)
+        fts5_products = self._fts5_recall(need, top_k=200)
+
+        logger.info(f"双召回: ANN={len(ann_products)} 个, FTS5={len(fts5_products)} 个")
+
+        # 3. 合并去重: 先标记来源权重, 再去重
+        ann_set = {p.id for p in ann_products}
+        fts5_set = {p.id for p in fts5_products}
+
+        # 产品 → 来源权重映射 (结果中带来源标记)
+        product_weight_map: dict[int, float] = {}
+
+        # ANN 来源: 权重 1.0
+        for p in ann_products:
+            product_weight_map[p.id] = 1.0
+
+        # FTS5 来源: 权重 0.9 (如果是新出现的) 或 max(既有, 0.9)
+        for p in fts5_products:
+            if p.id in product_weight_map:
+                product_weight_map[p.id] = max(product_weight_map[p.id], 0.9)
+            else:
+                product_weight_map[p.id] = 0.9
+
+        # 合并产品列表 (保持 ANN 顺序在前, FTS5 补充在后)
+        seen: set[int] = set()
+        merged_products: list[Product] = []
+
+        # 先用 ANN 顺序
+        seen.update(ann_set)
+        merged_products.extend(ann_products)
+
+        # 补充仅 FTS5 召回到的产品
+        for p in fts5_products:
+            if p.id not in seen:
+                merged_products.append(p)
+                seen.add(p.id)
+
+        logger.info(
+            f"双召回合并后: {len(merged_products)} 个唯一候选 "
+            f"(ANN={len(ann_set & seen)}, FTS5_only={len(merged_products) - len(ann_set & seen)})"
+        )
+
+        # 4. 统一排序: 对合并后的全部候选集做完整 6 步评分
+        results: list[tuple[MatchResult, float]] = []
+        for product in merged_products:
             result = self._calculate_match(product, need)
             if result.match_score > 0:
-                results.append(result)
+                source_weight = product_weight_map.get(product.id, 1.0)
+                results.append((result, source_weight))
 
-        results.sort(key=lambda r: r.match_score, reverse=True)
+        # 5. 按来源权重 * 匹配分 排序
+        results.sort(key=lambda x: x[0].match_score * x[1], reverse=True)
+
+        # 分离结果和来源标记
+        final_results = []
+        for result, source_weight in results:
+            # 在 match_reasons 中标记来源
+            source_tag = "搜索召回" if source_weight < 0.95 else "匹配召回"
+            if not any(source_tag in r for r in result.match_reasons):
+                result.match_reasons.append(f"来源: {source_tag}")
+            # 加权: 搜索侧 * 0.9, 匹配侧 * 1.0
+            result.match_score = round(min(result.match_score * source_weight, 1.0), 4)
+            final_results.append(result)
 
         # COLD_START: 如果结果不足，补充热门
-        if len(results) < MIN_MATCHES_FOR_HOT_FALLBACK:
-            existing_ids = {r.id for r in results}
+        if len(final_results) < MIN_MATCHES_FOR_HOT_FALLBACK:
+            existing_ids = {r.id for r in final_results}
             fallback = self._get_hot_fallback_products(
                 top_k=HOT_FALLBACK_COUNT,
                 exclude_ids=existing_ids,
@@ -1047,23 +1654,45 @@ class MatchEngine:
             for fb_product in fallback:
                 if fb_product.id in existing_ids:
                     continue
-                # 给热门补充一个基础匹配分（略高于0，确保排序靠后）
                 fb_result = self._calculate_match(fb_product, need)
                 if fb_result.match_score <= 0:
                     fb_result.match_score = 0.1
                     fb_result.match_reasons = ["热门推荐（冷启动补充）"]
                 fb_result.match_reasons.append("热门推荐（冷启动补充）")
-                results.append(fb_result)
+                fb_result.match_score = round(fb_result.match_score * 0.85, 4)  # 热门补充略降权
+                final_results.append(fb_result)
                 existing_ids.add(fb_product.id)
-            # 重新排序
-            results.sort(key=lambda r: r.match_score, reverse=True)
+            final_results.sort(key=lambda r: r.match_score, reverse=True)
 
         # DIVERSITY: 多样性重排序
-        if self.strategy == "v2" and results:
-            results = self.diversity_rerank(results)
-            results = self._apply_exploration(results)
+        if self.strategy == "v2" and final_results:
+            final_results = self.diversity_rerank(final_results)
+            final_results = self._apply_exploration(final_results)
 
-        return results[:top_k]
+        # P3-1: DSSM 模型重排序 — 对 top-K 候选做二次排序
+        if self._has_dssm and self._dssm is not None and self._dssm.is_fitted and len(final_results) > 1:
+            try:
+                for i, result in enumerate(final_results[: top_k * 2]):
+                    product = self.db.query(Product).filter(Product.id == result.id).first()
+                    if product:
+                        # 用 DSSM 编码并计算语义相似度
+                        uf = self._dssm._extract_user_features(need)
+                        pf = self._dssm._extract_product_features(product)
+                        uv = self._dssm.encode_user(uf)
+                        pv = self._dssm.encode_product(pf)
+                        dssm_score = self._dssm.predict(uv, pv)
+                        # 浅融合: final = 0.85 * original + 0.15 * dssm
+                        result.match_score = round(min(0.85 * result.match_score + 0.15 * dssm_score, 1.0), 4)
+                        if dssm_score > 0.3:
+                            result.match_reasons.append(f"DSSM语义匹配 ({dssm_score:.2f})")
+                final_results.sort(key=lambda r: r.match_score, reverse=True)
+            except Exception as e:
+                logger.debug(f"DSSM 重排序跳过: {e}")
+
+        # P0-4: 反向推送通知 — 匹配成功后通知 top-5 产品 owner
+        self._send_match_alerts(need, final_results, top_k=5)
+
+        return final_results[:top_k]
 
     def match_products_to_needs(self, product_id: int, top_k: int = 20) -> list[MatchResult]:
         product = self.db.query(Product).filter(Product.id == product_id).first()
@@ -1120,38 +1749,98 @@ def get_engine(
 @router.get("/needs/{need_id}/products")
 def match_needs_to_products(
     need_id: int,
-    top_k: int = Query(20, ge=1, le=100, description="返回结果数量上限"),
+    offset: int = Query(0, ge=0, description="分页偏移量"),
+    limit: int = Query(20, ge=1, le=100, description="返回结果数量上限"),
     strategy: str = Query("v2", pattern="^(v1|v2)$", description="A/B测试: v1=原规则, v2=增强引擎"),
+    min_match_level: str = Query(None, pattern="^(instant|assisted|manual)$", description="P0-1: 最低匹配级别过滤"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rate_limit: None = Depends(rate_limit_dependency),
 ):
-    """根据需求ID匹配相关产品（支持 A/B 测试 + 冷启动 + 多样性）"""
+    """根据需求ID匹配相关产品（支持 A/B 测试 + 冷启动 + 多样性 + 分页 + 信任过滤）"""
     engine = MatchEngine(db, strategy=strategy)
-    results = engine.match_needs_to_products(need_id, top_k=top_k)
+    results = engine.match_needs_to_products(need_id, top_k=limit)
+
+    # P0-1: 信任等级注入 & 过滤
+    enriched = []
+    for r in results:
+        product = db.query(Product).filter(Product.id == r.id).first()
+        if product and product.owner_id:
+            ts = db.query(TrustScore).filter(TrustScore.user_id == product.owner_id).first()
+            tier = ts.trust_tier if ts else "bronze"
+            from app.trust_engine import get_match_level
+
+            level = get_match_level(tier)
+        else:
+            tier = "bronze"
+            level = "manual"
+        r.trust_tier = tier
+        r.match_level = level
+        enriched.append(r)
+
+    if min_match_level:
+        level_rank = {"instant": 3, "assisted": 2, "manual": 1}
+        min_rank = level_rank.get(min_match_level, 1)
+        enriched = [r for r in enriched if level_rank.get(r.match_level, 1) >= min_rank]
+
+    paginated = enriched[offset : offset + limit]
     return {
         "code": 200,
         "message": "success",
-        "data": [r.model_dump() for r in results],
-        "strategy": strategy,
+        "data": {
+            "items": [r.model_dump() for r in paginated],
+            "total": len(enriched),
+            "strategy": strategy,
+        },
     }
 
 
 @router.get("/products/{product_id}/needs")
 def match_products_to_needs(
     product_id: int,
-    top_k: int = Query(20, ge=1, le=100, description="返回结果数量上限"),
+    offset: int = Query(0, ge=0, description="分页偏移量"),
+    limit: int = Query(20, ge=1, le=100, description="返回结果数量上限"),
     strategy: str = Query("v2", pattern="^(v1|v2)$", description="A/B测试: v1=原规则, v2=增强引擎"),
+    min_match_level: str = Query(None, pattern="^(instant|assisted|manual)$", description="P0-1: 最低匹配级别过滤"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rate_limit: None = Depends(rate_limit_dependency),
 ):
-    """根据产品ID匹配相关需求（支持 A/B 测试 + 冷启动 + 多样性）"""
+    """根据产品ID匹配相关需求（支持 A/B 测试 + 冷启动 + 多样性 + 分页 + 信任过滤）"""
     engine = MatchEngine(db, strategy=strategy)
-    results = engine.match_products_to_needs(product_id, top_k=top_k)
+    results = engine.match_products_to_needs(product_id, top_k=limit)
+
+    # P0-1: 信任等级注入 & 过滤
+    enriched = []
+    for r in results:
+        need = db.query(BusinessNeed).filter(BusinessNeed.id == r.id).first()
+        if need and need.user_id:
+            ts = db.query(TrustScore).filter(TrustScore.user_id == need.user_id).first()
+            tier = ts.trust_tier if ts else "bronze"
+            from app.trust_engine import get_match_level
+
+            level = get_match_level(tier)
+        else:
+            tier = "bronze"
+            level = "manual"
+        r.trust_tier = tier
+        r.match_level = level
+        enriched.append(r)
+
+    if min_match_level:
+        level_rank = {"instant": 3, "assisted": 2, "manual": 1}
+        min_rank = level_rank.get(min_match_level, 1)
+        enriched = [r for r in enriched if level_rank.get(r.match_level, 1) >= min_rank]
+
+    paginated = enriched[offset : offset + limit]
     return {
         "code": 200,
         "message": "success",
-        "data": [r.model_dump() for r in results],
-        "strategy": strategy,
+        "data": {
+            "items": [r.model_dump() for r in paginated],
+            "total": len(enriched),
+            "strategy": strategy,
+        },
     }
 
 
@@ -1164,6 +1853,7 @@ def refresh_index(
     重建匹配索引（清除缓存、预热数据）
     """
     clear_cache()  # GAP 2: 清除缓存
+    MatchEngine.clear_ann_index()  # P2-1: 清除 ANN 索引
 
     products = db.query(Product).filter(Product.status == "approved").count()
     needs = db.query(BusinessNeed).filter(BusinessNeed.status == "open").count()
@@ -1230,3 +1920,123 @@ def get_cache_status(
         "message": "success",
         "data": cache_info,
     }
+
+
+# ===== P0-5: 推荐质量评估端点 =====
+
+
+@router.post("/evaluate", response_model=EvaluateResponse)
+def evaluate_matching_quality(
+    req: EvaluateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _rate_limit: None = Depends(rate_limit_dependency),
+):
+    """
+    批量评估匹配引擎质量 (NDCG/MRR/Recall@K/Precision@K)
+
+    接受一组测试案例，对每个案例运行匹配引擎，计算各项指标，
+    返回完整的评估报告。
+
+    请求体示例:
+    ```json
+    {
+        "test_cases": [
+            {
+                "need_id": 1,
+                "direction": "need_to_product",
+                "relevant_item_ids": [1, 3, 5],
+                "relevance_scores": [1.0, 0.8, 0.6],
+                "label": "case_1"
+            }
+        ],
+        "top_k": 20,
+        "strategy": "v2"
+    }
+    ```
+
+    返回:
+    - summary: 各指标的平均值
+    - details: 每个 test_case 的详细结果
+    """
+    try:
+        from app.evaluation import evaluate_matching_engine as run_eval
+
+        # 将 Pydantic 模型转为普通 dict
+        test_cases_dicts = []
+        for tc in req.test_cases:
+            case_dict = tc.model_dump()
+            # 过滤掉 None 字段
+            case_dict = {k: v for k, v in case_dict.items() if v is not None}
+            test_cases_dicts.append(case_dict)
+
+        report = run_eval(
+            db=db,
+            test_cases=test_cases_dicts,
+            engine_cls=MatchEngine,
+            top_k=req.top_k,
+        )
+
+        return {
+            "code": 200,
+            "message": "success",
+            "data": report,
+        }
+    except ImportError as e:
+        logger.error(f"评估模块导入失败: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"评估模块不可用: {e}",
+        )
+    except Exception as e:
+        logger.error(f"批量评估执行失败: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"批量评估执行失败: {e}",
+        )
+
+
+@router.post("/evaluate/auto", response_model=EvaluateResponse)
+def auto_evaluate_matching_quality(
+    max_cases: int = Query(20, ge=1, le=200, description="最大测试案例数"),
+    top_k: int = Query(20, ge=1, le=100, description="返回结果数量上限"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    自动评估匹配引擎质量
+
+    从数据库中自动生成测试数据集，然后运行评估。
+    无需手动提供 test_cases。
+
+    Args:
+        max_cases: 最大测试案例数
+        top_k: 每个案例返回 top-K 结果
+    """
+    try:
+        from app.evaluation import quick_evaluate
+
+        report = quick_evaluate(
+            db=db,
+            engine_cls=MatchEngine,
+            max_cases=max_cases,
+            top_k=top_k,
+        )
+
+        return {
+            "code": 200,
+            "message": "success",
+            "data": report,
+        }
+    except ImportError as e:
+        logger.error(f"评估模块导入失败: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"评估模块不可用: {e}",
+        )
+    except Exception as e:
+        logger.error(f"自动评估执行失败: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"自动评估执行失败: {e}",
+        )

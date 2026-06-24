@@ -62,6 +62,7 @@ import app.routers.ai_chatbot_ui as ai_chatbot_ui_module
 import app.routers.business_card as business_card_module
 import app.routers.contacts as contacts_module
 import app.routers.contract_templates as contract_templates_module
+import app.routers.contracts as contracts_module
 import app.routers.crm as crm_module
 import app.routers.crm_pipeline as crm_pipeline_module
 import app.routers.enrichment as enrichment_module
@@ -87,6 +88,8 @@ import app.routers.recommend as recommend_module
 import app.routers.retention_insights as retention_insights_module
 import app.routers.retro_board as retro_board_module
 import app.routers.sales_script as sales_script_module
+import app.routers.social_proof as social_proof_module
+import app.routers.trust as trust_module
 import app.routers.unit_economics as unit_economics_module
 import app.routers.upload as upload_module
 import app.routers.vector_search_router as vector_search_module
@@ -206,18 +209,20 @@ def custom_openapi():
 app.openapi = custom_openapi
 
 # ===== 安全 CORS 配置（生产环境白名单 + 微信小程序无 origin 放行） =====
+CORS_ALLOWED_ORIGINS = os.environ.get(
+    "CORS_ALLOWED_ORIGINS",
+    "https://www.go-aiport.com,https://go-aiport.com,https://liankebao.top,https://www.liankebao.top",
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://www.go-aiport.com",
-        "https://go-aiport.com",
-        "https://liankebao.top",
-        "https://www.liankebao.top",
-    ],
-    allow_origin_regex="https?://localhost(:\\\\d+)?",
+    allow_origins=CORS_ALLOWED_ORIGINS,
+    allow_origin_regex=r"https?://localhost(?::\d+)?",
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With", "X-CSRF-Token", "X-Trace-ID"],
+    expose_headers=["X-Trace-ID", "X-Request-ID"],
+    max_age=86400,
 )
 
 # ===== PostHog 行为分析中间件（在 CORS 之后，惰性初始化） =====
@@ -373,6 +378,7 @@ router_modules = [
     search,
     import_router,
     contacts_module,
+    contracts_module,
     crm_module,
     crm_pipeline_module,
     enterprise_module,
@@ -409,6 +415,8 @@ router_modules = [
     enterprise_enrich_module,
     escrow_module,
     ai_chatbot_module,
+    trust_module,
+    social_proof_module,
 ]
 
 # 可选模块追加
@@ -433,6 +441,7 @@ app.include_router(admin.router)
 app.include_router(search.router)
 app.include_router(import_router.router)
 app.include_router(contacts_module.router)
+app.include_router(contracts_module.router)
 app.include_router(crm_module.router)
 app.include_router(crm_pipeline_module.router)
 app.include_router(enterprise_module.router)
@@ -473,6 +482,22 @@ app.include_router(contract_templates_module.router)
 app.include_router(escrow_module.router)
 app.include_router(ai_chatbot_module.router)
 app.include_router(ai_chatbot_ui_module.router)
+app.include_router(trust_module.router)
+app.include_router(social_proof_module.router)
+
+# ===== P0增强模块: 增强匹配 + 开发者门户 + 可观测性 =====
+import app.routers.developer_portal as developer_portal_module
+import app.routers.matching_enhanced_router as matching_enhanced_module
+import app.routers.observability_dashboard as observability_dashboard_module
+
+app.include_router(matching_enhanced_module.router)
+app.include_router(developer_portal_module.router)
+app.include_router(observability_dashboard_module.router)
+
+# ===== 可观测性中间件 =====
+from app.routers.observability_dashboard import ObservabilityMiddleware
+
+app.add_middleware(ObservabilityMiddleware)
 
 # ===== 启动时初始化增长引擎数据库 =====
 from app.routers.growth import init_growth_db

@@ -12,6 +12,10 @@ metadata:
   labels:
     app: chainke
     component: frontend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "80"
+    prometheus.io/path: "/nginx-status"
 spec:
   type: ClusterIP
   ports:

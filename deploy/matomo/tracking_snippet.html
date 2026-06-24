@@ -1,0 +1,177 @@
+<!-- ================================================================
+  Matomo 追踪代码 — 链客宝前端嵌入
+  说明:
+  - 复制此代码到链客宝前端页面 <head> 或 </body> 之前
+  - 支持单页应用 (SPA) 自动追踪页面浏览
+  - 内置自定义维度: 用户ID, 企业名称, 用户角色
+  - 需先在 Matomo 后台创建对应的自定义维度（索引 1, 2, 3）
+================================================================ -->
+
+<script>
+  // ==============================================================
+  // 基础配置 — 请根据实际部署修改以下变量
+  // ==============================================================
+  var _paq = window._paq = window._paq || [];
+
+  // ---- 追踪服务器地址 (必改) ----
+  var MATOMO_URL = 'https://matomo.你的域名.com';   // ← 替换为你的 Matomo 域名
+  var MATOMO_SITE_ID = 1;                           // ← 替换为你的网站 ID
+
+  // ---- 自定义维度索引 (需先在 Matomo 后台创建) ----
+  var DIMENSION_USER_ID = 1;     // 维度1: 用户ID
+  var DIMENSION_ORG_NAME = 2;    // 维度2: 企业名称
+  var DIMENSION_USER_ROLE = 3;   // 维度3: 用户角色
+
+  // ==============================================================
+  // 追踪方法配置 (按需启用/禁用)
+  // ==============================================================
+
+  // 启用热力图 & 会话录制 (需要 Heatmap & Session Recording 插件)
+  // _paq.push(['enableHeatmapHeatmap']);
+  // _paq.push(['enableSessionRecording']);
+
+  // 启用链接追踪 (统计下载/出站链接点击)
+  _paq.push(['enableLinkTracking']);
+
+  // 不追踪页面标题中的某些关键词
+  // _paq.push(['setExcludedQueryParams', ['password', 'token']]);
+
+  // 设置追踪请求超时 (毫秒)
+  _paq.push(['setRequestMethod', 'POST']);
+
+  // 不追踪管理员页面 (通过 URL 判断)
+  // if (window.location.href.indexOf('/admin') !== -1) {
+  //   _paq.push(['disableTracking']);
+  // }
+
+  // ==============================================================
+  // 自定义维度设置 — 根据当前用户信息动态设置
+  // 注意: setCustomDimension 必须在 trackPageView 之前调用
+  // ==============================================================
+
+  (function () {
+    // ---- 从全局变量或 cookie 获取用户信息 ----
+    // 请根据链客宝前端的实际数据源调整以下获取逻辑
+    var currentUser = window.__LIANKEBAO_USER__ || {};
+
+    // 用户ID (如未登录则使用 'guest')
+    var userId = currentUser.id || currentUser.user_id || 'guest';
+
+    // 企业名称 (如不存在则留空)
+    var orgName = currentUser.org_name || currentUser.company || '';
+
+    // 用户角色 (如不存在则使用 'visitor')
+    var userRole = currentUser.role || currentUser.user_type || 'visitor';
+
+    // ---- 设置自定义维度 ----
+    _paq.push(['setCustomDimension', DIMENSION_USER_ID, String(userId)]);
+    _paq.push(['setCustomDimension', DIMENSION_ORG_NAME, String(orgName)]);
+    _paq.push(['setCustomDimension', DIMENSION_USER_ROLE, String(userRole)]);
+
+    // ---- 设置用户ID (访客合并用, 可选) ----
+    if (userId !== 'guest') {
+      _paq.push(['setUserId', String(userId)]);
+    }
+  })();
+
+  // ==============================================================
+  // 页面浏览追踪 (必须保留)
+  // ==============================================================
+  _paq.push(['trackPageView']);
+
+  // ==============================================================
+  // 加载 Matomo 追踪脚本
+  // ==============================================================
+  (function () {
+    var u = MATOMO_URL + '/';
+    // 覆盖全局追踪端点 (如果 Matomo 在子路径下)
+    // _paq.push(['setTrackerUrl', u + 'matomo.php']);
+    // _paq.push(['setSiteId', MATOMO_SITE_ID]);
+
+    var d = document,
+      g = d.createElement('script'),
+      s = d.getElementsByTagName('script')[0];
+    g.async = true;
+    g.src = u + 'matomo.js';
+    s.parentNode.insertBefore(g, s);
+  })();
+</script>
+
+<!-- ================================================================
+  备用: 无 JavaScript 的 <noscript> 追踪 (用于邮件/不支持 JS 的环境)
+  注意: 请将 MERCHANT_ID 替换为实际商户标识
+=============================================================== -->
+<noscript>
+  <p>
+    <img referrerpolicy="no-referrer-when-downgrade"
+         src="https://matomo.你的域名.com/matomo.php?idsite=1&amp;rec=1"
+         style="border:0;" alt="" />
+  </p>
+</noscript>
+
+<!-- ================================================================
+  使用示例 — 链客宝特定场景事件追踪
+  可以将以下函数添加到链客宝的 JS 模块中
+=============================================================== -->
+
+<script>
+  /**
+   * ========== 链客宝事件追踪工具函数 ==========
+   * 在链客宝代码中调用: Tracker.trackEvent(...)
+   *
+   * 使用示例:
+   *   Tracker.trackEvent('用户行为', '注册', '新用户注册成功');
+   *   Tracker.trackEvent('订单', '下单', { order_id: 'ORD123', amount: 199.00 });
+   *   Tracker.trackGoal(1, 199.00); // 追踪目标转化
+   */
+  window.Tracker = window.Tracker || {};
+
+  // ---- 通用事件追踪 ----
+  window.Tracker.trackEvent = function (category, action, name, value) {
+    if (typeof _paq === 'undefined') return;
+    var params = ['trackEvent', category, action];
+    if (name) params.push(name);
+    if (value !== undefined) params.push(value);
+    _paq.push(params);
+  };
+
+  // ---- 目标转化追踪 ----
+  window.Tracker.trackGoal = function (goalId, revenue) {
+    if (typeof _paq === 'undefined') return;
+    var params = ['trackGoal', goalId];
+    if (revenue !== undefined) params.push(revenue);
+    _paq.push(params);
+  };
+
+  // ---- 电商订单追踪 (如果启用电商功能) ----
+  window.Tracker.trackEcommerceOrder = function (orderId, revenue, subtotal, tax, shipping, discount) {
+    if (typeof _paq === 'undefined') return;
+    _paq.push(['trackEcommerceOrder', orderId, revenue, subtotal, tax, shipping, discount]);
+  };
+
+  // ---- 更新用户信息 (SPA 切换用户时调用) ----
+  window.Tracker.updateUser = function (userInfo) {
+    if (typeof _paq === 'undefined') return;
+    // 清除旧的用户ID
+    _paq.push(['resetUserId']);
+    // 设置新的自定义维度
+    _paq.push(['setCustomDimension', DIMENSION_USER_ID, String(userInfo.id || 'guest')]);
+    _paq.push(['setCustomDimension', DIMENSION_ORG_NAME, String(userInfo.org_name || '')]);
+    _paq.push(['setCustomDimension', DIMENSION_USER_ROLE, String(userInfo.role || 'visitor')]);
+    if (userInfo.id) {
+      _paq.push(['setUserId', String(userInfo.id)]);
+    }
+    // 重新追踪当前页面
+    _paq.push(['trackPageView']);
+  };
+
+  // ---- SPA 页面切换追踪 (路由变化时调用) ----
+  window.Tracker.trackPageChange = function (customTitle) {
+    if (typeof _paq === 'undefined') return;
+    _paq.push(['setCustomUrl', window.location.href]);
+    _paq.push(['setDocumentTitle', customTitle || document.title]);
+    _paq.push(['trackPageView']);
+  };
+
+  console.log('[Matomo Tracker] 已加载 — 链客宝');
+</script>

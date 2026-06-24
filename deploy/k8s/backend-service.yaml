@@ -12,6 +12,10 @@ metadata:
   labels:
     app: chainke
     component: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8001"
+    prometheus.io/path: "/metrics"
 spec:
   type: ClusterIP
   ports:

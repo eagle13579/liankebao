@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import MembershipOrder, Order, Product, User
+from app.models import Contract, MembershipOrder, Order, PaymentTransaction, Product, User
 from app.rbac import require_roles
 from app.retry_engine import RetryTask, get_retry_engine
 from app.schemas import ApiResponse, OrderResponse
@@ -143,10 +143,14 @@ async def wxpay_unified_order(
             membership_order = None
         except HTTPException:
             # 不是普通订单, 尝试会员订单
-            membership_order = db.query(MembershipOrder).filter(
-                MembershipOrder.id == req.order_id,
-                MembershipOrder.user_id == current_user.id,
-            ).first()
+            membership_order = (
+                db.query(MembershipOrder)
+                .filter(
+                    MembershipOrder.id == req.order_id,
+                    MembershipOrder.user_id == current_user.id,
+                )
+                .first()
+            )
             if not membership_order:
                 raise HTTPException(status_code=404, detail="订单不存在")
             if membership_order.status != "pending":
@@ -169,7 +173,11 @@ async def wxpay_unified_order(
         prefix = "LKM" if is_membership else "LK"
         out_trade_no = f"{prefix}{order.id:08d}{int(time.time())}"
         total_fee = int(order.amount * 100) if is_membership else int(order.total_price * 100)
-        description = f"会员升级-{order.tier}" if is_membership else (f"{product.name[:60]} x{order.quantity}" if product else f"订单 #{order.id}")
+        description = (
+            f"会员升级-{order.tier}"
+            if is_membership
+            else (f"{product.name[:60]} x{order.quantity}" if product else f"订单 #{order.id}")
+        )
 
         span.set_attribute("is_membership_order", is_membership)
         span.set_attribute("out_trade_no", out_trade_no)
@@ -331,10 +339,14 @@ async def wxpay_callback(
     if order_id:
         if is_membership:
             # 会员订单支付回调
-            membership_order = db.query(MembershipOrder).filter(
-                MembershipOrder.id == order_id,
-                MembershipOrder.status == "pending",
-            ).first()
+            membership_order = (
+                db.query(MembershipOrder)
+                .filter(
+                    MembershipOrder.id == order_id,
+                    MembershipOrder.status == "pending",
+                )
+                .first()
+            )
             if membership_order:
                 membership_order.status = "paid"
                 membership_order.transaction_id = transaction_id
@@ -345,6 +357,18 @@ async def wxpay_callback(
                 # 更新用户会员信息
                 _process_membership_payment(membership_order, db)
                 logger.info(f"会员订单 {order_id} 支付成功，会员等级已更新")
+                # 记录支付交易流水
+                _log_payment_transaction(
+                    order_id=order_id,
+                    user_id=membership_order.user_id,
+                    transaction_id=transaction_id,
+                    platform=PLATFORM_WXPAY,
+                    amount=float(membership_order.amount),
+                    status="success",
+                    description=f"会员升级-{membership_order.tier}",
+                    contract_id=membership_order.contract_id if hasattr(membership_order, "contract_id") else None,
+                    db=db,
+                )
                 return {"code": "SUCCESS", "message": "成功"}
             elif membership_order:
                 logger.warning(f"会员订单 {order_id} 状态为 {membership_order.status}，无需更新")
@@ -361,6 +385,19 @@ async def wxpay_callback(
                     order.payment_platform = PLATFORM_WXPAY
                 db.commit()
                 logger.info(f"订单 {order_id} 支付成功，状态更新为 paid")
+                # 记录支付交易流水
+                _log_payment_transaction(
+                    order_id=order.id,
+                    user_id=order.user_id,
+                    transaction_id=transaction_id,
+                    platform=PLATFORM_WXPAY,
+                    amount=float(order.total_price),
+                    status="success",
+                    description=f"订单 #{order.id}",
+                    db=db,
+                )
+                # 检查关联合同
+                _update_contract_by_order(order.id, db)
                 return {"code": "SUCCESS", "message": "成功"}
             elif order:
                 logger.warning(f"订单 {order_id} 状态为 {order.status}，无需更新")
@@ -659,10 +696,14 @@ async def alipay_unified_order(
         order = await _check_order_ownership(req.order_id, current_user, db)
         product = db.query(Product).filter(Product.id == order.product_id, Product.is_deleted == False).first()
     except HTTPException:
-        membership_order = db.query(MembershipOrder).filter(
-            MembershipOrder.id == req.order_id,
-            MembershipOrder.user_id == current_user.id,
-        ).first()
+        membership_order = (
+            db.query(MembershipOrder)
+            .filter(
+                MembershipOrder.id == req.order_id,
+                MembershipOrder.user_id == current_user.id,
+            )
+            .first()
+        )
         if not membership_order:
             raise HTTPException(status_code=404, detail="订单不存在")
         if membership_order.status != "pending":
@@ -674,7 +715,9 @@ async def alipay_unified_order(
     if order.status != "pending":
         raise HTTPException(status_code=400, detail="订单不是待支付状态")
 
-    subject = req.subject or (f"会员升级-{order.tier}" if is_membership else (product.name if product else f"订单 #{order.id}"))
+    subject = req.subject or (
+        f"会员升级-{order.tier}" if is_membership else (product.name if product else f"订单 #{order.id}")
+    )
     prefix = "ALM" if is_membership else "AL"
     out_trade_no = f"{prefix}{order.id:08d}{int(time.time())}"
     # 会员订单使用 amount，普通订单使用 total_price
@@ -757,6 +800,78 @@ async def get_payment_config():
 # ============================================================
 # Mock 支付辅助函数
 # ============================================================
+
+
+def _log_payment_transaction(
+    order_id: int | None,
+    user_id: int | None,
+    transaction_id: str,
+    platform: str,
+    amount: float,
+    status: str,
+    description: str = "",
+    contract_id: int | None = None,
+    db: Session | None = None,
+) -> PaymentTransaction | None:
+    """记录支付交易到统一流水表"""
+    if not db:
+        return None
+    try:
+        from datetime import datetime
+
+        tx = PaymentTransaction(
+            user_id=user_id or 0,
+            order_id=order_id,
+            contract_id=contract_id,
+            transaction_no=transaction_id or f"tx_{int(time.time())}",
+            platform=platform,
+            amount=amount,
+            status=status,
+            description=description[:200] if description else "",
+            paid_at=datetime.utcnow() if status == "success" else None,
+        )
+        db.add(tx)
+        db.commit()
+        logger.info(f"支付交易记录已创建: tx={tx.transaction_no}, order={order_id}, status={status}")
+        return tx
+    except Exception as e:
+        logger.error(f"创建支付交易记录失败: {e}")
+        return None
+
+
+def _update_contract_payment_status(contract_id: int, db: Session) -> None:
+    """更新合同的支付状态"""
+    if not contract_id:
+        return
+    try:
+        contract = db.query(Contract).filter(Contract.id == contract_id, Contract.is_deleted == False).first()
+        if contract:
+            contract.payment_status = "paid"
+            db.commit()
+            logger.info(f"合同 {contract_id} 支付状态已更新为 paid")
+    except Exception as e:
+        logger.error(f"更新合同支付状态失败: {e}")
+
+
+def _update_contract_by_order(order_id: int, db: Session) -> None:
+    """通过订单ID更新关联合同的支付状态"""
+    if not order_id:
+        return
+    try:
+        contract = (
+            db.query(Contract)
+            .filter(
+                Contract.related_order_id == order_id,
+                Contract.is_deleted == False,
+            )
+            .first()
+        )
+        if contract:
+            contract.payment_status = "paid"
+            db.commit()
+            logger.info(f"通过订单 {order_id} 更新合同 {contract.id} 支付状态为 paid")
+    except Exception as e:
+        logger.error(f"通过订单更新合同支付状态失败: {e}")
 
 
 def _process_membership_payment(membership_order: MembershipOrder, db: Session) -> None:
