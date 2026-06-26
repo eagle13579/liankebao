@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react';
 import { useBusinessCard } from './hooks';
 import UploadZone from './components/UploadZone';
 import ReviewForm from './components/ReviewForm';
@@ -7,20 +8,52 @@ import ShareActions from './components/ShareActions';
 import MatchResultsPanel from './components/MatchResultsPanel';
 import QRCodeModal from './components/QRCodeModal';
 import StepIndicator from './components/StepIndicator';
+import ManualForm from './components/ManualForm';
+import NotificationBell from './components/NotificationBell';
+import CreditsDashboard from './components/CreditsDashboard';
+import FavoritesPanel from './components/FavoritesPanel';
+import MatchHistoryPage from './components/MatchHistoryPage';
+import NLSearchWidget from '../../components/NLSearchWidget';
+import type { NLSearchResult, NLSearchApiItem } from '../../components/NLSearchWidget';
+
+type TabType = 'card' | 'history' | 'favorites' | 'credits';
 
 export default function BusinessCardPage() {
   const {
     step, loading, error, fields, suggestions, rawText,
     cardData, currentPage, totalPages, matchResults,
     showQRModal, qrCodeUrl, commonConnections, copied,
+    remainingCredits,
     fileInputRef,
     handleFileSelect, handleDrop, updateField,
     handleGenerate, handleMatch, handleCopyLink,
     handleShowQR, handleDownloadQR, handleReset,
-    setCurrentPage, setShowQRModal,
+    setCurrentPage, setShowQRModal, setCardData,
   } = useBusinessCard();
 
-  const dragOver = false; // handled by useBusinessCard or local state if needed
+  const dragOver = false;
+  const [activeTab, setActiveTab] = useState<'upload' | 'manual'>('upload');
+  const [navTab, setNavTab] = useState<TabType>('card');
+
+  const handleManualSubmit = async (cardData: import('./types').CardData) => {
+    setCardData(cardData);
+    setCurrentPage(0);
+    setStep('preview');
+  };
+
+  /** NL搜索回调 — 结构化解析 + API搜索 */
+  const handleNLSearch = useCallback((result: NLSearchResult) => {
+    console.log('[NLSearchWidget] 结构化搜索结果:', result);
+  }, []);
+
+  /** NL搜索 — 选中某个搜索结果 */
+  const handleNLResultSelect = useCallback((item: NLSearchApiItem) => {
+    console.log('[NLSearchWidget] 选中的企业:', item);
+    // 可以导航到企业详情页或进行深度匹配
+    // 示例：弹出 toast 提示
+    const msg = `已选中: ${item.title} (匹配度 ${Math.round(item.match_score * 100)}%)`;
+    console.log(`[NLSearchWidget] ${msg}`);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
@@ -33,11 +66,36 @@ export default function BusinessCardPage() {
         <div className="max-w-4xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <h1 className="text-lg font-semibold text-gray-800">AI 数字名片</h1>
-            <div className="flex items-center gap-2">
-              <button onClick={() => fileInputRef.current?.click()} className="text-sm text-blue-600 hover:text-blue-700 transition-colors">
-                重新上传
-              </button>
+          <div className="flex items-center gap-2">
+              <NotificationBell />
+              {navTab === 'card' && (
+                <button onClick={() => fileInputRef.current?.click()} className="text-sm text-blue-600 hover:text-blue-700 transition-colors">
+                  重新上传
+                </button>
+              )}
             </div>
+          </div>
+
+          {/* Navigation tabs */}
+          <div className="flex gap-1 mt-2 -mb-3">
+            {[
+              { key: 'card' as TabType, label: '名片', icon: '📇' },
+              { key: 'history' as TabType, label: '匹配历史', icon: '📋' },
+              { key: 'favorites' as TabType, label: '收藏', icon: '⭐' },
+              { key: 'credits' as TabType, label: '额度', icon: '💰' },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setNavTab(tab.key)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-t-lg transition-colors ${
+                  navTab === tab.key
+                    ? 'bg-white text-blue-600 border border-b-white border-gray-200'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
+                }`}
+              >
+                {tab.icon} {tab.label}
+              </button>
+            ))}
           </div>
         </div>
       </header>
@@ -49,57 +107,128 @@ export default function BusinessCardPage() {
         </div>
       )}
 
-      {/* Step Indicator */}
-      <StepIndicator currentStep={step} />
+      {/* Tab content */}
+      {navTab === 'credits' && (
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <CreditsDashboard />
+        </div>
+      )}
 
-      {/* Content */}
-      <div className="max-w-4xl mx-auto px-4 pb-8">
-        {step === 'upload' && (
-          <UploadZone
-            loading={loading}
-            dragOver={false}
-            onDrop={handleDrop}
-            onDragOver={e => e.preventDefault()}
-            onDragLeave={e => e.preventDefault()}
-            onClick={() => fileInputRef.current?.click()}
-          />
-        )}
+      {navTab === 'favorites' && (
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <FavoritesPanel />
+        </div>
+      )}
 
-        {step === 'review' && (
-          <ReviewForm
-            fields={fields}
-            suggestions={suggestions}
-            rawText={rawText}
-            onUpdateField={updateField}
-            onGenerate={handleGenerate}
-            onReset={handleReset}
-            loading={loading}
-            error={error}
-          />
-        )}
+      {navTab === 'history' && (
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <MatchHistoryPage userId={cardData?.id} />
+        </div>
+      )}
 
-        {(step === 'preview' || step === 'matched') && cardData && (
-          <>
-            <FlipBook
-              pages={cardData.album_pages || []}
-              currentPage={currentPage}
-              totalPages={totalPages}
-              cardData={cardData}
-              onPageChange={setCurrentPage}
-            />
-            <CommonConnections count={commonConnections.count} names={commonConnections.names} />
-            <ShareActions
-              shareUrl={window.location.href}
-              copied={copied}
-              matchLoading={loading}
-              onCopy={handleCopyLink}
-              onMatch={handleMatch}
-              onShowQR={handleShowQR}
-            />
-            {step === 'matched' && <MatchResultsPanel items={matchResults} loading={loading} />}
-          </>
-        )}
-      </div>
+      {navTab === 'card' && (
+        <>
+          {/* Step Indicator */}
+          <StepIndicator currentStep={step} />
+
+          {/* 自然语言搜索组件 — 紧凑模式嵌入 */}
+          <div className="max-w-4xl mx-auto px-4 mb-4">
+            <NLSearchWidget compact onSearch={handleNLSearch} onResultSelect={handleNLResultSelect} />
+          </div>
+
+          {/* Content */}
+          <div className="max-w-4xl mx-auto px-4 pb-8">
+            {/* Tab Switcher — only at upload step */}
+            {step === 'upload' && (
+              <div className="flex mb-6 border-b border-gray-200">
+                <button
+                  onClick={() => setActiveTab('upload')}
+                  className={`px-6 py-3 text-sm font-medium transition-colors relative ${
+                    activeTab === 'upload'
+                      ? 'text-blue-600'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  上传识别
+                  {activeTab === 'upload' && (
+                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full" />
+                  )}
+                </button>
+                <button
+                  onClick={() => setActiveTab('manual')}
+                  className={`px-6 py-3 text-sm font-medium transition-colors relative ${
+                    activeTab === 'manual'
+                      ? 'text-blue-600'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  手动输入
+                  {activeTab === 'manual' && (
+                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full" />
+                  )}
+                </button>
+              </div>
+            )}
+
+            {step === 'upload' && activeTab === 'upload' && (
+              <UploadZone
+                loading={loading}
+                dragOver={false}
+                onDrop={handleDrop}
+                onDragOver={e => e.preventDefault()}
+                onDragLeave={e => e.preventDefault()}
+                onClick={() => fileInputRef.current?.click()}
+              />
+            )}
+
+            {step === 'upload' && activeTab === 'manual' && (
+              <ManualForm
+                onSubmit={handleManualSubmit}
+                loading={loading}
+                error={error}
+              />
+            )}
+
+            {step === 'review' && (
+              <ReviewForm
+                fields={fields}
+                suggestions={suggestions}
+                rawText={rawText}
+                onUpdateField={updateField}
+                onGenerate={handleGenerate}
+                onReset={handleReset}
+                loading={loading}
+                error={error}
+              />
+            )}
+
+            {(step === 'preview' || step === 'matched') && cardData && (
+              <>
+                <FlipBook
+                  pages={cardData.album_pages || []}
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  cardData={cardData}
+                  onPageChange={setCurrentPage}
+                />
+                <CommonConnections count={commonConnections.count} names={commonConnections.names} />
+                <ShareActions
+                  shareUrl={window.location.href}
+                  copied={copied}
+                  matchLoading={loading}
+                  remainingCredits={remainingCredits}
+                  onCopy={handleCopyLink}
+                  onMatch={handleMatch}
+                  onShowQR={handleShowQR}
+                />
+                {step === 'matched' && (
+                  <MatchResultsPanel items={matchResults} loading={loading} />
+                )}
+              </>
+            )}
+          </div>
+        </>
+      )}
 
       {/* QR Modal */}
       <QRCodeModal

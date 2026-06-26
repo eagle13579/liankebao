@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: chainke-web-service
+  namespace: chainke-prod
+  labels:
+    app: chainke-web
+spec:
+  type: ClusterIP
+  selector:
+    app: chainke-web
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 80

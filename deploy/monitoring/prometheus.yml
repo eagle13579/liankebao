@@ -1,0 +1,47 @@
+# =============================================================================
+# Prometheus 配置 — 链客宝 Backend 指标采集
+# =============================================================================
+# 自动发现 backend 服务的 /metrics 端点。
+# 静态配置中直接指向 backend 容器 (Docker 网络内部主机名)。
+# =============================================================================
+
+global:
+  scrape_interval:     15s      # 每 15 秒采集一次
+  evaluation_interval: 15s      # 每 15 秒评估告警规则
+  scrape_timeout:      10s      # 采集超时
+
+# ── 告警规则文件 (暂无，可后续添加) ──────────────────────────────────────
+rule_files:
+  # - "alerts.yml"
+
+# ── 采集配置 ──────────────────────────────────────────────────────────────
+scrape_configs:
+
+  # ── 链客宝 Backend (FastAPI) ────────────────────────────────────────────
+  - job_name: "chainke-backend"
+    metrics_path: "/metrics"
+    scheme: http
+    # 静态发现: backend 在 Docker 网络 chainke-net 上的主机名为 "backend"
+    static_configs:
+      - targets:
+          - "backend:8001"        # Docker 网络内部
+        labels:
+          service: "chainke-backend"
+          env: "production"
+
+  # ── Prometheus 自身 ─────────────────────────────────────────────────────
+  - job_name: "prometheus"
+    static_configs:
+      - targets:
+          - "localhost:9090"
+
+  # ── (可选) 通过 Docker 服务发现自动发现更多 metrics 端点 ──────────────
+  # 如果 backend 扩展为多副本，可启用以下配置:
+  # - job_name: "chainke-backend-docker"
+  #   dockerswarm_sd_configs:
+  #     - host: "unix:///var/run/docker.sock"
+  #       role: tasks
+  #   relabel_configs:
+  #     - source_labels: [__meta_docker_container_label_com_docker_compose_service]
+  #       regex: "backend"
+  #       action: keep

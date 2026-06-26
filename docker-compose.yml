@@ -1,0 +1,155 @@
+# =============================================================================
+# 链客宝 — Docker Compose 生产编排 (Backend + PostgreSQL + Redis + Nginx)
+# =============================================================================
+# 使用方式:
+#   docker compose up -d
+#   docker compose logs -f
+# =============================================================================
+
+services:
+
+  # ── Frontend Builder (初始化前端产物到 named volume) ──────────────────────
+  frontend-builder:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend-output
+    container_name: chainke-frontend-builder
+    volumes:
+      - frontend-dist:/output
+    restart: "no"
+    networks:
+      - chainke-net
+
+  # ── Backend (FastAPI) ───────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: chainke-backend
+    ports:
+      - "127.0.0.1:8001:8001"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://chainke:chainke_secret@postgres:5432/chainke
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - APP_ENV=production
+      - PORT=8001
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - chainke-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; exit(0 if urllib.request.urlopen('http://127.0.0.1:8001/health').status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: chainke-postgres
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_USER: chainke
+      POSTGRES_PASSWORD: chainke_secret
+      POSTGRES_DB: chainke
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - chainke-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chainke -d chainke"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Redis (缓存/会话) ──────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: chainke-redis
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - chainke-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Nginx (反向代理 + 前端静态资源) ────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: chainke-nginx
+    ports:
+      - "80:80"
+      - "127.0.0.1:443:443"
+    volumes:
+      - ./deploy/nginx/chainke.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/nginx/payment_location.conf:/etc/nginx/payment_location.conf:ro
+      - ./deploy/nginx/upstream-blue.conf:/etc/nginx/upstream-blue.conf:ro
+      - ./deploy/nginx/upstream-green.conf:/etc/nginx/upstream-green.conf:ro
+      - ./deploy/nginx/upstream-active.conf:/etc/nginx/upstream-active.conf:rw
+      - frontend-dist:/app/frontend:ro
+    depends_on:
+      frontend-builder:
+        condition: service_completed_successfully
+      backend:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - chainke-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  pg-data:
+    driver: local
+  redis-data:
+    driver: local
+  frontend-dist:
+    driver: local
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  chainke-net:
+    driver: bridge

@@ -1,0 +1,183 @@
+# 技术债扫描报告 — 链客宝
+*扫描时间: 2026-06-08 06:43:51 UTC | 耗时: 0.27s*
+
+---
+
+## 📊 代码健康概览
+
+- **健康评分**: 38.0/100
+- **Python 文件数**: 22
+- **总行数**: 7,847
+- **代码行数**: 5,831
+- **注释行数**: 820 (10.4%)
+- **空行数**: 1,196 (15.2%)
+- **平均每文件行数**: 356.7
+- **平均圈复杂度**: 4.25
+
+### ⚠️ 门槛违规
+
+- 🔴 发现 1 个超大文件 (阈值: ≤1000行)
+- 🔴 发现 8 个超长函数 (阈值: ≤100行)
+- 🔴 高风险文件数 10 超过阈值 5
+- 🔴 发现 14 个安全问题 (密钥: 0, 不安全函数: 8, SQL注入: 6)
+
+## 📁 目录分布
+
+| 目录 | 文件数 |
+|------|-------:|
+| app | 1 |
+| app\routers | 7 |
+| features\data_pipeline | 5 |
+| scripts | 1 |
+| tests | 8 |
+
+## 🗂️ 超大文件 (>1000行)
+
+| 文件 | 行数 |
+|------|-----:|
+| `scripts\tech_debt_scanner.py` | 1469 |
+
+## 🧵 超长函数 (>100行)
+
+| 文件 | 函数 | 行数 |
+|------|------|-----:|
+| `features\data_pipeline\analyzer.py:107` | `analyze` | 104 |
+| `features\data_pipeline\analyzer.py:358` | `analyze` | 122 |
+| `features\data_pipeline\collector.py:170` | `collect` | 121 |
+| `features\data_pipeline\collector.py:311` | `collect` | 140 |
+| `scripts\tech_debt_scanner.py:645` | `generate_markdown_report` | 139 |
+| `scripts\tech_debt_scanner.py:791` | `generate_html_report` | 187 |
+| `scripts\tech_debt_scanner.py:986` | `run_scan` | 213 |
+| `scripts\tech_debt_scanner.py:1333` | `main` | 132 |
+
+## 🔄 圈复杂度排名 (Top 20)
+
+| 文件 | 平均复杂度 | 最高复杂度 | 高风险函数数 |
+|------|----------:|----------:|------------:|
+| `features\data_pipeline\analyzer.py` | 10.19 | 43.00 | 9 |
+| `scripts\tech_debt_scanner.py` | 9.84 | 38.00 | 8 |
+| `app\routers\learning_center.py` | 4.41 | 17.00 | 2 |
+| `app\routers\retro_board.py` | 4.22 | 17.00 | 1 |
+| `app\routers\retention_insights.py` | 4.12 | 16.00 | 2 |
+| `features\data_pipeline\collector.py` | 4.03 | 15.00 | 3 |
+| `app\routers\sales_script.py` | 3.15 | 14.00 | 1 |
+| `app\routers\unit_economics.py` | 4.18 | 13.00 | 2 |
+| `features\data_pipeline\pipeline.py` | 3.40 | 12.00 | 1 |
+| `app\routers\hypothesis_gate.py` | 3.46 | 11.00 | 1 |
+| `tests\test_learning_center.py` | 4.06 | 9.00 | 0 |
+| `tests\test_data_pipeline.py` | 3.53 | 7.00 | 0 |
+| `tests\test_retention_insights.py` | 3.71 | 7.00 | 0 |
+| `tests\test_retro_board.py` | 3.42 | 7.00 | 0 |
+| `tests\test_unit_economics.py` | 3.95 | 7.00 | 0 |
+| `tests\test_sales_script.py` | 3.67 | 6.00 | 0 |
+| `features\data_pipeline\config.py` | 2.00 | 5.00 | 0 |
+| `tests\test_hypothesis_gate.py` | 3.68 | 5.00 | 0 |
+| `tests\conftest.py` | 1.73 | 3.00 | 0 |
+
+## 🚨 高风险模块 (复杂度 > 10)
+
+### `features\data_pipeline\analyzer.py`
+
+| 函数 | 行号 | 复杂度 | 等级 |
+|------|:----:|-------:|:----:|
+| `RetentionAnalyzer.analyze` | 107 | 43 | F |
+| `EconomicsAnalyzer.analyze` | 358 | 40 | E |
+| `LearningAnalyzer.analyze` | 235 | 38 | E |
+| `RetentionAnalyzer` | 92 | 23 | D |
+| `EconomicsAnalyzer` | 342 | 22 | D |
+| `LearningAnalyzer` | 219 | 21 | D |
+| `HypothesisAnalyzer.analyze` | 503 | 20 | C |
+| `HypothesisAnalyzer` | 488 | 12 | C |
+| `CompositeAnalyzer._generate_cross_insights` | 657 | 12 | C |
+
+### `scripts\tech_debt_scanner.py`
+
+| 函数 | 行号 | 复杂度 | 等级 |
+|------|:----:|-------:|:----:|
+| `generate_html_report` | 791 | 38 | E |
+| `generate_markdown_report` | 645 | 31 | E |
+| `run_scan` | 986 | 23 | D |
+| `main` | 1333 | 20 | C |
+| `build_dependency_graph` | 546 | 16 | C |
+| `find_python_files` | 229 | 15 | C |
+| `count_lines` | 275 | 11 | C |
+| `security_scan_file` | 474 | 11 | C |
+
+### `app\routers\learning_center.py`
+
+| 函数 | 行号 | 复杂度 | 等级 |
+|------|:----:|-------:|:----:|
+| `get_learning_dashboard` | 379 | 17 | C |
+| `_get_next_learning_stage` | 407 | 16 | C |
+
+### `app\routers\retro_board.py`
+
+| 函数 | 行号 | 复杂度 | 等级 |
+|------|:----:|-------:|:----:|
+| `get_board_summary` | 278 | 17 | C |
+
+### `app\routers\retention_insights.py`
+
+| 函数 | 行号 | 复杂度 | 等级 |
+|------|:----:|-------:|:----:|
+| `get_retention_overview` | 304 | 16 | C |
+| `_calculate_cohort_retention` | 154 | 12 | C |
+
+### `features\data_pipeline\collector.py`
+
+| 函数 | 行号 | 复杂度 | 等级 |
+|------|:----:|-------:|:----:|
+| `LearningCollector.collect` | 311 | 15 | C |
+| `RetentionCollector.collect` | 170 | 13 | C |
+| `EconomicsCollector.collect` | 469 | 11 | C |
+
+### `app\routers\sales_script.py`
+
+| 函数 | 行号 | 复杂度 | 等级 |
+|------|:----:|-------:|:----:|
+| `_calculate_tension_score` | 332 | 14 | C |
+
+### `app\routers\unit_economics.py`
+
+| 函数 | 行号 | 复杂度 | 等级 |
+|------|:----:|-------:|:----:|
+| `_calculate_unit_economics` | 117 | 13 | C |
+| `_calculate_health_score` | 261 | 11 | C |
+
+### `features\data_pipeline\pipeline.py`
+
+| 函数 | 行号 | 复杂度 | 等级 |
+|------|:----:|-------:|:----:|
+| `DataPipeline._build_report` | 372 | 12 | C |
+
+### `app\routers\hypothesis_gate.py`
+
+| 函数 | 行号 | 复杂度 | 等级 |
+|------|:----:|-------:|:----:|
+| `gate_check` | 244 | 11 | C |
+
+## 🔒 安全问题
+
+### 不安全函数调用 (8)
+
+- `scripts\tech_debt_scanner.py:165` — `eval(` → `"eval(", "exec(", "pickle.loads(", "pickle.load(",`
+- `scripts\tech_debt_scanner.py:165` — `exec(` → `"eval(", "exec(", "pickle.loads(", "pickle.load(",`
+- `scripts\tech_debt_scanner.py:165` — `pickle.loads(` → `"eval(", "exec(", "pickle.loads(", "pickle.load(",`
+- `scripts\tech_debt_scanner.py:165` — `pickle.load(` → `"eval(", "exec(", "pickle.loads(", "pickle.load(",`
+- `scripts\tech_debt_scanner.py:166` — `marshal.load(` → `"marshal.load(", "marshal.loads(", "__import__(", "compile(",`
+- `scripts\tech_debt_scanner.py:166` — `marshal.loads(` → `"marshal.load(", "marshal.loads(", "__import__(", "compile(",`
+- `scripts\tech_debt_scanner.py:166` — `__import__(` → `"marshal.load(", "marshal.loads(", "__import__(", "compile(",`
+- `scripts\tech_debt_scanner.py:166` — `compile(` → `"marshal.load(", "marshal.loads(", "__import__(", "compile(",`
+
+### SQL 注入风险 (6)
+
+- `scripts\tech_debt_scanner.py:169` — `r"f['\"]?.*SELECT.*FROM.*WHERE.*\{",`
+- `scripts\tech_debt_scanner.py:170` — `r"f['\"]?.*INSERT INTO.*\{",`
+- `scripts\tech_debt_scanner.py:171` — `r"f['\"]?.*DELETE FROM.*\{",`
+- `scripts\tech_debt_scanner.py:172` — `r"f['\"]?.*UPDATE.*SET.*\{",`
+- `scripts\tech_debt_scanner.py:173` — `r"%s.*SELECT",`
+- `scripts\tech_debt_scanner.py:174` — `r"\+.*SELECT.*FROM",`
+
+---
+
+*由链客宝技术债扫描工具自动生成*

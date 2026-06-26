@@ -1,0 +1,116 @@
+{
+  "project_name": "链客宝",
+  "scan_time": "2026-06-08 06:27:32 UTC",
+  "scan_duration_seconds": 0.0,
+  "total_files": 0,
+  "total_lines": 0,
+  "total_code_lines": 0,
+  "total_comment_lines": 0,
+  "total_blank_lines": 0,
+  "avg_lines_per_file": 0.0,
+  "avg_code_lines_per_file": 0.0,
+  "dir_distribution": {},
+  "file_type_distribution": {},
+  "large_files": [],
+  "total_long_functions": 0,
+  "total_todo": 0,
+  "total_fixme": 0,
+  "total_hack": 0,
+  "marker_files": [],
+  "high_risk_files": [],
+  "complexity_ranking": [],
+  "average_complexity": 0.0,
+  "max_complexity_overall": 0.0,
+  "dependency_graph": {},
+  "circular_dependencies": [],
+  "unused_imports": {},
+  "total_security_issues": 0,
+  "total_unsafe_functions": 0,
+  "total_sql_injection_risks": 0,
+  "security_issue_files": [],
+  "thresholds_breached": [],
+  "overall_health_score": 100.0,
+  "summary": "扫描 0 个 Python 文件，共 0 行代码 | 健康评分: 100.0/100 | 平均圈复杂度: 0.00 | TODO/FIXME/HACK 标记: 0 个",
+  "file_metrics": {},
+  "config": {
+    "scan_paths": [
+      "backend/app",
+      "backend/features",
+      "backend/tests"
+    ],
+    "exclude_patterns": [
+      "**/__pycache__/**",
+      "**/*.pyc",
+      "**/.git/**",
+      "**/venv/**",
+      "**/.venv/**",
+      "**/node_modules/**",
+      "**/migrations/**"
+    ],
+    "extensions": [
+      ".py"
+    ],
+    "thresholds": {
+      "cyclomatic_complexity": 10,
+      "file_line_count": 1000,
+      "function_line_count": 100,
+      "todo_tolerance": 10,
+      "max_high_risk_files": 5
+    },
+    "security": {
+      "secret_patterns": [
+        "password\\s*[=:]\\s*['\\\"][^'\\\"]+['\\\"]",
+        "api_key\\s*[=:]\\s*['\\\"][^'\\\"]+['\\\"]",
+        "secret\\s*[=:]\\s*['\\\"][^'\\\"]+['\\\"]",
+        "token\\s*[=:]\\s*['\\\"][^'\\\"]+['\\\"]",
+        "SK-[a-zA-Z0-9]{20,}",
+        "AKIA[0-9A-Z]{16}"
+      ],
+      "unsafe_functions": [
+        "eval(",
+        "exec(",
+        "pickle.loads(",
+        "pickle.load(",
+        "marshal.load(",
+        "marshal.loads(",
+        "__import__(",
+        "compile("
+      ],
+      "sql_injection_patterns": [
+        "f['\\\"]?.*SELECT.*FROM.*WHERE.*\\{",
+        "f['\\\"]?.*INSERT INTO.*\\{",
+        "f['\\\"]?.*DELETE FROM.*\\{",
+        "f['\\\"]?.*UPDATE.*SET.*\\{",
+        "%s.*SELECT",
+        "\\+.*SELECT.*FROM",
+        "execute\\(.*f['\\\"]",
+        "execute\\(.*\\+"
+      ]
+    },
+    "report": {
+      "output_dir": "backend/reports/tech_debt",
+      "formats": [
+        "json",
+        "markdown",
+        "html"
+      ],
+      "fail_on_high_risk": true
+    },
+    "dependencies": {
+      "project_root": ".",
+      "known_third_party": [
+        "fastapi",
+        "uvicorn",
+        "pydantic",
+        "openai",
+        "python_multipart",
+        "python_docx",
+        "openpyxl",
+        "PyPDF2",
+        "httpx",
+        "pytest",
+        "dotenv"
+      ]
+    }
+  }
+}

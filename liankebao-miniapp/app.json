@@ -1,0 +1,37 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/brochure/index",
+    "pages/login/index",
+    "pages/mine/index",
+    "pages/create-card/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "链客宝",
+    "navigationBarBackgroundColor": "#0f0f1a",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#0f0f1a",
+    "backgroundTextStyle": "light"
+  },
+  "tabBar": {
+    "color": "#666",
+    "selectedColor": "#667eea",
+    "backgroundColor": "#0f0f1a",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/brochure/index",
+        "text": "名片"
+      },
+      {
+        "pagePath": "pages/mine/index",
+        "text": "我的"
+      }
+    ]
+  },
+  "sitemapLocation": "sitemap.json"
+}

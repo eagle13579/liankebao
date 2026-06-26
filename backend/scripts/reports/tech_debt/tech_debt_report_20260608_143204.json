@@ -1,0 +1,524 @@
+{
+  "project_name": "链客宝",
+  "scan_time": "2026-06-08 06:32:04 UTC",
+  "scan_duration_seconds": 0.06,
+  "total_files": 1,
+  "total_lines": 1469,
+  "total_code_lines": 1134,
+  "total_comment_lines": 117,
+  "total_blank_lines": 218,
+  "avg_lines_per_file": 1469.0,
+  "avg_code_lines_per_file": 1134.0,
+  "dir_distribution": {
+    ".": 1
+  },
+  "file_type_distribution": {},
+  "large_files": [
+    {
+      "path": "tech_debt_scanner.py",
+      "line_count": 1469
+    }
+  ],
+  "total_long_functions": 4,
+  "total_todo": 0,
+  "total_fixme": 0,
+  "total_hack": 0,
+  "marker_files": [],
+  "high_risk_files": [
+    {
+      "path": "tech_debt_scanner.py",
+      "avg_complexity": 9.84,
+      "max_complexity": 38,
+      "functions": [
+        {
+          "name": "generate_html_report",
+          "type": "Function",
+          "line": 791,
+          "complexity": 38,
+          "rank": "E"
+        },
+        {
+          "name": "generate_markdown_report",
+          "type": "Function",
+          "line": 645,
+          "complexity": 31,
+          "rank": "E"
+        },
+        {
+          "name": "run_scan",
+          "type": "Function",
+          "line": 986,
+          "complexity": 23,
+          "rank": "D"
+        },
+        {
+          "name": "main",
+          "type": "Function",
+          "line": 1333,
+          "complexity": 20,
+          "rank": "C"
+        },
+        {
+          "name": "build_dependency_graph",
+          "type": "Function",
+          "line": 546,
+          "complexity": 16,
+          "rank": "C"
+        },
+        {
+          "name": "find_python_files",
+          "type": "Function",
+          "line": 229,
+          "complexity": 15,
+          "rank": "C"
+        },
+        {
+          "name": "count_lines",
+          "type": "Function",
+          "line": 275,
+          "complexity": 11,
+          "rank": "C"
+        },
+        {
+          "name": "security_scan_file",
+          "type": "Function",
+          "line": 474,
+          "complexity": 11,
+          "rank": "C"
+        }
+      ]
+    }
+  ],
+  "complexity_ranking": [
+    {
+      "path": "tech_debt_scanner.py",
+      "avg_complexity": 9.84,
+      "max_complexity": 38,
+      "high_risk_count": 8
+    }
+  ],
+  "average_complexity": 9.84,
+  "max_complexity_overall": 38,
+  "dependency_graph": {
+    "tech_debt_scanner.py": [
+      "ast",
+      "json",
+      "os",
+      "re",
+      "sys",
+      "time",
+      "collections",
+      "dataclasses",
+      "datetime",
+      "functools",
+      "pathlib",
+      "typing",
+      "fnmatch",
+      "argparse",
+      "radon",
+      "yaml"
+    ]
+  },
+  "circular_dependencies": [],
+  "unused_imports": {},
+  "total_security_issues": 0,
+  "total_unsafe_functions": 8,
+  "total_sql_injection_risks": 6,
+  "security_issue_files": [
+    {
+      "path": "tech_debt_scanner.py",
+      "secrets": [],
+      "unsafe_functions": [
+        {
+          "line": 165,
+          "function": "eval(",
+          "context": "\"eval(\", \"exec(\", \"pickle.loads(\", \"pickle.load(\",",
+          "severity": "high"
+        },
+        {
+          "line": 165,
+          "function": "exec(",
+          "context": "\"eval(\", \"exec(\", \"pickle.loads(\", \"pickle.load(\",",
+          "severity": "high"
+        },
+        {
+          "line": 165,
+          "function": "pickle.loads(",
+          "context": "\"eval(\", \"exec(\", \"pickle.loads(\", \"pickle.load(\",",
+          "severity": "high"
+        },
+        {
+          "line": 165,
+          "function": "pickle.load(",
+          "context": "\"eval(\", \"exec(\", \"pickle.loads(\", \"pickle.load(\",",
+          "severity": "high"
+        },
+        {
+          "line": 166,
+          "function": "marshal.load(",
+          "context": "\"marshal.load(\", \"marshal.loads(\", \"__import__(\", \"compile(\",",
+          "severity": "high"
+        },
+        {
+          "line": 166,
+          "function": "marshal.loads(",
+          "context": "\"marshal.load(\", \"marshal.loads(\", \"__import__(\", \"compile(\",",
+          "severity": "high"
+        },
+        {
+          "line": 166,
+          "function": "__import__(",
+          "context": "\"marshal.load(\", \"marshal.loads(\", \"__import__(\", \"compile(\",",
+          "severity": "high"
+        },
+        {
+          "line": 166,
+          "function": "compile(",
+          "context": "\"marshal.load(\", \"marshal.loads(\", \"__import__(\", \"compile(\",",
+          "severity": "high"
+        }
+      ],
+      "sql_injection": [
+        {
+          "line": 169,
+          "pattern": "f['\\\"]?.*SELECT.*FROM.*WHERE.*\\{",
+          "context": "r\"f['\\\"]?.*SELECT.*FROM.*WHERE.*\\{\",",
+          "severity": "critical"
+        },
+        {
+          "line": 170,
+          "pattern": "f['\\\"]?.*INSERT INTO.*\\{",
+          "context": "r\"f['\\\"]?.*INSERT INTO.*\\{\",",
+          "severity": "critical"
+        },
+        {
+          "line": 171,
+          "pattern": "f['\\\"]?.*DELETE FROM.*\\{",
+          "context": "r\"f['\\\"]?.*DELETE FROM.*\\{\",",
+          "severity": "critical"
+        },
+        {
+          "line": 172,
+          "pattern": "f['\\\"]?.*UPDATE.*SET.*\\{",
+          "context": "r\"f['\\\"]?.*UPDATE.*SET.*\\{\",",
+          "severity": "critical"
+        },
+        {
+          "line": 173,
+          "pattern": "%s.*SELECT",
+          "context": "r\"%s.*SELECT\",",
+          "severity": "critical"
+        },
+        {
+          "line": 174,
+          "pattern": "\\+.*SELECT.*FROM",
+          "context": "r\"\\+.*SELECT.*FROM\",",
+          "severity": "critical"
+        }
+      ]
+    }
+  ],
+  "thresholds_breached": [
+    "发现 1 个超大文件 (阈值: ≤1000行)",
+    "发现 4 个超长函数 (阈值: ≤100行)",
+    "发现 14 个安全问题 (密钥: 0, 不安全函数: 8, SQL注入: 6)"
+  ],
+  "overall_health_score": 52.0,
+  "summary": "扫描 1 个 Python 文件，共 1,469 行代码 | 健康评分: 52.0/100 | 平均圈复杂度: 9.84 | TODO/FIXME/HACK 标记: 0 个 | 高风险模块: 1 个 | 安全问题: 14 个",
+  "file_metrics": {
+    "tech_debt_scanner.py": {
+      "path": "tech_debt_scanner.py",
+      "line_count": 1469,
+      "code_line_count": 1134,
+      "comment_line_count": 117,
+      "blank_line_count": 218,
+      "function_count": 24,
+      "class_count": 2,
+      "avg_function_length": 48.916666666666664,
+      "max_function_length": 213,
+      "long_functions": [
+        {
+          "name": "generate_markdown_report",
+          "line": 645,
+          "length": 139,
+          "type": "def"
+        },
+        {
+          "name": "generate_html_report",
+          "line": 791,
+          "length": 187,
+          "type": "def"
+        },
+        {
+          "name": "run_scan",
+          "line": 986,
+          "length": 213,
+          "type": "def"
+        },
+        {
+          "name": "main",
+          "line": 1333,
+          "length": 132,
+          "type": "def"
+        }
+      ],
+      "complexity": 9.84,
+      "max_complexity": 38,
+      "high_complexity_functions": [
+        {
+          "name": "generate_html_report",
+          "type": "Function",
+          "line": 791,
+          "complexity": 38,
+          "rank": "E"
+        },
+        {
+          "name": "generate_markdown_report",
+          "type": "Function",
+          "line": 645,
+          "complexity": 31,
+          "rank": "E"
+        },
+        {
+          "name": "run_scan",
+          "type": "Function",
+          "line": 986,
+          "complexity": 23,
+          "rank": "D"
+        },
+        {
+          "name": "main",
+          "type": "Function",
+          "line": 1333,
+          "complexity": 20,
+          "rank": "C"
+        },
+        {
+          "name": "build_dependency_graph",
+          "type": "Function",
+          "line": 546,
+          "complexity": 16,
+          "rank": "C"
+        },
+        {
+          "name": "find_python_files",
+          "type": "Function",
+          "line": 229,
+          "complexity": 15,
+          "rank": "C"
+        },
+        {
+          "name": "count_lines",
+          "type": "Function",
+          "line": 275,
+          "complexity": 11,
+          "rank": "C"
+        },
+        {
+          "name": "security_scan_file",
+          "type": "Function",
+          "line": 474,
+          "complexity": 11,
+          "rank": "C"
+        }
+      ],
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "imports": [
+        "__future__",
+        "ast",
+        "json",
+        "os",
+        "re",
+        "sys",
+        "time",
+        "collections",
+        "dataclasses",
+        "datetime",
+        "functools",
+        "pathlib",
+        "typing",
+        "fnmatch",
+        "argparse",
+        "radon",
+        "yaml"
+      ],
+      "security_issues": [],
+      "unsafe_functions": [
+        {
+          "line": 165,
+          "function": "eval(",
+          "context": "\"eval(\", \"exec(\", \"pickle.loads(\", \"pickle.load(\",",
+          "severity": "high"
+        },
+        {
+          "line": 165,
+          "function": "exec(",
+          "context": "\"eval(\", \"exec(\", \"pickle.loads(\", \"pickle.load(\",",
+          "severity": "high"
+        },
+        {
+          "line": 165,
+          "function": "pickle.loads(",
+          "context": "\"eval(\", \"exec(\", \"pickle.loads(\", \"pickle.load(\",",
+          "severity": "high"
+        },
+        {
+          "line": 165,
+          "function": "pickle.load(",
+          "context": "\"eval(\", \"exec(\", \"pickle.loads(\", \"pickle.load(\",",
+          "severity": "high"
+        },
+        {
+          "line": 166,
+          "function": "marshal.load(",
+          "context": "\"marshal.load(\", \"marshal.loads(\", \"__import__(\", \"compile(\",",
+          "severity": "high"
+        },
+        {
+          "line": 166,
+          "function": "marshal.loads(",
+          "context": "\"marshal.load(\", \"marshal.loads(\", \"__import__(\", \"compile(\",",
+          "severity": "high"
+        },
+        {
+          "line": 166,
+          "function": "__import__(",
+          "context": "\"marshal.load(\", \"marshal.loads(\", \"__import__(\", \"compile(\",",
+          "severity": "high"
+        },
+        {
+          "line": 166,
+          "function": "compile(",
+          "context": "\"marshal.load(\", \"marshal.loads(\", \"__import__(\", \"compile(\",",
+          "severity": "high"
+        }
+      ],
+      "sql_injection_risks": [
+        {
+          "line": 169,
+          "pattern": "f['\\\"]?.*SELECT.*FROM.*WHERE.*\\{",
+          "context": "r\"f['\\\"]?.*SELECT.*FROM.*WHERE.*\\{\",",
+          "severity": "critical"
+        },
+        {
+          "line": 170,
+          "pattern": "f['\\\"]?.*INSERT INTO.*\\{",
+          "context": "r\"f['\\\"]?.*INSERT INTO.*\\{\",",
+          "severity": "critical"
+        },
+        {
+          "line": 171,
+          "pattern": "f['\\\"]?.*DELETE FROM.*\\{",
+          "context": "r\"f['\\\"]?.*DELETE FROM.*\\{\",",
+          "severity": "critical"
+        },
+        {
+          "line": 172,
+          "pattern": "f['\\\"]?.*UPDATE.*SET.*\\{",
+          "context": "r\"f['\\\"]?.*UPDATE.*SET.*\\{\",",
+          "severity": "critical"
+        },
+        {
+          "line": 173,
+          "pattern": "%s.*SELECT",
+          "context": "r\"%s.*SELECT\",",
+          "severity": "critical"
+        },
+        {
+          "line": 174,
+          "pattern": "\\+.*SELECT.*FROM",
+          "context": "r\"\\+.*SELECT.*FROM\",",
+          "severity": "critical"
+        }
+      ]
+    }
+  },
+  "config": {
+    "scan_paths": [
+      "app",
+      "features",
+      "tests",
+      "."
+    ],
+    "exclude_patterns": [
+      "**/__pycache__/**",
+      "**/*.pyc",
+      "**/.git/**",
+      "**/venv/**",
+      "**/.venv/**",
+      "**/node_modules/**",
+      "**/migrations/**",
+      "**/.pytest_cache/**",
+      "**/.benchmarks/**",
+      "**/.eggs/**",
+      "**/*.egg-info/**"
+    ],
+    "extensions": [
+      ".py"
+    ],
+    "thresholds": {
+      "cyclomatic_complexity": 10,
+      "file_line_count": 1000,
+      "function_line_count": 100,
+      "todo_tolerance": 10,
+      "max_high_risk_files": 5
+    },
+    "security": {
+      "secret_patterns": [
+        "password\\s*[=:]\\s*['\\\"][^'\\\"]+['\\\"]",
+        "api_key\\s*[=:]\\s*['\\\"][^'\\\"]+['\\\"]",
+        "secret\\s*[=:]\\s*['\\\"][^'\\\"]+['\\\"]",
+        "token\\s*[=:]\\s*['\\\"][^'\\\"]+['\\\"]",
+        "SK-[a-zA-Z0-9]{20,}",
+        "AKIA[0-9A-Z]{16}"
+      ],
+      "unsafe_functions": [
+        "eval(",
+        "exec(",
+        "pickle.loads(",
+        "pickle.load(",
+        "marshal.load(",
+        "marshal.loads(",
+        "__import__(",
+        "compile("
+      ],
+      "sql_injection_patterns": [
+        "f['\\\"]?.*SELECT.*FROM.*WHERE.*\\{",
+        "f['\\\"]?.*INSERT INTO.*\\{",
+        "f['\\\"]?.*DELETE FROM.*\\{",
+        "f['\\\"]?.*UPDATE.*SET.*\\{",
+        "%s.*SELECT",
+        "\\+.*SELECT.*FROM",
+        "execute\\(.*f['\\\"]",
+        "execute\\(.*\\+"
+      ]
+    },
+    "report": {
+      "output_dir": "reports/tech_debt",
+      "formats": [
+        "json",
+        "markdown",
+        "html"
+      ],
+      "fail_on_high_risk": true
+    },
+    "dependencies": {
+      "project_root": ".",
+      "known_third_party": [
+        "fastapi",
+        "uvicorn",
+        "pydantic",
+        "openai",
+        "python_multipart",
+        "python_docx",
+        "openpyxl",
+        "PyPDF2",
+        "httpx",
+        "pytest",
+        "dotenv"
+      ]
+    }
+  }
+}

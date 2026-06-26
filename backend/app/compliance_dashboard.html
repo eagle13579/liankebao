@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>链客宝 — 合规审计中心</title>
+  <script src="https://cdn.tailwindcss.com">
+  </script>
+  <style>
+    /* ── 全局样式 ── */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: #0a0e1a;
+      min-height: 100vh;
+      color: #e2e8f0;
+    }
+
+    /* ── 网格背景 ── */
+    .bg-grid {
+      background-image:
+        linear-gradient(rgba(56, 189, 248, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56, 189, 248, 0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    /* ── 毛玻璃卡片 ── */
+    .glass-card {
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(56, 189, 248, 0.08);
+      border-radius: 16px;
+      transition: all 0.3s ease;
+    }
+    .glass-card:hover {
+      border-color: rgba(56, 189, 248, 0.2);
+      box-shadow: 0 8px 32px rgba(56, 189, 248, 0.06);
+    }
+
+    /* ── 状态卡片毛玻璃变体 ── */
+    .glass-stat {
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(56, 189, 248, 0.06);
+      border-radius: 20px;
+      transition: all 0.3s ease;
+    }
+    .glass-stat:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(56, 189, 248, 0.08);
+    }
+
+    /* ── 状态颜色条 ── */
+    .status-bar-pass {
+      background: linear-gradient(135deg, #10b981, #34d399);
+    }
+    .status-bar-warn {
+      background: linear-gradient(135deg, #f59e0b, #fbbf24);
+    }
+    .status-bar-fail {
+      background: linear-gradient(135deg, #ef4444, #f87171);
+    }
+
+    /* ── 渐变标题 ── */
+    .gradient-text {
+      background: linear-gradient(135deg, #38bdf8, #2dd4bf);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ── 脉冲动画 ── */
+    @keyframes pulse-soft {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+    .animate-pulse-soft {
+      animation: pulse-soft 2s ease-in-out infinite;
+    }
+
+    /* ── 旋转加载 ── */
+    @keyframes spin-slow {
+      to { transform: rotate(360deg); }
+    }
+    .animate-spin-slow {
+      animation: spin-slow 2s linear infinite;
+    }
+
+    /* ── 扫描进度条动画 ── */
+    @keyframes scan-progress {
+      0% { width: 0%; }
+      30% { width: 35%; }
+      60% { width: 70%; }
+      100% { width: 100%; }
+    }
+    .scan-animation {
+      animation: scan-progress 2.5s ease-out forwards;
+    }
+
+    /* ── 滚动条 ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(56, 189, 248, 0.2);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(56, 189, 248, 0.4); }
+  </style>
+</head>
+<body class="bg-grid">
+
+  <!-- ============================================================== -->
+  <!-- 主容器                                                         -->
+  <!-- ============================================================== -->
+  <div class="max-w-6xl mx-auto px-4 py-8">
+
+    <!-- ── 顶部：标题 + 刷新按钮 ── -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
+      <div>
+        <h1 class="text-3xl sm:text-4xl font-bold gradient-text tracking-tight">
+          🛡️ 合规审计中心
+        </h1>
+        <p class="text-slate-400 text-sm mt-1" id="subtitle">
+          实时监控系统合规状态 · 数据由 AI 自动扫描
+        </p>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="last-update-badge" class="text-xs text-slate-500 bg-slate-800/60 px-3 py-1.5 rounded-full border border-slate-700/50 hidden">
+          <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5"></span>
+          最后更新：<span id="last-update-text">--</span>
+        </span>
+        <button id="scan-btn"
+                class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium
+                       bg-gradient-to-r from-cyan-500/20 to-emerald-500/20
+                       border border-cyan-500/30 text-cyan-300
+                       hover:from-cyan-500/30 hover:to-emerald-500/30 hover:border-cyan-400/50
+                       transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed">
+          <svg id="scan-icon" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7z M8 12h8 M12 8v8" />
+          </svg>
+          <span id="scan-btn-text">重新扫描</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── 总体状态卡片 ── -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+      <!-- 通过 -->
+      <div class="glass-stat p-5 flex items-center gap-4">
+        <div class="w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-emerald-500/10 border border-emerald-500/20 shrink-0">
+          ✅
+        </div>
+        <div>
+          <div class="text-3xl font-bold text-emerald-400" id="stat-pass">--</div>
+          <div class="text-xs text-slate-400 mt-0.5">通过</div>
+        </div>
+      </div>
+
+      <!-- 警告 -->
+      <div class="glass-stat p-5 flex items-center gap-4">
+        <div class="w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-amber-500/10 border border-amber-500/20 shrink-0">
+          ⚠️
+        </div>
+        <div>
+          <div class="text-3xl font-bold text-amber-400" id="stat-warn">--</div>
+          <div class="text-xs text-slate-400 mt-0.5">警告</div>
+        </div>
+      </div>
+
+      <!-- 未通过 -->
+      <div class="glass-stat p-5 flex items-center gap-4">
+        <div class="w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-red-500/10 border border-red-500/20 shrink-0">
+          ❌
+        </div>
+        <div>
+          <div class="text-3xl font-bold text-red-400" id="stat-fail">--</div>
+          <div class="text-xs text-slate-400 mt-0.5">未通过</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 合规检查项列表 ── -->
+    <div class="glass-card p-5 sm:p-6">
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-lg font-semibold text-slate-200 flex items-center gap-2">
+          <span>📋</span> 检查项明细
+        </h2>
+        <span id="items-count" class="text-xs text-slate-500 bg-slate-800/60 px-2.5 py-1 rounded-full border border-slate-700/50">
+          共 0 项
+        </span>
+      </div>
+
+      <!-- 加载状态 -->
+      <div id="loading-state" class="flex flex-col items-center justify-center py-16">
+        <div class="w-10 h-10 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin-slow mb-4"></div>
+        <p class="text-slate-400 text-sm">正在加载合规报告…</p>
+      </div>
+
+      <!-- 空状态 -->
+      <div id="empty-state" class="hidden flex flex-col items-center justify-center py-16">
+        <span class="text-5xl mb-4 opacity-60">📄</span>
+        <p class="text-slate-400 text-sm">暂无合规检查数据</p>
+      </div>
+
+      <!-- 错误状态 -->
+      <div id="error-state" class="hidden flex flex-col items-center justify-center py-16">
+        <span class="text-5xl mb-4 opacity-60">⚠️</span>
+        <p class="text-slate-400 text-sm" id="error-message">加载失败，请重试</p>
+        <button onclick="loadReport()" class="mt-4 text-xs text-cyan-400 hover:text-cyan-300 underline underline-offset-2 transition-colors">
+          点击重试
+        </button>
+      </div>
+
+      <!-- 检查项列表 -->
+      <div id="items-list" class="space-y-3 hidden"></div>
+    </div>
+
+    <!-- ── 底部信息 ── -->
+    <div class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
+      <div class="flex items-center gap-2">
+        <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500/60 animate-pulse-soft"></span>
+        <span>系统运行中 · 链客宝合规引擎 v1.0</span>
+      </div>
+      <div>
+        最后扫描：<span id="footer-update-time" class="text-slate-500">--</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- JavaScript                                                     -->
+  <!-- ============================================================== -->
+  <script>
+    // ── 工具函数 ──
+
+    function fmtTime(isoStr) {
+      if (!isoStr) return '--';
+      try {
+        const d = new Date(isoStr);
+        const pad = n => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      } catch { return isoStr; }
+    }
+
+    function statusIcon(status) {
+      const map = { pass: '✅', warn: '⚠️', fail: '❌', passed: '✅', warning: '⚠️', failed: '❌' };
+      return map[status?.toLowerCase()] || '❓';
+    }
+
+    function statusColor(status) {
+      const map = { pass: 'emerald', passed: 'emerald', warn: 'amber', warning: 'amber', fail: 'red', failed: 'red' };
+      return map[status?.toLowerCase()] || 'slate';
+    }
+
+    function statusLabel(status) {
+      const map = { pass: '通过', passed: '通过', warn: '警告', warning: '警告', fail: '未通过', failed: '未通过' };
+      return map[status?.toLowerCase()] || '未知';
+    }
+
+    // ── 渲染检查项卡片 ──
+
+    function renderItem(item) {
+      const c = statusColor(item.status);
+      const icon = statusIcon(item.status);
+      const label = statusLabel(item.status);
+
+      return `
+        <div class="glass-card p-4 sm:p-5 flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
+          <!-- 状态图标 -->
+          <div class="shrink-0 text-2xl sm:text-3xl self-start">${icon}</div>
+
+          <!-- 内容 -->
+          <div class="flex-1 min-w-0">
+            <div class="flex flex-col sm:flex-row sm:items-center gap-2 mb-1.5">
+              <h3 class="text-base sm:text-lg font-medium text-slate-200 truncate">${escHtml(item.name || '未命名检查项')}</h3>
+              <span class="shrink-0 inline-block text-xs px-2 py-0.5 rounded-full border
+                ${c === 'emerald' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' :
+                 c === 'amber'   ? 'text-amber-400  border-amber-500/30  bg-amber-500/10' :
+                                   'text-red-400    border-red-500/30    bg-red-500/10'}">
+                ${label}
+              </span>
+            </div>
+            <p class="text-sm text-slate-400 leading-relaxed">${escHtml(item.detail || '暂无详情')}</p>
+            ${item.suggestion ? `
+              <div class="mt-3 flex items-start gap-2 text-sm">
+                <span class="shrink-0 text-cyan-400 mt-0.5">💡</span>
+                <span class="text-slate-300">${escHtml(item.suggestion)}</span>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    // ── 简单转义 ──
+
+    function escHtml(str) {
+      if (!str) return '';
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+
+    // ── 加载合规报告 ──
+
+    async function loadReport() {
+      // 显示加载
+      document.getElementById('loading-state').classList.remove('hidden');
+      document.getElementById('empty-state').classList.add('hidden');
+      document.getElementById('error-state').classList.add('hidden');
+      document.getElementById('items-list').classList.add('hidden');
+      document.getElementById('items-list').innerHTML = '';
+
+      // 禁用扫描按钮
+      const btn = document.getElementById('scan-btn');
+      const btnText = document.getElementById('scan-btn-text');
+      const scanIcon = document.getElementById('scan-icon');
+      btn.disabled = true;
+      btnText.textContent = '扫描中…';
+      scanIcon.innerHTML = `
+        <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+        </svg>
+      `;
+
+      try {
+        const resp = await fetch('/api/compliance/report');
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+
+        const data = await resp.json();
+        renderReport(data);
+      } catch (err) {
+        console.error('[合规看板] 加载失败:', err);
+        document.getElementById('loading-state').classList.add('hidden');
+        document.getElementById('error-state').classList.remove('hidden');
+        document.getElementById('error-message').textContent = `加载失败：${err.message}`;
+      } finally {
+        btn.disabled = false;
+        btnText.textContent = '重新扫描';
+        scanIcon.innerHTML = `
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7z M8 12h8 M12 8v8" />
+        `;
+      }
+    }
+
+    // ── 渲染报告 ──
+
+    function renderReport(data) {
+      // 兼容 { items, summary } 和 { passed, warnings, failed, checks } 两种格式
+      let items = data.items || data.checks || [];
+      const summary = data.summary || data;
+
+      const passCount = summary.passed ?? summary.pass_count ?? summary.pass ?? 0;
+      const warnCount = summary.warnings ?? summary.warn_count ?? summary.warn ?? 0;
+      const failCount = summary.failed ?? summary.fail_count ?? summary.fail ?? 0;
+      const updatedAt = summary.updated_at ?? summary.last_updated ?? data.updated_at ?? new Date().toISOString();
+
+      // 如果没有 items 但汇总有数据，从 items 数组推断
+      if (items.length === 0 && Array.isArray(data.items)) items = data.items;
+
+      // 更新统计数据
+      document.getElementById('stat-pass').textContent = passCount;
+      document.getElementById('stat-warn').textContent = warnCount;
+      document.getElementById('stat-fail').textContent = failCount;
+
+      // 更新时间
+      const timeStr = fmtTime(updatedAt);
+      document.getElementById('last-update-text').textContent = timeStr;
+      document.getElementById('last-update-badge').classList.remove('hidden');
+      document.getElementById('footer-update-time').textContent = timeStr;
+
+      // 更新标题计数
+      document.getElementById('items-count').textContent = `共 ${items.length} 项`;
+
+      // 渲染列表
+      const container = document.getElementById('items-list');
+      if (items.length === 0) {
+        document.getElementById('loading-state').classList.add('hidden');
+        document.getElementById('empty-state').classList.remove('hidden');
+        return;
+      }
+
+      container.innerHTML = items.map(renderItem).join('');
+      document.getElementById('loading-state').classList.add('hidden');
+      container.classList.remove('hidden');
+    }
+
+    // ── 页面加载后自动加载 ──
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadReport();
+      document.getElementById('scan-btn').addEventListener('click', loadReport);
+    });
+  </script>
+</body>
+</html>

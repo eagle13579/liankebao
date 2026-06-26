@@ -1,0 +1,73 @@
+# =============================================================================
+# 链客宝 — Docker Compose 蓝色堆栈 (蓝绿部署)
+# =============================================================================
+# 使用方式:
+#   docker compose -f docker-compose.yml -f deploy/docker-compose.blue.yml up -d
+#
+# 蓝色堆栈包含:
+#   - backend-blue: 蓝色版本后端容器 (端口 8002)
+#   - frontend-builder-blue: 蓝色版本前端构建容器
+#
+# 共享服务 (继承自 docker-compose.yml):
+#   - postgres, redis, nginx
+# =============================================================================
+
+services:
+
+  # ── 蓝色后端 ────────────────────────────────────────────────────────────────
+  backend-blue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: chainke/backend:blue         # 蓝色标签，便于识别
+    container_name: chainke-backend-blue
+    ports:
+      - "127.0.0.1:8002:8001"           # 宿主机 8002 → 容器 8001
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://chainke:chainke_secret@postgres:5432/chainke
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - APP_ENV=production
+      - PORT=8001
+      - BLUE_GREEN_COLOR=blue
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - chainke-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; exit(0 if urllib.request.urlopen('http://127.0.0.1:8001/health').status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── 蓝色前端构建器 ─────────────────────────────────────────────────────────
+  frontend-builder-blue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend-output
+    image: chainke/frontend-builder:blue
+    container_name: chainke-frontend-builder-blue
+    volumes:
+      - frontend-dist-blue:/output       # 输出到独立 volume
+    restart: "no"
+    networks:
+      - chainke-net
+
+# ── 额外 volume ───────────────────────────────────────────────────────────────
+volumes:
+  frontend-dist-blue:
+    driver: local

@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "created_at": 1782444232.0118997,
+  "updated_at": 1782444232.012899,
+  "write_count": 1,
+  "frequencies": [
+    1782444232.012899
+  ],
+  "field_stats": {
+    "name": {
+      "types": {
+        "str": 1
+      },
+      "lengths": [
+        5
+      ],
+      "special_char_ratios": [
+        0.0
+      ],
+      "values": {
+        "alice": 1
+      }
+    },
+    "email": {
+      "types": {
+        "str": 1
+      },
+      "lengths": [
+        17
+      ],
+      "special_char_ratios": [
+        0.11764705882352941
+      ],
+      "values": {
+        "alice@example.com": 1
+      }
+    }
+  },
+  "semantic_types": {
+    "name": {
+      "phone": 0,
+      "email": 0,
+      "url": 0,
+      "ip": 0,
+      "plain": 1
+    },
+    "email": {
+      "phone": 0,
+      "email": 1,
+      "url": 0,
+      "ip": 0,
+      "plain": 0
+    }
+  },
+  "violation_history": [],
+  "violation_field_dist": {},
+  "foreign_keys": {},
+  "total_writes": 1,
+  "history_scores": [
+    0.0
+  ]
+}

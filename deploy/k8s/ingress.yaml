@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: chainke-ingress
+  namespace: chainke-prod
+  annotations:
+    # 移除了 rewrite-target: /，确保路径原样转发到后端（SPA + API 路径不走样）
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - liankebao.top
+      secretName: chainke-tls-secret
+  rules:
+    - host: liankebao.top
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: chainke-web-service
+                port:
+                  number: 80

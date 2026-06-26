@@ -1,0 +1,261 @@
+# =============================================================================
+# 链客宝 Backend — pyproject.toml
+# =============================================================================
+# 本文件包含项目元数据和工具配置。
+# bandit 安全检查等工具从此文件读取配置。
+# =============================================================================
+
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+# =============================================================================
+# 项目元数据
+# =============================================================================
+
+[project]
+name = "chainke-backend"
+version = "1.0.0"
+description = "链客宝 — 企业家供需匹配平台后端服务"
+readme = { file = "../SECURITY.md", content-type = "text/markdown" }
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+keywords = ["chainke", "liankebao", "business-matching"]
+
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "python-multipart>=0.0.6",
+    "openai>=1.6.0",
+    "python-docx>=1.1.0",
+    "openpyxl>=3.1.2",
+    "PyPDF2>=3.0.0",
+    "python-dotenv>=1.0.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "sentry-sdk>=2.0.0",
+    "pyppeteer>=2.0.0",
+]
+
+# =============================================================================
+# Bandit 安全扫描配置
+# =============================================================================
+
+[tool.bandit]
+# 扫描目标目录
+targets = ["."]
+
+# 跳过特定测试 ID（如有合理的误报）
+skips = [
+    "B101",  # assert 语句 — 测试代码中允许使用 assert
+    "B311",  # 随机数 — 非安全场景使用 random 模块是可接受的
+]
+
+# 排除目录
+exclude_dirs = [
+    "tests",
+    "__pycache__",
+    ".pytest_cache",
+    ".git",
+    "node_modules",
+    "dist",
+    ".venv",
+    "venv",
+    "env",
+]
+
+# 测试 ID 排除规则（更精细的控制）
+tests = [
+    "B101",  # assert_used
+    "B102",  # exec_used
+    "B103",  # set_bad_file_permissions
+    "B104",  # hardcoded_bind_all_interfaces
+    "B105",  # hardcoded_password_string
+    "B106",  # hardcoded_password_funcarg
+    "B107",  # hardcoded_password_default
+    "B108",  # hardcoded_tmp_directory
+    "B110",  # try_except_pass
+    "B112",  # try_except_continue
+    "B201",  # flask_debug_true
+    "B301",  # pickle
+    "B302",  # marshal
+    "B303",  # md5
+    "B304",  # ciphers
+    "B305",  # cipher_modes
+    "B306",  # mktemp_q
+    "B307",  # eval
+    "B308",  # mark_safe
+    "B309",  # httpsconnection
+    "B310",  # urllib_urlopen
+    "B311",  # random
+    "B312",  # telnetlib
+    "B313",  # xml_bad_cElementTree
+    "B314",  # xml_bad_ElementTree
+    "B315",  # xml_bad_expatreader
+    "B316",  # xml_bad_expatbuilder
+    "B317",  # xml_bad_sax
+    "B318",  # xml_bad_minidom
+    "B319",  # xml_bad_pulldom
+    "B320",  # xml_bad_etree
+    "B321",  # ftplib
+    "B322",  # input
+    "B323",  # unverified_context
+    "B324",  # hashlib_new_insecure_functions
+    "B325",  # tempfile_chmod
+    "B401",  # import_telnetlib
+    "B402",  # import_ftplib
+    "B403",  # import_pickle
+    "B404",  # import_subprocess
+    "B405",  # import_xml_etree
+    "B406",  # import_xml_sax
+    "B407",  # import_xml_expat
+    "B408",  # import_xml_minidom
+    "B409",  # import_xml_pulldom
+    "B410",  # import_lxml
+    "B411",  # import_xmlrpclib
+    "B412",  # import_httpoxy
+    "B413",  # import_pycrypto
+    "B501",  # request_with_no_cert_validation
+    "B502",  # ssl_with_bad_version
+    "B503",  # ssl_with_bad_defaults
+    "B504",  # ssl_with_no_version
+    "B505",  # weak_cryptographic_key
+    "B506",  # yaml_load
+    "B507",  # ssh_no_host_key_verification
+    "B601",  # paramiko_calls
+    "B602",  # subprocess_popen_with_shell_equals_true
+    "B603",  # subprocess_without_shell_equals_true
+    "B604",  # any_other_function_with_shell_equals_true
+    "B605",  # start_process_with_a_shell
+    "B606",  # start_process_with_no_shell
+    "B607",  # start_process_with_partial_path
+    "B608",  # hardcoded_sql_expressions
+    "B609",  # linux_commands_wildcard_injection
+    "B610",  # django_extra_used
+    "B611",  # django_rawsql_used
+    "B701",  # jinja2_autoescape_false
+    "B702",  # use_of_mako_templates
+    "B703",  # django_mark_safe
+]
+
+# 严重级别
+# low, medium, high
+# 报告低于此级别的漏洞
+level = "medium"
+
+# 置信度
+# low, medium, high
+confidence = "medium"
+
+# 输出格式
+format = "screen"
+
+# 输出文件名（空 = stdout）
+output = ""
+
+# 递归扫描子目录
+recursive = true
+
+# 聚合结果
+aggregate = false
+
+# 显示行号
+show_lines = true
+
+# 仅报告唯一结果
+unique = false
+
+# =============================================================================
+# pytest 配置
+# =============================================================================
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "-p", "no:cacheprovider",
+    "-p", "no:flask",
+]
+pythonpath = ["D:\\chainke-full\\backend"]
+# timeout = 30  # removed - unavailable in this pytest version
+
+# 标记定义
+markers = [
+    "slow: 慢速测试（跳过用 -m 'not slow'）",
+    "security: 安全相关测试",
+    "integration: 集成测试",
+    "smoke: 冒烟测试",
+]
+
+# 过滤器
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+# =============================================================================
+# coverage 配置
+# =============================================================================
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "tests/*",
+    "__pycache__/*",
+    ".pytest_cache/*",
+    "*/venv/*",
+    "*/env/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 80
+skip_empty = true
+
+# =============================================================================
+# ruff 配置（Python linter — 可选）
+# =============================================================================
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "S",   # flake8-bandit (安全相关)
+    "B",   # flake8-bugbear
+]
+ignore = [
+    "E501",  # 行长度 — 由 ruff formatter 处理
+    "S101",  # assert 使用 — 测试代码中允许
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+# =============================================================================
+# mypy 配置（类型检查 — 可选）
+# =============================================================================
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+strict_optional = true
+check_untyped_defs = true
+disallow_untyped_defs = false

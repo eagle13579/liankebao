@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>技术债扫描报告 — 链客宝</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; line-height: 1.6; padding: 2rem; }
+.container { max-width: 1200px; margin: 0 auto; }
+h1 { font-size: 2rem; margin-bottom: 0.5rem; color: #38bdf8; }
+h2 { font-size: 1.4rem; margin: 2rem 0 1rem; color: #94a3b8; border-bottom: 1px solid #1e293b; padding-bottom: 0.5rem; }
+h3 { font-size: 1.1rem; margin: 1rem 0 0.5rem; color: #cbd5e1; }
+.meta { color: #64748b; font-size: 0.9rem; margin-bottom: 2rem; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1rem 0; }
+.card { background: #1e293b; border-radius: 0.75rem; padding: 1.25rem; border: 1px solid #334155; }
+.card .label { font-size: 0.85rem; color: #94a3b8; }
+.card .value { font-size: 2rem; font-weight: 700; color: #38bdf8; }
+.card .value.warn { color: #fbbf24; }
+.card .value.danger { color: #ef4444; }
+.card .value.good { color: #22c55e; }
+table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+th, td { padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid #1e293b; }
+th { color: #94a3b8; font-weight: 600; font-size: 0.85rem; }
+td { font-size: 0.9rem; }
+tr:hover td { background: #1e293b; }
+code { background: #0f172a; padding: 0.15rem 0.4rem; border-radius: 0.25rem; font-size: 0.85rem; }
+.warning { background: #451a03; color: #fbbf24; padding: 0.75rem 1rem; border-radius: 0.5rem; margin: 0.5rem 0; }
+.danger { background: #450a0a; color: #ef4444; padding: 0.75rem 1rem; border-radius: 0.5rem; margin: 0.5rem 0; }
+.good { background: #052e16; color: #22c55e; padding: 0.75rem 1rem; border-radius: 0.5rem; margin: 0.5rem 0; }
+.footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #1e293b; color: #64748b; font-size: 0.85rem; }
+.badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+.badge-high { background: #450a0a; color: #ef4444; }
+.badge-medium { background: #451a03; color: #fbbf24; }
+.badge-low { background: #052e16; color: #22c55e; }
+.health-score { font-size: 4rem; font-weight: 800; text-align: center; }
+.health-label { text-align: center; font-size: 1rem; color: #94a3b8; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>🔍 技术债扫描报告</h1>
+<div class="meta">链客宝 · 2026-06-08 06:27:32 UTC · 耗时 0.00s</div>
+
+<div class="grid">
+  <div class="card">
+    <div class="label">健康评分</div>
+    <div class="value good">100.0</div>
+    <div style="font-size:0.8rem;color:#64748b">/ 100</div>
+  </div>
+  <div class="card">
+    <div class="label">Python 文件</div>
+    <div class="value">0</div>
+  </div>
+  <div class="card">
+    <div class="label">总代码行数</div>
+    <div class="value">0</div>
+  </div>
+  <div class="card">
+    <div class="label">平均圈复杂度</div>
+    <div class="value">0.00</div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <div class="label">注释率</div>
+    <div class="value">0.0%</div>
+  </div>
+  <div class="card">
+    <div class="label">TODO/FIXME/HACK</div>
+    <div class="value good">0</div>
+  </div>
+  <div class="card">
+    <div class="label">高风险文件</div>
+    <div class="value good">0</div>
+  </div>
+  <div class="card">
+    <div class="label">安全问题</div>
+    <div class="value good">0</div>
+  </div>
+</div>
+<h2>📁 目录分布</h2>
+<table><thead><tr><th>目录</th><th style="text-align:right">文件数</th></tr></thead><tbody>
+</tbody></table>
+<div class="footer">由 链客宝技术债扫描工具 自动生成</div>
+</div>
+</body>
+</html>

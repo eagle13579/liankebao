@@ -1,0 +1,196 @@
+# =============================================================================
+# 链客宝 Staging 部署 — PR 合并前预览环境
+#
+# 触发条件:
+#   - 向 main 分支创建或同步 Pull Request
+#
+# 流程:
+#   1. 检出代码 & 运行测试
+#   2. 构建前端
+#   3. Docker 构建
+#   4. 部署到 staging 服务器
+#   5. 健康检查
+#   6. 飞书通知
+# =============================================================================
+
+name: 链客宝 Staging 部署
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: staging-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  staging-deploy:
+    name: Staging 部署
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # ── 1. 检出代码 ─────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. 设置 Python 环境 ──────────────────────────────────────────────
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
+      # ── 3. 安装 Python 依赖 ──────────────────────────────────────────────
+      - name: Install Python dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install pytest pytest-cov
+          pip install -r requirements.txt
+
+      # ── 4. 运行测试 ──────────────────────────────────────────────────────
+      - name: Run tests
+        working-directory: backend
+        run: |
+          python -m pytest --junitxml=junit.xml -v
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-staging
+          path: backend/junit.xml
+
+      # ── 5. 构建前端 ──────────────────────────────────────────────────────
+      - name: Build frontend
+        run: |
+          # 检测前端目录并构建
+          if [ -d "liankebao-weapp" ]; then
+            echo "📦 Building weapp frontend..."
+            cd liankebao-weapp
+            npm install && npm run build -- --logLevel error
+            cd ..
+          fi
+          if [ -d "liankebao-miniapp" ]; then
+            echo "📦 Building miniapp frontend..."
+            cd liankebao-miniapp
+            npm install && npm run build -- --logLevel error
+            cd ..
+          fi
+          echo "✅ Frontend build complete"
+
+      # ── 6. Docker 构建 ───────────────────────────────────────────────────
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.DOCKER_REGISTRY }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Docker build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_REGISTRY }}/chainke-staging:${{ github.sha }}
+            ${{ secrets.DOCKER_REGISTRY }}/chainke-staging:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ── 7. 部署到 Staging 服务器 ─────────────────────────────────────────
+      - name: Deploy to staging server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          password: ${{ secrets.STAGING_PASSWORD }}
+          port: ${{ secrets.STAGING_PORT || 22 }}
+          script: |
+            # 拉取最新镜像
+            docker pull ${{ secrets.DOCKER_REGISTRY }}/chainke-staging:${{ github.sha }}
+
+            # 标记新版本
+            docker tag ${{ secrets.DOCKER_REGISTRY }}/chainke-staging:${{ github.sha }} chainke-staging:new
+
+            # 停止旧容器（保留用于回滚）
+            docker-compose -f /opt/chainke/docker-compose.staging.yml down || true
+
+            # 更新 docker-compose 中的镜像标签
+            export IMAGE_TAG=${{ github.sha }}
+
+            # 启动新版本
+            docker-compose -f /opt/chainke/docker-compose.staging.yml up -d
+
+            echo "🔄 Staging deployment triggered, version: ${{ github.sha }}"
+
+      # ── 8. 健康检查 ──────────────────────────────────────────────────────
+      - name: Health check — staging
+        run: |
+          echo "⏳ Waiting for staging service to be ready..."
+          HEALTH_URL="http://${{ secrets.STAGING_HOST }}:8001/health"
+          for i in $(seq 1 12); do
+            echo "  Attempt $i/12..."
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL" 2>/dev/null || echo "000")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ Health check passed (HTTP 200)"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "❌ Health check failed after 12 attempts"
+          exit 1
+
+      # ── 9. 飞书通知 ─────────────────────────────────────────────────────
+      - name: Notify Feishu — deploy success
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `🟢 Staging 部署完成 — ${context.repo.repo}`;
+            const text = [
+              `**仓库:** ${context.repo.owner}/${context.repo.repo}`,
+              `**分支:** \`${context.payload.pull_request ? context.payload.pull_request.head.ref : context.ref}\``,
+              `**PR:** ${context.payload.pull_request ? `#${context.payload.pull_request.number} ${context.payload.pull_request.title}` : '手动触发'}`,
+              `**提交:** ${context.sha.substring(0, 7)}`,
+              `**作者:** ${context.actor}`,
+              `**环境:** Staging`,
+              `**运行:** ${context.runId}`,
+            ].join('\n');
+
+            const feishuUrl = process.env.FEISHU_WEBHOOK_URL;
+            if (feishuUrl) {
+              await fetch(feishuUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  msg_type: 'interactive',
+                  card: {
+                    header: { title: { tag: 'plain_text', content: title }, template: 'green' },
+                    elements: [
+                      { tag: 'markdown', content: text },
+                      { tag: 'hr' },
+                      {
+                        tag: 'action',
+                        actions: [{
+                          tag: 'button',
+                          text: { tag: 'plain_text', content: '查看详情' },
+                          url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+                          type: 'default',
+                        }],
+                      },
+                    ],
+                  },
+                }),
+              });
+            }
+        env:
+          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}

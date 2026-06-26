@@ -1,0 +1,95 @@
+# =============================================================================
+# 链客宝 .gitignore — 安全与清理规则
+# =============================================================================
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+.pytest_cache/
+*.spec
+
+# ── 链客宝数据文件（严禁提交） ───────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+*.jsonl
+*.ndjson
+data/
+!data/.gitkeep
+feedback.jsonl
+
+# ── 环境与密钥（严禁提交） ───────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+!.env.template
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+
+# ── 操作系统 ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+
+# ── IDE / 编辑器 ─────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.iml
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# ── 日志 ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── 前端构建产物 ──────────────────────────────────────────────────────────────
+node_modules/
+.next/
+dist/
+build/
+.turbo/
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+.docker/
+
+# ── 蓝绿部署状态（服务器端，禁止提交）─────────────────────────────────────────
+deploy/.blue-green-state
+deploy/.blue-green-history
+deploy/nginx/upstream-active.conf
+
+
+# ── Coverage Reports ──
+.coverage
+coverage_report/
+htmlcov/
+
+# ── IDE ──
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ── Monitoring ──
+deploy/.blue-green-state
+deploy/.blue-green-history
+deploy/nginx/upstream-active.conf
+
+# ── GEO Content ──
+data/geo/content/
+
+# ── Generated Files ──
+*.bak
+*.orig

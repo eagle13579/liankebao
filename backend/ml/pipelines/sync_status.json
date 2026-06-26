@@ -1,0 +1,22 @@
+{
+  "pipeline_running": false,
+  "started_at": null,
+  "stopped_at": null,
+  "check_interval": 60,
+  "sources": {
+    "verify": {
+      "name": "verify",
+      "last_check_time": null,
+      "last_max_updated_at": null,
+      "last_sync_time": null,
+      "last_latency_seconds": 0.0,
+      "max_latency_seconds": 0.0,
+      "total_syncs": 0,
+      "total_records_synced": 0,
+      "total_errors": 0,
+      "last_error": null,
+      "is_running": false,
+      "last_alert_time": null
+    }
+  }
+}

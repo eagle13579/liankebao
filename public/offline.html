@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>链客宝 — 离线模式</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+    .offline-container {
+      text-align: center;
+      padding: 2rem;
+      max-width: 480px;
+    }
+    .offline-icon {
+      font-size: 80px;
+      margin-bottom: 1.5rem;
+      opacity: 0.9;
+    }
+    h1 {
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+      font-weight: 600;
+    }
+    p {
+      font-size: 1rem;
+      line-height: 1.6;
+      opacity: 0.9;
+      margin-bottom: 1rem;
+    }
+    .status-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      background: #ff6b6b;
+      border-radius: 50%;
+      margin-right: 8px;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .retry-btn {
+      display: inline-block;
+      margin-top: 1.5rem;
+      padding: 12px 32px;
+      background: rgba(255, 255, 255, 0.2);
+      border: 2px solid rgba(255, 255, 255, 0.5);
+      border-radius: 25px;
+      color: #fff;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.3s;
+      text-decoration: none;
+    }
+    .retry-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="offline-container">
+    <div class="offline-icon">📡</div>
+    <h1>网络连接已断开</h1>
+    <p>
+      <span class="status-dot"></span>
+      您处于离线状态，部分功能不可用
+    </p>
+    <p>请检查网络连接后重试。已缓存的内容仍可正常浏览。</p>
+    <button class="retry-btn" onclick="location.reload()">
+      重新连接
+    </button>
+  </div>
+</body>
+</html>

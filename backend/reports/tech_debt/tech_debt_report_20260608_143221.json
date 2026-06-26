@@ -1,0 +1,1784 @@
+{
+  "project_name": "链客宝",
+  "scan_time": "2026-06-08 06:32:21 UTC",
+  "scan_duration_seconds": 0.34,
+  "total_files": 22,
+  "total_lines": 7847,
+  "total_code_lines": 5831,
+  "total_comment_lines": 820,
+  "total_blank_lines": 1196,
+  "avg_lines_per_file": 356.7,
+  "avg_code_lines_per_file": 265.0,
+  "dir_distribution": {
+    "app": 1,
+    "app\\routers": 7,
+    "features\\data_pipeline": 5,
+    "scripts": 1,
+    "tests": 8
+  },
+  "file_type_distribution": {},
+  "large_files": [
+    {
+      "path": "scripts\\tech_debt_scanner.py",
+      "line_count": 1469
+    }
+  ],
+  "total_long_functions": 8,
+  "total_todo": 0,
+  "total_fixme": 0,
+  "total_hack": 0,
+  "marker_files": [],
+  "high_risk_files": [
+    {
+      "path": "features\\data_pipeline\\analyzer.py",
+      "avg_complexity": 10.19,
+      "max_complexity": 43,
+      "functions": [
+        {
+          "name": "RetentionAnalyzer.analyze",
+          "type": "method",
+          "line": 107,
+          "complexity": 43,
+          "rank": "F"
+        },
+        {
+          "name": "EconomicsAnalyzer.analyze",
+          "type": "method",
+          "line": 358,
+          "complexity": 40,
+          "rank": "E"
+        },
+        {
+          "name": "LearningAnalyzer.analyze",
+          "type": "method",
+          "line": 235,
+          "complexity": 38,
+          "rank": "E"
+        },
+        {
+          "name": "RetentionAnalyzer",
+          "type": "Class",
+          "line": 92,
+          "complexity": 23,
+          "rank": "D"
+        },
+        {
+          "name": "EconomicsAnalyzer",
+          "type": "Class",
+          "line": 342,
+          "complexity": 22,
+          "rank": "D"
+        },
+        {
+          "name": "LearningAnalyzer",
+          "type": "Class",
+          "line": 219,
+          "complexity": 21,
+          "rank": "D"
+        },
+        {
+          "name": "HypothesisAnalyzer.analyze",
+          "type": "method",
+          "line": 503,
+          "complexity": 20,
+          "rank": "C"
+        },
+        {
+          "name": "HypothesisAnalyzer",
+          "type": "Class",
+          "line": 488,
+          "complexity": 12,
+          "rank": "C"
+        },
+        {
+          "name": "CompositeAnalyzer._generate_cross_insights",
+          "type": "method",
+          "line": 657,
+          "complexity": 12,
+          "rank": "C"
+        }
+      ]
+    },
+    {
+      "path": "scripts\\tech_debt_scanner.py",
+      "avg_complexity": 9.84,
+      "max_complexity": 38,
+      "functions": [
+        {
+          "name": "generate_html_report",
+          "type": "Function",
+          "line": 791,
+          "complexity": 38,
+          "rank": "E"
+        },
+        {
+          "name": "generate_markdown_report",
+          "type": "Function",
+          "line": 645,
+          "complexity": 31,
+          "rank": "E"
+        },
+        {
+          "name": "run_scan",
+          "type": "Function",
+          "line": 986,
+          "complexity": 23,
+          "rank": "D"
+        },
+        {
+          "name": "main",
+          "type": "Function",
+          "line": 1333,
+          "complexity": 20,
+          "rank": "C"
+        },
+        {
+          "name": "build_dependency_graph",
+          "type": "Function",
+          "line": 546,
+          "complexity": 16,
+          "rank": "C"
+        },
+        {
+          "name": "find_python_files",
+          "type": "Function",
+          "line": 229,
+          "complexity": 15,
+          "rank": "C"
+        },
+        {
+          "name": "count_lines",
+          "type": "Function",
+          "line": 275,
+          "complexity": 11,
+          "rank": "C"
+        },
+        {
+          "name": "security_scan_file",
+          "type": "Function",
+          "line": 474,
+          "complexity": 11,
+          "rank": "C"
+        }
+      ]
+    },
+    {
+      "path": "app\\routers\\learning_center.py",
+      "avg_complexity": 4.41,
+      "max_complexity": 17,
+      "functions": [
+        {
+          "name": "get_learning_dashboard",
+          "type": "Function",
+          "line": 379,
+          "complexity": 17,
+          "rank": "C"
+        },
+        {
+          "name": "_get_next_learning_stage",
+          "type": "Function",
+          "line": 407,
+          "complexity": 16,
+          "rank": "C"
+        }
+      ]
+    },
+    {
+      "path": "app\\routers\\retro_board.py",
+      "avg_complexity": 4.22,
+      "max_complexity": 17,
+      "functions": [
+        {
+          "name": "get_board_summary",
+          "type": "Function",
+          "line": 278,
+          "complexity": 17,
+          "rank": "C"
+        }
+      ]
+    },
+    {
+      "path": "app\\routers\\retention_insights.py",
+      "avg_complexity": 4.12,
+      "max_complexity": 16,
+      "functions": [
+        {
+          "name": "get_retention_overview",
+          "type": "Function",
+          "line": 304,
+          "complexity": 16,
+          "rank": "C"
+        },
+        {
+          "name": "_calculate_cohort_retention",
+          "type": "Function",
+          "line": 154,
+          "complexity": 12,
+          "rank": "C"
+        }
+      ]
+    },
+    {
+      "path": "features\\data_pipeline\\collector.py",
+      "avg_complexity": 4.03,
+      "max_complexity": 15,
+      "functions": [
+        {
+          "name": "LearningCollector.collect",
+          "type": "method",
+          "line": 311,
+          "complexity": 15,
+          "rank": "C"
+        },
+        {
+          "name": "RetentionCollector.collect",
+          "type": "method",
+          "line": 170,
+          "complexity": 13,
+          "rank": "C"
+        },
+        {
+          "name": "EconomicsCollector.collect",
+          "type": "method",
+          "line": 469,
+          "complexity": 11,
+          "rank": "C"
+        }
+      ]
+    },
+    {
+      "path": "app\\routers\\sales_script.py",
+      "avg_complexity": 3.15,
+      "max_complexity": 14,
+      "functions": [
+        {
+          "name": "_calculate_tension_score",
+          "type": "Function",
+          "line": 332,
+          "complexity": 14,
+          "rank": "C"
+        }
+      ]
+    },
+    {
+      "path": "app\\routers\\unit_economics.py",
+      "avg_complexity": 4.18,
+      "max_complexity": 13,
+      "functions": [
+        {
+          "name": "_calculate_unit_economics",
+          "type": "Function",
+          "line": 117,
+          "complexity": 13,
+          "rank": "C"
+        },
+        {
+          "name": "_calculate_health_score",
+          "type": "Function",
+          "line": 261,
+          "complexity": 11,
+          "rank": "C"
+        }
+      ]
+    },
+    {
+      "path": "features\\data_pipeline\\pipeline.py",
+      "avg_complexity": 3.4,
+      "max_complexity": 12,
+      "functions": [
+        {
+          "name": "DataPipeline._build_report",
+          "type": "method",
+          "line": 372,
+          "complexity": 12,
+          "rank": "C"
+        }
+      ]
+    },
+    {
+      "path": "app\\routers\\hypothesis_gate.py",
+      "avg_complexity": 3.46,
+      "max_complexity": 11,
+      "functions": [
+        {
+          "name": "gate_check",
+          "type": "Function",
+          "line": 244,
+          "complexity": 11,
+          "rank": "C"
+        }
+      ]
+    }
+  ],
+  "complexity_ranking": [
+    {
+      "path": "features\\data_pipeline\\analyzer.py",
+      "avg_complexity": 10.19,
+      "max_complexity": 43,
+      "high_risk_count": 9
+    },
+    {
+      "path": "scripts\\tech_debt_scanner.py",
+      "avg_complexity": 9.84,
+      "max_complexity": 38,
+      "high_risk_count": 8
+    },
+    {
+      "path": "app\\routers\\learning_center.py",
+      "avg_complexity": 4.41,
+      "max_complexity": 17,
+      "high_risk_count": 2
+    },
+    {
+      "path": "app\\routers\\retro_board.py",
+      "avg_complexity": 4.22,
+      "max_complexity": 17,
+      "high_risk_count": 1
+    },
+    {
+      "path": "app\\routers\\retention_insights.py",
+      "avg_complexity": 4.12,
+      "max_complexity": 16,
+      "high_risk_count": 2
+    },
+    {
+      "path": "features\\data_pipeline\\collector.py",
+      "avg_complexity": 4.03,
+      "max_complexity": 15,
+      "high_risk_count": 3
+    },
+    {
+      "path": "app\\routers\\sales_script.py",
+      "avg_complexity": 3.15,
+      "max_complexity": 14,
+      "high_risk_count": 1
+    },
+    {
+      "path": "app\\routers\\unit_economics.py",
+      "avg_complexity": 4.18,
+      "max_complexity": 13,
+      "high_risk_count": 2
+    },
+    {
+      "path": "features\\data_pipeline\\pipeline.py",
+      "avg_complexity": 3.4,
+      "max_complexity": 12,
+      "high_risk_count": 1
+    },
+    {
+      "path": "app\\routers\\hypothesis_gate.py",
+      "avg_complexity": 3.46,
+      "max_complexity": 11,
+      "high_risk_count": 1
+    },
+    {
+      "path": "tests\\test_learning_center.py",
+      "avg_complexity": 4.06,
+      "max_complexity": 9,
+      "high_risk_count": 0
+    },
+    {
+      "path": "tests\\test_data_pipeline.py",
+      "avg_complexity": 3.53,
+      "max_complexity": 7,
+      "high_risk_count": 0
+    },
+    {
+      "path": "tests\\test_retention_insights.py",
+      "avg_complexity": 3.71,
+      "max_complexity": 7,
+      "high_risk_count": 0
+    },
+    {
+      "path": "tests\\test_retro_board.py",
+      "avg_complexity": 3.42,
+      "max_complexity": 7,
+      "high_risk_count": 0
+    },
+    {
+      "path": "tests\\test_unit_economics.py",
+      "avg_complexity": 3.95,
+      "max_complexity": 7,
+      "high_risk_count": 0
+    },
+    {
+      "path": "tests\\test_sales_script.py",
+      "avg_complexity": 3.67,
+      "max_complexity": 6,
+      "high_risk_count": 0
+    },
+    {
+      "path": "features\\data_pipeline\\config.py",
+      "avg_complexity": 2.0,
+      "max_complexity": 5,
+      "high_risk_count": 0
+    },
+    {
+      "path": "tests\\test_hypothesis_gate.py",
+      "avg_complexity": 3.68,
+      "max_complexity": 5,
+      "high_risk_count": 0
+    },
+    {
+      "path": "tests\\conftest.py",
+      "avg_complexity": 1.73,
+      "max_complexity": 3,
+      "high_risk_count": 0
+    }
+  ],
+  "average_complexity": 4.25,
+  "max_complexity_overall": 43,
+  "dependency_graph": {
+    "app\\__init__.py": [],
+    "app\\routers\\__init__.py": [],
+    "app\\routers\\hypothesis_gate.py": [
+      "typing",
+      "datetime"
+    ],
+    "app\\routers\\learning_center.py": [
+      "typing",
+      "datetime",
+      "random"
+    ],
+    "app\\routers\\retention_insights.py": [
+      "typing",
+      "datetime"
+    ],
+    "app\\routers\\retro_board.py": [
+      "typing",
+      "datetime"
+    ],
+    "app\\routers\\sales_script.py": [
+      "typing",
+      "datetime",
+      "re"
+    ],
+    "app\\routers\\unit_economics.py": [
+      "typing",
+      "datetime"
+    ],
+    "features\\data_pipeline\\__init__.py": [
+      "config",
+      "collector",
+      "analyzer",
+      "pipeline"
+    ],
+    "features\\data_pipeline\\analyzer.py": [
+      "logging",
+      "abc",
+      "dataclasses",
+      "datetime",
+      "typing",
+      "config",
+      "collector"
+    ],
+    "features\\data_pipeline\\collector.py": [
+      "time",
+      "logging",
+      "abc",
+      "dataclasses",
+      "datetime",
+      "typing",
+      "config",
+      "app",
+      "app",
+      "app",
+      "app"
+    ],
+    "features\\data_pipeline\\config.py": [
+      "os",
+      "dataclasses",
+      "typing"
+    ],
+    "features\\data_pipeline\\pipeline.py": [
+      "json",
+      "logging",
+      "time",
+      "dataclasses",
+      "datetime",
+      "enum",
+      "typing",
+      "config",
+      "collector",
+      "analyzer"
+    ],
+    "scripts\\tech_debt_scanner.py": [
+      "ast",
+      "json",
+      "os",
+      "re",
+      "sys",
+      "time",
+      "collections",
+      "dataclasses",
+      "datetime",
+      "functools",
+      "pathlib",
+      "typing",
+      "fnmatch",
+      "argparse",
+      "radon",
+      "yaml"
+    ],
+    "tests\\conftest.py": [
+      "copy",
+      "typing",
+      "app",
+      "app",
+      "app",
+      "app",
+      "app",
+      "app",
+      "app",
+      "app",
+      "app",
+      "app",
+      "app",
+      "app"
+    ],
+    "tests\\test_data_pipeline.py": [
+      "datetime",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features",
+      "features"
+    ],
+    "tests\\test_hypothesis_gate.py": [],
+    "tests\\test_learning_center.py": [],
+    "tests\\test_retention_insights.py": [],
+    "tests\\test_retro_board.py": [],
+    "tests\\test_sales_script.py": [],
+    "tests\\test_unit_economics.py": []
+  },
+  "circular_dependencies": [],
+  "unused_imports": {},
+  "total_security_issues": 0,
+  "total_unsafe_functions": 8,
+  "total_sql_injection_risks": 6,
+  "security_issue_files": [
+    {
+      "path": "scripts\\tech_debt_scanner.py",
+      "secrets": [],
+      "unsafe_functions": [
+        {
+          "line": 165,
+          "function": "eval(",
+          "context": "\"eval(\", \"exec(\", \"pickle.loads(\", \"pickle.load(\",",
+          "severity": "high"
+        },
+        {
+          "line": 165,
+          "function": "exec(",
+          "context": "\"eval(\", \"exec(\", \"pickle.loads(\", \"pickle.load(\",",
+          "severity": "high"
+        },
+        {
+          "line": 165,
+          "function": "pickle.loads(",
+          "context": "\"eval(\", \"exec(\", \"pickle.loads(\", \"pickle.load(\",",
+          "severity": "high"
+        },
+        {
+          "line": 165,
+          "function": "pickle.load(",
+          "context": "\"eval(\", \"exec(\", \"pickle.loads(\", \"pickle.load(\",",
+          "severity": "high"
+        },
+        {
+          "line": 166,
+          "function": "marshal.load(",
+          "context": "\"marshal.load(\", \"marshal.loads(\", \"__import__(\", \"compile(\",",
+          "severity": "high"
+        },
+        {
+          "line": 166,
+          "function": "marshal.loads(",
+          "context": "\"marshal.load(\", \"marshal.loads(\", \"__import__(\", \"compile(\",",
+          "severity": "high"
+        },
+        {
+          "line": 166,
+          "function": "__import__(",
+          "context": "\"marshal.load(\", \"marshal.loads(\", \"__import__(\", \"compile(\",",
+          "severity": "high"
+        },
+        {
+          "line": 166,
+          "function": "compile(",
+          "context": "\"marshal.load(\", \"marshal.loads(\", \"__import__(\", \"compile(\",",
+          "severity": "high"
+        }
+      ],
+      "sql_injection": [
+        {
+          "line": 169,
+          "pattern": "f['\"]?.*SELECT.*FROM.*WHERE.*\\{",
+          "context": "r\"f['\\\"]?.*SELECT.*FROM.*WHERE.*\\{\",",
+          "severity": "critical"
+        },
+        {
+          "line": 170,
+          "pattern": "f['\"]?.*INSERT INTO.*\\{",
+          "context": "r\"f['\\\"]?.*INSERT INTO.*\\{\",",
+          "severity": "critical"
+        },
+        {
+          "line": 171,
+          "pattern": "f['\"]?.*DELETE FROM.*\\{",
+          "context": "r\"f['\\\"]?.*DELETE FROM.*\\{\",",
+          "severity": "critical"
+        },
+        {
+          "line": 172,
+          "pattern": "f['\"]?.*UPDATE.*SET.*\\{",
+          "context": "r\"f['\\\"]?.*UPDATE.*SET.*\\{\",",
+          "severity": "critical"
+        },
+        {
+          "line": 173,
+          "pattern": "%s.*SELECT",
+          "context": "r\"%s.*SELECT\",",
+          "severity": "critical"
+        },
+        {
+          "line": 174,
+          "pattern": "\\+.*SELECT.*FROM",
+          "context": "r\"\\+.*SELECT.*FROM\",",
+          "severity": "critical"
+        }
+      ]
+    }
+  ],
+  "thresholds_breached": [
+    "发现 1 个超大文件 (阈值: ≤1000行)",
+    "发现 8 个超长函数 (阈值: ≤100行)",
+    "高风险文件数 10 超过阈值 5",
+    "发现 14 个安全问题 (密钥: 0, 不安全函数: 8, SQL注入: 6)"
+  ],
+  "overall_health_score": 38.0,
+  "summary": "扫描 22 个 Python 文件，共 7,847 行代码 | 健康评分: 38.0/100 | 平均圈复杂度: 4.25 | TODO/FIXME/HACK 标记: 0 个 | 高风险模块: 10 个 | 安全问题: 14 个",
+  "file_metrics": {
+    "app\\__init__.py": {
+      "path": "app\\__init__.py",
+      "line_count": 1,
+      "code_line_count": 0,
+      "comment_line_count": 1,
+      "blank_line_count": 0,
+      "function_count": 0,
+      "class_count": 0,
+      "avg_function_length": 0.0,
+      "max_function_length": 0,
+      "long_functions": [],
+      "complexity": 0.0,
+      "max_complexity": 0.0,
+      "high_complexity_functions": [],
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "imports": [],
+      "security_issues": [],
+      "unsafe_functions": [],
+      "sql_injection_risks": []
+    },
+    "app\\routers\\__init__.py": {
+      "path": "app\\routers\\__init__.py",
+      "line_count": 1,
+      "code_line_count": 0,
+      "comment_line_count": 1,
+      "blank_line_count": 0,
+      "function_count": 0,
+      "class_count": 0,
+      "avg_function_length": 0.0,
+      "max_function_length": 0,
+      "long_functions": [],
+      "complexity": 0.0,
+      "max_complexity": 0.0,
+      "high_complexity_functions": [],
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "imports": [],
+      "security_issues": [],
+      "unsafe_functions": [],
+      "sql_injection_risks": []
+    },
+    "app\\routers\\hypothesis_gate.py": {
+      "path": "app\\routers\\hypothesis_gate.py",
+      "line_count": 287,
+      "code_line_count": 230,
+      "comment_line_count": 25,
+      "blank_line_count": 32,
+      "function_count": 10,
+      "class_count": 3,
+      "avg_function_length": 9.5,
+      "max_function_length": 36,
+      "long_functions": [],
+      "complexity": 3.4615384615384617,
+      "max_complexity": 11,
+      "high_complexity_functions": [
+        {
+          "name": "gate_check",
+          "type": "Function",
+          "line": 244,
+          "complexity": 11,
+          "rank": "C"
+        }
+      ],
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "imports": [
+        "typing",
+        "datetime",
+        "pydantic",
+        "fastapi"
+      ],
+      "security_issues": [],
+      "unsafe_functions": [],
+      "sql_injection_risks": []
+    },
+    "app\\routers\\learning_center.py": {
+      "path": "app\\routers\\learning_center.py",
+      "line_count": 439,
+      "code_line_count": 344,
+      "comment_line_count": 41,
+      "blank_line_count": 54,
+      "function_count": 16,
+      "class_count": 6,
+      "avg_function_length": 10.8125,
+      "max_function_length": 30,
+      "long_functions": [],
+      "complexity": 4.409090909090909,
+      "max_complexity": 17,
+      "high_complexity_functions": [
+        {
+          "name": "get_learning_dashboard",
+          "type": "Function",
+          "line": 379,
+          "complexity": 17,
+          "rank": "C"
+        },
+        {
+          "name": "_get_next_learning_stage",
+          "type": "Function",
+          "line": 407,
+          "complexity": 16,
+          "rank": "C"
+        }
+      ],
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "imports": [
+        "typing",
+        "datetime",
+        "pydantic",
+        "fastapi",
+        "random"
+      ],
+      "security_issues": [],
+      "unsafe_functions": [],
+      "sql_injection_risks": []
+    },
+    "app\\routers\\retention_insights.py": {
+      "path": "app\\routers\\retention_insights.py",
+      "line_count": 334,
+      "code_line_count": 251,
+      "comment_line_count": 36,
+      "blank_line_count": 47,
+      "function_count": 12,
+      "class_count": 5,
+      "avg_function_length": 10.166666666666666,
+      "max_function_length": 38,
+      "long_functions": [],
+      "complexity": 4.117647058823529,
+      "max_complexity": 16,
+      "high_complexity_functions": [
+        {
+          "name": "get_retention_overview",
+          "type": "Function",
+          "line": 304,
+          "complexity": 16,
+          "rank": "C"
+        },
+        {
+          "name": "_calculate_cohort_retention",
+          "type": "Function",
+          "line": 154,
+          "complexity": 12,
+          "rank": "C"
+        }
+      ],
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "imports": [
+        "typing",
+        "datetime",
+        "pydantic",
+        "fastapi"
+      ],
+      "security_issues": [],
+      "unsafe_functions": [],
+      "sql_injection_risks": []
+    },
+    "app\\routers\\retro_board.py": {
+      "path": "app\\routers\\retro_board.py",
+      "line_count": 309,
+      "code_line_count": 243,
+      "comment_line_count": 27,
+      "blank_line_count": 39,
+      "function_count": 15,
+      "class_count": 3,
+      "avg_function_length": 8.0,
+      "max_function_length": 24,
+      "long_functions": [],
+      "complexity": 4.222222222222222,
+      "max_complexity": 17,
+      "high_complexity_functions": [
+        {
+          "name": "get_board_summary",
+          "type": "Function",
+          "line": 278,
+          "complexity": 17,
+          "rank": "C"
+        }
+      ],
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "imports": [
+        "typing",
+        "datetime",
+        "pydantic",
+        "fastapi"
+      ],
+      "security_issues": [],
+      "unsafe_functions": [],
+      "sql_injection_risks": []
+    },
+    "app\\routers\\sales_script.py": {
+      "path": "app\\routers\\sales_script.py",
+      "line_count": 359,
+      "code_line_count": 305,
+      "comment_line_count": 27,
+      "blank_line_count": 27,
+      "function_count": 10,
+      "class_count": 3,
+      "avg_function_length": 8.1,
+      "max_function_length": 19,
+      "long_functions": [],
+      "complexity": 3.1538461538461537,
+      "max_complexity": 14,
+      "high_complexity_functions": [
+        {
+          "name": "_calculate_tension_score",
+          "type": "Function",
+          "line": 332,
+          "complexity": 14,
+          "rank": "C"
+        }
+      ],
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "imports": [
+        "typing",
+        "datetime",
+        "pydantic",
+        "fastapi",
+        "re"
+      ],
+      "security_issues": [],
+      "unsafe_functions": [],
+      "sql_injection_risks": []
+    },
+    "app\\routers\\unit_economics.py": {
+      "path": "app\\routers\\unit_economics.py",
+      "line_count": 316,
+      "code_line_count": 241,
+      "comment_line_count": 31,
+      "blank_line_count": 44,
+      "function_count": 13,
+      "class_count": 4,
+      "avg_function_length": 11.0,
+      "max_function_length": 29,
+      "long_functions": [],
+      "complexity": 4.176470588235294,
+      "max_complexity": 13,
+      "high_complexity_functions": [
+        {
+          "name": "_calculate_unit_economics",
+          "type": "Function",
+          "line": 117,
+          "complexity": 13,
+          "rank": "C"
+        },
+        {
+          "name": "_calculate_health_score",
+          "type": "Function",
+          "line": 261,
+          "complexity": 11,
+          "rank": "C"
+        }
+      ],
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "imports": [
+        "typing",
+        "datetime",
+        "pydantic",
+        "fastapi"
+      ],
+      "security_issues": [],
+      "unsafe_functions": [],
+      "sql_injection_risks": []
+    },
+    "features\\data_pipeline\\__init__.py": {
+      "path": "features\\data_pipeline\\__init__.py",
+      "line_count": 104,
+      "code_line_count": 91,
+      "comment_line_count": 6,
+      "blank_line_count": 7,
+      "function_count": 0,
+      "class_count": 0,
+      "avg_function_length": 0.0,
+      "max_function_length": 0,
+      "long_functions": [],
+      "complexity": 0.0,
+      "max_complexity": 0.0,
+      "high_complexity_functions": [],
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "imports": [
+        "config",
+        "collector",
+        "analyzer",
+        "pipeline"
+      ],
+      "security_issues": [],
+      "unsafe_functions": [],
+      "sql_injection_risks": []
+    },
+    "features\\data_pipeline\\analyzer.py": {
+      "path": "features\\data_pipeline\\analyzer.py",
+      "line_count": 720,
+      "code_line_count": 521,
+      "comment_line_count": 74,
+      "blank_line_count": 125,
+      "function_count": 19,
+      "class_count": 7,
+      "avg_function_length": 27.42105263157895,
+      "max_function_length": 122,
+      "long_functions": [
+        {
+          "name": "analyze",
+          "line": 107,
+          "length": 104,
+          "type": "def"
+        },
+        {
+          "name": "analyze",
+          "line": 358,
+          "length": 122,
+          "type": "def"
+        }
+      ],
+      "complexity": 10.192307692307692,
+      "max_complexity": 43,
+      "high_complexity_functions": [
+        {
+          "name": "RetentionAnalyzer.analyze",
+          "type": "method",
+          "line": 107,
+          "complexity": 43,
+          "rank": "F"
+        },
+        {
+          "name": "EconomicsAnalyzer.analyze",
+          "type": "method",
+          "line": 358,
+          "complexity": 40,
+          "rank": "E"
+        },
+        {
+          "name": "LearningAnalyzer.analyze",
+          "type": "method",
+          "line": 235,
+          "complexity": 38,
+          "rank": "E"
+        },
+        {
+          "name": "RetentionAnalyzer",
+          "type": "Class",
+          "line": 92,
+          "complexity": 23,
+          "rank": "D"
+        },
+        {
+          "name": "EconomicsAnalyzer",
+          "type": "Class",
+          "line": 342,
+          "complexity": 22,
+          "rank": "D"
+        },
+        {
+          "name": "LearningAnalyzer",
+          "type": "Class",
+          "line": 219,
+          "complexity": 21,
+          "rank": "D"
+        },
+        {
+          "name": "HypothesisAnalyzer.analyze",
+          "type": "method",
+          "line": 503,
+          "complexity": 20,
+          "rank": "C"
+        },
+        {
+          "name": "HypothesisAnalyzer",
+          "type": "Class",
+          "line": 488,
+          "complexity": 12,
+          "rank": "C"
+        },
+        {
+          "name": "CompositeAnalyzer._generate_cross_insights",
+          "type": "method",
+          "line": 657,
+          "complexity": 12,
+          "rank": "C"
+        }
+      ],
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "imports": [
+        "logging",
+        "abc",
+        "dataclasses",
+        "datetime",
+        "typing",
+        "config",
+        "collector"
+      ],
+      "security_issues": [],
+      "unsafe_functions": [],
+      "sql_injection_risks": []
+    },
+    "features\\data_pipeline\\collector.py": {
+      "path": "features\\data_pipeline\\collector.py",
+      "line_count": 709,
+      "code_line_count": 570,
+      "comment_line_count": 46,
+      "blank_line_count": 93,
+      "function_count": 22,
+      "class_count": 7,
+      "avg_function_length": 23.5,
+      "max_function_length": 140,
+      "long_functions": [
+        {
+          "name": "collect",
+          "line": 170,
+          "length": 121,
+          "type": "def"
+        },
+        {
+          "name": "collect",
+          "line": 311,
+          "length": 140,
+          "type": "def"
+        }
+      ],
+      "complexity": 4.0344827586206895,
+      "max_complexity": 15,
+      "high_complexity_functions": [
+        {
+          "name": "LearningCollector.collect",
+          "type": "method",
+          "line": 311,
+          "complexity": 15,
+          "rank": "C"
+        },
+        {
+          "name": "RetentionCollector.collect",
+          "type": "method",
+          "line": 170,
+          "complexity": 13,
+          "rank": "C"
+        },
+        {
+          "name": "EconomicsCollector.collect",
+          "type": "method",
+          "line": 469,
+          "complexity": 11,
+          "rank": "C"
+        }
+      ],
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "imports": [
+        "time",
+        "logging",
+        "abc",
+        "dataclasses",
+        "datetime",
+        "typing",
+        "config",
+        "app",
+        "app",
+        "app",
+        "app"
+      ],
+      "security_issues": [],
+      "unsafe_functions": [],
+      "sql_injection_risks": []
+    },
+    "features\\data_pipeline\\config.py": {
+      "path": "features\\data_pipeline\\config.py",
+      "line_count": 161,
+      "code_line_count": 100,
+      "comment_line_count": 30,
+      "blank_line_count": 31,
+      "function_count": 5,
+      "class_count": 3,
+      "avg_function_length": 10.4,
+      "max_function_length": 14,
+      "long_functions": [],
+      "complexity": 2.0,
+      "max_complexity": 5,
+      "high_complexity_functions": [],
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "imports": [
+        "os",
+        "dataclasses",
+        "typing"
+      ],
+      "security_issues": [],
+      "unsafe_functions": [],
+      "sql_injection_risks": []
+    },
+    "features\\data_pipeline\\pipeline.py": {
+      "path": "features\\data_pipeline\\pipeline.py",
+      "line_count": 500,
+      "code_line_count": 340,
+      "comment_line_count": 69,
+      "blank_line_count": 91,
+      "function_count": 16,
+      "class_count": 4,
+      "avg_function_length": 19.9375,
+      "max_function_length": 61,
+      "long_functions": [],
+      "complexity": 3.4,
+      "max_complexity": 12,
+      "high_complexity_functions": [
+        {
+          "name": "DataPipeline._build_report",
+          "type": "method",
+          "line": 372,
+          "complexity": 12,
+          "rank": "C"
+        }
+      ],
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "imports": [
+        "json",
+        "logging",
+        "time",
+        "dataclasses",
+        "datetime",
+        "enum",
+        "typing",
+        "config",
+        "collector",
+        "analyzer"
+      ],
+      "security_issues": [],
+      "unsafe_functions": [],
+      "sql_injection_risks": []
+    },
+    "scripts\\tech_debt_scanner.py": {
+      "path": "scripts\\tech_debt_scanner.py",
+      "line_count": 1469,
+      "code_line_count": 1134,
+      "comment_line_count": 117,
+      "blank_line_count": 218,
+      "function_count": 24,
+      "class_count": 2,
+      "avg_function_length": 48.916666666666664,
+      "max_function_length": 213,
+      "long_functions": [
+        {
+          "name": "generate_markdown_report",
+          "line": 645,
+          "length": 139,
+          "type": "def"
+        },
+        {
+          "name": "generate_html_report",
+          "line": 791,
+          "length": 187,
+          "type": "def"
+        },
+        {
+          "name": "run_scan",
+          "line": 986,
+          "length": 213,
+          "type": "def"
+        },
+        {
+          "name": "main",
+          "line": 1333,
+          "length": 132,
+          "type": "def"
+        }
+      ],
+      "complexity": 9.84,
+      "max_complexity": 38,
+      "high_complexity_functions": [
+        {
+          "name": "generate_html_report",
+          "type": "Function",
+          "line": 791,
+          "complexity": 38,
+          "rank": "E"
+        },
+        {
+          "name": "generate_markdown_report",
+          "type": "Function",
+          "line": 645,
+          "complexity": 31,
+          "rank": "E"
+        },
+        {
+          "name": "run_scan",
+          "type": "Function",
+          "line": 986,
+          "complexity": 23,
+          "rank": "D"
+        },
+        {
+          "name": "main",
+          "type": "Function",
+          "line": 1333,
+          "complexity": 20,
+          "rank": "C"
+        },
+        {
+          "name": "build_dependency_graph",
+          "type": "Function",
+          "line": 546,
+          "complexity": 16,
+          "rank": "C"
+        },
+        {
+          "name": "find_python_files",
+          "type": "Function",
+          "line": 229,
+          "complexity": 15,
+          "rank": "C"
+        },
+        {
+          "name": "count_lines",
+          "type": "Function",
+          "line": 275,
+          "complexity": 11,
+          "rank": "C"
+        },
+        {
+          "name": "security_scan_file",
+          "type": "Function",
+          "line": 474,
+          "complexity": 11,
+          "rank": "C"
+        }
+      ],
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "imports": [
+        "__future__",
+        "ast",
+        "json",
+        "os",
+        "re",
+        "sys",
+        "time",
+        "collections",
+        "dataclasses",
+        "datetime",
+        "functools",
+        "pathlib",
+        "typing",
+        "fnmatch",
+        "argparse",
+        "radon",
+        "yaml"
+      ],
+      "security_issues": [],
+      "unsafe_functions": [
+        {
+          "line": 165,
+          "function": "eval(",
+          "context": "\"eval(\", \"exec(\", \"pickle.loads(\", \"pickle.load(\",",
+          "severity": "high"
+        },
+        {
+          "line": 165,
+          "function": "exec(",
+          "context": "\"eval(\", \"exec(\", \"pickle.loads(\", \"pickle.load(\",",
+          "severity": "high"
+        },
+        {
+          "line": 165,
+          "function": "pickle.loads(",
+          "context": "\"eval(\", \"exec(\", \"pickle.loads(\", \"pickle.load(\",",
+          "severity": "high"
+        },
+        {
+          "line": 165,
+          "function": "pickle.load(",
+          "context": "\"eval(\", \"exec(\", \"pickle.loads(\", \"pickle.load(\",",
+          "severity": "high"
+        },
+        {
+          "line": 166,
+          "function": "marshal.load(",
+          "context": "\"marshal.load(\", \"marshal.loads(\", \"__import__(\", \"compile(\",",
+          "severity": "high"
+        },
+        {
+          "line": 166,
+          "function": "marshal.loads(",
+          "context": "\"marshal.load(\", \"marshal.loads(\", \"__import__(\", \"compile(\",",
+          "severity": "high"
+        },
+        {
+          "line": 166,
+          "function": "__import__(",
+          "context": "\"marshal.load(\", \"marshal.loads(\", \"__import__(\", \"compile(\",",
+          "severity": "high"
+        },
+        {
+          "line": 166,
+          "function": "compile(",
+          "context": "\"marshal.load(\", \"marshal.loads(\", \"__import__(\", \"compile(\",",
+          "severity": "high"
+        }
+      ],
+      "sql_injection_risks": [
+        {
+          "line": 169,
+          "pattern": "f['\"]?.*SELECT.*FROM.*WHERE.*\\{",
+          "context": "r\"f['\\\"]?.*SELECT.*FROM.*WHERE.*\\{\",",
+          "severity": "critical"
+        },
+        {
+          "line": 170,
+          "pattern": "f['\"]?.*INSERT INTO.*\\{",
+          "context": "r\"f['\\\"]?.*INSERT INTO.*\\{\",",
+          "severity": "critical"
+        },
+        {
+          "line": 171,
+          "pattern": "f['\"]?.*DELETE FROM.*\\{",
+          "context": "r\"f['\\\"]?.*DELETE FROM.*\\{\",",
+          "severity": "critical"
+        },
+        {
+          "line": 172,
+          "pattern": "f['\"]?.*UPDATE.*SET.*\\{",
+          "context": "r\"f['\\\"]?.*UPDATE.*SET.*\\{\",",
+          "severity": "critical"
+        },
+        {
+          "line": 173,
+          "pattern": "%s.*SELECT",
+          "context": "r\"%s.*SELECT\",",
+          "severity": "critical"
+        },
+        {
+          "line": 174,
+          "pattern": "\\+.*SELECT.*FROM",
+          "context": "r\"\\+.*SELECT.*FROM\",",
+          "severity": "critical"
+        }
+      ]
+    },
+    "tests\\conftest.py": {
+      "path": "tests\\conftest.py",
+      "line_count": 247,
+      "code_line_count": 179,
+      "comment_line_count": 27,
+      "blank_line_count": 41,
+      "function_count": 11,
+      "class_count": 0,
+      "avg_function_length": 15.727272727272727,
+      "max_function_length": 30,
+      "long_functions": [],
+      "complexity": 1.7272727272727273,
+      "max_complexity": 3,
+      "high_complexity_functions": [],
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "imports": [
+        "copy",
+        "typing",
+        "fastapi",
+        "fastapi",
+        "pytest",
+        "app",
+        "app",
+        "app",
+        "app",
+        "app",
+        "app",
+        "app",
+        "app",
+        "app",
+        "app",
+        "app",
+        "app"
+      ],
+      "security_issues": [],
+      "unsafe_functions": [],
+      "sql_injection_risks": []
+    },
+    "tests\\test_data_pipeline.py": {
+      "path": "tests\\test_data_pipeline.py",
+      "line_count": 468,
+      "code_line_count": 301,
+      "comment_line_count": 58,
+      "blank_line_count": 109,
+      "function_count": 39,
+      "class_count": 15,
+      "avg_function_length": 8.76923076923077,
+      "max_function_length": 26,
+      "long_functions": [],
+      "complexity": 3.5348837209302326,
+      "max_complexity": 7,
+      "high_complexity_functions": [],
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "imports": [
+        "pytest",
+        "datetime",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features",
+        "features"
+      ],
+      "security_issues": [],
+      "unsafe_functions": [],
+      "sql_injection_risks": []
+    },
+    "tests\\test_hypothesis_gate.py": {
+      "path": "tests\\test_hypothesis_gate.py",
+      "line_count": 270,
+      "code_line_count": 185,
+      "comment_line_count": 46,
+      "blank_line_count": 39,
+      "function_count": 22,
+      "class_count": 3,
+      "avg_function_length": 9.0,
+      "max_function_length": 27,
+      "long_functions": [],
+      "complexity": 3.68,
+      "max_complexity": 5,
+      "high_complexity_functions": [],
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "imports": [
+        "pytest"
+      ],
+      "security_issues": [],
+      "unsafe_functions": [],
+      "sql_injection_risks": []
+    },
+    "tests\\test_learning_center.py": {
+      "path": "tests\\test_learning_center.py",
+      "line_count": 298,
+      "code_line_count": 211,
+      "comment_line_count": 38,
+      "blank_line_count": 49,
+      "function_count": 25,
+      "class_count": 8,
+      "avg_function_length": 8.0,
+      "max_function_length": 18,
+      "long_functions": [],
+      "complexity": 4.0606060606060606,
+      "max_complexity": 9,
+      "high_complexity_functions": [],
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "imports": [
+        "pytest"
+      ],
+      "security_issues": [],
+      "unsafe_functions": [],
+      "sql_injection_risks": []
+    },
+    "tests\\test_retention_insights.py": {
+      "path": "tests\\test_retention_insights.py",
+      "line_count": 180,
+      "code_line_count": 119,
+      "comment_line_count": 26,
+      "blank_line_count": 35,
+      "function_count": 18,
+      "class_count": 6,
+      "avg_function_length": 5.833333333333333,
+      "max_function_length": 13,
+      "long_functions": [],
+      "complexity": 3.7083333333333335,
+      "max_complexity": 7,
+      "high_complexity_functions": [],
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "imports": [
+        "pytest"
+      ],
+      "security_issues": [],
+      "unsafe_functions": [],
+      "sql_injection_risks": []
+    },
+    "tests\\test_retro_board.py": {
+      "path": "tests\\test_retro_board.py",
+      "line_count": 288,
+      "code_line_count": 198,
+      "comment_line_count": 40,
+      "blank_line_count": 50,
+      "function_count": 30,
+      "class_count": 6,
+      "avg_function_length": 6.266666666666667,
+      "max_function_length": 15,
+      "long_functions": [],
+      "complexity": 3.4166666666666665,
+      "max_complexity": 7,
+      "high_complexity_functions": [],
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "imports": [
+        "pytest"
+      ],
+      "security_issues": [],
+      "unsafe_functions": [],
+      "sql_injection_risks": []
+    },
+    "tests\\test_sales_script.py": {
+      "path": "tests\\test_sales_script.py",
+      "line_count": 205,
+      "code_line_count": 143,
+      "comment_line_count": 28,
+      "blank_line_count": 34,
+      "function_count": 20,
+      "class_count": 4,
+      "avg_function_length": 6.55,
+      "max_function_length": 19,
+      "long_functions": [],
+      "complexity": 3.6666666666666665,
+      "max_complexity": 6,
+      "high_complexity_functions": [],
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "imports": [
+        "pytest"
+      ],
+      "security_issues": [],
+      "unsafe_functions": [],
+      "sql_injection_risks": []
+    },
+    "tests\\test_unit_economics.py": {
+      "path": "tests\\test_unit_economics.py",
+      "line_count": 182,
+      "code_line_count": 125,
+      "comment_line_count": 26,
+      "blank_line_count": 31,
+      "function_count": 19,
+      "class_count": 3,
+      "avg_function_length": 6.2631578947368425,
+      "max_function_length": 13,
+      "long_functions": [],
+      "complexity": 3.9545454545454546,
+      "max_complexity": 7,
+      "high_complexity_functions": [],
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "imports": [
+        "pytest"
+      ],
+      "security_issues": [],
+      "unsafe_functions": [],
+      "sql_injection_risks": []
+    }
+  },
+  "config": {
+    "scan_paths": [
+      "app",
+      "features",
+      "tests",
+      "scripts"
+    ],
+    "exclude_patterns": [
+      "**/__pycache__/**",
+      "**/*.pyc",
+      "**/.git/**",
+      "**/venv/**",
+      "**/.venv/**",
+      "**/node_modules/**",
+      "**/migrations/**"
+    ],
+    "extensions": [
+      ".py"
+    ],
+    "thresholds": {
+      "cyclomatic_complexity": 10,
+      "file_line_count": 1000,
+      "function_line_count": 100,
+      "todo_tolerance": 10,
+      "max_high_risk_files": 5
+    },
+    "security": {
+      "secret_patterns": [
+        "password\\s*[=:]\\s*['\"][^'\"]+['\"]",
+        "api_key\\s*[=:]\\s*['\"][^'\"]+['\"]",
+        "secret\\s*[=:]\\s*['\"][^'\"]+['\"]",
+        "token\\s*[=:]\\s*['\"][^'\"]+['\"]",
+        "SK-[a-zA-Z0-9]{20,}",
+        "AKIA[0-9A-Z]{16}"
+      ],
+      "unsafe_functions": [
+        "eval(",
+        "exec(",
+        "pickle.loads(",
+        "pickle.load(",
+        "marshal.load(",
+        "marshal.loads(",
+        "__import__(",
+        "compile("
+      ],
+      "sql_injection_patterns": [
+        "f['\"]?.*SELECT.*FROM.*WHERE.*\\{",
+        "f['\"]?.*INSERT INTO.*\\{",
+        "f['\"]?.*DELETE FROM.*\\{",
+        "f['\"]?.*UPDATE.*SET.*\\{",
+        "%s.*SELECT",
+        "\\+.*SELECT.*FROM",
+        "execute\\(.*f['\"]",
+        "execute\\(.*\\+"
+      ]
+    },
+    "report": {
+      "output_dir": "reports/tech_debt",
+      "formats": [
+        "json",
+        "markdown",
+        "html"
+      ],
+      "fail_on_high_risk": true
+    },
+    "dependencies": {
+      "project_root": ".",
+      "known_third_party": [
+        "fastapi",
+        "uvicorn",
+        "pydantic",
+        "openai",
+        "python_multipart",
+        "python_docx",
+        "openpyxl",
+        "PyPDF2",
+        "httpx",
+        "pytest",
+        "dotenv"
+      ]
+    }
+  }
+}

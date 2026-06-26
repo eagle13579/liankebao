@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: chainke-prod
+
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - hpa.yaml
+
+# Secret 占位符：敏感配置（如 DB 密码、API Key）请替换后 apply
+# 实际使用前请先创建 Secret:
+#   kubectl create secret generic chainke-secret \
+#     --namespace chainke-prod \
+#     --from-literal=DB_PASSWORD=xxx \
+#     --from-literal=API_KEY=xxx
+# 或使用 sops / sealed-secrets 加密管理
+#
+# TLS 证书 Secret（需提前创建）:
+#   kubectl create secret tls chainke-tls-secret \
+#     --namespace chainke-prod \
+#     --cert=path/to/tls.crt \
+#     --key=path/to/tls.key
+
+generatorOptions:
+  disableNameSuffixHash: true

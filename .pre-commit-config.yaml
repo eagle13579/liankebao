@@ -1,0 +1,86 @@
+# =============================================================================
+# 链客宝 pre-commit 安全钩子配置
+# =============================================================================
+# 安装:
+#   pip install pre-commit
+#   pre-commit install
+#
+# 手动运行:
+#   pre-commit run --all-files
+# =============================================================================
+
+repos:
+  # ── Bandit: Python 代码安全扫描 ──────────────────────────────────────────
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.8.3
+    hooks:
+      - id: bandit
+        name: bandit (安全扫描)
+        description: "对 Python 代码执行安全漏洞扫描"
+        args:
+          [
+            "-r",
+            "--configfile",
+            "backend/pyproject.toml",
+            "-ll",              # 仅报告 HIGH 和 MEDIUM 严重性
+            "-c",
+            "bandit.yaml",
+          ]
+        files: ^backend/.*\.py$
+        exclude: ^(.*/test_|.*_test\.py|.*/tests/)
+
+  # ── Detect Private Key: 防止私钥泄露 ─────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: detect-private-key
+        name: detect-private-key (私钥检测)
+        description: "检测是否意外提交了私钥文件"
+        exclude: |
+          (?x)^(
+            .pre-commit-config.yaml|
+            SECURITY.md|
+            scripts/.*
+          )$
+
+      # ── 大文件检查: 防止提交超大文件 ──────────────────────────────────
+      - id: check-added-large-files
+        name: check-added-large-files (大文件检测)
+        description: "防止提交超过 2MB 的文件"
+        args: ["--maxkb=2048"]
+
+      # ── 通用安全检查 ──────────────────────────────────────────────────
+      - id: check-merge-conflict      # 检查未解决的合并冲突
+        name: check-merge-conflict (合并冲突检测)
+
+      - id: check-yaml                # 检查 YAML 文件语法
+        name: check-yaml (YAML 语法检查)
+
+      - id: check-toml                # 检查 TOML 文件语法
+        name: check-toml (TOML 语法检查)
+
+      - id: check-json                # 检查 JSON 文件语法
+        name: check-json (JSON 语法检查)
+
+      - id: check-symlinks            # 检查符号链接
+        name: check-symlinks (符号链接检查)
+
+      - id: end-of-file-fixer         # 确保文件末尾有换行
+        name: end-of-file-fixer (末尾换行修复)
+
+      - id: trailing-whitespace       # 去除行尾空白
+        name: trailing-whitespace (行尾空白清理)
+        args: ["--markdown-linebreak-ext=md"]
+
+      - id: detect-aws-credentials    # 检测 AWS 凭证泄露
+        name: detect-aws-credentials (AWS 凭证检测)
+        args: ["--allow-missing-credentials"]
+
+  # ── CodeQL (可选): GitHub 安全代码扫描本地版本 ──────────────────────────
+  # 解注以下内容需要安装 CodeQL CLI:
+  #   https://github.com/github/codeql-cli-binaries
+  # - repo: https://github.com/github/codeql-action
+  #   rev: v3
+  #   hooks:
+  #     - id: codeql
+  #       name: codeql (语义安全分析)

@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="链客宝 — 企业家供需匹配平台，帮助企业家高效匹配资源、商机和合作伙伴。智能名片、信任评分、供需对接。" />
+  <meta name="keywords" content="链客宝,企业家,供需匹配,数字名片,商务社交,资源对接,商业合作" />
+  <meta name="author" content="链客宝" />
+  <meta name="robots" content="index, follow" />
+
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://liankebao.top/" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="链客宝 — 企业家供需匹配平台" />
+  <meta property="og:description" content="链客宝帮助企业家高效匹配资源、商机和合作伙伴。智能名片、信任评分、供需对接一站式平台。" />
+  <meta property="og:image" content="https://liankebao.top/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:url" content="https://liankebao.top/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="链客宝" />
+  <meta property="og:locale" content="zh_CN" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="链客宝 — 企业家供需匹配平台" />
+  <meta name="twitter:description" content="链客宝帮助企业家高效匹配资源、商机和合作伙伴。智能名片、信任评分、供需对接一站式平台。" />
+  <meta name="twitter:image" content="https://liankebao.top/og-image.png" />
+
+  <!-- Icons & PWA -->
+  <link rel="icon" type="image/png" href="/icons/icon-192x192.png" />
+  <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+  <link rel="manifest" href="/manifest.json" />
+
+  <title>链客宝 — 企业家供需匹配平台</title>
+
+  <!-- ====================================================================== -->
+  <!-- 骨架屏 (Skeleton Screen)                                               -->
+  <!-- 在 JS 加载完成前显示，React 挂载后自动被替换                            -->
+  <!-- ====================================================================== -->
+  <style>
+    /* ── 动画定义 ────────────────────────────────────────────────────────── */
+    @keyframes skeleton-shimmer {
+      0%   { background-position: -400px 0; }
+      100% { background-position: calc(400px + 100%) 0; }
+    }
+    @keyframes skeleton-fadein {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    /* ── 骨架屏容器 ──────────────────────────────────────────────────────── */
+    #skeleton-screen {
+      animation: skeleton-fadein 0.3s ease-out;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                   "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
+      color: #111827;
+    }
+
+    /* 当 React 挂载后隐藏骨架屏 — 由 JS 添加 .skeleton-hidden 类 */
+    #skeleton-screen.skeleton-hidden {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease-out;
+    }
+
+    /* ── 发光占位块 ──────────────────────────────────────────────────────── */
+    .sk-block {
+      background: linear-gradient(
+        90deg,
+        #f0f0f0 25%,
+        #e0e0e0 37%,
+        #f0f0f0 63%
+      );
+      background-size: 400px 100%;
+      animation: skeleton-shimmer 1.4s ease-in-out infinite;
+      border-radius: 8px;
+    }
+    .sk-block-sm  { border-radius: 4px; }
+    .sk-block-lg  { border-radius: 12px; }
+
+    /* ── 文字占位 ────────────────────────────────────────────────────────── */
+    .sk-text {
+      height: 16px;
+      margin-bottom: 10px;
+      background: linear-gradient(
+        90deg,
+        #f0f0f0 25%,
+        #e0e0e0 37%,
+        #f0f0f0 63%
+      );
+      background-size: 400px 100%;
+      animation: skeleton-shimmer 1.4s ease-in-out infinite;
+      border-radius: 4px;
+    }
+    .sk-text-title { height: 28px; width: 60%; margin: 0 auto 16px auto; }
+    .sk-text-sub   { height: 18px; width: 45%; margin: 0 auto 32px auto; }
+
+    /* ── 按钮占位 ────────────────────────────────────────────────────────── */
+    .sk-btn-row {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+    }
+    .sk-btn {
+      width: 140px;
+      height: 44px;
+      background: linear-gradient(
+        90deg,
+        #e8e8e8 25%,
+        #d8d8d8 37%,
+        #e8e8e8 63%
+      );
+      background-size: 400px 100%;
+      animation: skeleton-shimmer 1.4s ease-in-out infinite;
+      border-radius: 8px;
+    }
+
+    /* ── 卡片占位 ────────────────────────────────────────────────────────── */
+    .sk-card {
+      padding: 24px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .sk-card-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .sk-card-row:last-child { margin-bottom: 0; }
+    .sk-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: linear-gradient(
+        90deg,
+        #f0f0f0 25%,
+        #e0e0e0 37%,
+        #f0f0f0 63%
+      );
+      background-size: 400px 100%;
+      animation: skeleton-shimmer 1.4s ease-in-out infinite;
+    }
+    .sk-card-content { flex: 1; }
+    .sk-line { height: 14px; margin-bottom: 8px; }
+    .sk-line:last-child { width: 60%; margin-bottom: 0; }
+
+    /* ── 布局容器 ────────────────────────────────────────────────────────── */
+    .sk-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 60px 20px;
+    }
+    .sk-header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    .sk-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    /* ── 导航栏占位 ──────────────────────────────────────────────────────── */
+    .sk-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 24px;
+      border-bottom: 1px solid #e5e7eb;
+      background: #fff;
+    }
+    .sk-logo { width: 120px; height: 32px; }
+    .sk-nav-links { display: flex; gap: 24px; }
+    .sk-nav-link { width: 56px; height: 16px; }
+
+    /* ── 页面特定: 信任评分页 ────────────────────────────────────────────── */
+    .sk-score-circle {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      margin: 0 auto 24px auto;
+    }
+    .sk-score-label {
+      width: 100px;
+      height: 14px;
+      margin: 0 auto;
+    }
+
+    /* ── 预渲染标记（由 pre-render.js 注入） ─────────────────────────────── */
+    #skeleton-screen .prerender-marker { display: none; }
+
+    /* ── 响应式 ──────────────────────────────────────────────────────────── */
+    @media (max-width: 640px) {
+      .sk-container { padding: 40px 16px; }
+      .sk-btn { width: 120px; height: 40px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- ==================================================================== -->
+  <!-- 骨架屏 HTML (首屏展示, JS 加载后自动替换)                            -->
+  <!-- ==================================================================== -->
+  <div id="skeleton-screen">
+    <!-- 导航栏骨架 -->
+    <div class="sk-nav">
+      <div class="sk-block sk-logo" style="height:32px; width:120px;"></div>
+      <div class="sk-nav-links">
+        <div class="sk-block sk-nav-link"></div>
+        <div class="sk-block sk-nav-link"></div>
+        <div class="sk-block sk-nav-link"></div>
+        <div class="sk-block sk-nav-link"></div>
+      </div>
+    </div>
+
+    <!-- 主内容骨架: 首页 -->
+    <div class="sk-container">
+      <div class="sk-header">
+        <div class="sk-block sk-text-title"></div>
+        <div class="sk-block sk-text-sub"></div>
+        <div class="sk-btn-row">
+          <div class="sk-btn"></div>
+          <div class="sk-btn"></div>
+        </div>
+      </div>
+
+      <!-- 功能卡片骨架 -->
+      <div class="sk-grid">
+        <div class="sk-card">
+          <div class="sk-card-row">
+            <div class="sk-avatar"></div>
+            <div class="sk-card-content">
+              <div class="sk-block sk-line" style="width:40%;"></div>
+              <div class="sk-block sk-line"></div>
+              <div class="sk-block sk-line" style="width:70%;"></div>
+            </div>
+          </div>
+        </div>
+        <div class="sk-card">
+          <div class="sk-card-row">
+            <div class="sk-avatar"></div>
+            <div class="sk-card-content">
+              <div class="sk-block sk-line" style="width:45%;"></div>
+              <div class="sk-block sk-line"></div>
+              <div class="sk-block sk-line" style="width:65%;"></div>
+            </div>
+          </div>
+        </div>
+        <div class="sk-card">
+          <div class="sk-card-row">
+            <div class="sk-avatar"></div>
+            <div class="sk-card-content">
+              <div class="sk-block sk-line" style="width:35%;"></div>
+              <div class="sk-block sk-line"></div>
+              <div class="sk-block sk-line" style="width:75%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 预渲染静默标记: 供 pre-render.js 识别 -->
+    <div class="prerender-marker" style="display:none;" data-prerender="chainke-skeleton"></div>
+  </div>
+
+  <!-- ==================================================================== -->
+  <!-- React 应用挂载点                                                     -->
+  <!-- ==================================================================== -->
+  <div id="root"></div>
+
+  <!-- ==================================================================== -->
+  <!-- 骨架屏隐藏脚本 (在 React 加载前执行, 确保无闪烁)                    -->
+  <!-- ==================================================================== -->
+  <script>
+    (function() {
+      'use strict';
+      var skeleton = document.getElementById('skeleton-screen');
+      var rootEl   = document.getElementById('root');
+
+      /**
+       * 隐藏骨架屏, 显示 React 内容
+       * 由 React 渲染完成后调用, 或作为超时保底
+       */
+      window.__hideSkeleton = function() {
+        if (!skeleton) return;
+        skeleton.classList.add('skeleton-hidden');
+        // 完全移除骨架屏 DOM 以释放内存 (骨架屏在 transition 结束后移除)
+        setTimeout(function() {
+          if (skeleton && skeleton.parentNode) {
+            skeleton.parentNode.removeChild(skeleton);
+          }
+        }, 300);
+      };
+
+      /**
+       * 强制显示 React 根节点
+       * React 会在 #root 中渲染, 但骨架屏可能遮挡, 确保 z-index 正确
+       */
+      if (rootEl) {
+        rootEl.style.position = 'relative';
+        rootEl.style.zIndex   = '1';
+      }
+      if (skeleton) {
+        skeleton.style.position = 'relative';
+        skeleton.style.zIndex   = '10';
+      }
+
+      // 保底: 8 秒后自动隐藏骨架屏 (防止 JS 加载失败导致永久骨架屏)
+      setTimeout(function() {
+        if (window.__hideSkeleton) window.__hideSkeleton();
+      }, 8000);
+    })();
+  </script>
+
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+User-agent: *
+Allow: /
+Sitemap: https://liankebao.top/sitemap.xml
+
+# 禁止爬取敏感路径
+Disallow: /admin/
+Disallow: /api/
+Disallow: /private/
+Disallow: /temp/
+Disallow: /draft/
+Disallow: /_next/
+
+# 设置爬取间隔（建议值）
+Crawl-delay: 10
+
+# 指定AI知识库爬虫
+User-agent: GPTBot
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+
+User-agent: CCBot
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+
+User-agent: anthropic-ai
+Allow: /
+Disallow: /admin/
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /admin/
+
+# 生成时间: 2026-06-24 19:14:30

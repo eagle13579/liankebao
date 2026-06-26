@@ -1,0 +1,136 @@
+# 技术债扫描报告 — 链客宝
+*扫描时间: 2026-06-08 06:21:53 UTC | 耗时: 0.34s*
+
+---
+
+## 📊 代码健康概览
+
+- **健康评分**: 80.0/100
+- **Python 文件数**: 22
+- **总行数**: 6,448
+- **代码行数**: 4,752
+- **注释行数**: 707 (11.0%)
+- **空行数**: 989 (15.3%)
+- **平均每文件行数**: 293.1
+- **平均圈复杂度**: 4.05
+
+### ⚠️ 门槛违规
+
+- 🔴 发现 4 个超长函数 (阈值: ≤100行)
+- 🔴 高风险文件数 9 超过阈值 5
+
+## 📁 目录分布
+
+| 目录 | 文件数 |
+|------|-------:|
+| backend\app | 1 |
+| backend\app\routers | 7 |
+| backend\features\data_pipeline | 5 |
+| backend\tests | 8 |
+| scripts | 1 |
+
+## 🧵 超长函数 (>100行)
+
+| 文件 | 函数 | 行数 |
+|------|------|-----:|
+| `backend\features\data_pipeline\analyzer.py:107` | `analyze` | 104 |
+| `backend\features\data_pipeline\analyzer.py:358` | `analyze` | 122 |
+| `backend\features\data_pipeline\collector.py:170` | `collect` | 121 |
+| `backend\features\data_pipeline\collector.py:311` | `collect` | 140 |
+
+## 🔄 圈复杂度排名 (Top 20)
+
+| 文件 | 平均复杂度 | 最高复杂度 | 高风险函数数 |
+|------|----------:|----------:|------------:|
+| `backend\features\data_pipeline\analyzer.py` | 10.19 | 43.00 | 9 |
+| `backend\app\routers\learning_center.py` | 4.41 | 17.00 | 2 |
+| `backend\app\routers\retro_board.py` | 4.22 | 17.00 | 1 |
+| `backend\app\routers\retention_insights.py` | 4.12 | 16.00 | 2 |
+| `backend\features\data_pipeline\collector.py` | 4.03 | 15.00 | 3 |
+| `backend\app\routers\sales_script.py` | 3.15 | 14.00 | 1 |
+| `backend\app\routers\unit_economics.py` | 4.18 | 13.00 | 2 |
+| `backend\features\data_pipeline\pipeline.py` | 3.40 | 12.00 | 1 |
+| `backend\app\routers\hypothesis_gate.py` | 3.46 | 11.00 | 1 |
+| `backend\tests\test_learning_center.py` | 4.06 | 9.00 | 0 |
+| `backend\tests\test_data_pipeline.py` | 3.53 | 7.00 | 0 |
+| `backend\tests\test_retention_insights.py` | 3.71 | 7.00 | 0 |
+| `backend\tests\test_retro_board.py` | 3.42 | 7.00 | 0 |
+| `backend\tests\test_unit_economics.py` | 3.95 | 7.00 | 0 |
+| `backend\tests\test_sales_script.py` | 3.67 | 6.00 | 0 |
+| `scripts\replace_appid.py` | 6.00 | 6.00 | 0 |
+| `backend\features\data_pipeline\config.py` | 2.00 | 5.00 | 0 |
+| `backend\tests\test_hypothesis_gate.py` | 3.68 | 5.00 | 0 |
+| `backend\tests\conftest.py` | 1.73 | 3.00 | 0 |
+
+## 🚨 高风险模块 (复杂度 > 10)
+
+### `backend\features\data_pipeline\analyzer.py`
+
+| 函数 | 行号 | 复杂度 | 等级 |
+|------|:----:|-------:|:----:|
+| `RetentionAnalyzer.analyze` | 107 | 43 | F |
+| `EconomicsAnalyzer.analyze` | 358 | 40 | E |
+| `LearningAnalyzer.analyze` | 235 | 38 | E |
+| `RetentionAnalyzer` | 92 | 23 | D |
+| `EconomicsAnalyzer` | 342 | 22 | D |
+| `LearningAnalyzer` | 219 | 21 | D |
+| `HypothesisAnalyzer.analyze` | 503 | 20 | C |
+| `HypothesisAnalyzer` | 488 | 12 | C |
+| `CompositeAnalyzer._generate_cross_insights` | 657 | 12 | C |
+
+### `backend\app\routers\learning_center.py`
+
+| 函数 | 行号 | 复杂度 | 等级 |
+|------|:----:|-------:|:----:|
+| `get_learning_dashboard` | 379 | 17 | C |
+| `_get_next_learning_stage` | 407 | 16 | C |
+
+### `backend\app\routers\retro_board.py`
+
+| 函数 | 行号 | 复杂度 | 等级 |
+|------|:----:|-------:|:----:|
+| `get_board_summary` | 278 | 17 | C |
+
+### `backend\app\routers\retention_insights.py`
+
+| 函数 | 行号 | 复杂度 | 等级 |
+|------|:----:|-------:|:----:|
+| `get_retention_overview` | 304 | 16 | C |
+| `_calculate_cohort_retention` | 154 | 12 | C |
+
+### `backend\features\data_pipeline\collector.py`
+
+| 函数 | 行号 | 复杂度 | 等级 |
+|------|:----:|-------:|:----:|
+| `LearningCollector.collect` | 311 | 15 | C |
+| `RetentionCollector.collect` | 170 | 13 | C |
+| `EconomicsCollector.collect` | 469 | 11 | C |
+
+### `backend\app\routers\sales_script.py`
+
+| 函数 | 行号 | 复杂度 | 等级 |
+|------|:----:|-------:|:----:|
+| `_calculate_tension_score` | 332 | 14 | C |
+
+### `backend\app\routers\unit_economics.py`
+
+| 函数 | 行号 | 复杂度 | 等级 |
+|------|:----:|-------:|:----:|
+| `_calculate_unit_economics` | 117 | 13 | C |
+| `_calculate_health_score` | 261 | 11 | C |
+
+### `backend\features\data_pipeline\pipeline.py`
+
+| 函数 | 行号 | 复杂度 | 等级 |
+|------|:----:|-------:|:----:|
+| `DataPipeline._build_report` | 372 | 12 | C |
+
+### `backend\app\routers\hypothesis_gate.py`
+
+| 函数 | 行号 | 复杂度 | 等级 |
+|------|:----:|-------:|:----:|
+| `gate_check` | 244 | 11 | C |
+
+---
+
+*由链客宝技术债扫描工具自动生成*

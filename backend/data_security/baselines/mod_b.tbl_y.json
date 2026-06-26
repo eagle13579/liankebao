@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "created_at": 1782443985.4645665,
+  "updated_at": 1782453333.42424,
+  "write_count": 14,
+  "frequencies": [
+    1782453333.42424
+  ],
+  "field_stats": {
+    "val": {
+      "types": {
+        "int": 14
+      },
+      "lengths": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "special_char_ratios": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "values": {
+        "2": 14
+      }
+    }
+  },
+  "semantic_types": {
+    "val": {
+      "phone": 0,
+      "email": 0,
+      "url": 0,
+      "ip": 0,
+      "plain": 14
+    }
+  },
+  "violation_history": [],
+  "violation_field_dist": {},
+  "foreign_keys": {},
+  "total_writes": 14,
+  "history_scores": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ]
+}

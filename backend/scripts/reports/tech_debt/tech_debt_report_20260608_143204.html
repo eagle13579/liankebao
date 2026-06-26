@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>技术债扫描报告 — 链客宝</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; line-height: 1.6; padding: 2rem; }
+.container { max-width: 1200px; margin: 0 auto; }
+h1 { font-size: 2rem; margin-bottom: 0.5rem; color: #38bdf8; }
+h2 { font-size: 1.4rem; margin: 2rem 0 1rem; color: #94a3b8; border-bottom: 1px solid #1e293b; padding-bottom: 0.5rem; }
+h3 { font-size: 1.1rem; margin: 1rem 0 0.5rem; color: #cbd5e1; }
+.meta { color: #64748b; font-size: 0.9rem; margin-bottom: 2rem; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1rem 0; }
+.card { background: #1e293b; border-radius: 0.75rem; padding: 1.25rem; border: 1px solid #334155; }
+.card .label { font-size: 0.85rem; color: #94a3b8; }
+.card .value { font-size: 2rem; font-weight: 700; color: #38bdf8; }
+.card .value.warn { color: #fbbf24; }
+.card .value.danger { color: #ef4444; }
+.card .value.good { color: #22c55e; }
+table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+th, td { padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid #1e293b; }
+th { color: #94a3b8; font-weight: 600; font-size: 0.85rem; }
+td { font-size: 0.9rem; }
+tr:hover td { background: #1e293b; }
+code { background: #0f172a; padding: 0.15rem 0.4rem; border-radius: 0.25rem; font-size: 0.85rem; }
+.warning { background: #451a03; color: #fbbf24; padding: 0.75rem 1rem; border-radius: 0.5rem; margin: 0.5rem 0; }
+.danger { background: #450a0a; color: #ef4444; padding: 0.75rem 1rem; border-radius: 0.5rem; margin: 0.5rem 0; }
+.good { background: #052e16; color: #22c55e; padding: 0.75rem 1rem; border-radius: 0.5rem; margin: 0.5rem 0; }
+.footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #1e293b; color: #64748b; font-size: 0.85rem; }
+.badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+.badge-high { background: #450a0a; color: #ef4444; }
+.badge-medium { background: #451a03; color: #fbbf24; }
+.badge-low { background: #052e16; color: #22c55e; }
+.health-score { font-size: 4rem; font-weight: 800; text-align: center; }
+.health-label { text-align: center; font-size: 1rem; color: #94a3b8; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>🔍 技术债扫描报告</h1>
+<div class="meta">链客宝 · 2026-06-08 06:32:04 UTC · 耗时 0.06s</div>
+
+<div class="grid">
+  <div class="card">
+    <div class="label">健康评分</div>
+    <div class="value danger">52.0</div>
+    <div style="font-size:0.8rem;color:#64748b">/ 100</div>
+  </div>
+  <div class="card">
+    <div class="label">Python 文件</div>
+    <div class="value">1</div>
+  </div>
+  <div class="card">
+    <div class="label">总代码行数</div>
+    <div class="value">1,134</div>
+  </div>
+  <div class="card">
+    <div class="label">平均圈复杂度</div>
+    <div class="value">9.84</div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <div class="label">注释率</div>
+    <div class="value">8.0%</div>
+  </div>
+  <div class="card">
+    <div class="label">TODO/FIXME/HACK</div>
+    <div class="value good">0</div>
+  </div>
+  <div class="card">
+    <div class="label">高风险文件</div>
+    <div class="value danger">1</div>
+  </div>
+  <div class="card">
+    <div class="label">安全问题</div>
+    <div class="value danger">14</div>
+  </div>
+</div>
+<h2>⚠️ 门槛违规</h2>
+<div class="warning">🚨 发现 1 个超大文件 (阈值: ≤1000行)</div>
+<div class="warning">🚨 发现 4 个超长函数 (阈值: ≤100行)</div>
+<div class="warning">🚨 发现 14 个安全问题 (密钥: 0, 不安全函数: 8, SQL注入: 6)</div>
+<h2>📁 目录分布</h2>
+<table><thead><tr><th>目录</th><th style="text-align:right">文件数</th></tr></thead><tbody>
+<tr><td>.</td><td style="text-align:right">1</td></tr>
+</tbody></table>
+<h2>🗂️ 超大文件 (&gt;1000行)</h2>
+<table><thead><tr><th>文件</th><th style="text-align:right">行数</th></tr></thead><tbody>
+<tr><td><code>tech_debt_scanner.py</code></td><td style="text-align:right">1,469</td></tr>
+</tbody></table>
+<h2>🧵 超长函数 (&gt;100行)</h2>
+<table><thead><tr><th>文件</th><th>函数</th><th style="text-align:right">行数</th></tr></thead><tbody>
+<tr><td><code>tech_debt_scanner.py:645</code></td><td><code>generate_markdown_report</code></td><td style="text-align:right">139</td></tr>
+<tr><td><code>tech_debt_scanner.py:791</code></td><td><code>generate_html_report</code></td><td style="text-align:right">187</td></tr>
+<tr><td><code>tech_debt_scanner.py:986</code></td><td><code>run_scan</code></td><td style="text-align:right">213</td></tr>
+<tr><td><code>tech_debt_scanner.py:1333</code></td><td><code>main</code></td><td style="text-align:right">132</td></tr>
+</tbody></table>
+<h2>🔄 圈复杂度排名 (Top 20)</h2>
+<table><thead><tr><th>文件</th><th style="text-align:right">平均复杂度</th><th style="text-align:right">最高复杂度</th><th style="text-align:right">高风险函数</th></tr></thead><tbody>
+<tr><td><code>tech_debt_scanner.py</code></td><td style="text-align:right">9.84</td><td style="text-align:right">38.00</td><td style="text-align:right">8</td></tr>
+</tbody></table>
+<h2>🚨 高风险模块 (复杂度 &gt;10)</h2>
+<h3><code>tech_debt_scanner.py</code></h3>
+<table><thead><tr><th>函数</th><th style="text-align:right">行号</th><th style="text-align:right">复杂度</th><th>等级</th></tr></thead><tbody>
+<tr><td><code>generate_html_report</code></td><td style="text-align:right">791</td><td style="text-align:right">38</td><td><span class="badge badge-high">E</span></td></tr>
+<tr><td><code>generate_markdown_report</code></td><td style="text-align:right">645</td><td style="text-align:right">31</td><td><span class="badge badge-high">E</span></td></tr>
+<tr><td><code>run_scan</code></td><td style="text-align:right">986</td><td style="text-align:right">23</td><td><span class="badge badge-high">D</span></td></tr>
+<tr><td><code>main</code></td><td style="text-align:right">1333</td><td style="text-align:right">20</td><td><span class="badge badge-high">C</span></td></tr>
+<tr><td><code>build_dependency_graph</code></td><td style="text-align:right">546</td><td style="text-align:right">16</td><td><span class="badge badge-high">C</span></td></tr>
+<tr><td><code>find_python_files</code></td><td style="text-align:right">229</td><td style="text-align:right">15</td><td><span class="badge badge-high">C</span></td></tr>
+<tr><td><code>count_lines</code></td><td style="text-align:right">275</td><td style="text-align:right">11</td><td><span class="badge badge-high">C</span></td></tr>
+<tr><td><code>security_scan_file</code></td><td style="text-align:right">474</td><td style="text-align:right">11</td><td><span class="badge badge-high">C</span></td></tr>
+</tbody></table>
+<h2>🔒 安全问题</h2>
+<h3>不安全函数调用 (8)</h3>
+<ul>
+<li><code>tech_debt_scanner.py:165</code> — <code>eval(</code> → <code>"eval(", "exec(", "pickle.loads(", "pickle.load(",</code></li>
+<li><code>tech_debt_scanner.py:165</code> — <code>exec(</code> → <code>"eval(", "exec(", "pickle.loads(", "pickle.load(",</code></li>
+<li><code>tech_debt_scanner.py:165</code> — <code>pickle.loads(</code> → <code>"eval(", "exec(", "pickle.loads(", "pickle.load(",</code></li>
+<li><code>tech_debt_scanner.py:165</code> — <code>pickle.load(</code> → <code>"eval(", "exec(", "pickle.loads(", "pickle.load(",</code></li>
+<li><code>tech_debt_scanner.py:166</code> — <code>marshal.load(</code> → <code>"marshal.load(", "marshal.loads(", "__import__(", "compile(",</code></li>
+<li><code>tech_debt_scanner.py:166</code> — <code>marshal.loads(</code> → <code>"marshal.load(", "marshal.loads(", "__import__(", "compile(",</code></li>
+<li><code>tech_debt_scanner.py:166</code> — <code>__import__(</code> → <code>"marshal.load(", "marshal.loads(", "__import__(", "compile(",</code></li>
+<li><code>tech_debt_scanner.py:166</code> — <code>compile(</code> → <code>"marshal.load(", "marshal.loads(", "__import__(", "compile(",</code></li>
+</ul>
+<h3>SQL 注入风险 (6)</h3>
+<ul>
+<li><code>tech_debt_scanner.py:169</code> — <code>r"f['\"]?.*SELECT.*FROM.*WHERE.*\{",</code></li>
+<li><code>tech_debt_scanner.py:170</code> — <code>r"f['\"]?.*INSERT INTO.*\{",</code></li>
+<li><code>tech_debt_scanner.py:171</code> — <code>r"f['\"]?.*DELETE FROM.*\{",</code></li>
+<li><code>tech_debt_scanner.py:172</code> — <code>r"f['\"]?.*UPDATE.*SET.*\{",</code></li>
+<li><code>tech_debt_scanner.py:173</code> — <code>r"%s.*SELECT",</code></li>
+<li><code>tech_debt_scanner.py:174</code> — <code>r"\+.*SELECT.*FROM",</code></li>
+</ul>
+<div class="footer">由 链客宝技术债扫描工具 自动生成</div>
+</div>
+</body>
+</html>

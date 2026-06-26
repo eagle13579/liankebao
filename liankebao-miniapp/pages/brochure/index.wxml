@@ -1,0 +1,92 @@
+<!-- 链客宝AI数字名片 - 翻页画册 -->
+<view class="brochure-container">
+
+  <!-- 顶部分享按钮 -->
+  <view class="share-bar">
+    <view class="share-btn" bindtap="handleShare">
+      <image class="share-icon" src="/assets/images/share-icon.png" mode="aspectFill" />
+      <text class="share-text">分享给客户</text>
+    </view>
+  </view>
+
+  <!-- 画册区域 -->
+  <view
+    class="album-wrapper"
+    bindtouchstart="handleTouchStart"
+    bindtouchmove="handleTouchMove"
+    bindtouchend="handleTouchEnd"
+  >
+    <!-- 封面页 -->
+    <view class="page-card {{currentPage === 0 ? 'active' : 'prev'}}">
+      <view class="card-content card-cover">
+        <view class="cover-avatar">
+          <image class="avatar-pulse" src="{{userInfo.avatar || '/assets/images/avatar-default.png'}}" mode="aspectFill" />
+        </view>
+        <text class="cover-name">{{userInfo.name || '链客宝'}}</text>
+        <text class="cover-title">{{userInfo.company || userInfo.position || 'AI数字名片'}}</text>
+        <text class="cover-desc">{{userInfo.bio || '智能连接 · 高效转化'}}</text>
+        <view class="cover-badge" wx:if="{{hasBadge}}">AI赋能</view>
+      </view>
+    </view>
+
+    <!-- 产品页 -->
+    <view class="page-card {{currentPage === 1 ? 'active' : (currentPage < 1 ? 'next' : 'prev')}}">
+      <view class="card-content card-product">
+        <text class="section-title">核心产品</text>
+        <view class="product-list">
+          <view class="product-item" wx:for="{{products}}" wx:key="index" wx:for-item="prod">
+            <text class="product-name">{{prod.name || prod.title || prod.product_name || ''}}</text>
+            <text class="product-desc">{{prod.desc || prod.description || prod.content || ''}}</text>
+          </view>
+          <view wx:if="{{products.length === 0}}" class="empty-tip">
+            <text class="empty-text">暂无产品信息</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 需求页 -->
+    <view class="page-card {{currentPage === 2 ? 'active' : (currentPage < 2 ? 'next' : 'prev')}}">
+      <view class="card-content card-demand">
+        <text class="section-title">合作需求</text>
+        <view class="demand-list">
+          <view class="demand-tag" wx:for="{{needs}}" wx:key="index" wx:for-item="need">
+            {{need.name || need.title || need.demand_name || need}}
+          </view>
+          <view wx:if="{{needs.length === 0}}" class="empty-tip">
+            <text class="empty-text">暂无需求信息</text>
+          </view>
+        </view>
+        <view class="contact-hint">
+          <text>期待与您深入交流</text>
+          <text class="contact-phone" wx:if="{{userInfo.phone || userInfo.mobile || userInfo.contact}}">
+            联系方式：{{userInfo.phone || userInfo.mobile || userInfo.contact}}
+          </text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部页码指示器 -->
+  <view class="page-indicator">
+    <view
+      wx:for="{{pages}}"
+      wx:key="id"
+      class="indicator-dot {{currentPage === index ? 'active' : ''}}"
+      data-page="{{index}}"
+      bindtap="goToPage"
+    ></view>
+  </view>
+
+  <!-- 翻页提示 -->
+  <view class="swipe-hint">
+    <text wx:if="{{currentPage > 0}}" class="hint-arrow left">‹ 上一页</text>
+    <text wx:if="{{currentPage < totalPages - 1}}" class="hint-arrow right">下一页 ›</text>
+  </view>
+
+  <!-- 免费创建名片按钮 -->
+  <view class="create-card-btn" bindtap="goToCreateCard">
+    <text class="create-card-btn-text">免费创建我的AI名片</text>
+  </view>
+
+</view>

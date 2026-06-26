@@ -1,0 +1,133 @@
+# =============================================================================
+# 链客宝 — Docker Compose 生产编排 (web + PostgreSQL)
+# =============================================================================
+# 使用方式:
+#   docker compose -f deploy/docker/docker-compose.yml up -d
+# =============================================================================
+
+services:
+
+  # ── Web (Nginx + FastAPI) ───────────────────────────────────────────────────
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.prod
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    container_name: chainke-web
+    ports:
+      - "80:80"
+    env_file:
+      - ../../.env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://chainke:chainke_secret@postgres:5432/chainke
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - chainke-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: chainke-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: chainke
+      POSTGRES_PASSWORD: chainke_secret
+      POSTGRES_DB: chainke
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - chainke-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chainke -d chainke"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Redis (缓存/会话) ──────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: chainke-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - chainke-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Prerender (Puppeteer 动态 SSR 预渲染) ──────────────────────────────
+  prerender:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.prerender
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    container_name: chainke-prerender
+    ports:
+      - "3001:3001"
+    environment:
+      - PRERENDER_PORT=3001
+      - PRERENDER_HOST=0.0.0.0
+      - PRERENDER_CACHE_SIZE=100
+      - PRERENDER_TIMEOUT=30
+      - LOG_LEVEL=info
+      - SITE_URL=https://liankebao.top
+    cap_add:
+      # Chromium 沙盒需要
+      - SYS_ADMIN
+    restart: unless-stopped
+    networks:
+      - chainke-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  pg-data:
+    driver: local
+  redis-data:
+    driver: local
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  chainke-net:
+    driver: bridge

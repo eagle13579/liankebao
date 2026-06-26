@@ -143,8 +143,65 @@ ABACC_PRESETS: list[SalesScript] = [
 # 内存ID计数器
 _next_id = 3
 
+
+def _tension_checks(text: str, re_module) -> list[bool]:
+    """构建张力检查规则列表"""
+    return [
+        _has_digit(text),
+        _has_contrast(text),
+        _has_pain_point(text),
+        _has_call_to_action(text),
+        _has_specific_data(text, re_module),
+        _has_analogy(text),
+        _has_urgency(text),
+        _has_social_proof(text),
+        _has_future_scene(text),
+        _has_rhetorical_question(text),
+    ]
+
+
+def _has_digit(t: str) -> bool:
+    return any(c.isdigit() for c in t)
+
+
+def _has_contrast(t: str) -> bool:
+    return any(w in t for w in ["对比", "传统", "而", "vs", "VS", "比"])
+
+
+def _has_pain_point(t: str) -> bool:
+    return any(w in t for w in ["痛点", "问题", "困难", "挑战", "浪费", "损失", "成本高", "效率低"])
+
+
+def _has_call_to_action(t: str) -> bool:
+    return any(w in t for w in ["立即", "现在", "扫码", "点击", "注册", "试试", "体验"])
+
+
+def _has_specific_data(t: str, re_module) -> bool:
+    return bool(re_module.search(r'\d+%|\d+倍|\d+元|\d+单|\d+家|\d+天|\d+小时|\d+分钟', t))
+
+
+def _has_analogy(t: str) -> bool:
+    return any(w in t for w in ["相当于", "等于", "好比", "就像", "如同"])
+
+
+def _has_urgency(t: str) -> bool:
+    return any(w in t for w in ["限时", "仅剩", "最后", "名额", "错过"])
+
+
+def _has_social_proof(t: str) -> bool:
+    return any(w in t for w in ["同行", "TOP", "标杆", "已经有", "增长"])
+
+
+def _has_future_scene(t: str) -> bool:
+    return any(w in t for w in ["想象", "当您", "半年后", "到那时"])
+
+
+def _has_rhetorical_question(t: str) -> bool:
+    return "?" in t or "？" in t or "对吗" in t or "是吧" in t
+
+
 # ---------------------------------------------------------------------------
-# 张力武器库
+# FastAPI 路由
 # ---------------------------------------------------------------------------
 
 class DataAugmenter(BaseModel):
@@ -333,20 +390,9 @@ try:
         """简单的规则评分引擎"""
         import re
         score = 50  # 基准分
-        checks = {
-            "有数字": lambda t: any(c.isdigit() for c in t),
-            "有对比": lambda t: any(w in t for w in ["对比", "传统", "而", "vs", "VS", "比"]),
-            "有痛点": lambda t: any(w in t for w in ["痛点", "问题", "困难", "挑战", "浪费", "损失", "成本高", "效率低"]),
-            "有行动号召": lambda t: any(w in t for w in ["立即", "现在", "扫码", "点击", "注册", "试试", "体验"]),
-            "有具体数据": lambda t: bool(re.search(r'\d+%|\d+倍|\d+元|\d+单|\d+家|\d+天|\d+小时|\d+分钟', t)),
-            "有类比": lambda t: any(w in t for w in ["相当于", "等于", "好比", "就像", "如同"]),
-            "有紧迫感": lambda t: any(w in t for w in ["限时", "仅剩", "最后", "名额", "错过"]),
-            "有社会认同": lambda t: any(w in t for w in ["同行", "TOP", "标杆", "已经有", "增长"]),
-            "有未来画面": lambda t: any(w in t for w in ["想象", "当您", "半年后", "到那时"]),
-            "有反问句": lambda t: "?" in t or "？" in t or "对吗" in t or "是吧" in t,
-        }
-        for _, check in checks.items():
-            if check(text):
+        checks = _tension_checks(text, re)
+        for check_passed in checks:
+            if check_passed:
                 score += 5
         return min(score, 100)
 

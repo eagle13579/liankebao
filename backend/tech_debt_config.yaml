@@ -1,0 +1,107 @@
+# ==============================================================================
+# 链客宝 技术债扫描配置
+# ==============================================================================
+
+# 扫描目标路径（相对 BACKEND 根目录，即 D:\\chainke-full\\backend）
+# 注意：不要加 "backend/" 前缀 — 脚本在 backend 根目录运行
+scan_paths:
+  - app
+  - features
+  - tests
+  - scripts
+
+# 排除模式（glob）
+exclude_patterns:
+  - "**/__pycache__/**"
+  - "**/*.pyc"
+  - "**/.git/**"
+  - "**/venv/**"
+  - "**/.venv/**"
+  - "**/node_modules/**"
+  - "**/migrations/**"
+
+# 文件扩展名
+extensions:
+  - ".py"
+
+# ---------------------------------------------------------------------------
+# 门槛值 (thresholds)
+# ---------------------------------------------------------------------------
+thresholds:
+  # 圈复杂度阈值 — 超过视为高风险
+  cyclomatic_complexity: 10
+  # 文件行数阈值 — 超过视为超大文件
+  file_line_count: 1000
+  # 函数行数阈值 — 超过视为超长函数
+  function_line_count: 100
+  # TODO/FIXME/HACK 容忍数 — 超过触发警告
+  todo_tolerance: 10
+  # 文件最大容忍数 — 超过此数量的文件有高风险则失败
+  max_high_risk_files: 5
+
+# ---------------------------------------------------------------------------
+# 安全扫描规则
+# ---------------------------------------------------------------------------
+security:
+  # 硬编码密钥/密码的正则模式
+  secret_patterns:
+    - "password\\s*[=:]\\s*['\"][^'\"]+['\"]"
+    - "api_key\\s*[=:]\\s*['\"][^'\"]+['\"]"
+    - "secret\\s*[=:]\\s*['\"][^'\"]+['\"]"
+    - "token\\s*[=:]\\s*['\"][^'\"]+['\"]"
+    - "SK-[a-zA-Z0-9]{20,}"  # OpenAI-style keys
+    - "AKIA[0-9A-Z]{16}"     # AWS access key
+
+  # 不安全的函数调用
+  unsafe_functions:
+    - "eval("
+    - "exec("
+    - "pickle.loads("
+    - "pickle.load("
+    - "marshal.load("
+    - "marshal.loads("
+    - "__import__("
+    - "compile("
+
+  # SQL注入风险模式
+  sql_injection_patterns:
+    - "f['\"]?.*SELECT.*FROM.*WHERE.*\\{"
+    - "f['\"]?.*INSERT INTO.*\\{"
+    - "f['\"]?.*DELETE FROM.*\\{"
+    - "f['\"]?.*UPDATE.*SET.*\\{"
+    - "%s.*SELECT"
+    - "\\+.*SELECT.*FROM"
+    - "execute\\(.*f['\"]"
+    - "execute\\(.*\\+"
+
+# ---------------------------------------------------------------------------
+# 报告输出配置
+# ---------------------------------------------------------------------------
+report:
+  output_dir: "reports/tech_debt"
+  formats:
+    - json
+    - markdown
+    - html
+  # 是否在发现高风险项时以非零退出（用于CI）
+  fail_on_high_risk: true
+
+# ---------------------------------------------------------------------------
+# 依赖分析配置
+# ---------------------------------------------------------------------------
+dependencies:
+  # 项目根目录，用于解析 import
+  project_root: "."
+  # 已知的第三方包（不会标记为未安装）
+  known_third_party:
+    - fastapi
+    - uvicorn
+    - pydantic
+    - openai
+    - python_multipart
+    - python_docx
+    - openpyxl
+    - PyPDF2
+    - httpx
+    - pytest
+    - dotenv
