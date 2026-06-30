@@ -3,7 +3,8 @@
 提供: 扫码登录 / OAuth / JS-SDK 配置
 """
 import logging, os, time, uuid
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Response
+import io, qrcode
 from pydantic import BaseModel
 from app.wechat_sdk import WeChatOAuth
 
@@ -35,7 +36,7 @@ async def create_qr_session():
     session = QRSession()
     _qr_sessions[session.session_id] = session
     qr_content = f"https://liankebao.top/wechat-bridge?session={session.session_id}"
-    qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={qr_content}"
+    qr_url = f"/api/wechat/qr-image?session_id={session.session_id}"
     return {
         "session_id": session.session_id,
         "qr_url": qr_url,
@@ -107,6 +108,15 @@ async def get_qrconnect_url(req: QrConnectReq):
 class OAuthLoginReq(BaseModel):
     code: str
     state: str = ""
+
+@app.get('/api/wechat/qr-image')
+async def qr_image(session_id: str = Query(...)):
+    """返回二维码PNG图片"""
+    data = f'https://liankebao.top/wechat-bridge?session={session_id}'
+    img = qrcode.make(data)
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    return Response(content=buf.getvalue(), media_type='image/png')
 
 @app.post('/api/wechat/oauth/login')
 async def oauth_login(req: OAuthLoginReq):

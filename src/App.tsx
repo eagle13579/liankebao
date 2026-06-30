@@ -7,14 +7,58 @@
  *   /login      → 登录页
  *   /onboarding → 三步冷启动
  *   /admin      → 管理后台
+ *
+ * 优化: React.lazy + Suspense 实现路由级代码分割, 降低首屏 JS 体积
  */
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
-import BusinessCardPage from './pages/business-card';
-import OnboardingPage from './pages/onboarding';
-import LoginPage from './pages/login/LoginPage';
-import TrustScorePage from './pages/trust/TrustScorePage';
 import SEOHead from './components/SEOHead';
+
+// ── 路由级懒加载 (代码分割) ──────────────────────────────────────────────
+// 核心路由, 预加载提示: 这些页面会在用户交互前提前加载
+const BusinessCardPage = lazy(() => import('./pages/business-card'));
+const LoginPage = lazy(() => import('./pages/login/LoginPage'));
+const OnboardingPage = lazy(() => import('./pages/onboarding'));
+const TrustScorePage = lazy(() => import('./pages/trust/TrustScorePage'));
+const BillingPage = lazy(() => import('./pages/billing/BillingPage'));
+
+// ── 内联加载的轻量首页 ────────────────────────────────────────────────────
+// 首页非常轻量 (仅 ~1KB JS), 不必做代码分割, 直接内联以减少请求
+function HomePage() {
+  return (
+    <div style={{ textAlign: 'center', padding: '60px 20px', fontFamily: 'system-ui, sans-serif' }}>
+      <h1 style={{ fontSize: '2rem', marginBottom: '12px' }}>链客宝</h1>
+      <p style={{ color: '#666', marginBottom: '24px' }}>企业家供需匹配平台</p>
+      <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+        <a href="/login" style={{ padding: '10px 24px', background: '#07C160', color: '#fff', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold' }}>
+          微信一键登录
+        </a>
+        <a href="/card" style={{ padding: '10px 24px', background: '#2563eb', color: '#fff', borderRadius: '8px', textDecoration: 'none' }}>
+          数字名片
+        </a>
+        <a href="/onboarding" style={{ padding: '10px 24px', background: '#f3f4f6', color: '#333', borderRadius: '8px', textDecoration: 'none' }}>
+          三步冷启动
+        </a>
+      </div>
+    </div>
+  );
+}
+
+// ── Suspense 回退组件 (轻量内联, 无额外请求) ────────────────────────────
+function RouteFallback() {
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: '60vh',
+      color: '#9ca3af',
+      fontSize: '0.875rem',
+    }}>
+      加载中...
+    </div>
+  );
+}
 
 /** 根据当前路径生成 breadcrumb 数据 */
 function usePageMeta() {
@@ -59,6 +103,14 @@ function usePageMeta() {
         { name: '信任评分', url: '/trust' },
       ],
     },
+    '/billing': {
+      title: '订阅与计费',
+      description: '链客宝订阅计费中心 — 选择适合您的方案并完成支付。',
+      breadcrumbs: [
+        { name: '首页', url: '/' },
+        { name: '订阅与计费', url: '/billing' },
+      ],
+    },
   };
 
   // 匹配 /card/:id 路径
@@ -83,32 +135,18 @@ function AppContent() {
   return (
     <>
       <SEOHead {...meta} />
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/card" element={<BusinessCardPage />} />
-        <Route path="/card/:id" element={<BusinessCardPage />} />
-        <Route path="/onboarding" element={<OnboardingPage />} />
-        <Route path="/trust" element={<TrustScorePage />} />
-      </Routes>
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/card" element={<BusinessCardPage />} />
+          <Route path="/card/:id" element={<BusinessCardPage />} />
+          <Route path="/onboarding" element={<OnboardingPage />} />
+          <Route path="/trust" element={<TrustScorePage />} />
+          <Route path="/billing" element={<BillingPage />} />
+        </Routes>
+      </Suspense>
     </>
-  );
-}
-
-function HomePage() {
-  return (
-    <div style={{ textAlign: 'center', padding: '60px 20px', fontFamily: 'system-ui, sans-serif' }}>
-      <h1 style={{ fontSize: '2rem', marginBottom: '12px' }}>链客宝</h1>
-      <p style={{ color: '#666', marginBottom: '24px' }}>企业家供需匹配平台</p>
-      <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-        <a href="/card" style={{ padding: '10px 24px', background: '#2563eb', color: '#fff', borderRadius: '8px', textDecoration: 'none' }}>
-          数字名片
-        </a>
-        <a href="/onboarding" style={{ padding: '10px 24px', background: '#f3f4f6', color: '#333', borderRadius: '8px', textDecoration: 'none' }}>
-          三步冷启动
-        </a>
-      </div>
-    </div>
   );
 }
 
