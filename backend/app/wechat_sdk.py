@@ -31,6 +31,10 @@ logger = logging.getLogger(__name__)
 WECHAT_APPID = os.getenv("WECHAT_APPID", "") or os.getenv("WX_APPID", "")
 WECHAT_SECRET = os.getenv("WECHAT_SECRET", "") or os.getenv("WX_SECRET", "")
 
+# ── 微信开放平台配置（PC扫码登录）──
+OPEN_WECHAT_APPID = os.getenv("OPEN_WECHAT_APPID", "") or os.getenv("OPEN_WX_APPID", "")
+OPEN_WECHAT_SECRET = os.getenv("OPEN_WECHAT_SECRET", "") or os.getenv("OPEN_WX_SECRET", "")
+
 # ===================================================================
 # 微信 API 端点
 # ===================================================================
@@ -46,6 +50,8 @@ URL_OAUTH2_ACCESS_TOKEN = f"{WECHAT_API_BASE}/sns/oauth2/access_token"
 URL_OAUTH2_USERINFO = f"{WECHAT_API_BASE}/sns/userinfo"
 URL_OAUTH2_REFRESH = f"{WECHAT_API_BASE}/sns/oauth2/refresh_token"
 URL_OAUTH2_AUTH = "https://open.weixin.qq.com/connect/oauth2/authorize"
+# ── 开放平台扫码登录 ──
+URL_QRCONNECT_AUTH = "https://open.weixin.qq.com/connect/qrconnect"
 # ── 小程序登录 ──
 URL_JSCODE2SESSION = f"{WECHAT_API_BASE}/sns/jscode2session"
 
@@ -336,6 +342,47 @@ class WeChatOAuth:
     def validate_oauth_config(self) -> bool:
         """验证 OAuth 配置是否有效（检查 appid 和 secret 是否已设置）"""
         return bool(self.appid and self.secret)
+
+    # ── 开放平台扫码登录 ─────────────────────────────────────────
+
+    def get_qrconnect_url(
+        self,
+        redirect_uri: str,
+        state: str = "",
+    ) -> str:
+        """
+        生成开放平台扫码登录 URL (PC端使用)
+
+        流程:
+          1. PC 浏览器跳转到此 URL, 显示二维码
+          2. 用户用微信扫码 → 手机端确认授权
+          3. 授权后, 微信重定向到 redirect_uri?code=xxx&state=xxx
+          4. 前端将 code 传给 POST /api/wechat/oauth/login 完成登录
+
+        Note: 需要先在微信开放平台创建网站应用
+              (https://open.weixin.qq.com/)
+        """
+        import urllib.parse
+
+        if not self.appid:
+            raise RuntimeError(
+                "开放平台配置缺失: 请设置 OPEN_WECHAT_APPID 环境变量"
+            )
+
+        params = {
+            "appid": self.appid,
+            "redirect_uri": redirect_uri,
+            "response_type": "code",
+            "scope": "snsapi_login",
+            "state": state,
+        }
+        query = urllib.parse.urlencode(params)
+        return f"{URL_QRCONNECT_AUTH}?{query}#wechat_redirect"
+
+    @classmethod
+    def for_qrconnect(cls) -> "WeChatOAuth":
+        """创建用于开放平台扫码登录的 OAuth 实例"""
+        return cls(appid=OPEN_WECHAT_APPID, secret=OPEN_WECHAT_SECRET)
 
 
 # ===================================================================

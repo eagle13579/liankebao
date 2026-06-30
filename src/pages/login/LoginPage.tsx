@@ -27,6 +27,21 @@ async function loginApi(username: string, password: string): Promise<{token: str
   return await resp.json();
 }
 
+// ── 微信一键登录 ──
+function WeChatPromptDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm mx-4 text-center" onClick={e => e.stopPropagation()}>
+        <div className="text-5xl mb-4">📱</div>
+        <h3 className="text-lg font-semibold text-white mb-2">请在微信客户端打开</h3>
+        <p className="text-sm text-slate-400 mb-4">链客宝微信登录功能仅支持在微信内使用，请使用微信扫描二维码或在微信中打开此页面。</p>
+        <button onClick={onClose} className="px-6 py-2 rounded-xl text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 transition">我知道了</button>
+      </div>
+    </div>
+  );
+}
+
 // ── 注册 API ──
 async function registerApi(data: {
   username: string;
@@ -145,6 +160,86 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
       <p className="text-center text-xs text-slate-500">测试账号: admin / admin123</p>
     </form>
   );
+}
+
+// ── 微信一键登录按钮 ──
+function WeChatLoginButton({ onSuccess }: { onSuccess: () => void }) {
+  const [loading, setLoading] = useState(false);
+  const [prompt, setPrompt] = useState(false);
+
+  const handleWeChatLogin = async () => {
+    const isWeChat = navigator.userAgent.toLowerCase().includes('micromessenger');
+    if (!isWeChat) {
+      // 非微信浏览器 → 走开放平台扫码登录 (qrconnect)
+      try {
+        setLoading(true);
+        const resp = await fetch('/api/wechat/qrconnect-url', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ redirect_uri: location.href.split('?')[0] }),
+        });
+        if (!resp.ok) throw new Error('获取扫码登录URL失败');
+        const data = await resp.json();
+        location.href = data.url;
+      } catch (err) {
+        console.error('扫码登录失败', err);
+        setPrompt(true); // API 不可用时 fallback 到提示弹窗
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // 1. 获取 JS-SDK 配置
+      const url = location.href.split('#')[0];
+      const resp = await fetch('/api/wechat/js-config', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      if (!resp.ok) throw new Error('获取微信配置失败');
+      const cfg = await resp.json();
+
+      // 2. 调用 wx.config（如果 wx 已加载）
+      if (typeof wx !== 'undefined') {
+        wx.config({ debug: false, appId: cfg.appid, timestamp: cfg.timestamp, nonceStr: cfg.noncestr, signature: cfg.signature, jsApiList: [] });
+      }
+
+      // 3. 检查是否有 OAuth 回调 code
+      const params = new URLSearchParams(location.search);
+      const code = params.get('code');
+      if (code) {
+        const loginResp = await fetch('/api/wechat/oauth/login', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code }),
+        });
+        if (!loginResp.ok) throw new Error('微信登录失败');
+        const userData = await loginResp.json();
+        localStorage.setItem('wechat_user', JSON.stringify(userData));
+        localStorage.setItem('token', userData.openid);
+        onSuccess();
+      } else {
+        // 4. 跳转微信 OAuth 授权
+        const state = Math.random().toString(36).slice(2);
+        const redirectUri = encodeURIComponent(location.href.split('?')[0]);
+        location.href = `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${cfg.appid}&redirect_uri=${redirectUri}&response_type=code&scope=snsapi_userinfo&state=${state}#wechat_redirect`;
+      }
+    } catch (err) {
+      console.error('微信登录失败', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (<>
+    <div className="relative my-4"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10"></div></div><div className="relative flex justify-center"><span className="bg-slate-900 px-3 text-xs text-slate-500">其他方式</span></div></div>
+    <button onClick={handleWeChatLogin} disabled={loading}
+      className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-green-600 hover:bg-green-500 disabled:opacity-50 transition-all duration-200 shadow-lg shadow-green-500/20 flex items-center justify-center gap-2">
+      {loading ? (<span className="flex items-center justify-center gap-2"><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>处理中...</span>)
+      : (<><svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 0 1 .213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 0 0 .167-.054l1.903-1.114a.864.864 0 0 1 .717-.098 10.16 10.16 0 0 0 2.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.932-6.446 1.703-1.415 3.882-1.98 5.853-1.838-.576-3.583-4.196-6.348-8.596-6.348zM5.785 5.991c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178A1.17 1.17 0 0 1 4.623 7.17c0-.651.52-1.18 1.162-1.18zm5.813 0c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178 1.17 1.17 0 0 1-1.162-1.178c0-.651.52-1.18 1.162-1.18z"/></svg>微信一键登录</>)}
+    </button>
+    <WeChatPromptDialog open={prompt} onClose={() => setPrompt(false)} />
+  </>);
 }
 
 // ── 注册表单 ──
@@ -303,10 +398,19 @@ export default function LoginPage() {
 
           {/* 表单 */}
           {tab === 'login' ? (
-            <LoginForm onSuccess={handleSuccess} />
+            <>
+              <LoginForm onSuccess={handleSuccess} />
+              <WeChatLoginButton onSuccess={handleSuccess} />
+            </>
           ) : (
             <RegisterForm onSuccess={handleSuccess} />
           )}
+        </div>
+        {/* ICP备案号 */}
+        <div className="mt-6 text-center text-xs text-slate-500/60">
+          <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer" className="hover:text-slate-400 transition-colors">
+            沪ICP备2026007459号-2
+          </a>
         </div>
       </div>
     </div>

@@ -4,9 +4,10 @@
 提供 JS-SDK 配置、网页授权登录、小程序登录等 HTTP 端点。
 
 端点列表：
-  POST /api/wechat/js-config      — 生成 JS-SDK config（前端调用 wx.config 前调用）
-  POST /api/wechat/oauth/login    — 网页授权登录（code → userinfo）
-  POST /api/wechat/miniapp/login  — 小程序 code 登录（code → openid/session_key）
+  POST /api/wechat/js-config          — 生成 JS-SDK config（前端调用 wx.config 前调用）
+  POST /api/wechat/oauth/login        — 网页授权登录（code → userinfo）
+  POST /api/wechat/qrconnect-url      — 开放平台扫码登录 URL（PC 端扫码用）
+  POST /api/wechat/miniapp/login      — 小程序 code 登录（code → openid/session_key）
 """
 
 import logging
@@ -76,6 +77,19 @@ class MiniAppLoginResponse(BaseModel):
     openid: str = Field(..., description="用户唯一标识")
     session_key: str = Field(..., description="会话密钥（注意：请勿直接返回给前端）")
     unionid: str = Field(default="", description="开放平台 UnionID（已绑定时才返回）")
+
+
+# ── 开放平台扫码登录 ──────────────────────────────────────────────
+
+
+class QrConnectUrlRequest(BaseModel):
+    redirect_uri: str = Field(..., description="扫码登录后微信回调的 URL")
+    state: Optional[str] = Field(default="", description="CSRF 校验 state")
+
+
+class QrConnectUrlResponse(BaseModel):
+    url: str = Field(..., description="开放平台扫码登录 URL")
+    appid: str = Field(..., description="开放平台 APPID")
 
 
 # ── 统一错误响应 ────────────────────────────────────────────────────
@@ -174,6 +188,40 @@ async def oauth_login(req: OAuthLoginRequest):
 
 
 @router.post(
+    "/qrconnect-url",
+    summary="获取开放平台扫码登录 URL",
+    description="PC端使用微信扫码登录时, 先调用此接口获取 qrconnect URL, 然后 302 跳转。",
+    response_model=QrConnectUrlResponse,
+    responses={500: {"model": ErrorResponse}},
+)
+async def get_qrconnect_url(req: QrConnectUrlRequest):
+    """
+    获取开放平台扫码登录 URL
+
+    流程:
+      1. PC 端调用此接口, 传入当前页面 URL 作为 redirect_uri
+      2. 后端返回 qrconnect URL (含 appid, redirect_uri, scope=snsapi_login)
+      3. PC 端跳转到此 URL, 显示二维码
+      4. 用户用微信扫码 → 手机端确认授权
+      5. 微信重定向到 redirect_uri?code=xxx&state=xxx
+      6. 页面加载后, 前端检测到 code 参数, 调 POST /api/wechat/oauth/login 完成登录
+    """
+    try:
+        oauth = WeChatOAuth.for_qrconnect()
+        url = oauth.get_qrconnect_url(
+            redirect_uri=req.redirect_uri,
+            state=req.state,
+        )
+        return QrConnectUrlResponse(
+            url=url,
+            appid=oauth.appid,
+        )
+    except RuntimeError as e:
+        logger.error(f"[WeChatRouter] 获取 qrconnect URL 失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post(
     "/miniapp/login",
     summary="小程序登录",
     description="使用小程序 wx.login() 获取的 code 换取 openid 和 session_key。",
@@ -233,6 +281,7 @@ async def miniapp_login(req: MiniAppLoginRequest):
 
 print("[WeChatRouter] 微信集成路由已加载 ✓")
 print("[WeChatRouter] 端点列表:")
-print("  POST /api/wechat/js-config      — JS-SDK 配置")
-print("  POST /api/wechat/oauth/login    — 网页授权登录")
-print("  POST /api/wechat/miniapp/login  — 小程序登录")
+print("  POST /api/wechat/js-config          — JS-SDK 配置")
+print("  POST /api/wechat/oauth/login        — 网页授权登录")
+print("  POST /api/wechat/qrconnect-url      — 开放平台扫码登录 URL")
+print("  POST /api/wechat/miniapp/login      — 小程序登录")
