@@ -165,8 +165,7 @@ export function LoginPage() {
             </div>
             <button
               onClick={() => {
-                setError('请在微信客户端中打开使用微信一键登录');
-                setTimeout(() => setError(''), 3000);
+                window.open('/api/wechat/qr-session', '_blank'); setError('请在手机微信中扫码登录');
               }}
               className="w-full h-12 bg-[#07C160] text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] transition-all duration-150 shadow-sm hover:bg-[#06AD56]"
             >
@@ -224,8 +223,13 @@ export function LoginPage() {
         <p className="text-[9px] text-slate-400 tracking-wider font-medium">
           企业信任关系网络 © 2025 链客宝 · 版权所有
         </p>
+        <p className="text-[9px] text-slate-400 font-medium mt-1">
+          <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer" className="hover:text-sky-600">沪ICP备2026007459号-2</a>
+        </p>
+        <p className="text-[9px] text-slate-400 font-medium mt-1">
+          <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer" className="hover:text-sky-600">沪ICP备2026007459号-2</a>
+        </p>
       </footer>
-
       {/* Entrance animation keyframe */}
       <style>{`
         @keyframes fadeIn {
