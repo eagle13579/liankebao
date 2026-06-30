@@ -137,7 +137,7 @@ function AppContent() {
       <SEOHead {...meta} />
       <Suspense fallback={<RouteFallback />}>
         <Routes>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<LoginPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/card" element={<BusinessCardPage />} />
           <Route path="/card/:id" element={<BusinessCardPage />} />
