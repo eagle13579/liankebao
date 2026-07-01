@@ -25,16 +25,13 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-import dataclasses
 import json
 import logging
-import time
-import uuid
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from fnmatch import fnmatch
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import aiosqlite
 
@@ -84,7 +81,7 @@ CREATE TABLE IF NOT EXISTS subscribers (
 
 def _now_iso() -> str:
     """Return current UTC time as ISO 8601 string."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _parse_iso(iso_str: str | None) -> datetime | None:
@@ -301,9 +298,7 @@ class SQLiteEventBus(EventBusProtocol):
         handler_id = f"{getattr(handler, '__qualname__', handler.__class__.__name__)}:{id(handler)}"
 
         # Remove existing subscription for same handler + pattern
-        self._handlers[event_type] = [
-            (h, d) for h, d in self._handlers[event_type] if h is not handler
-        ]
+        self._handlers[event_type] = [(h, d) for h, d in self._handlers[event_type] if h is not handler]
         self._handlers[event_type].append((handler, description))
 
         # Persist the subscription in SQLite for recovery
@@ -319,9 +314,7 @@ class SQLiteEventBus(EventBusProtocol):
             except Exception as exc:
                 logger.warning("Failed to persist subscription: %s", exc)
 
-        logger.debug(
-            "Handler subscribed to '%s': %s", event_type, description or handler.__name__
-        )
+        logger.debug("Handler subscribed to '%s': %s", event_type, description or handler.__name__)
 
     async def unsubscribe(self, event_type: str, handler: EventHandler) -> bool:
         """Remove a previously registered handler.
@@ -335,9 +328,7 @@ class SQLiteEventBus(EventBusProtocol):
         """
         handlers = self._handlers.get(event_type, [])
         before = len(handlers)
-        self._handlers[event_type] = [
-            (h, d) for h, d in handlers if h is not handler
-        ]
+        self._handlers[event_type] = [(h, d) for h, d in handlers if h is not handler]
         removed = before - len(self._handlers[event_type])
 
         if removed:
@@ -351,9 +342,7 @@ class SQLiteEventBus(EventBusProtocol):
                     await self._db.commit()
                 except Exception as exc:
                     logger.warning("Failed to remove persisted subscription: %s", exc)
-            logger.debug(
-                "Handler unsubscribed from '%s': %s", event_type, handler.__name__
-            )
+            logger.debug("Handler unsubscribed from '%s': %s", event_type, handler.__name__)
 
         return removed > 0
 
@@ -382,10 +371,8 @@ class SQLiteEventBus(EventBusProtocol):
             raise ConnectionError("SQLiteEventBus is not connected")
 
         # Store event with a future processed_at timestamp
-        processed_at = datetime.now(timezone.utc).timestamp() + delay_seconds
-        processed_at_iso = datetime.fromtimestamp(
-            processed_at, tz=timezone.utc
-        ).isoformat()
+        processed_at = datetime.now(UTC).timestamp() + delay_seconds
+        processed_at_iso = datetime.fromtimestamp(processed_at, tz=UTC).isoformat()
 
         payload_json = json.dumps(event.payload, ensure_ascii=False, default=str)
         created_at = event.timestamp.isoformat() if event.timestamp else _now_iso()
@@ -410,9 +397,7 @@ class SQLiteEventBus(EventBusProtocol):
             )
             await self._db.commit()
         except Exception as exc:
-            logger.exception(
-                "Failed to persist delayed event %s: %s", event.event_id, exc
-            )
+            logger.exception("Failed to persist delayed event %s: %s", event.event_id, exc)
             raise
 
         logger.debug(
@@ -665,7 +650,7 @@ class SQLiteEventBus(EventBusProtocol):
             priority=EventPriority(row["priority"]) if "priority" in row.keys() else EventPriority.NORMAL,
             trace_id=row["trace_id"] or "",
             idempotency_key=row["idempotency_key"],
-            timestamp=_parse_iso(row["created_at"]) or datetime.now(timezone.utc),
+            timestamp=_parse_iso(row["created_at"]) or datetime.now(UTC),
             event_id=row["id"],
         )
 
@@ -682,9 +667,7 @@ class SQLiteEventBus(EventBusProtocol):
         if self._db is None:
             return 0
         try:
-            cursor = await self._db.execute(
-                "SELECT COUNT(*) as cnt FROM events WHERE processed_at IS NULL"
-            )
+            cursor = await self._db.execute("SELECT COUNT(*) as cnt FROM events WHERE processed_at IS NULL")
             row = await cursor.fetchone()
             return row["cnt"] if row else 0
         except Exception:

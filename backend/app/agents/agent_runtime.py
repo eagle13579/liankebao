@@ -14,10 +14,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from app.agents.base_agent import BaseAgent, AgentStatus, CronJob
+from app.agents.base_agent import AgentStatus, BaseAgent, CronJob
 
 logger = logging.getLogger(__name__)
 
@@ -100,9 +100,7 @@ class AgentRuntime:
             ValueError: If an agent with the same name is already registered.
         """
         if agent.agent_name in self.agents:
-            raise ValueError(
-                f"Agent '{agent.agent_name}' is already registered"
-            )
+            raise ValueError(f"Agent '{agent.agent_name}' is already registered")
 
         self.agents[agent.agent_name] = agent
         logger.info(
@@ -158,7 +156,7 @@ class AgentRuntime:
             return
 
         self._running = True
-        self._start_time = datetime.now(timezone.utc)
+        self._start_time = datetime.now(UTC)
         logger.info("AgentRuntime starting...")
 
         # Step 1: Start background loops
@@ -207,21 +205,21 @@ class AgentRuntime:
             try:
                 from app.events.interfaces import Event
 
-                await self.event_bus.publish(Event(
-                    type="runtime.started",
-                    source="agent_runtime",
-                    payload={
-                        "agent_count": len(self.agents),
-                        "agents": list(self.agents.keys()),
-                        "timestamp": self._start_time.isoformat(),
-                    },
-                ))
+                await self.event_bus.publish(
+                    Event(
+                        type="runtime.started",
+                        source="agent_runtime",
+                        payload={
+                            "agent_count": len(self.agents),
+                            "agents": list(self.agents.keys()),
+                            "timestamp": self._start_time.isoformat(),
+                        },
+                    )
+                )
             except Exception:
                 logger.warning("Failed to publish runtime.started event")
 
-        started = sum(
-            1 for a in self.agents.values() if a.status == AgentStatus.IDLE
-        )
+        started = sum(1 for a in self.agents.values() if a.status == AgentStatus.IDLE)
         logger.info(
             "AgentRuntime started: %d/%d agents running",
             started,
@@ -282,11 +280,7 @@ class AgentRuntime:
             except Exception:
                 logger.warning("Failed to unsubscribe from event bus")
 
-        uptime = (
-            (datetime.now(timezone.utc) - self._start_time).total_seconds()
-            if self._start_time
-            else 0
-        )
+        uptime = (datetime.now(UTC) - self._start_time).total_seconds() if self._start_time else 0
         logger.info(
             "AgentRuntime stopped (uptime=%.1fs, agents=%d)",
             uptime,
@@ -335,7 +329,7 @@ class AgentRuntime:
         """
         uptime = 0.0
         if self._start_time:
-            uptime = (datetime.now(timezone.utc) - self._start_time).total_seconds()
+            uptime = (datetime.now(UTC) - self._start_time).total_seconds()
 
         agent_statuses: dict[str, Any] = {}
         for name, agent in self.agents.items():
@@ -348,9 +342,7 @@ class AgentRuntime:
                 "active_tasks": agent._active_tasks,
                 "max_concurrent": agent.config.max_concurrent_tasks,
                 "tool_count": len(agent.tools),
-                "event_handler_count": sum(
-                    len(h) for h in agent.event_handlers.values()
-                ),
+                "event_handler_count": sum(len(h) for h in agent.event_handlers.values()),
                 "cron_job_count": len(agent.cron_jobs),
                 "memory_experience_count": agent.memory.get("experience_count", 0),
             }
@@ -359,9 +351,7 @@ class AgentRuntime:
             "runtime": {
                 "running": self._running,
                 "uptime_seconds": round(uptime, 2),
-                "start_time": (
-                    self._start_time.isoformat() if self._start_time else None
-                ),
+                "start_time": (self._start_time.isoformat() if self._start_time else None),
                 "agent_count": len(self.agents),
                 "event_bus_connected": self.event_bus is not None,
                 "broker_connected": self.broker is not None,
@@ -425,7 +415,7 @@ class AgentRuntime:
         - Checks if each cron job's schedule matches the current time
         - Executes due jobs concurrently
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         tasks = []
 
         for agent in self.agents.values():
@@ -593,11 +583,13 @@ class AgentRuntime:
                     from app.events.interfaces import Event
 
                     status = await self.get_status()
-                    await self.event_bus.publish(Event(
-                        type="runtime.health_report",
-                        source="agent_runtime",
-                        payload=status,
-                    ))
+                    await self.event_bus.publish(
+                        Event(
+                            type="runtime.health_report",
+                            source="agent_runtime",
+                            payload=status,
+                        )
+                    )
                 except Exception:
                     logger.warning("Failed to publish health report")
 

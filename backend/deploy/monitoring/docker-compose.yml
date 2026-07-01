@@ -1,0 +1,160 @@
+# =============================================================================
+# 链客宝 — 生产监控栈 (Prometheus + Grafana + AlertManager + Node Exporter)
+# =============================================================================
+# 使用方法:
+#   docker compose -f deploy/monitoring/docker-compose.yml up -d
+#   docker compose -f deploy/monitoring/docker-compose.yml logs -f
+# =============================================================================
+
+services:
+
+  # ── Prometheus (指标采集 + 告警规则评估) ──────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: chainke-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--storage.tsdb.retention.size=10GB'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'         # 允许热加载配置 (curl -X POST localhost:9090/-/reload)
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus-rules:/etc/prometheus/rules:ro
+      - prometheus-data:/prometheus
+    restart: unless-stopped
+    networks:
+      - chainke-mon-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # ── Grafana (可视化 + 仪表盘) ─────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: chainke-grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-chainke_admin_2026}
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - GF_SERVER_SERVE_FROM_SUB_PATH=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana-provisioning:/etc/grafana/provisioning:ro
+      - ./grafana-dashboards:/var/lib/grafana/dashboards:ro
+    restart: unless-stopped
+    networks:
+      - chainke-mon-net
+    depends_on:
+      - prometheus
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # ── Node Exporter (宿主机指标 — CPU/内存/磁盘/网络) ──────────────────────
+  node-exporter:
+    image: prom/node-exporter:v1.8.1
+    container_name: chainke-node-exporter
+    command:
+      - '--path.rootfs=/host'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - "127.0.0.1:9100:9100"
+    volumes:
+      - /:/host:ro,rslave
+    pid: host
+    restart: unless-stopped
+    networks:
+      - chainke-mon-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+  # ── AlertManager (告警通知分发) ───────────────────────────────────────────
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: chainke-alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--data.retention=120h'
+      - '--web.external-url=http://localhost:9093'
+    ports:
+      - "127.0.0.1:9093:9093"
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    restart: unless-stopped
+    networks:
+      - chainke-mon-net
+    depends_on:
+      - prometheus
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  alertmanager-data:
+    driver: local
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  chainke-mon-net:
+    driver: bridge

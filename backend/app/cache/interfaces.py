@@ -17,8 +17,8 @@ from __future__ import annotations
 import dataclasses
 import hashlib
 import json
-from typing import Any, Callable, Optional, Protocol, runtime_checkable
-
+from collections.abc import Callable
+from typing import Any, Protocol, runtime_checkable
 
 # ======================================================================
 # Configuration

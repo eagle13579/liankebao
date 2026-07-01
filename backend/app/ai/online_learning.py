@@ -64,7 +64,10 @@ _global_adjustment_lock = threading.Lock()
 # 持久化路径
 _WEIGHTS_FILE = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
-    "..", "..", "data", "online_weights.json",
+    "..",
+    "..",
+    "data",
+    "online_weights.json",
 )
 
 
@@ -81,7 +84,7 @@ def load_online_weights() -> dict[str, float]:
     path = _get_weights_path()
     if os.path.exists(path):
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
             with _weights_lock:
                 _online_weights.update({k: v for k, v in data.items() if k in _DEFAULT_WEIGHTS})
@@ -170,7 +173,7 @@ class OnlineLearningPipeline:
         user_id: str,
         item_id: str,
         action: str,
-        timestamp: Optional[float] = None,
+        timestamp: float | None = None,
     ) -> None:
         """记录一条用户交互。action 必须为 view/click/share/save 之一。"""
         if action not in self.VALID_ACTIONS:
@@ -195,14 +198,9 @@ class OnlineLearningPipeline:
                     counts[item_id] = c
 
         sorted_items = sorted(counts.items(), key=lambda x: -x[1])
-        return [
-            {"item_id": item_id, "count": count}
-            for item_id, count in sorted_items[:limit]
-        ]
+        return [{"item_id": item_id, "count": count} for item_id, count in sorted_items[:limit]]
 
-    def get_user_history(
-        self, user_id: str, limit: int = 100
-    ) -> list[dict]:
+    def get_user_history(self, user_id: str, limit: int = 100) -> list[dict]:
         """返回用户历史交互（按时间倒序）。"""
         with self._lock:
             history = list(self._user_history.get(user_id, []))
@@ -240,9 +238,9 @@ class OnlineLearningEngine:
     LEARN_THRESHOLD = 100
 
     # 每次调整幅度
-    ADJUST_LIKE = 0.05      # 👍 积极反馈
+    ADJUST_LIKE = 0.05  # 👍 积极反馈
     ADJUST_DISLIKE = -0.05  # 👎 消极反馈
-    ADJUST_SKIP = 0.0       # 跳过无影响
+    ADJUST_SKIP = 0.0  # 跳过无影响
 
     # 权重范围限制
     MIN_GLOBAL_ADJUSTMENT = 0.5
@@ -253,7 +251,7 @@ class OnlineLearningEngine:
     _last_learn_time: float = 0.0
     _last_feedback_count: int = 0
     _total_learning_cycles: int = 0
-    _last_learn_result: Optional[dict] = None
+    _last_learn_result: dict | None = None
 
     def __new__(cls):
         if cls._instance is None:
@@ -269,7 +267,9 @@ class OnlineLearningEngine:
         # 日志文件路径
         data_dir = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
-            "..", "..", "data",
+            "..",
+            "..",
+            "data",
         )
         os.makedirs(data_dir, exist_ok=True)
         self._log_path = os.path.join(data_dir, "learning_log.jsonl")
@@ -307,7 +307,7 @@ class OnlineLearningEngine:
         try:
             if not os.path.exists(self._log_path):
                 return []
-            with open(self._log_path, "r", encoding="utf-8") as f:
+            with open(self._log_path, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if line:
@@ -332,6 +332,7 @@ class OnlineLearningEngine:
         """
         try:
             from app.ai.feedback_loop import get_feedback_loop
+
             loop = get_feedback_loop()
             return loop.get_global_stats()
         except Exception as e:
@@ -378,10 +379,7 @@ class OnlineLearningEngine:
             # 估算本周期新增的正/负反馈 (按整体比例)
             batch_likes = new_feedback * like_ratio
             batch_dislikes = new_feedback * dislike_ratio
-            net_adjust = (
-                batch_likes * self.ADJUST_LIKE
-                + batch_dislikes * self.ADJUST_DISLIKE
-            )
+            net_adjust = batch_likes * self.ADJUST_LIKE + batch_dislikes * self.ADJUST_DISLIKE
         else:
             net_adjust = 0.0
 
@@ -416,6 +414,7 @@ class OnlineLearningEngine:
         # 热更新 RecommendEngine 权重
         try:
             from app.ai.recommendation import RecommendEngine
+
             RecommendEngine.refresh_online_weights()
         except Exception as e:
             logger.debug("RecommendEngine 权重热更新跳过: %s", e)
@@ -454,8 +453,7 @@ class OnlineLearningEngine:
         self._last_learn_result = result
 
         logger.info(
-            "在线学习周期 #%d 完成: total_feedback=%d, "
-            "adjustment=%.4f→%.4f, weights=%s, 耗时=%.3fs",
+            "在线学习周期 #%d 完成: total_feedback=%d, adjustment=%.4f→%.4f, weights=%s, 耗时=%.3fs",
             self._total_learning_cycles,
             total,
             old_adjustment,
@@ -466,7 +464,7 @@ class OnlineLearningEngine:
 
         return result
 
-    def check_and_learn(self) -> Optional[dict]:
+    def check_and_learn(self) -> dict | None:
         """检查反馈量是否达到阈值, 是则触发学习
 
         Returns:
@@ -517,12 +515,8 @@ class OnlineLearningEngine:
             last_result = {
                 "time": self._last_learn_result.get("timestamp"),
                 "cycle": self._last_learn_result.get("cycle"),
-                "adjustment_before": self._last_learn_result.get(
-                    "weight_changes", {}
-                ).get("old_global_adjustment"),
-                "adjustment_after": self._last_learn_result.get(
-                    "weight_changes", {}
-                ).get("new_global_adjustment"),
+                "adjustment_before": self._last_learn_result.get("weight_changes", {}).get("old_global_adjustment"),
+                "adjustment_after": self._last_learn_result.get("weight_changes", {}).get("new_global_adjustment"),
             }
 
         return {

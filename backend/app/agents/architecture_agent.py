@@ -12,10 +12,10 @@ Architecture:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from app.agents.base_agent import BaseAgent, AgentConfig, CronJob, AgentStatus
+from app.agents.base_agent import AgentConfig, AgentStatus, BaseAgent, CronJob
 
 logger = logging.getLogger(__name__)
 
@@ -110,11 +110,13 @@ class ArchitectureAgent(BaseAgent):
         self.register_event_handler("architecture.review_requested", self.review_design)
 
         # Register cron jobs
-        self.add_cron_job(CronJob(
-            schedule="0 0 * * *",
-            action=self.review_system_health,
-            name="review_system_health_24h",
-        ))
+        self.add_cron_job(
+            CronJob(
+                schedule="0 0 * * *",
+                action=self.review_system_health,
+                name="review_system_health_24h",
+            )
+        )
 
         logger.info(
             "ArchitectureAgent initialized with %d principles",
@@ -171,20 +173,20 @@ class ArchitectureAgent(BaseAgent):
                     if isinstance(result, dict):
                         return result
             except Exception as exc:
-                logger.warning(
-                    "Failed to get capacity data from SREAgent: %s", exc
-                )
+                logger.warning("Failed to get capacity data from SREAgent: %s", exc)
 
         # Fallback: try broker-based approach
         if self.broker is not None:
             try:
                 from app.broker.interfaces import ServiceRequest
 
-                resp = await self.broker.call(ServiceRequest(
-                    service="sre",
-                    method="capacity_forecast",
-                    timeout_ms=10_000,
-                ))
+                resp = await self.broker.call(
+                    ServiceRequest(
+                        service="sre",
+                        method="capacity_forecast",
+                        timeout_ms=10_000,
+                    )
+                )
                 if resp.success and isinstance(resp.data, dict):
                     return resp.data
             except Exception:
@@ -235,7 +237,9 @@ class ArchitectureAgent(BaseAgent):
             p_desc = principle["description"]
 
             # Check if the design addresses this principle
-            combined_text = f"{description} {' '.join(str(c) for c in components)} {' '.join(str(t) for t in tech_stack)}".lower()
+            combined_text = (
+                f"{description} {' '.join(str(c) for c in components)} {' '.join(str(t) for t in tech_stack)}".lower()
+            )
 
             # Simple keyword-based checks
             principle_keywords: dict[str, list[str]] = {
@@ -254,20 +258,24 @@ class ArchitectureAgent(BaseAgent):
 
             if addressed:
                 scores.append(10)
-                principle_findings.append({
-                    "principle": p_name,
-                    "status": "addressed",
-                    "score": 10,
-                    "note": f"Design addresses {p_desc.lower()}",
-                })
+                principle_findings.append(
+                    {
+                        "principle": p_name,
+                        "status": "addressed",
+                        "score": 10,
+                        "note": f"Design addresses {p_desc.lower()}",
+                    }
+                )
             else:
                 scores.append(5)
-                principle_findings.append({
-                    "principle": p_name,
-                    "status": "not_addressed",
-                    "score": 5,
-                    "note": f"Design does not explicitly address {p_desc.lower()}",
-                })
+                principle_findings.append(
+                    {
+                        "principle": p_name,
+                        "status": "not_addressed",
+                        "score": 5,
+                        "note": f"Design does not explicitly address {p_desc.lower()}",
+                    }
+                )
 
         # Calculate overall score
         overall_score = round(sum(scores) / len(scores), 2) if scores else 0
@@ -306,7 +314,7 @@ class ArchitectureAgent(BaseAgent):
             "risks": risks,
             "recommendations": recommendations,
             "sre_capacity_context": sre_data,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         logger.info(
@@ -389,15 +397,17 @@ class ArchitectureAgent(BaseAgent):
             db_read_replicas = max(1, projected_users // 50000 + 1)
             cache_size_gb = max(1, projected_data * 0.1)  # 10% in cache
 
-            projections.append({
-                "months_out": months,
-                "projected_users": projected_users,
-                "projected_rps": projected_rps,
-                "projected_data_gb": round(projected_data, 1),
-                "recommended_app_instances": app_instances,
-                "recommended_db_replicas": db_read_replicas,
-                "recommended_cache_gb": round(cache_size_gb, 1),
-            })
+            projections.append(
+                {
+                    "months_out": months,
+                    "projected_users": projected_users,
+                    "projected_rps": projected_rps,
+                    "projected_data_gb": round(projected_data, 1),
+                    "recommended_app_instances": app_instances,
+                    "recommended_db_replicas": db_read_replicas,
+                    "recommended_cache_gb": round(cache_size_gb, 1),
+                }
+            )
 
         # Current status
         current_status: dict[str, Any] = {
@@ -405,9 +415,7 @@ class ArchitectureAgent(BaseAgent):
             "requests_per_sec": requests_per_sec,
             "data_volume_gb": data_volume_gb,
             "avg_response_time_ms": avg_response_time_ms,
-            "estimated_headroom_pct": round(
-                max(0, 100 - (avg_response_time_ms / 1000 * 100)), 2
-            ),
+            "estimated_headroom_pct": round(max(0, 100 - (avg_response_time_ms / 1000 * 100)), 2),
         }
 
         # Bottleneck analysis
@@ -437,7 +445,7 @@ class ArchitectureAgent(BaseAgent):
             "bottlenecks": bottlenecks,
             "recommendations": recommendations,
             "sre_data_used": sre_data is not None,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         logger.info(
@@ -449,7 +457,7 @@ class ArchitectureAgent(BaseAgent):
         # Learn from this estimate
         await self.learn(
             observation=(
-                f"Capacity estimate: {current_users} users, {growth_rate*100:.0f}% growth. "
+                f"Capacity estimate: {current_users} users, {growth_rate * 100:.0f}% growth. "
                 f"3mo projection: {projections[0]['projected_users']} users, "
                 f"{projections[0]['recommended_app_instances']} instances needed"
             ),
@@ -641,7 +649,7 @@ class ArchitectureAgent(BaseAgent):
             "total_steps": len(path),
             "estimated_total_timeline": path[-1]["timeline"] if path else "unknown",
             "pain_point_recommendations": pain_point_recommendations,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         logger.info(
@@ -713,7 +721,7 @@ class ArchitectureAgent(BaseAgent):
             "Review dependency graph for circular dependencies",
         ]
 
-        health_assessment["timestamp"] = datetime.now(timezone.utc).isoformat()
+        health_assessment["timestamp"] = datetime.now(UTC).isoformat()
 
         logger.info(
             "System health review: overall=%s, %d observations, %d recommendations",

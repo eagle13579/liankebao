@@ -12,7 +12,6 @@ import asyncio
 import logging
 import os
 import sys
-import time
 
 # 确保项目路径在 sys.path 中
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -44,7 +43,8 @@ async def check_and_learn() -> dict:
         total = status.get("feedback", {}).get("total", 0)
         logger.info(
             "⏳ 未达阈值: 总反馈 %d 条, 距下次学习进度 %.1f%%",
-            total, progress,
+            total,
+            progress,
         )
 
     return result or {"triggered": False, "status": "skipped"}
@@ -100,12 +100,14 @@ async def main():
         # 强制学习 (无论是否达到阈值)
         logger.info("⚡ 强制在线学习模式")
         result = await force_learn()
-        print(f"\n📊 在线学习结果:")
+        print("\n📊 在线学习结果:")
         print(f"  周期: #{result.get('cycle', 'N/A')}")
         print(f"  耗时: {result.get('duration_seconds', 0):.3f}s")
         print(f"  反馈: {result.get('feedback_stats', {}).get('total', 0)} 条")
-        print(f"  调整: {result.get('weight_changes', {}).get('old_global_adjustment', 1.0):.4f} → "
-              f"{result.get('weight_changes', {}).get('new_global_adjustment', 1.0):.4f}")
+        print(
+            f"  调整: {result.get('weight_changes', {}).get('old_global_adjustment', 1.0):.4f} → "
+            f"{result.get('weight_changes', {}).get('new_global_adjustment', 1.0):.4f}"
+        )
         print(f"  新权重: {result.get('weight_changes', {}).get('new_weights', {})}")
 
     elif args.watch:
@@ -129,19 +131,21 @@ async def main():
         logger.info("🔍 单次检查模式")
         result = await check_and_learn()
         if result.get("triggered") is not False:
-            print(f"\n📊 在线学习完成:")
+            print("\n📊 在线学习完成:")
             print(f"  周期: #{result.get('cycle', 'N/A')}")
             print(f"  耗时: {result.get('duration_seconds', 0):.3f}s")
             print(f"  反馈: {result.get('feedback_stats', {}).get('total', 0)} 条")
-            print(f"  调整: {result.get('weight_changes', {}).get('old_global_adjustment', 1.0):.4f} → "
-                  f"{result.get('weight_changes', {}).get('new_global_adjustment', 1.0):.4f}")
+            print(
+                f"  调整: {result.get('weight_changes', {}).get('old_global_adjustment', 1.0):.4f} → "
+                f"{result.get('weight_changes', {}).get('new_global_adjustment', 1.0):.4f}"
+            )
             print(f"  新权重: {result.get('weight_changes', {}).get('new_weights', {})}")
         else:
             status = result.get("status", {})
             if isinstance(result, dict) and "triggered" in result:
                 print(f"\n⏳ 未触发学习: {result}")
             else:
-                print(f"\n⏳ 未触发学习")
+                print("\n⏳ 未触发学习")
 
 
 if __name__ == "__main__":

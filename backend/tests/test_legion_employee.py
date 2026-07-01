@@ -18,26 +18,26 @@ from __future__ import annotations
 import asyncio
 import os
 import tempfile
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-# ── Module under test ─────────────────────────────────────────────
+from app.agents.base_agent import BaseAgent
+from app.agents.employee_profiles import (
+    EMPLOYEE_AGENT_MAP,
+    create_all_legion_agents,
+    create_legion_agent,
+)
 
+# ── Module under test ─────────────────────────────────────────────
 from app.agents.legion_employee import (
     LEGION_PATH,
     LegionEmployee,
+    _query_memory_db,
     _resolve_employee_dir,
     _safe_load_yaml,
-    _query_memory_db,
     _write_memory_db,
 )
-from app.agents.employee_profiles import (
-    EMPLOYEE_AGENT_MAP,
-    create_legion_agent,
-    create_all_legion_agents,
-)
-from app.agents.base_agent import BaseAgent
 
 # ── Constants ─────────────────────────────────────────────────────
 
@@ -88,8 +88,7 @@ class TestEmployeeDirectoryResolution:
     def test_legion_path_exists(self):
         """The legion employees directory must exist."""
         assert _legion_exists(), (
-            f"LEGION_PATH does not exist: {LEGION_PATH}\n"
-            "Tests requiring real employee files will be skipped."
+            f"LEGION_PATH does not exist: {LEGION_PATH}\nTests requiring real employee files will be skipped."
         )
 
     @pytest.mark.skipif(not _legion_exists(), reason="Legion path not found")
@@ -98,9 +97,7 @@ class TestEmployeeDirectoryResolution:
         for emp_id in EXPECTED_EMPLOYEES:
             resolved = _resolve_employee_dir(emp_id)
             assert resolved, f"Failed to resolve employee directory for '{emp_id}'"
-            assert os.path.isdir(resolved), (
-                f"Resolved path is not a directory: {resolved} (from {emp_id})"
-            )
+            assert os.path.isdir(resolved), f"Resolved path is not a directory: {resolved} (from {emp_id})"
 
     @pytest.mark.skipif(not _legion_exists(), reason="Legion path not found")
     def test_bian_resolves_to_base(self):
@@ -136,9 +133,7 @@ class TestSafeYamlLoading:
         assert result == {}
 
     def test_load_empty_file(self):
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".yaml", delete=False, encoding="utf-8"
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False, encoding="utf-8") as f:
             f.write("")
             path = f.name
         try:
@@ -148,9 +143,7 @@ class TestSafeYamlLoading:
             os.unlink(path)
 
     def test_load_simple_yaml(self):
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".yaml", delete=False, encoding="utf-8"
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False, encoding="utf-8") as f:
             f.write("name: test\nvalue: 42\n")
             path = f.name
         try:
@@ -370,10 +363,7 @@ class TestMemoryOperations:
     def test_learn_calls_memorize(self, employee_with_memory):
         """learn() should be equivalent to memorize()."""
         test_content = f"PYTEST_LEARN_TEST_{__import__('time').time()}"
-        asyncio.run(employee_with_memory.learn(
-            test_content,
-            metadata={"type": "test", "source": "pytest"}
-        ))
+        asyncio.run(employee_with_memory.learn(test_content, metadata={"type": "test", "source": "pytest"}))
         results = asyncio.run(employee_with_memory.remember(test_content, limit=5))
         contents = [r.get("content", "") for r in results]
         assert any(test_content in c for c in contents)
@@ -461,9 +451,7 @@ class TestCreateLegionAgent:
     @pytest.mark.skipif(not _legion_exists(), reason="Legion path not found")
     def test_create_backend_agent(self):
         """Backend agent should pair with emp-烛龙."""
-        employee, agent = asyncio.run(
-            create_legion_agent("backend")
-        )
+        employee, agent = asyncio.run(create_legion_agent("backend"))
         assert employee.employee_id == "emp-烛龙"
         assert employee.name == "烛龙" or "烛龙" in employee.name
         assert isinstance(agent, BaseAgent)
@@ -474,9 +462,7 @@ class TestCreateLegionAgent:
     @pytest.mark.skipif(not _legion_exists(), reason="Legion path not found")
     def test_create_qa_agent(self):
         """QA agent should pair with emp-狴犴."""
-        employee, agent = asyncio.run(
-            create_legion_agent("qa")
-        )
+        employee, agent = asyncio.run(create_legion_agent("qa"))
         assert employee.employee_id == "emp-狴犴"
         assert hasattr(agent, "employee")
         assert agent.employee is employee
@@ -484,9 +470,7 @@ class TestCreateLegionAgent:
     @pytest.mark.skipif(not _legion_exists(), reason="Legion path not found")
     def test_create_security_agent(self):
         """Security agent should pair with emp-獬豸."""
-        employee, agent = asyncio.run(
-            create_legion_agent("security")
-        )
+        employee, agent = asyncio.run(create_legion_agent("security"))
         assert employee.employee_id == "emp-獬豸"
         assert hasattr(agent, "employee")
         assert agent.employee is employee
@@ -494,50 +478,38 @@ class TestCreateLegionAgent:
     @pytest.mark.skipif(not _legion_exists(), reason="Legion path not found")
     def test_create_growth_agent(self):
         """Growth agent should pair with emp-乘黄."""
-        employee, agent = asyncio.run(
-            create_legion_agent("growth")
-        )
+        employee, agent = asyncio.run(create_legion_agent("growth"))
         assert employee.employee_id == "emp-乘黄"
         assert hasattr(agent, "employee")
 
     @pytest.mark.skipif(not _legion_exists(), reason="Legion path not found")
     def test_create_knowledge_agent(self):
         """Knowledge agent should pair with emp-文鳐."""
-        employee, agent = asyncio.run(
-            create_legion_agent("knowledge")
-        )
+        employee, agent = asyncio.run(create_legion_agent("knowledge"))
         assert employee.employee_id == "emp-文鳐"
 
     @pytest.mark.skipif(not _legion_exists(), reason="Legion path not found")
     def test_create_architecture_agent(self):
         """Architecture agent should pair with emp-开明兽."""
-        employee, agent = asyncio.run(
-            create_legion_agent("architecture")
-        )
+        employee, agent = asyncio.run(create_legion_agent("architecture"))
         assert employee.employee_id == "emp-开明兽"
 
     @pytest.mark.skipif(not _legion_exists(), reason="Legion path not found")
     def test_create_data_agent(self):
         """Data agent should pair with emp-计然."""
-        employee, agent = asyncio.run(
-            create_legion_agent("data")
-        )
+        employee, agent = asyncio.run(create_legion_agent("data"))
         assert employee.employee_id == "emp-计然"
 
     @pytest.mark.skipif(not _legion_exists(), reason="Legion path not found")
     def test_create_sre_agent(self):
         """SRE agent should pair with emp-䑏疏."""
-        employee, agent = asyncio.run(
-            create_legion_agent("sre")
-        )
+        employee, agent = asyncio.run(create_legion_agent("sre"))
         assert employee.employee_id == "emp-䑏疏"
 
     @pytest.mark.skipif(not _legion_exists(), reason="Legion path not found")
     def test_create_support_agent(self):
         """Support agent should pair with emp-白泽 (resolves to emp-白泽-3c6ee223)."""
-        employee, agent = asyncio.run(
-            create_legion_agent("support")
-        )
+        employee, agent = asyncio.run(create_legion_agent("support"))
         assert employee.employee_id == "emp-白泽"
         assert employee.name == "白泽" or "白泽" in employee.name
         assert hasattr(agent, "employee")
@@ -577,13 +549,9 @@ class TestEmployeeMappingResolution:
             resolved = _resolve_employee_dir(emp_id)
             assert resolved, f"{agent_type} ({emp_id}) did not resolve to a directory"
             soul_path = f"{resolved}/soul-injection.yaml"
-            assert os.path.exists(soul_path), (
-                f"{agent_type} ({emp_id}) missing soul-injection.yaml at {soul_path}"
-            )
+            assert os.path.exists(soul_path), f"{agent_type} ({emp_id}) missing soul-injection.yaml at {soul_path}"
             employee_yaml = f"{resolved}/employee.yaml"
-            assert os.path.exists(employee_yaml), (
-                f"{agent_type} ({emp_id}) missing employee.yaml at {employee_yaml}"
-            )
+            assert os.path.exists(employee_yaml), f"{agent_type} ({emp_id}) missing employee.yaml at {employee_yaml}"
 
     @pytest.mark.skipif(not _legion_exists(), reason="Legion path not found")
     def test_all_employees_have_agent_classes(self):
@@ -591,8 +559,7 @@ class TestEmployeeMappingResolution:
         for agent_type, mapping in EMPLOYEE_AGENT_MAP.items():
             agent_class = mapping["agent_class"]
             assert issubclass(agent_class, BaseAgent), (
-                f"{agent_type}'s agent_class {agent_class.__name__} "
-                "does not inherit from BaseAgent"
+                f"{agent_type}'s agent_class {agent_class.__name__} does not inherit from BaseAgent"
             )
             # The class should be instantiatable
             instance = agent_class()
@@ -670,8 +637,12 @@ class TestMentalModelsEdgeCases:
                 "simple_model_name",
                 {"name": "complex_model", "content": "detailed description"},
                 {"content": "content_only_model"},
-                {"employee_id": "emp-test", "memory_type": "mental_model",
-                 "content": "legacy_format_model", "tags": ["tag1"]},
+                {
+                    "employee_id": "emp-test",
+                    "memory_type": "mental_model",
+                    "content": "legacy_format_model",
+                    "tags": ["tag1"],
+                },
             ]
         }
         emp = object.__new__(LegionEmployee)
@@ -713,9 +684,7 @@ class TestAgentToolsFromProfile:
         """Agent should get get_mental_models, get_employee_profile, etc."""
         employee, agent = asyncio.run(create_legion_agent("backend"))
         tools = agent.tools
-        assert "get_mental_models" in tools, (
-            "Agent should have get_mental_models tool"
-        )
+        assert "get_mental_models" in tools, "Agent should have get_mental_models tool"
         assert "get_employee_profile" in tools
         assert "remember_from_legion" in tools
         assert "memorize_to_legion" in tools
@@ -749,12 +718,12 @@ class TestDirectMemoryDB:
     def _create_temp_db(self):
         """Create a temporary memory.db with memories table."""
         import sqlite3
+
         db_fd, db_path = tempfile.mkstemp(suffix=".db")
         os.close(db_fd)
         conn = sqlite3.connect(db_path)
         conn.execute(
-            "CREATE TABLE IF NOT EXISTS memories "
-            "(id INTEGER PRIMARY KEY, content TEXT, category TEXT, created_at REAL)"
+            "CREATE TABLE IF NOT EXISTS memories (id INTEGER PRIMARY KEY, content TEXT, category TEXT, created_at REAL)"
         )
         conn.execute(
             "INSERT INTO memories (content, category, created_at) VALUES (?, ?, ?)",

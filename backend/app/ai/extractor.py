@@ -1,7 +1,6 @@
 import json
 import os
 import re
-from typing import Optional
 
 import pdfplumber
 
@@ -12,12 +11,12 @@ class AIExtractor:
     """AI 提取器 - PDF 文本提取、NLP 字段提取、DeepSeek 摘要与排版"""
 
     # 中文正则模式
-    PHONE_PATTERN = re.compile(r'(?:\+86[-\s]?)?1[3-9]\d{9}')
-    EMAIL_PATTERN = re.compile(r'[\w.+-]+@[\w-]+\.[\w.]+')
-    WECHAT_PATTERN = re.compile(r'(?:微信|wechat|wx|VX)[：:\s]*([a-zA-Z0-9_]{4,})', re.IGNORECASE)
-    TITLE_PATTERN = re.compile(r'(?:职位|职务|title|position)[：:\s]*(.{2,20})', re.IGNORECASE)
-    COMPANY_PATTERN = re.compile(r'(?:公司|企业|单位|company|firm)[：:\s]*(.{2,30})', re.IGNORECASE)
-    NAME_PATTERN = re.compile(r'(?:姓名|名字|name|称呼)[：:\s]*([\u4e00-\u9fa5]{2,4})', re.IGNORECASE)
+    PHONE_PATTERN = re.compile(r"(?:\+86[-\s]?)?1[3-9]\d{9}")
+    EMAIL_PATTERN = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
+    WECHAT_PATTERN = re.compile(r"(?:微信|wechat|wx|VX)[：:\s]*([a-zA-Z0-9_]{4,})", re.IGNORECASE)
+    TITLE_PATTERN = re.compile(r"(?:职位|职务|title|position)[：:\s]*(.{2,20})", re.IGNORECASE)
+    COMPANY_PATTERN = re.compile(r"(?:公司|企业|单位|company|firm)[：:\s]*(.{2,30})", re.IGNORECASE)
+    NAME_PATTERN = re.compile(r"(?:姓名|名字|name|称呼)[：:\s]*([\u4e00-\u9fa5]{2,4})", re.IGNORECASE)
 
     @staticmethod
     def extract_text_from_pdf(pdf_path: str) -> str:
@@ -111,10 +110,10 @@ class AIExtractor:
                 if not line:
                     continue
                 # 跳过明显不是名字的行
-                if re.search(r'(公司|企业|电话|手机|邮箱|地址|职位|微信|传真|网址|www\.|@)', line):
+                if re.search(r"(公司|企业|电话|手机|邮箱|地址|职位|微信|传真|网址|www\.|@)", line):
                     continue
                 # 匹配2-4个中文字符
-                chinese_names = re.findall(r'^[\u4e00-\u9fa5]{2,4}$', line)
+                chinese_names = re.findall(r"^[\u4e00-\u9fa5]{2,4}$", line)
                 if chinese_names:
                     result["name"] = chinese_names[0]
                     break
@@ -124,7 +123,7 @@ class AIExtractor:
     @staticmethod
     async def generate_summary(
         text: str,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
     ) -> str:
         """调用 DeepSeek API 生成摘要
 
@@ -158,7 +157,10 @@ class AIExtractor:
                     json={
                         "model": "deepseek-chat",
                         "messages": [
-                            {"role": "system", "content": "你是一个名片信息摘要助手。请用简洁的语言提炼名片信息的核心内容。"},
+                            {
+                                "role": "system",
+                                "content": "你是一个名片信息摘要助手。请用简洁的语言提炼名片信息的核心内容。",
+                            },
                             {"role": "user", "content": prompt},
                         ],
                         "max_tokens": 200,
@@ -173,7 +175,7 @@ class AIExtractor:
     @staticmethod
     async def auto_layout(
         fields: dict,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
     ) -> list[dict]:
         """调用 DeepSeek API 智能排版，将字段分配到翻页图册的各页
 
@@ -227,7 +229,7 @@ JSON："""
                 result = resp.json()
                 content = result["choices"][0]["message"]["content"].strip()
                 # 尝试提取 JSON
-                json_match = re.search(r'\[.*\]', content, re.DOTALL)
+                json_match = re.search(r"\[.*\]", content, re.DOTALL)
                 if json_match:
                     pages = json.loads(json_match.group(0))
                     return pages
@@ -240,7 +242,7 @@ JSON："""
     async def rag_match(
         user_query: str,
         user_tags: list[str],
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
     ) -> dict:
         """DeepSeek RAG 匹配增强 — 用大模型做高级语义理解
 
@@ -301,7 +303,7 @@ JSON："""
 
 用户查询：{user_query}
 
-用户标签：{', '.join(user_tags) if user_tags else '无'}
+用户标签：{", ".join(user_tags) if user_tags else "无"}
 
 请返回 JSON 格式分析结果：
 {{
@@ -334,7 +336,7 @@ JSON："""
                 result = resp.json()
                 content = result["choices"][0]["message"]["content"].strip()
                 # 提取 JSON
-                json_match = re.search(r'\{.*\}', content, re.DOTALL)
+                json_match = re.search(r"\{.*\}", content, re.DOTALL)
                 if json_match:
                     parsed = json.loads(json_match.group(0))
                     parsed["fallback"] = False

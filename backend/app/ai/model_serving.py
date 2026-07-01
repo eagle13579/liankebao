@@ -7,8 +7,6 @@
 """
 
 import logging
-import time
-from typing import List, Optional
 
 import requests
 
@@ -21,7 +19,7 @@ class ModelServingClient:
     def __init__(
         self,
         mlx_base_url: str = "http://192.168.1.233:8000",
-        hf_api_token: Optional[str] = None,
+        hf_api_token: str | None = None,
         hf_model_id: str = "sentence-transformers/all-MiniLM-L6-v2",
         st_model_name: str = "all-MiniLM-L6-v2",
         timeout: int = 10,
@@ -35,7 +33,7 @@ class ModelServingClient:
 
     # ── MLX 本地模型 ──────────────────────────────────────────
 
-    def _infer_mlx(self, texts: List[str]) -> Optional[List[List[float]]]:
+    def _infer_mlx(self, texts: list[str]) -> list[list[float]] | None:
         """调用本地 MLX 推理服务 (vLLM / llama.cpp 兼容格式)。"""
         try:
             resp = requests.post(
@@ -59,7 +57,7 @@ class ModelServingClient:
 
     # ── HuggingFace API ──────────────────────────────────────
 
-    def _infer_hf(self, texts: List[str]) -> Optional[List[List[float]]]:
+    def _infer_hf(self, texts: list[str]) -> list[list[float]] | None:
         """调用 HuggingFace Inference API。"""
         if not self.hf_api_token:
             logger.warning("未配置 HuggingFace API Token，跳过")
@@ -84,11 +82,12 @@ class ModelServingClient:
 
     # ── 本地 sentence-transformers ────────────────────────────
 
-    def _infer_st(self, texts: List[str]) -> List[List[float]]:
+    def _infer_st(self, texts: list[str]) -> list[list[float]]:
         """本地 sentence-transformers 嵌入（最终降级）。"""
         if self._st_model is None:
             try:
                 from sentence_transformers import SentenceTransformer
+
                 self._st_model = SentenceTransformer(self.st_model_name)
                 logger.info("加载 sentence-transformers 模型: %s", self.st_model_name)
             except ImportError:
@@ -99,12 +98,12 @@ class ModelServingClient:
 
     # ── 公共接口 ──────────────────────────────────────────────
 
-    def inference(self, text: str) -> List[float]:
+    def inference(self, text: str) -> list[float]:
         """单条文本 → embedding。自动降级。"""
         embeddings = self.batch_inference([text])
         return embeddings[0]
 
-    def batch_inference(self, texts: List[str]) -> List[List[float]]:
+    def batch_inference(self, texts: list[str]) -> list[list[float]]:
         """批量文本 → embeddings。自动降级 MLX → HF → sentence-transformers。"""
         if not texts:
             return []
@@ -141,6 +140,7 @@ class ModelServingClient:
         # ST
         try:
             from sentence_transformers import SentenceTransformer
+
             status["st"] = True
         except ImportError:
             status["st"] = False

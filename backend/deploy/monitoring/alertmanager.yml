@@ -1,0 +1,133 @@
+# =============================================================================
+# 链客宝 — AlertManager 配置
+# =============================================================================
+# 通知渠道: 邮件 + 企业微信 Webhook
+# =============================================================================
+
+# ── 全局配置 ──────────────────────────────────────────────────────────────
+global:
+  # 邮件通知 (SMTP)
+  smtp_smarthost: '${SMTP_HOST}:${SMTP_PORT:-587}'
+  smtp_from: '${SMTP_FROM:-alert@chainke.com}'
+  smtp_auth_username: '${SMTP_USERNAME}'
+  smtp_auth_password: '${SMTP_PASSWORD}'
+  smtp_require_tls: true
+
+  # 企业微信 Webhook (可选)
+  # wechat_api_url: 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send'
+  # wechat_api_corp_id: '${WECHAT_CORP_ID}'
+  # wechat_api_secret: '${WECHAT_SECRET}'
+
+  # 全局超时设置
+  resolve_timeout: 5m
+
+# ── 路由规则 ──────────────────────────────────────────────────────────────
+route:
+  receiver: 'default'
+  group_by: ['alertname', 'severity', 'service']
+  group_wait: 30s           # 同组告警等待时间（收集更多同类告警）
+  group_interval: 3m        # 同组告警发送间隔
+  repeat_interval: 4h       # 重复告警间隔（避免轰炸）
+
+  # 子路由 — 按严重级别分发
+  routes:
+    # Critical — 立即通知 (企业微信 + 邮件 + 电话)
+    - match:
+        severity: critical
+      receiver: critical-pager
+      group_wait: 10s
+      group_interval: 1m
+      repeat_interval: 5m
+
+    # Warning — 工作时间内通知 (企业微信)
+    - match:
+        severity: warning
+      receiver: warning-wechat
+      group_wait: 1m
+      group_interval: 5m
+      repeat_interval: 30m
+
+    # Info — 聚合后邮件通知
+    - match:
+        severity: info
+      receiver: info-email
+      group_wait: 2m
+      group_interval: 10m
+      repeat_interval: 6h
+
+# ── 接收器定义 ────────────────────────────────────────────────────────────
+receivers:
+
+  # ── 默认接收器 (兜底) ────────────────────────────────────────────────
+  - name: 'default'
+    email_configs:
+      - to: '${ALERT_EMAIL_TO:-ops@chainke.com}'
+        send_resolved: true
+        headers:
+          subject: '[链客宝告警] {{ .GroupLabels.alertname }} — {{ .Status }}'
+
+  # ── Critical — 企业微信 + 邮件 ──────────────────────────────────────
+  - name: 'critical-pager'
+    email_configs:
+      - to: '${ALERT_CRITICAL_EMAIL:-sre@chainke.com}'
+        send_resolved: true
+        headers:
+          subject: '[链客宝 CRITICAL] {{ .GroupLabels.alertname }} — 需立即处理'
+        html: |
+          <h2>🔴 链客宝 严重告警</h2>
+          <table border="1" cellpadding="6" style="border-collapse:collapse;">
+            <tr><td><b>告警名称</b></td><td>{{ .GroupLabels.alertname }}</td></tr>
+            <tr><td><b>严重级别</b></td><td><span style="color:red;">CRITICAL</span></td></tr>
+            <tr><td><b>服务</b></td><td>{{ .GroupLabels.service }}</td></tr>
+            <tr><td><b>告警数量</b></td><td>{{ .Alerts.Firing | len }}</td></tr>
+            <tr><td><b>开始时间</b></td><td>{{ (index .Alerts 0).StartsAt }}</td></tr>
+          </table>
+          <h3>告警详情:</h3>
+          <pre>{{ range .Alerts }}{{ .Annotations.description }}
+          {{ end }}</pre>
+          <p><a href="http://grafana:3000">查看 Grafana 仪表盘</a></p>
+
+    webhook_configs:
+      - url: '${WECHAT_WEBHOOK_CRITICAL:-}'
+        send_resolved: true
+        http_config:
+          basic_auth:
+            username: ''
+            password: ''
+
+  # ── Warning — 企业微信 ──────────────────────────────────────────────
+  - name: 'warning-wechat'
+    webhook_configs:
+      - url: '${WECHAT_WEBHOOK_WARNING:-}'
+        send_resolved: true
+
+    email_configs:
+      - to: '${ALERT_WARNING_EMAIL:-backend@chainke.com}'
+        send_resolved: true
+        headers:
+          subject: '[链客宝 WARNING] {{ .GroupLabels.alertname }}'
+
+  # ── Info — 邮件通知 ─────────────────────────────────────────────────
+  - name: 'info-email'
+    email_configs:
+      - to: '${ALERT_INFO_EMAIL:-dev@chainke.com}'
+        send_resolved: true
+        headers:
+          subject: '[链客宝 INFO] {{ .GroupLabels.alertname }}'
+
+# ── 抑制规则 ──────────────────────────────────────────────────────────────
+# 避免在同一个服务上的重复告警轰炸
+inhibit_rules:
+  # 如果同一个服务的 Critical 告警激活，抑制该服务的 Warning/Info 告警
+  - source_match:
+      severity: critical
+    target_match:
+      severity: '^(warning|info)$'
+    equal: ['service']
+
+  # 如果服务离线 (up==0)，抑制该服务的所有其他告警
+  - source_match:
+      alertname: ServiceOffline
+    target_match_re:
+      severity: '.*'
+    equal: ['instance']

@@ -7,18 +7,12 @@
 
 import json
 import logging
-import os
-import re
 from pathlib import Path
-from typing import Dict, Iterator, List, Optional, Union
 
 logger = logging.getLogger(__name__)
 
 # ChatML 模板常量
-CHATML_SYSTEM = (
-    "<|im_start|>system\n你是一个 AI 数字名片助手，"
-    "基于企业内部代码资产库和文档回答问题。\n<|im_end|>"
-)
+CHATML_SYSTEM = "<|im_start|>system\n你是一个 AI 数字名片助手，基于企业内部代码资产库和文档回答问题。\n<|im_end|>"
 CHATML_USER = "<|im_start|>user\n{question}\n<|im_end|>"
 CHATML_ASSISTANT = "<|im_start|>assistant\n{answer}\n<|im_end|>"
 
@@ -26,12 +20,12 @@ CHATML_ASSISTANT = "<|im_start|>assistant\n{answer}\n<|im_end|>"
 class TrainingPipeline:
     """训练数据管道：代码/文档 → ChatML 样本 → JSONL。"""
 
-    def __init__(self, asset_root: Optional[str] = None):
+    def __init__(self, asset_root: str | None = None):
         self.asset_root = Path(asset_root) if asset_root else Path.cwd()
 
     # ── 提取代码资产 ──────────────────────────────────────────
 
-    def _collect_code_files(self) -> List[Path]:
+    def _collect_code_files(self) -> list[Path]:
         """递归收集所有 .py / .md / .txt / .rst 文件。"""
         extensions = {".py", ".md", ".txt", ".rst", ".yaml", ".yml", ".toml", ".json"}
         files = []
@@ -39,15 +33,13 @@ class TrainingPipeline:
             files.extend(self.asset_root.rglob(f"*{ext}"))
         # 排除 __pycache__、.git、node_modules
         files = [
-            f for f in files
-            if not any(
-                part.startswith("__pycache__") or part in (".git", "node_modules", ".venv")
-                for part in f.parts
-            )
+            f
+            for f in files
+            if not any(part.startswith("__pycache__") or part in (".git", "node_modules", ".venv") for part in f.parts)
         ]
         return sorted(files)
 
-    def _file_to_chunk(self, path: Path) -> Optional[Dict[str, str]]:
+    def _file_to_chunk(self, path: Path) -> dict[str, str] | None:
         """读取文件并结构化为一个代码块。"""
         try:
             content = path.read_text(encoding="utf-8", errors="replace")
@@ -56,8 +48,14 @@ class TrainingPipeline:
             return None
         rel = path.relative_to(self.asset_root) if path.is_relative_to(self.asset_root) else path
         ext = path.suffix.lower()
-        lang_map = {".py": "python", ".md": "markdown", ".yaml": "yaml",
-                     ".yml": "yaml", ".toml": "toml", ".json": "json"}
+        lang_map = {
+            ".py": "python",
+            ".md": "markdown",
+            ".yaml": "yaml",
+            ".yml": "yaml",
+            ".toml": "toml",
+            ".json": "json",
+        }
         lang = lang_map.get(ext, "text")
         return {
             "path": str(rel),
@@ -65,7 +63,7 @@ class TrainingPipeline:
             "content": content[:8000],  # 截断超长文件
         }
 
-    def prepare_training_data(self) -> List[Dict[str, str]]:
+    def prepare_training_data(self) -> list[dict[str, str]]:
         """从代码资产库提取代码 + 文档 → 结构化列表。"""
         files = self._collect_code_files()
         logger.info("收集到 %d 个代码/文档文件", len(files))
@@ -79,9 +77,7 @@ class TrainingPipeline:
 
     # ── 生成训练样本 ──────────────────────────────────────────
 
-    def generate_training_samples(
-        self, chunks: Optional[List[Dict[str, str]]] = None
-    ) -> List[Dict[str, str]]:
+    def generate_training_samples(self, chunks: list[dict[str, str]] | None = None) -> list[dict[str, str]]:
         """将代码块转换为 ChatML 问答样本对。
 
         自动生成 question:
@@ -122,8 +118,8 @@ class TrainingPipeline:
 
     def export_to_jsonl(
         self,
-        output_path: Union[str, Path],
-        samples: Optional[List[Dict[str, str]]] = None,
+        output_path: str | Path,
+        samples: list[dict[str, str]] | None = None,
     ) -> int:
         """导出为 MLX 训练的 JSONL 格式 (ChatML)。"""
         if samples is None:

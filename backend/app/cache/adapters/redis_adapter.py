@@ -21,7 +21,8 @@ from __future__ import annotations
 import dataclasses
 import json
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from app.cache.interfaces import CacheProtocol
 
@@ -199,9 +200,7 @@ class RedisCache(CacheProtocol):
 
         except ImportError as exc:
             logger.error("redis.asyncio not available: %s", exc)
-            raise RuntimeError(
-                "redis package is required. Install with: pip install redis"
-            ) from exc
+            raise RuntimeError("redis package is required. Install with: pip install redis") from exc
         except Exception as exc:
             logger.warning(
                 "Redis connection failed (%s:%d): %s — cache operations will raise",
@@ -211,9 +210,7 @@ class RedisCache(CacheProtocol):
             )
             self._redis = None
             self._running = False
-            raise ConnectionError(
-                f"Redis unavailable at {self._config.host}:{self._config.port}: {exc}"
-            ) from exc
+            raise ConnectionError(f"Redis unavailable at {self._config.host}:{self._config.port}: {exc}") from exc
 
     async def stop(self) -> None:
         """Close the Redis connection gracefully."""
@@ -449,9 +446,7 @@ class RedisCache(CacheProtocol):
             cursor = 0
             deleted = 0
             while True:
-                cursor, keys = await self._redis.scan(
-                    cursor=cursor, match=pattern, count=500
-                )
+                cursor, keys = await self._redis.scan(cursor=cursor, match=pattern, count=500)
                 if keys:
                     await self._redis.delete(*keys)
                     deleted += len(keys)
@@ -478,9 +473,7 @@ class RedisCache(CacheProtocol):
             cursor = 0
             count = 0
             while True:
-                cursor, keys = await self._redis.scan(
-                    cursor=cursor, match=pattern, count=500
-                )
+                cursor, keys = await self._redis.scan(cursor=cursor, match=pattern, count=500)
                 count += len(keys)
                 if cursor == 0:
                     break

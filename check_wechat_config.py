@@ -239,12 +239,14 @@ def main():
         ),
     )
     parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="显示更详细的配置说明",
     )
     parser.add_argument(
-        "--fix-env", "-f",
+        "--fix-env",
+        "-f",
         action="store_true",
         help="尝试从项目根目录的 .env 文件加载配置",
     )
@@ -261,6 +263,7 @@ def main():
     if args.dotenv_path:
         try:
             from dotenv import load_dotenv
+
             if load_dotenv(args.dotenv_path, override=False):
                 print(f"  ✓ 已加载 .env 文件: {args.dotenv_path}")
         except ImportError:

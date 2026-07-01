@@ -1,0 +1,178 @@
+# =============================================================================
+# 链客宝 — Prometheus 告警规则
+# =============================================================================
+# 来源: docs/observability/alert-rules.md
+# =============================================================================
+
+groups:
+
+  # ── Critical 告警 (每 30s 评估) ─────────────────────────────────────────
+  - name: chainke-api-critical
+    interval: 30s
+    rules:
+
+      # ── 规则 1: 高延迟 ──────────────────────────────────────────────
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(ncard_http_request_duration_seconds_bucket[5m])
+          ) > 1.0
+        for: 5m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "API 响应延迟超过 SLO (P95 > 1s)"
+          description: >
+            P95 延迟 {{ $value | humanizeDuration }} 持续 5 分钟。
+            请检查慢查询、外部依赖和计算资源。
+          runbook: "https://wiki.internal/runbooks/high-latency"
+
+      # ── 规则 2: 错误率突增 ──────────────────────────────────────────
+      - alert: ErrorRateBurst
+        expr: |
+          (
+            rate(ncard_http_requests_total{status="5xx"}[5m])
+            /
+            rate(ncard_http_requests_total[5m])
+          ) > 0.01
+        for: 3m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "5xx 错误率超过 1%"
+          description: >
+            错误率 {{ $value | humanizePercentage }}，持续 3 分钟。
+            请检查近期部署和日志。
+          runbook: "https://wiki.internal/runbooks/error-burst"
+
+      # ── 规则 3: 服务离线 ────────────────────────────────────────────
+      - alert: ServiceOffline
+        expr: up{job=~"chainke-backend|chainke-agent-runtime"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          team: oncall
+        annotations:
+          summary: "{{ $labels.job }} 服务离线"
+          description: >
+            {{ $labels.job }} 实例已下线超过 30 秒。
+            立即检查服务器状态和部署流水线。
+          runbook: "https://wiki.internal/runbooks/service-offline"
+
+      # ── 规则 6: 支付失败 ────────────────────────────────────────────
+      - alert: PaymentFailure
+        expr: |
+          (
+            rate(ncard_http_requests_total{status="5xx", path=~".*/payment/.*"}[2m])
+            /
+            rate(ncard_http_requests_total{path=~".*/payment/.*"}[2m])
+          ) > 0.02
+        for: 2m
+        labels:
+          severity: critical
+          team: payment
+        annotations:
+          summary: "支付接口错误率超过 2%"
+          description: >
+            支付失败率 {{ $value | humanizePercentage }}。
+            请立即联系微信/支付宝网关确认。
+          runbook: "https://wiki.internal/runbooks/payment-failure"
+
+      # ── Watchdog 自愈触发告警 ───────────────────────────────────────
+      - alert: WatchdogRestart
+        expr: |
+          rate(watchdog_restarts_total[5m]) > 0
+        for: 0s
+        labels:
+          severity: critical
+          team: sre
+        annotations:
+          summary: "Watchdog 触发了 Agent Runtime 重启"
+          description: >
+            Watchdog 自愈系统在过去 5 分钟内触发了一次 Agent Runtime 重启。
+            请检查 Agent Runtime 日志以了解根本原因。
+          runbook: "https://wiki.internal/runbooks/agent-runtime-recovery"
+
+  # ── Warning 告警 (每 60s 评估) ─────────────────────────────────────────
+  - name: chainke-api-warning
+    interval: 60s
+    rules:
+
+      # ── 规则 4: 慢查询 ──────────────────────────────────────────────
+      - alert: SlowDatabaseQuery
+        expr: |
+          histogram_quantile(0.99,
+            rate(ncard_db_query_duration_seconds_bucket[5m])
+          ) > 2.0
+        for: 5m
+        labels:
+          severity: warning
+          team: dba
+        annotations:
+          summary: "DB 查询 P99 延迟超过 2s"
+          description: >
+            DB 查询 P99 延迟 {{ $value | humanizeDuration }}。
+            请检查慢查询日志、索引和连接池。
+          runbook: "https://wiki.internal/runbooks/slow-query"
+
+      # ── 规则 5: 速率限制高命中 ──────────────────────────────────────
+      - alert: RateLimitHitHigh
+        expr: |
+          (
+            rate(ncard_http_requests_total{status="429"}[5m])
+            /
+            rate(ncard_http_requests_total[5m])
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "速率限制命中率超过 50%"
+          description: >
+            限流比例 {{ $value | humanizePercentage }}，持续 5 分钟。
+            可能存在异常爬虫或客户端风暴。
+          runbook: "https://wiki.internal/runbooks/rate-limit"
+
+      # ── Agent Runtime 状态告警 ──────────────────────────────────────
+      - alert: AgentRuntimeUnhealthy
+        expr: |
+          agent_runtime_running == 0
+        for: 1m
+        labels:
+          severity: warning
+          team: sre
+        annotations:
+          summary: "Agent Runtime 状态异常"
+          description: >
+            Agent Runtime 报告 running=false 超过 1 分钟。
+            Watchdog 将自动尝试恢复。
+
+      # ── 节点资源告警 ────────────────────────────────────────────────
+      - alert: DiskSpaceLow
+        expr: |
+          (1 - (node_filesystem_avail_bytes{fstype=~"ext4|xfs"} / node_filesystem_size_bytes{fstype=~"ext4|xfs"})) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          team: sre
+        annotations:
+          summary: "磁盘空间不足 ({{ $value | humanizePercentage }} 已用)"
+          description: >
+            分区 {{ $labels.mountpoint }} 已使用 {{ $value | humanizePercentage }}。
+            请清理日志或扩容。
+
+      - alert: MemoryHighUsage
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          team: sre
+        annotations:
+          summary: "内存使用率超过 90%"
+          description: >
+            宿主机内存使用率 {{ $value | humanizePercentage }}。
+            请检查进程内存泄漏或扩容。

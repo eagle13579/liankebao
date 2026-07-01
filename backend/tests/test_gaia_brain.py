@@ -13,19 +13,17 @@ Tests cover:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime
+from unittest.mock import MagicMock, patch
 
-import pytest
 import pytest_asyncio
 
 from app.models.gaia import (
-    GaiaKnowledge,
     GaiaEvolutionEvent,
-    GaiaTrainingRun,
+    GaiaKnowledge,
     GaiaModelWeights,
+    GaiaTrainingRun,
 )
-
 
 # ══════════════════════════════════════════════════════════════════════
 # 1. GaiaKnowledge model
@@ -53,10 +51,10 @@ class TestGaiaKnowledgeModel:
         assert k.knowledge_type == "insight"
         assert k.title == "测试知识"
         assert k.content == "这是一个测试知识条目"
-        assert k.tags is None          # default
-        assert k.confidence == 1.0     # default
-        assert k.impact_score == 0.0   # default
-        assert k.is_active is True     # default
+        assert k.tags is None  # default
+        assert k.confidence == 1.0  # default
+        assert k.impact_score == 0.0  # default
+        assert k.is_active is True  # default
         assert k.vector_embedded is False  # default
         assert k.created_at is not None
         assert k.updated_at is not None
@@ -138,10 +136,12 @@ class TestGaiaKnowledgeModel:
 # 2. GaiaEvolutionBrain — ingest_knowledge
 # ══════════════════════════════════════════════════════════════════════
 
+
 # Patch the embedding backend so tests don't require real vector infra
 @pytest_asyncio.fixture
 async def brain():
     from app.ai.gaia_evolution_brain import GaiaEvolutionBrain
+
     with (
         patch("app.ai.gaia_evolution_brain.get_embedding_backend") as mock_backend,
         patch("app.ai.gaia_evolution_brain.get_vector_index") as mock_vindex,
@@ -185,9 +185,9 @@ class TestIngestKnowledge:
 
         # An evolution event should have been recorded
         event = await test_db.execute(
-            __import__("sqlalchemy").select(GaiaEvolutionEvent).where(
-                GaiaEvolutionEvent.event_type == "knowledge_ingested"
-            )
+            __import__("sqlalchemy")
+            .select(GaiaEvolutionEvent)
+            .where(GaiaEvolutionEvent.event_type == "knowledge_ingested")
         )
         ev = event.scalars().first()
         assert ev is not None
@@ -211,24 +211,36 @@ class TestIngestKnowledge:
     async def test_ingest_confidence_clamping(self, test_db, brain):
         """Confidence is clamped to [0.0, 1.0]."""
         k_high = await brain.ingest_knowledge(
-            db=test_db, source="manual", source_id="t1",
-            knowledge_type="insight", title="过高", content="x", confidence=5.0,
+            db=test_db,
+            source="manual",
+            source_id="t1",
+            knowledge_type="insight",
+            title="过高",
+            content="x",
+            confidence=5.0,
         )
         assert k_high.confidence == 1.0
 
         k_low = await brain.ingest_knowledge(
-            db=test_db, source="manual", source_id="t2",
-            knowledge_type="insight", title="过低", content="x", confidence=-0.5,
+            db=test_db,
+            source="manual",
+            source_id="t2",
+            knowledge_type="insight",
+            title="过低",
+            content="x",
+            confidence=-0.5,
         )
         assert k_low.confidence == 0.0
 
     async def test_ingest_source_id_is_optional(self, test_db, brain):
         """source_id defaults to empty string."""
         k = await brain.ingest_knowledge(
-            db=test_db, source="manual",
+            db=test_db,
+            source="manual",
             source_id="",
             knowledge_type="insight",
-            title="无来源ID", content="测试",
+            title="无来源ID",
+            content="测试",
         )
         await test_db.commit()
         assert k.source_id == ""
@@ -286,9 +298,9 @@ class TestIngestFeedback:
 
         # But an event should still be recorded
         event = await test_db.execute(
-            __import__("sqlalchemy").select(GaiaEvolutionEvent).where(
-                GaiaEvolutionEvent.event_type == "feedback_recorded"
-            )
+            __import__("sqlalchemy")
+            .select(GaiaEvolutionEvent)
+            .where(GaiaEvolutionEvent.event_type == "feedback_recorded")
         )
         ev = event.scalars().first()
         assert ev is not None
@@ -392,14 +404,22 @@ class TestProcessEvolutionCycle:
         """Evolution cycle processes pending knowledge and creates a training run."""
         # Insert some knowledge that needs embedding
         k1 = GaiaKnowledge(
-            source="retrospective", source_id="r1",
-            knowledge_type="pattern", title="原则1", content="第一个原则",
-            is_active=True, vector_embedded=False,
+            source="retrospective",
+            source_id="r1",
+            knowledge_type="pattern",
+            title="原则1",
+            content="第一个原则",
+            is_active=True,
+            vector_embedded=False,
         )
         k2 = GaiaKnowledge(
-            source="retrospective", source_id="r2",
-            knowledge_type="insight", title="洞察1", content="重要洞察",
-            is_active=True, vector_embedded=False,
+            source="retrospective",
+            source_id="r2",
+            knowledge_type="insight",
+            title="洞察1",
+            content="重要洞察",
+            is_active=True,
+            vector_embedded=False,
         )
         test_db.add_all([k1, k2])
         await test_db.commit()
@@ -439,9 +459,9 @@ class TestProcessEvolutionCycle:
         await test_db.commit()
 
         events = await test_db.execute(
-            __import__("sqlalchemy").select(GaiaEvolutionEvent).where(
-                GaiaEvolutionEvent.event_type.in_(["cycle_started", "cycle_completed"])
-            )
+            __import__("sqlalchemy")
+            .select(GaiaEvolutionEvent)
+            .where(GaiaEvolutionEvent.event_type.in_(["cycle_started", "cycle_completed"]))
         )
         ev_list = events.scalars().all()
         types = {e.event_type for e in ev_list}
@@ -460,17 +480,22 @@ class TestKnowledgeBase:
     async def test_keyword_search_returns_matches(self, test_db, brain):
         """Database fallback search returns matching knowledge."""
         k = GaiaKnowledge(
-            source="manual", knowledge_type="insight",
+            source="manual",
+            knowledge_type="insight",
             title="关于用户增长",
             content="用户增长的关键因素是口碑传播和产品体验",
-            is_active=True, confidence=0.9, impact_score=0.8,
+            is_active=True,
+            confidence=0.9,
+            impact_score=0.8,
             vector_embedded=False,
         )
         test_db.add(k)
         await test_db.commit()
 
         results = await brain.get_knowledge_base(
-            test_db, query="用户增长", limit=10,
+            test_db,
+            query="用户增长",
+            limit=10,
         )
         assert len(results) >= 1
         assert results[0]["title"] == "关于用户增长"
@@ -478,58 +503,82 @@ class TestKnowledgeBase:
     async def test_keyword_search_empty_db(self, test_db, brain):
         """Empty knowledge base returns empty list."""
         results = await brain.get_knowledge_base(
-            test_db, query="anything", limit=10,
+            test_db,
+            query="anything",
+            limit=10,
         )
         assert results == []
 
     async def test_keyword_search_with_filters(self, test_db, brain):
         """Filter by knowledge_type and source."""
-        test_db.add_all([
-            GaiaKnowledge(
-                source="retrospective", knowledge_type="pattern",
-                title="模式A", content="模式A内容",
-                is_active=True, confidence=0.9,
-            ),
-            GaiaKnowledge(
-                source="feedback", knowledge_type="preference",
-                title="偏好B", content="模式A内容",
-                is_active=True, confidence=0.8,
-            ),
-        ])
+        test_db.add_all(
+            [
+                GaiaKnowledge(
+                    source="retrospective",
+                    knowledge_type="pattern",
+                    title="模式A",
+                    content="模式A内容",
+                    is_active=True,
+                    confidence=0.9,
+                ),
+                GaiaKnowledge(
+                    source="feedback",
+                    knowledge_type="preference",
+                    title="偏好B",
+                    content="模式A内容",
+                    is_active=True,
+                    confidence=0.8,
+                ),
+            ]
+        )
         await test_db.commit()
 
         # Filter by type
         results = await brain.get_knowledge_base(
-            test_db, query="模式A", knowledge_type="pattern",
+            test_db,
+            query="模式A",
+            knowledge_type="pattern",
         )
         assert len(results) == 1
         assert results[0]["knowledge_type"] == "pattern"
 
         # Filter by source
         results = await brain.get_knowledge_base(
-            test_db, query="模式A", source="feedback",
+            test_db,
+            query="模式A",
+            source="feedback",
         )
         assert len(results) == 1
         assert results[0]["source"] == "feedback"
 
     async def test_min_confidence_filter(self, test_db, brain):
         """min_confidence excludes low-confidence entries."""
-        test_db.add_all([
-            GaiaKnowledge(
-                source="manual", knowledge_type="insight",
-                title="高置信度", content="高质量知识",
-                is_active=True, confidence=0.95,
-            ),
-            GaiaKnowledge(
-                source="manual", knowledge_type="insight",
-                title="低置信度", content="低质量知识",
-                is_active=True, confidence=0.3,
-            ),
-        ])
+        test_db.add_all(
+            [
+                GaiaKnowledge(
+                    source="manual",
+                    knowledge_type="insight",
+                    title="高置信度",
+                    content="高质量知识",
+                    is_active=True,
+                    confidence=0.95,
+                ),
+                GaiaKnowledge(
+                    source="manual",
+                    knowledge_type="insight",
+                    title="低置信度",
+                    content="低质量知识",
+                    is_active=True,
+                    confidence=0.3,
+                ),
+            ]
+        )
         await test_db.commit()
 
         results = await brain.get_knowledge_base(
-            test_db, query="知识", min_confidence=0.8,
+            test_db,
+            query="知识",
+            min_confidence=0.8,
         )
         titles = {r["title"] for r in results}
         assert "高置信度" in titles
@@ -539,15 +588,20 @@ class TestKnowledgeBase:
         """Inactive (soft-deleted) knowledge is excluded."""
         test_db.add(
             GaiaKnowledge(
-                source="manual", knowledge_type="insight",
-                title="已删除", content="已删除知识",
-                is_active=False, confidence=0.9,
+                source="manual",
+                knowledge_type="insight",
+                title="已删除",
+                content="已删除知识",
+                is_active=False,
+                confidence=0.9,
             )
         )
         await test_db.commit()
 
         results = await brain.get_knowledge_base(
-            test_db, query="已删除", limit=10,
+            test_db,
+            query="已删除",
+            limit=10,
         )
         assert len(results) == 0
 
@@ -591,14 +645,14 @@ class TestGaiaTrainingRunModel:
             weights_count=15,
             vector_index_size=500,
             duration_ms=0,
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
         )
         test_db.add(run)
         await test_db.commit()
 
         # Simulate completion
         run.status = "completed"
-        run.completed_at = datetime.now(timezone.utc)
+        run.completed_at = datetime.now(UTC)
         run.duration_ms = 12345
         run.metrics = {"accuracy": 0.95, "coverage": 0.82}
         await test_db.commit()
@@ -734,9 +788,8 @@ class TestGaiaModelWeights:
         await test_db.commit()
 
         from sqlalchemy import select
-        result = await test_db.execute(
-            select(GaiaModelWeights).where(GaiaModelWeights.is_active.is_(True))
-        )
+
+        result = await test_db.execute(select(GaiaModelWeights).where(GaiaModelWeights.is_active.is_(True)))
         active = result.scalars().all()
         assert len(active) == 3
 

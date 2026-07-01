@@ -64,21 +64,17 @@ except ImportError:
 # ============================================================
 # Checkpoint 管理（断点续传）
 # ============================================================
-CHECKPOINT_FILE = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), ".migration_checkpoint.json"
-)
+CHECKPOINT_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".migration_checkpoint.json")
 
 
 def load_checkpoint(checkpoint_path: str) -> dict:
     """加载 checkpoint 文件"""
     if os.path.exists(checkpoint_path):
         try:
-            with open(checkpoint_path, "r", encoding="utf-8") as f:
+            with open(checkpoint_path, encoding="utf-8") as f:
                 cp = json.load(f)
             logger.info(f"  加载 checkpoint: {checkpoint_path}")
-            logger.info(
-                f"  已迁移的表: {', '.join(cp.get('completed_tables', [])) or '无'}"
-            )
+            logger.info(f"  已迁移的表: {', '.join(cp.get('completed_tables', [])) or '无'}")
             return cp
         except Exception as e:
             logger.warning(f"  checkpoint 读取失败，将从头开始: {e}")
@@ -158,9 +154,7 @@ def get_all_table_names(sqlite_path: str) -> list:
 
     conn = sqlite3.connect(sqlite_path)
     cursor = conn.cursor()
-    cursor.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-    )
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
     skip_tables = {
         "sqlite_sequence",
         "sqlite_stat1",
@@ -169,11 +163,7 @@ def get_all_table_names(sqlite_path: str) -> list:
         "spatial_ref_sys",
         "geometry_columns",
     }
-    tables = [
-        row[0]
-        for row in cursor.fetchall()
-        if not row[0].startswith("sqlite_") and row[0] not in skip_tables
-    ]
+    tables = [row[0] for row in cursor.fetchall() if not row[0].startswith("sqlite_") and row[0] not in skip_tables]
     conn.close()
     return tables
 
@@ -181,9 +171,7 @@ def get_all_table_names(sqlite_path: str) -> list:
 # ============================================================
 # 数据导出
 # ============================================================
-def export_from_sqlite(
-    sqlite_path: str, table_names: list = None, skip_tables: list = None
-) -> dict:
+def export_from_sqlite(sqlite_path: str, table_names: list = None, skip_tables: list = None) -> dict:
     """从 SQLite 导出指定表的数据"""
     engine = get_sqlite_engine(sqlite_path)
     conn = engine.connect()
@@ -199,9 +187,7 @@ def export_from_sqlite(
                 logger.info(f"  跳过 {table}（已在 checkpoint 中完成）")
                 continue
             try:
-                result = conn.execute(
-                    "SELECT * FROM %s" % table
-                )  # nosec — table 来自白名单
+                result = conn.execute("SELECT * FROM %s" % table)  # nosec — table 来自白名单
                 columns = list(result.keys())
                 rows = []
                 for row in result.fetchall():
@@ -240,8 +226,8 @@ def create_pg_tables_from_models():
         os.environ["DB_TYPE"] = "postgres"
         os.environ["USE_POSTGRES"] = "1"
 
-        from app.database import Base, engine
         import app.models  # noqa: F401 — 注册所有模型
+        from app.database import Base, engine
 
         Base.metadata.create_all(bind=engine)
         logger.info("  表结构创建/同步完成（基于 ORM 模型）")
@@ -427,9 +413,7 @@ def import_to_postgres(
 
             # 从记录中提取列
             columns = list(records[0].keys())
-            valid_columns = [
-                c for c in columns if c not in ("organization_id",)
-            ]
+            valid_columns = [c for c in columns if c not in ("organization_id",)]
 
             col_names = ", ".join(valid_columns)
             placeholders = ", ".join([f"%({c})s" for c in valid_columns])
@@ -449,18 +433,14 @@ def import_to_postgres(
                             cur.execute(insert_sql, rec)
                             inserted += 1
                         except Exception as e2:
-                            logger.error(
-                                f"    跳过 {table}.id={rec.get('id', '?')}: {e2}"
-                            )
+                            logger.error(f"    跳过 {table}.id={rec.get('id', '?')}: {e2}")
 
             stats[table] = inserted
             logger.info(f"  导入 {table}: {inserted}/{len(records)} 条")
             completed_tables.append(table)
 
         # 4. 创建默认组织并关联
-        if "organizations" not in completed_tables or not data.get(
-            "organizations"
-        ):
+        if "organizations" not in completed_tables or not data.get("organizations"):
             cur.execute("SELECT COUNT(*) FROM organizations")
             org_count = cur.fetchone()[0]
             if org_count == 0:
@@ -509,17 +489,12 @@ def import_to_postgres(
                     "business_needs",
                 ]:
                     try:
-                        cur.execute(
-                            "UPDATE %s SET organization_id = %s WHERE organization_id IS NULL"
-                            % (tbl, org_id)
-                        )
+                        cur.execute("UPDATE %s SET organization_id = %s WHERE organization_id IS NULL" % (tbl, org_id))
                     except Exception:
                         pass
 
                 conn.commit()
-                logger.info(
-                    f"创建默认组织并关联所有用户 (org_id={org_id})"
-                )
+                logger.info(f"创建默认组织并关联所有用户 (org_id={org_id})")
 
         return stats, completed_tables
 
@@ -550,9 +525,7 @@ def verify_consistency(sqlite_path: str) -> dict:
         for table in tables:
             try:
                 # SQLite count
-                sqlite_count = sqlite_conn.execute(
-                    "SELECT COUNT(*) FROM %s" % table
-                ).scalar()
+                sqlite_count = sqlite_conn.execute("SELECT COUNT(*) FROM %s" % table).scalar()
 
                 # PostgreSQL count
                 try:
@@ -562,11 +535,7 @@ def verify_consistency(sqlite_path: str) -> dict:
                     pg_count = -1  # 表不存在
 
                 match = sqlite_count == pg_count
-                detail = (
-                    "一致"
-                    if match
-                    else f"不一致（差异: {sqlite_count - pg_count}）"
-                )
+                detail = "一致" if match else f"不一致（差异: {sqlite_count - pg_count}）"
                 result[table] = {
                     "sqlite": sqlite_count,
                     "postgres": pg_count,
@@ -575,9 +544,7 @@ def verify_consistency(sqlite_path: str) -> dict:
                 }
                 icon = "✓" if match else ("⚠" if pg_count < 0 else "✗")
                 pg_str = str(pg_count) if pg_count >= 0 else "不存在"
-                logger.info(
-                    f"  {icon} {table}: SQLite={sqlite_count} PG={pg_str}"
-                )
+                logger.info(f"  {icon} {table}: SQLite={sqlite_count} PG={pg_str}")
             except Exception as e:
                 result[table] = {
                     "sqlite": -1,
@@ -607,7 +574,7 @@ def print_report(stats: dict, verify_result: dict, checkpoint_path: str):
 
     # 数据统计
     total_pg = sum(v for v in stats.values() if isinstance(v, int))
-    print(f"  PostgreSQL 数据量:")
+    print("  PostgreSQL 数据量:")
     for table, count in stats.items():
         if isinstance(count, int):
             print(f"    {table}: {count} 条")
@@ -629,7 +596,7 @@ def print_report(stats: dict, verify_result: dict, checkpoint_path: str):
     # Checkpoint 信息
     if checkpoint_path and os.path.exists(checkpoint_path):
         print(f"  Checkpoint 文件: {checkpoint_path}")
-        print(f"  如需重新迁移，请执行: python data_migration.py --reset-checkpoint")
+        print("  如需重新迁移，请执行: python data_migration.py --reset-checkpoint")
     print()
 
     # 切换说明
@@ -647,9 +614,7 @@ def print_report(stats: dict, verify_result: dict, checkpoint_path: str):
 # 主入口
 # ============================================================
 def main():
-    parser = argparse.ArgumentParser(
-        description="从 SQLite 迁移数据到 PostgreSQL（支持断点续传）"
-    )
+    parser = argparse.ArgumentParser(description="从 SQLite 迁移数据到 PostgreSQL（支持断点续传）")
     parser.add_argument(
         "--sqlite-path",
         default=None,
@@ -691,9 +656,7 @@ def main():
     if args.sqlite_path:
         sqlite_path = args.sqlite_path
     else:
-        base_dir = os.path.join(
-            os.path.dirname(__file__), "data"
-        )
+        base_dir = os.path.join(os.path.dirname(__file__), "data")
         sqlite_path = os.path.join(base_dir, "chainke.db")
 
     if not os.path.exists(sqlite_path):
@@ -720,9 +683,7 @@ def main():
         checkpoint = load_checkpoint(args.checkpoint_path)
         completed_tables = checkpoint.get("completed_tables", [])
         if completed_tables:
-            logger.info(
-                f"续传模式: 跳过 {len(completed_tables)} 个已完成表"
-            )
+            logger.info(f"续传模式: 跳过 {len(completed_tables)} 个已完成表")
     else:
         checkpoint = None
         completed_tables = []
@@ -761,9 +722,7 @@ def main():
 
     data = export_from_sqlite(sqlite_path, table_names=tables_to_migrate)
 
-    total_records = sum(
-        len(v) for k, v in data.items() if isinstance(v, list)
-    )
+    total_records = sum(len(v) for k, v in data.items() if isinstance(v, list))
     logger.info(f"\n共导出 {total_records} 条记录（将导入 {len(tables_to_migrate)} 个表）")
 
     if args.dry_run:
@@ -785,9 +744,7 @@ def main():
 
     # 保存 checkpoint
     started_at = (
-        checkpoint.get("started_at", datetime.utcnow().isoformat())
-        if checkpoint
-        else datetime.utcnow().isoformat()
+        checkpoint.get("started_at", datetime.utcnow().isoformat()) if checkpoint else datetime.utcnow().isoformat()
     )
     save_checkpoint(
         args.checkpoint_path,

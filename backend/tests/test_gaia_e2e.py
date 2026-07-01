@@ -2,18 +2,17 @@
 
 import asyncio
 import logging
-import json
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
 logger = logging.getLogger("gaia_e2e_test")
 
 
 async def main():
-    from app.database import AsyncSessionLocal, engine, Base
-    from app.models.gaia import GaiaKnowledge, GaiaEvolutionEvent, GaiaTrainingRun, GaiaModelWeights
     from app.ai.gaia_evolution_brain import get_gaia_brain
-    from app.ai.gaia_trainer import get_gaia_trainer
     from app.ai.gaia_flywheel import get_flywheel
+    from app.ai.gaia_trainer import get_gaia_trainer
+    from app.database import AsyncSessionLocal, Base, engine
+    from app.models.gaia import GaiaKnowledge, GaiaModelWeights
 
     # 1. 确保表已创建
     async with engine.begin() as conn:
@@ -33,7 +32,7 @@ async def main():
             knowledge_type="pattern",
             title="用户转化率提升策略",
             content="复盘发现：用户在首次看到匹配结果后的24小时内联系的概率提升60%。"
-                     "建议匹配引擎优先推荐最近活跃的用户，并缩短推荐结果的缓存时间。",
+            "建议匹配引擎优先推荐最近活跃的用户，并缩短推荐结果的缓存时间。",
             tags=["matching", "conversion", "recency"],
             confidence=0.85,
         )
@@ -42,8 +41,7 @@ async def main():
 
         # 验证知识已持久化
         count = await db.scalar(
-            __import__("sqlalchemy").select(__import__("sqlalchemy").func.count())
-            .select_from(GaiaKnowledge)
+            __import__("sqlalchemy").select(__import__("sqlalchemy").func.count()).select_from(GaiaKnowledge)
         )
         print(f"   📊 知识库总计: {count} 条")
 
@@ -59,8 +57,7 @@ async def main():
     print("\n🧪 Step 3: 验证进化权重...")
     async with AsyncSessionLocal() as db:
         weights_count = await db.scalar(
-            __import__("sqlalchemy").select(__import__("sqlalchemy").func.count())
-            .select_from(GaiaModelWeights)
+            __import__("sqlalchemy").select(__import__("sqlalchemy").func.count()).select_from(GaiaModelWeights)
         )
         print(f"   📊 权重记录总数: {weights_count} 条")
 

@@ -1,4 +1,5 @@
 """AI数字名片 API — 模块化架构入口。"""
+
 import logging
 import os
 import sys
@@ -11,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.database import engine, Base
+from app.database import Base, engine
 
 
 def init_sentry(dsn: str = "") -> None:
@@ -26,13 +27,13 @@ def init_sentry(dsn: str = "") -> None:
         try:
             import sentry_sdk
             from sentry_sdk.integrations.fastapi import FastApiIntegration
-            from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
             from sentry_sdk.integrations.logging import LoggingIntegration
+            from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
             # 日志集成: 捕获 >= WARNING 级别的日志作为 Sentry event
             sentry_logging = LoggingIntegration(
-                level=logging.INFO,       # 捕获 INFO 及以上日志
-                event_level=logging.ERROR  # 将 ERROR 及以上提升为 Sentry Event
+                level=logging.INFO,  # 捕获 INFO 及以上日志
+                event_level=logging.ERROR,  # 将 ERROR 及以上提升为 Sentry Event
             )
 
             sentry_sdk.init(
@@ -59,6 +60,7 @@ def _inject_request_id(event: dict, hint: dict) -> dict:
     """将当前请求的 request_id 注入到 Sentry event 的 tags 中。"""
     try:
         from app.middleware.request_id import request_id_var
+
         rid = request_id_var.get()
         if rid:
             event.setdefault("tags", {})["request_id"] = rid
@@ -91,14 +93,14 @@ def create_app():
     # Lazy imports to avoid circular import chain:
     # app.__init__ → middleware → models → crm → routers → middleware
     from app.middleware import (
-        RequestIDMiddleware,
+        ApiKeyMiddleware,
+        CsrfMiddleware,
+        I18nMiddleware,
+        LoggingMiddleware,
         MetricsMiddleware,
         RateLimiterMiddleware,
-        I18nMiddleware,
-        ApiKeyMiddleware,
-        LoggingMiddleware,
+        RequestIDMiddleware,
         SecurityHeadersMiddleware,
-        CsrfMiddleware,
         get_metrics_instance,
         init_otel,
     )
@@ -124,11 +126,17 @@ def create_app():
     app.add_middleware(APIVersionRedirectMiddleware)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=cfg.CORS_ORIGINS.split(",") if cfg.CORS_ORIGINS else [
-            "https://liankebao.top", "https://api.liankebao.top",
-            "http://localhost:5173", "http://localhost:8200",
+        allow_origins=cfg.CORS_ORIGINS.split(",")
+        if cfg.CORS_ORIGINS
+        else [
+            "https://liankebao.top",
+            "https://api.liankebao.top",
+            "http://localhost:5173",
+            "http://localhost:8200",
         ],
-        allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
     app.add_middleware(CsrfMiddleware)
     app.add_middleware(LoggingMiddleware)
@@ -136,6 +144,7 @@ def create_app():
     # FastAPI 集成 (OpenTelemetry) — instrument_app 会在内部跳过若未初始化
     try:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
         FastAPIInstrumentor.instrument_app(app)
     except ImportError:
         pass
@@ -143,29 +152,51 @@ def create_app():
         logger.warning("OpenTelemetry FastAPI 集成注册失败: %s", exc)
 
     # Routers
-    from app.routers import (auth_router, user_router, brochure_router, tag_router,
-                             match_router, brochure_alias_router, visitor_router,
-                             trust_router, i18n_router, public_router, payment_router,
-                             integration_router, export_router, webhook_router,
-                             recommend_router, ab_test_router, api_keys_router,
-                             docs_router, web_vitals_router, graphql_router,
-                             oauth_router, admin_router)
-    from app.routers.miniapp_router import (
-        router as miniapp_router,
-        exchange_alt_router as miniapp_exchange_router,
-        recommend_router as miniapp_recommend_router,
+    from app.crm.crm_router import router as crm_router
+    from app.routers import (
+        ab_test_router,
+        admin_router,
+        api_keys_router,
+        auth_router,
+        brochure_alias_router,
+        brochure_router,
+        docs_router,
+        export_router,
+        graphql_router,
+        i18n_router,
+        integration_router,
+        match_router,
+        oauth_router,
+        payment_router,
+        public_router,
+        recommend_router,
+        tag_router,
+        trust_router,
+        user_router,
+        visitor_router,
+        web_vitals_router,
+        webhook_router,
     )
-    from app.routers.graphql_route import strawberry_app
-    from app.routers.tenant_api import router as tenant_router
+    from app.routers.bot_router import router as bot_router
     from app.routers.developer import router as developer_router
-    from app.routers.messages import router as message_router
+    from app.routers.gaia_router import router as gaia_router
+    from app.routers.graphql_route import strawberry_app
     from app.routers.invoice import router as invoice_router
     from app.routers.knowledge_graph import router as knowledge_graph_router
-    from app.routers.subscription_router import router as subscription_router
-    from app.routers.gaia_router import router as gaia_router
-    from app.crm.crm_router import router as crm_router
-    from app.routers.bot_router import router as bot_router
     from app.routers.learning_router import router as learning_router
+    from app.routers.messages import router as message_router
+    from app.routers.miniapp_router import (
+        exchange_alt_router as miniapp_exchange_router,
+    )
+    from app.routers.miniapp_router import (
+        recommend_router as miniapp_recommend_router,
+    )
+    from app.routers.miniapp_router import (
+        router as miniapp_router,
+    )
+    from app.routers.subscription_router import router as subscription_router
+    from app.routers.tenant_api import router as tenant_router
+
     app.include_router(bot_router)
     app.include_router(learning_router)
     app.include_router(gaia_router)
@@ -193,7 +224,8 @@ def create_app():
     app.include_router(docs_router)
     app.include_router(web_vitals_router)
     app.include_router(graphql_router)
-    from app.routers.graphql_route import HAS_STRAWBERRY, strawberry_app
+    from app.routers.graphql_route import HAS_STRAWBERRY
+
     if HAS_STRAWBERRY and strawberry_app is not None:
         app.include_router(strawberry_app, prefix="/graphql")
     app.include_router(oauth_router)
@@ -241,6 +273,7 @@ def create_app():
     @app.get("/api/health")
     def api_health():
         from fastapi.responses import JSONResponse
+
         return JSONResponse({"status": "ok", "service": "digital_brochure"})
 
     @app.get("/metrics", response_class=PlainTextResponse)
@@ -250,6 +283,7 @@ def create_app():
 
         # 1. 中间件 APM 指标（请求数、延迟、活跃请求等）
         from app.middleware.metrics import get_metrics_instance as get_apm
+
         mi = get_apm()
         if mi:
             parts.append(mi.generate_metrics())
@@ -258,6 +292,7 @@ def create_app():
 
         # 2. 业务指标（prometheus_client）
         from app.business_metrics import generate_business_metrics
+
         parts.append(generate_business_metrics())
 
         return PlainTextResponse("\n".join(parts))
@@ -274,6 +309,7 @@ def create_app():
         # 初始化 Redis 缓存层
         try:
             from app.cache import init_cache
+
             init_cache(
                 redis_host=cfg.REDIS_HOST,
                 redis_port=cfg.REDIS_PORT,
@@ -288,6 +324,7 @@ def create_app():
     @app.on_event("shutdown")
     async def shutdown():
         from app.services.webhook_dispatcher import webhook_dispatcher
+
         try:
             await webhook_dispatcher.close()
             logger.info("Webhook HTTP 客户端已关闭")

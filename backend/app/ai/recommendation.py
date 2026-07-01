@@ -20,23 +20,18 @@ AI数字名片 实时推荐引擎
   - 反馈权重的范围为 [0.6, 1.5]
 """
 
-import json
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Optional
 
-from sqlalchemy import func as sa_func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai.feedback_loop import apply_feedback_boost, get_feedback_loop
-from app.ai.knowledge_graph import CachedKnowledgeGraphBuilder, KnowledgeGraphBuilder
-from app.ai.vector_search import VectorSearchEngine, cosine_similarity
-from app.cache import cache
+from app.ai.feedback_loop import get_feedback_loop
+from app.ai.knowledge_graph import CachedKnowledgeGraphBuilder
+from app.ai.vector_search import VectorSearchEngine
 from app.models.brochure import Brochure
-from app.models.tag import MatchRecord, UserTag
-from app.models.trust import TrustNetwork
+from app.models.tag import UserTag
 from app.models.user import User
-from app.models.visitor import VisitorLog
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +44,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RecommendItem:
     """推荐条目"""
+
     user_id: int
     name: str
     company: str = ""
@@ -84,6 +80,7 @@ class RecommendItem:
 @dataclass
 class RecommendResult:
     """推荐结果"""
+
     items: list[RecommendItem] = field(default_factory=list)
     total: int = 0
     strategy_used: str = ""
@@ -104,9 +101,9 @@ class RecommendResult:
 class RecommendEngine:
     """实时推荐引擎 - 多维度混合推荐"""
 
-    WEIGHT_TAG_MATCH = 0.40   # 标签匹配权重 (默认, 在线学习会覆盖)
-    WEIGHT_GRAPH = 0.30       # 图谱社交权重 (默认)
-    WEIGHT_SEMANTIC = 0.30    # 语义相似权重 (默认)
+    WEIGHT_TAG_MATCH = 0.40  # 标签匹配权重 (默认, 在线学习会覆盖)
+    WEIGHT_GRAPH = 0.30  # 图谱社交权重 (默认)
+    WEIGHT_SEMANTIC = 0.30  # 语义相似权重 (默认)
     _online_weights_loaded = False
 
     def __init__(self, db: AsyncSession):
@@ -122,6 +119,7 @@ class RecommendEngine:
             return
         try:
             from app.ai.online_learning import get_online_weight
+
             w_tag = get_online_weight("tag_match")
             w_graph = get_online_weight("graph")
             w_semantic = get_online_weight("semantic")
@@ -131,7 +129,9 @@ class RecommendEngine:
                 cls.WEIGHT_SEMANTIC = w_semantic
                 logger.info(
                     "在线学习权重已加载: tag=%.4f, graph=%.4f, semantic=%.4f",
-                    w_tag, w_graph, w_semantic,
+                    w_tag,
+                    w_graph,
+                    w_semantic,
                 )
             cls._online_weights_loaded = True
         except Exception as e:
@@ -142,19 +142,27 @@ class RecommendEngine:
         """重新从在线学习引擎加载权重 (运行时权重热更新)"""
         try:
             from app.ai.online_learning import get_online_weight
+
             w_tag = get_online_weight("tag_match")
             w_graph = get_online_weight("graph")
             w_semantic = get_online_weight("semantic")
             if w_tag and w_graph and w_semantic:
                 old_tag, old_graph, old_semantic = (
-                    cls.WEIGHT_TAG_MATCH, cls.WEIGHT_GRAPH, cls.WEIGHT_SEMANTIC,
+                    cls.WEIGHT_TAG_MATCH,
+                    cls.WEIGHT_GRAPH,
+                    cls.WEIGHT_SEMANTIC,
                 )
                 cls.WEIGHT_TAG_MATCH = w_tag
                 cls.WEIGHT_GRAPH = w_graph
                 cls.WEIGHT_SEMANTIC = w_semantic
                 logger.info(
                     "在线学习权重热更新: tag=%.4f→%.4f, graph=%.4f→%.4f, semantic=%.4f→%.4f",
-                    old_tag, w_tag, old_graph, w_graph, old_semantic, w_semantic,
+                    old_tag,
+                    w_tag,
+                    old_graph,
+                    w_graph,
+                    old_semantic,
+                    w_semantic,
                 )
                 return True
         except Exception as e:
@@ -249,9 +257,7 @@ class RecommendEngine:
                 final_score = s_score
             else:  # hybrid
                 final_score = (
-                    self.WEIGHT_TAG_MATCH * t_score
-                    + self.WEIGHT_GRAPH * g_score
-                    + self.WEIGHT_SEMANTIC * s_score
+                    self.WEIGHT_TAG_MATCH * t_score + self.WEIGHT_GRAPH * g_score + self.WEIGHT_SEMANTIC * s_score
                 )
 
             # 在线学习调整：行为权重提升 [1.0, 1.3]
@@ -298,9 +304,7 @@ class RecommendEngine:
     ) -> tuple[dict[int, float], str]:
         """标签匹配评分 - 供需匹配度"""
         # 获取当前用户的 provide/need 标签
-        result = await self.db.execute(
-            select(UserTag).where(UserTag.user_id == user_id)
-        )
+        result = await self.db.execute(select(UserTag).where(UserTag.user_id == user_id))
         my_tags = result.scalars().all()
         my_provide = {t.tag: t.weight for t in my_tags if t.tag_type == "provide"}
         my_need = {t.tag: t.weight for t in my_tags if t.tag_type == "need"}
@@ -313,22 +317,26 @@ class RecommendEngine:
         # 对每个标签查找匹配用户
         for tag, weight in my_provide.items():
             result = await self.db.execute(
-                select(UserTag).where(
+                select(UserTag)
+                .where(
                     UserTag.tag == tag,
                     UserTag.tag_type == "need",
                     UserTag.user_id.not_in(list(exclude_set)),
-                ).limit(50)
+                )
+                .limit(50)
             )
             for ut in result.scalars().all():
                 scores[ut.user_id] = scores.get(ut.user_id, 0) + weight * ut.weight
 
         for tag, weight in my_need.items():
             result = await self.db.execute(
-                select(UserTag).where(
+                select(UserTag)
+                .where(
                     UserTag.tag == tag,
                     UserTag.tag_type == "provide",
                     UserTag.user_id.not_in(list(exclude_set)),
-                ).limit(50)
+                )
+                .limit(50)
             )
             for ut in result.scalars().all():
                 scores[ut.user_id] = scores.get(ut.user_id, 0) + weight * ut.weight
@@ -385,9 +393,7 @@ class RecommendEngine:
                 query_parts.append(user.title)
 
             # 获取用户标签
-            result = await self.db.execute(
-                select(UserTag).where(UserTag.user_id == user_id)
-            )
+            result = await self.db.execute(select(UserTag).where(UserTag.user_id == user_id))
             tags = result.scalars().all()
             tag_texts = [t.tag for t in tags]
             if tag_texts:
@@ -417,7 +423,7 @@ class RecommendEngine:
         tag_score: float,
         graph_score: float,
         semantic_score: float,
-    ) -> Optional[RecommendItem]:
+    ) -> RecommendItem | None:
         """构建推荐条目"""
         result = await self.db.execute(select(User).where(User.id == user_id))
         user = result.scalars().first()
@@ -446,9 +452,7 @@ class RecommendEngine:
 
         # 获取共同标签
         common_tags = []
-        result = await self.db.execute(
-            select(UserTag).where(UserTag.user_id == user_id)
-        )
+        result = await self.db.execute(select(UserTag).where(UserTag.user_id == user_id))
         common_tags = [t.tag for t in result.scalars().all()[:5]]
 
         return RecommendItem(
@@ -489,10 +493,12 @@ class RecommendEngine:
         if purpose:
             # 通过画册用途筛选
             result = await self.db.execute(
-                select(Brochure.user_id).where(
+                select(Brochure.user_id)
+                .where(
                     Brochure.purpose == purpose,
                     Brochure.status == "published",
-                ).distinct()
+                )
+                .distinct()
             )
             user_ids = [row for row in result.scalars().all()]
             if user_ids:
@@ -504,9 +510,7 @@ class RecommendEngine:
         users = result.scalars().all()
 
         # 获取用户标签用于计算匹配度
-        result = await self.db.execute(
-            select(UserTag).where(UserTag.user_id == user_id)
-        )
+        result = await self.db.execute(select(UserTag).where(UserTag.user_id == user_id))
         my_tags = result.scalars().all()
         my_provide = {t.tag: t.weight for t in my_tags if t.tag_type == "provide"}
         my_need = {t.tag: t.weight for t in my_tags if t.tag_type == "need"}
@@ -514,9 +518,7 @@ class RecommendEngine:
         items = []
         for target_user in users:
             # 简单的标签匹配度计算
-            result = await self.db.execute(
-                select(UserTag).where(UserTag.user_id == target_user.id)
-            )
+            result = await self.db.execute(select(UserTag).where(UserTag.user_id == target_user.id))
             their_tags = result.scalars().all()
             their_provide = {t.tag: t.weight for t in their_tags if t.tag_type == "provide"}
             their_need = {t.tag: t.weight for t in their_tags if t.tag_type == "need"}
@@ -533,34 +535,38 @@ class RecommendEngine:
                     common.append(tag)
 
             if score > 0:
-                items.append(RecommendItem(
-                    user_id=target_user.id,
-                    name=target_user.name,
-                    company=target_user.company,
-                    title=target_user.title,
-                    avatar=target_user.avatar,
-                    intro=target_user.intro,
-                    score=score,
-                    tag_match_score=score,
-                    common_tags=list(set(common))[:5],
-                    reasons=["标签匹配"] if common else ["推荐用户"],
-                    match_type="tag",
-                ))
+                items.append(
+                    RecommendItem(
+                        user_id=target_user.id,
+                        name=target_user.name,
+                        company=target_user.company,
+                        title=target_user.title,
+                        avatar=target_user.avatar,
+                        intro=target_user.intro,
+                        score=score,
+                        tag_match_score=score,
+                        common_tags=list(set(common))[:5],
+                        reasons=["标签匹配"] if common else ["推荐用户"],
+                        match_type="tag",
+                    )
+                )
 
         # 如果没有标签匹配，按活跃度推荐
         if not items:
             for target_user in users[:top_k]:
-                items.append(RecommendItem(
-                    user_id=target_user.id,
-                    name=target_user.name,
-                    company=target_user.company,
-                    title=target_user.title,
-                    avatar=target_user.avatar,
-                    intro=target_user.intro,
-                    score=0.5,
-                    reasons=["发现用户"],
-                    match_type="discover",
-                ))
+                items.append(
+                    RecommendItem(
+                        user_id=target_user.id,
+                        name=target_user.name,
+                        company=target_user.company,
+                        title=target_user.title,
+                        avatar=target_user.avatar,
+                        intro=target_user.intro,
+                        score=0.5,
+                        reasons=["发现用户"],
+                        match_type="discover",
+                    )
+                )
 
         items.sort(key=lambda x: x.score, reverse=True)
         return RecommendResult(items=items[:top_k], total=len(items), strategy_used="discover")
@@ -597,9 +603,7 @@ class RecommendEngine:
         if target_user.title:
             query_parts.append(target_user.title)
 
-        result = await self.db.execute(
-            select(UserTag).where(UserTag.user_id == target_user_id)
-        )
+        result = await self.db.execute(select(UserTag).where(UserTag.user_id == target_user_id))
         tags = result.scalars().all()
         query_parts.extend([t.tag for t in tags])
 
@@ -615,10 +619,12 @@ class RecommendEngine:
         peer_scores = {}
         if target_user.company:
             result = await self.db.execute(
-                select(User).where(
+                select(User)
+                .where(
                     User.company == target_user.company,
                     User.id.not_in(list(exclude_set)),
-                ).limit(10)
+                )
+                .limit(10)
             )
             for peer in result.scalars().all():
                 peer_scores[peer.id] = 0.9
@@ -627,10 +633,12 @@ class RecommendEngine:
         tag_scores = {}
         for t in tags:
             result = await self.db.execute(
-                select(UserTag).where(
+                select(UserTag)
+                .where(
                     UserTag.tag == t.tag,
                     UserTag.user_id.not_in(list(exclude_set)),
-                ).limit(5)
+                )
+                .limit(5)
             )
             for ut in result.scalars().all():
                 tag_scores[ut.user_id] = tag_scores.get(ut.user_id, 0) + t.weight
@@ -668,8 +676,8 @@ class RecommendEngine:
 # 在线学习引擎 - 行为追踪与权重调整
 # ======================================================================
 
-import sqlite3
 import os
+import sqlite3
 import time
 
 
@@ -922,7 +930,8 @@ class OnlineLearningTracker:
         try:
             # 当前用户点击过的目标
             my_targets = set(
-                r["target_id"] for r in conn.execute(
+                r["target_id"]
+                for r in conn.execute(
                     "SELECT DISTINCT target_id FROM click_events WHERE user_id = ?",
                     (user_id,),
                 ).fetchall()
@@ -933,9 +942,9 @@ class OnlineLearningTracker:
             # 一级：找"相似用户"（点击过相同目标的其他用户）
             placeholders = ",".join("?" for _ in my_targets)
             similar_uids = set(
-                r["user_id"] for r in conn.execute(
-                    f"SELECT DISTINCT user_id FROM click_events "
-                    f"WHERE target_id IN ({placeholders}) AND user_id != ?",
+                r["user_id"]
+                for r in conn.execute(
+                    f"SELECT DISTINCT user_id FROM click_events WHERE target_id IN ({placeholders}) AND user_id != ?",
                     (*list(my_targets), user_id),
                 ).fetchall()
             )
@@ -964,7 +973,8 @@ class OnlineLearningTracker:
                 second_level_uids = set()
                 for suid in similar_uids:
                     su_targets = set(
-                        r["target_id"] for r in conn.execute(
+                        r["target_id"]
+                        for r in conn.execute(
                             "SELECT DISTINCT target_id FROM click_events WHERE user_id = ?",
                             (suid,),
                         ).fetchall()

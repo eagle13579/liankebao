@@ -14,10 +14,10 @@ Architecture:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from app.agents.base_agent import BaseAgent, AgentConfig, AgentStatus
+from app.agents.base_agent import AgentConfig, AgentStatus, BaseAgent
 
 logger = logging.getLogger(__name__)
 
@@ -197,7 +197,7 @@ class SupportAgent(BaseAgent):
                 "resolution": "faq",
                 "response": faq_answer,
                 "confidence": 0.95,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
             logger.info("Ticket %s resolved via FAQ", ticket_id)
             await self._publish_resolution(ticket_id, user_id, "faq")
@@ -207,10 +207,9 @@ class SupportAgent(BaseAgent):
         knowledge = await self._search_knowledge_base(issue)
         if knowledge:
             response = await self._generate_response(issue, knowledge)
-            confidence = max(
-                (k.get("confidence", 0.5) if isinstance(k, dict) else 0.5)
-                for k in knowledge
-            ) if knowledge else 0.5
+            confidence = (
+                max((k.get("confidence", 0.5) if isinstance(k, dict) else 0.5) for k in knowledge) if knowledge else 0.5
+            )
 
             if confidence >= 0.6:
                 self._tickets_resolved += 1
@@ -221,7 +220,7 @@ class SupportAgent(BaseAgent):
                     "response": response,
                     "confidence": round(confidence, 2),
                     "knowledge_sources": len(knowledge),
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
                 logger.info(
                     "Ticket %s resolved via knowledge base (confidence=%.2f)",
@@ -249,7 +248,7 @@ class SupportAgent(BaseAgent):
                 "confidence": 0.3,
                 "knowledge_sources": len(knowledge),
                 "note": "Low confidence — suggested response, manual review recommended",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
             logger.info(
                 "Ticket %s: AI-suggested response (low confidence), recommending review",
@@ -258,11 +257,13 @@ class SupportAgent(BaseAgent):
             return result
 
         # Phase 4: Escalate to human
-        escalation = await self._escalate_to_human({
-            "ticket_id": ticket_id,
-            "user_id": user_id,
-            "issue": issue,
-        })
+        escalation = await self._escalate_to_human(
+            {
+                "ticket_id": ticket_id,
+                "user_id": user_id,
+                "issue": issue,
+            }
+        )
 
         result = {
             "ticket_id": ticket_id,
@@ -270,7 +271,7 @@ class SupportAgent(BaseAgent):
             "resolution": "escalated",
             "response": escalation.get("message", "Your issue has been forwarded to our support team."),
             "escalation_id": escalation.get("escalation_id"),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
         logger.info("Ticket %s escalated to human support", ticket_id)
         return result
@@ -338,23 +339,28 @@ class SupportAgent(BaseAgent):
                 if gateway and hasattr(gateway, "gateway"):
                     ai_gateway = gateway.gateway
                     if hasattr(ai_gateway, "chat"):
-                        resp = await ai_gateway.chat(AIRequest(
-                            model="deepseek-chat",
-                            prompt=(
-                                "You are a technical support agent. Answer the user's issue "
-                                "using ONLY the provided knowledge base context. Be concise, "
-                                "helpful, and professional."
-                            ),
-                            messages=[
-                                {"role": "user", "content": (
-                                    f"Knowledge base context:\n{knowledge_text}\n"
-                                    f"User issue: {issue}\n\n"
-                                    f"Provide a helpful support response based on the knowledge above."
-                                )},
-                            ],
-                            max_tokens=500,
-                            temperature=0.3,
-                        ))
+                        resp = await ai_gateway.chat(
+                            AIRequest(
+                                model="deepseek-chat",
+                                prompt=(
+                                    "You are a technical support agent. Answer the user's issue "
+                                    "using ONLY the provided knowledge base context. Be concise, "
+                                    "helpful, and professional."
+                                ),
+                                messages=[
+                                    {
+                                        "role": "user",
+                                        "content": (
+                                            f"Knowledge base context:\n{knowledge_text}\n"
+                                            f"User issue: {issue}\n\n"
+                                            f"Provide a helpful support response based on the knowledge above."
+                                        ),
+                                    },
+                                ],
+                                max_tokens=500,
+                                temperature=0.3,
+                            )
+                        )
                         if resp.content and resp.finish_reason != "error":
                             return resp.content
             except Exception as exc:
@@ -388,10 +394,7 @@ class SupportAgent(BaseAgent):
             Dict with escalation_id and message for the user.
         """
         self._tickets_escalated += 1
-        escalation_id = (
-            f"esc_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
-            f"_{self.agent_id[:4]}"
-        )
+        escalation_id = f"esc_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}_{self.agent_id[:4]}"
 
         # Record escalation in brain
         await self.learn(
@@ -414,17 +417,19 @@ class SupportAgent(BaseAgent):
             try:
                 from app.events.interfaces import Event
 
-                await self.event_bus.publish(Event(
-                    type="support.ticket_escalated",
-                    source=self.agent_id,
-                    payload={
-                        "escalation_id": escalation_id,
-                        "ticket_id": issue.get("ticket_id"),
-                        "user_id": issue.get("user_id"),
-                        "issue": issue.get("issue", "")[:500],
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    },
-                ))
+                await self.event_bus.publish(
+                    Event(
+                        type="support.ticket_escalated",
+                        source=self.agent_id,
+                        payload={
+                            "escalation_id": escalation_id,
+                            "ticket_id": issue.get("ticket_id"),
+                            "user_id": issue.get("user_id"),
+                            "issue": issue.get("issue", "")[:500],
+                            "timestamp": datetime.now(UTC).isoformat(),
+                        },
+                    )
+                )
             except Exception:
                 logger.warning("SupportAgent failed to publish escalation event")
 
@@ -452,6 +457,7 @@ class SupportAgent(BaseAgent):
         """
         # Normalize: remove punctuation, split into words
         import re
+
         words = set(re.sub(r"[^\w\s]", "", question).lower().split())
 
         best_match = None
@@ -581,16 +587,18 @@ class SupportAgent(BaseAgent):
         try:
             from app.events.interfaces import Event
 
-            await self.event_bus.publish(Event(
-                type="support.ticket_resolved",
-                source=self.agent_id,
-                payload={
-                    "ticket_id": ticket_id,
-                    "user_id": user_id,
-                    "resolution_type": resolution_type,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                },
-            ))
+            await self.event_bus.publish(
+                Event(
+                    type="support.ticket_resolved",
+                    source=self.agent_id,
+                    payload={
+                        "ticket_id": ticket_id,
+                        "user_id": user_id,
+                        "resolution_type": resolution_type,
+                        "timestamp": datetime.now(UTC).isoformat(),
+                    },
+                )
+            )
         except Exception:
             logger.warning("SupportAgent failed to publish resolution event")
 
@@ -609,8 +617,6 @@ class SupportAgent(BaseAgent):
             "tickets_handled": self._tickets_handled,
             "tickets_resolved": self._tickets_resolved,
             "tickets_escalated": self._tickets_escalated,
-            "resolution_rate": (
-                round(self._tickets_resolved / max(self._tickets_handled, 1) * 100, 2)
-            ),
+            "resolution_rate": (round(self._tickets_resolved / max(self._tickets_handled, 1) * 100, 2)),
             "faq_entries": len(BUILTIN_FAQ),
         }

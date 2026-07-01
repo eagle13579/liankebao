@@ -33,18 +33,17 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from app.agents.legion_employee import LegionEmployee
-from app.agents.base_agent import BaseAgent, AgentConfig
+from app.agents.architecture_agent import ArchitectureAgent
 
 # ── Agent imports ────────────────────────────────────────────────
-
 from app.agents.backend_agent import BackendAgent
-from app.agents.qa_agent import QAAgent
-from app.agents.security_agent import SecurityAgent
+from app.agents.base_agent import AgentConfig, BaseAgent
+from app.agents.data_agent import DataAgent
 from app.agents.growth_agent import GrowthAgent
 from app.agents.knowledge_agent import KnowledgeAgent
-from app.agents.architecture_agent import ArchitectureAgent
-from app.agents.data_agent import DataAgent
+from app.agents.legion_employee import LegionEmployee
+from app.agents.qa_agent import QAAgent
+from app.agents.security_agent import SecurityAgent
 from app.agents.sre_agent import SREAgent
 from app.agents.support_agent import SupportAgent
 
@@ -118,10 +117,7 @@ def _resolve_employee_id_for_agent_type(agent_type: str) -> str:
     """
     mapping = EMPLOYEE_AGENT_MAP.get(agent_type)
     if not mapping:
-        raise KeyError(
-            f"Unknown agent type '{agent_type}'. "
-            f"Available: {list(EMPLOYEE_AGENT_MAP.keys())}"
-        )
+        raise KeyError(f"Unknown agent type '{agent_type}'. Available: {list(EMPLOYEE_AGENT_MAP.keys())}")
     return mapping["employee_id"]
 
 
@@ -203,10 +199,7 @@ def create_legion_agent(
     # 1. Get the mapping
     mapping = EMPLOYEE_AGENT_MAP.get(agent_type)
     if not mapping:
-        raise KeyError(
-            f"Unknown agent type '{agent_type}'. "
-            f"Available: {list(EMPLOYEE_AGENT_MAP.keys())}"
-        )
+        raise KeyError(f"Unknown agent type '{agent_type}'. Available: {list(EMPLOYEE_AGENT_MAP.keys())}")
 
     employee_id = mapping["employee_id"]
     agent_class = mapping["agent_class"]

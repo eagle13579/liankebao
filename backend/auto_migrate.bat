@@ -35,7 +35,7 @@ if "%PG_PASSWORD%"=="" set "PG_PASSWORD=chainke_pg_2026"
 if "%PG_DATABASE%"=="" set "PG_DATABASE=chainke"
 
 echo [信息] PostgreSQL 目标: %PG_USER%@%PG_HOST%:%PG_PORT%/%PG_DATABASE%
-echo [信息] 使用 Python: 
+echo [信息] 使用 Python:
 python --version
 echo.
 

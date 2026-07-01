@@ -28,8 +28,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 from app.dependencies import get_agent_runtime, init_all, shutdown_all
 
@@ -57,9 +57,7 @@ async def startup_handler() -> None:
         await init_all()
         logger.info("All system dependencies initialized and runtime started")
     except Exception as exc:
-        logger.exception(
-            "FATAL: Failed to initialize system dependencies: %s", exc
-        )
+        logger.exception("FATAL: Failed to initialize system dependencies: %s", exc)
         # In non-production environments, we may continue with degraded functionality
         raise
 
@@ -175,15 +173,11 @@ def wire_into_app(app: object) -> None:
         app: A FastAPI application instance (must have ``add_event_handler`` method).
     """
     if not hasattr(app, "add_event_handler"):
-        logger.warning(
-            "Can't wire AgentRuntime: app does not support add_event_handler"
-        )
+        logger.warning("Can't wire AgentRuntime: app does not support add_event_handler")
         return
 
     # Remove any existing handlers for these events to avoid duplicates
     app.add_event_handler("startup", startup_handler)
     app.add_event_handler("shutdown", shutdown_handler)
 
-    logger.info(
-        "Agent Runtime lifecycle wired into app via startup/shutdown event handlers"
-    )
+    logger.info("Agent Runtime lifecycle wired into app via startup/shutdown event handlers")

@@ -39,9 +39,7 @@ class GaiaFlywheel:
         """执行一轮完整的进化周期"""
         from app.ai.gaia_evolution_brain import get_gaia_brain
         from app.ai.gaia_trainer import get_gaia_trainer
-        from app.database import AsyncSessionLocal, engine
-        from app.models.gaia import GaiaKnowledge, GaiaEvolutionEvent, GaiaTrainingRun, GaiaModelWeights
-        from app.database import Base
+        from app.database import AsyncSessionLocal, Base, engine
 
         # 确保盖娅数据表已创建
         async with engine.begin() as conn:
@@ -103,8 +101,7 @@ class GaiaFlywheel:
                 }
 
                 logger.info(
-                    "[飞轮 #%d] ✅ 周期完成 (%.2fs) — "
-                    "知识库: %d条, 事件: %d条, 权重: %d模块",
+                    "[飞轮 #%d] ✅ 周期完成 (%.2fs) — 知识库: %d条, 事件: %d条, 权重: %d模块",
                     cycle_id,
                     elapsed,
                     status.get("knowledge_count", 0),
@@ -137,9 +134,7 @@ class GaiaFlywheel:
             "cycle_count": self._cycle_count,
             "last_duration_seconds": round(self._last_duration, 2),
             "avg_duration_seconds": (
-                round(self._total_duration / self._cycle_count, 2)
-                if self._cycle_count > 0
-                else 0
+                round(self._total_duration / self._cycle_count, 2) if self._cycle_count > 0 else 0
             ),
             "total_duration_seconds": round(self._total_duration, 2),
             "errors": self._errors,
@@ -209,7 +204,7 @@ async def main():
         # 单次运行
         logger.info("⚡ 盖娅进化飞轮 — 单次运行")
         result = await flywheel.run_once()
-        print(f"\n📊 进化报告:\n")
+        print("\n📊 进化报告:\n")
         print(f"  周期: #{result.get('cycle_id')}")
         print(f"  耗时: {result.get('duration_seconds')}s")
         print(f"  知识处理: {result.get('evolution', {}).get('knowledge_processed', 0)} 条")

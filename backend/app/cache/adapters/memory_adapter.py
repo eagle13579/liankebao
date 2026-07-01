@@ -12,7 +12,8 @@ import asyncio
 import logging
 import threading
 import time
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from app.cache.interfaces import CacheProtocol
 
@@ -62,9 +63,7 @@ class InMemoryCache(CacheProtocol):
             return
         self._running = True
         self._cleanup_task = asyncio.create_task(self._cleanup_loop())
-        logger.debug(
-            "InMemoryCache cleanup started (interval=%ds)", self._cleanup_interval
-        )
+        logger.debug("InMemoryCache cleanup started (interval=%ds)", self._cleanup_interval)
 
     async def stop(self) -> None:
         """Stop the background cleanup loop.
@@ -224,11 +223,7 @@ class InMemoryCache(CacheProtocol):
         """Remove all expired entries (called from the background loop)."""
         now = time.monotonic()
         with self._lock:
-            expired_keys = [
-                k
-                for k, (_, expiry) in self._data.items()
-                if expiry is not None and now > expiry
-            ]
+            expired_keys = [k for k, (_, expiry) in self._data.items() if expiry is not None and now > expiry]
             for k in expired_keys:
                 del self._data[k]
             if expired_keys:

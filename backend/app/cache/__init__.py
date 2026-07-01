@@ -21,13 +21,15 @@ New architecture (Protocol-based):
     from app.cache.interfaces import CacheProtocol, CacheConfig
     from app.cache.adapters.memory_adapter import InMemoryCache
 """
+
 import asyncio
 import functools
 import hashlib
 import inspect
 import json
 import logging
-from typing import Any, Awaitable, Callable, Optional, Union
+from collections.abc import Awaitable, Callable
+from typing import Any, Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +42,7 @@ KEY_SEP = ":"
 def _get_client():
     """惰性获取 Redis 客户端（线程安全）"""
     from app.cache.redis import get_redis
+
     return get_redis()
 
 
@@ -49,6 +52,7 @@ def _get_client():
 def _record_cache_hit():
     try:
         from app.middleware.metrics import record_cache_hit as _rch
+
         _rch()
     except Exception:
         pass
@@ -57,12 +61,14 @@ def _record_cache_hit():
 def _record_cache_miss():
     try:
         from app.middleware.metrics import record_cache_miss as _rcm
+
         _rcm()
     except Exception:
         pass
 
 
 # ── 缓存键构建 ─────────────────────────────────────────────────────────────
+
 
 def _build_cache_key(prefix: str, args: tuple, kwargs: dict) -> str:
     """构建唯一的缓存键
@@ -118,8 +124,8 @@ def _is_skip_arg(arg: Any) -> bool:
 
 def cache(
     ttl: int = 300,
-    prefix: Optional[str] = None,
-    key_builder: Optional[Callable] = None,
+    prefix: str | None = None,
+    key_builder: Callable | None = None,
     skip_none: bool = True,
 ) -> Callable:
     """方法/函数级缓存装饰器
@@ -139,6 +145,7 @@ def cache(
         def compute_match(db, user_a: int, user_b: int) -> float:
             ...
     """
+
     def decorator(func: Callable) -> Callable:
         _prefix = prefix or func.__name__
         _is_async = asyncio.iscoroutinefunction(func)
@@ -300,7 +307,7 @@ def init_cache(
     redis_db: int = 0,
     redis_password: str = "",
     redis_max_connections: int = 20,
-) -> Optional[Any]:
+) -> Any | None:
     """初始化缓存层（供 app 启动时调用）
 
     用法:
@@ -317,9 +324,7 @@ def init_cache(
         max_connections=redis_max_connections,
     )
     if client:
-        logger.info(
-            f"缓存层初始化完成: Redis@{redis_host}:{redis_port}/{redis_db}"
-        )
+        logger.info(f"缓存层初始化完成: Redis@{redis_host}:{redis_port}/{redis_db}")
     else:
         logger.warning("缓存层不可用（Redis 未连接），系统以降级模式运行")
     return client

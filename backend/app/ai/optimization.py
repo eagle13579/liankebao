@@ -1,10 +1,5 @@
 """AI 名片优化分析 — 完整度/关键词覆盖/专业度评分"""
 
-import json
-from typing import Optional
-
-from app.config import settings
-
 
 class OptimizationAnalyzer:
     """名片优化分析器
@@ -187,32 +182,37 @@ class OptimizationAnalyzer:
         for field in OptimizationAnalyzer.MINIMAL_FIELDS:
             value = fields.get(field, "")
             if not value or not str(value).strip():
-                issues.append({
-                    "field": field,
-                    "issue": f"缺少{field}",
-                    "severity": "high",
-                })
+                issues.append(
+                    {
+                        "field": field,
+                        "issue": f"缺少{field}",
+                        "severity": "high",
+                    }
+                )
 
         # 检查名称格式
         name = fields.get("name", "")
         if name and len(name) < 2:
-            issues.append({
-                "field": "name",
-                "issue": "姓名过短，建议填写全名",
-                "severity": "low",
-            })
+            issues.append(
+                {
+                    "field": "name",
+                    "issue": "姓名过短，建议填写全名",
+                    "severity": "low",
+                }
+            )
 
         # 检查联系方式
         contact_filled = sum(
-            1 for f in OptimizationAnalyzer.CONTACT_FIELDS
-            if fields.get(f) and str(fields.get(f, "")).strip()
+            1 for f in OptimizationAnalyzer.CONTACT_FIELDS if fields.get(f) and str(fields.get(f, "")).strip()
         )
         if contact_filled == 0:
-            issues.append({
-                "field": "contact",
-                "issue": "未填写任何联系方式，严重影响可信度",
-                "severity": "high",
-            })
+            issues.append(
+                {
+                    "field": "contact",
+                    "issue": "未填写任何联系方式，严重影响可信度",
+                    "severity": "high",
+                }
+            )
         elif contact_filled == 1:
             suggestions.append("建议至少补充一种备选联系方式（邮箱或微信），方便客户多渠道联系您")
 
@@ -220,21 +220,26 @@ class OptimizationAnalyzer:
         phone = fields.get("phone", "")
         if phone:
             import re
+
             if not re.match(r"^1[3-9]\d{9}$", phone):
-                issues.append({
-                    "field": "phone",
-                    "issue": "手机号格式不规范，建议填写11位中国大陆手机号",
-                    "severity": "medium",
-                })
+                issues.append(
+                    {
+                        "field": "phone",
+                        "issue": "手机号格式不规范，建议填写11位中国大陆手机号",
+                        "severity": "medium",
+                    }
+                )
 
         # 检查邮箱格式
         email = fields.get("email", "")
         if email and "@" not in email:
-            issues.append({
-                "field": "email",
-                "issue": "邮箱格式似乎不正确，缺少 @ 符号",
-                "severity": "medium",
-            })
+            issues.append(
+                {
+                    "field": "email",
+                    "issue": "邮箱格式似乎不正确，缺少 @ 符号",
+                    "severity": "medium",
+                }
+            )
 
         # 检查职位和公司的完整性
         position = fields.get("position", "")
@@ -282,7 +287,7 @@ class OptimizationAnalyzer:
         brochure_id: int,
         fields: dict,
         industry: str = "",
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
     ) -> dict:
         """获取综合优化建议
 
@@ -307,9 +312,7 @@ class OptimizationAnalyzer:
         professionalism = OptimizationAnalyzer.analyze_professionalism(fields)
 
         overall = round(
-            completeness["score"] * 0.35
-            + keyword["score"] * 0.30
-            + professionalism["score"] * 0.35,
+            completeness["score"] * 0.35 + keyword["score"] * 0.30 + professionalism["score"] * 0.35,
             1,
         )
 
@@ -318,13 +321,14 @@ class OptimizationAnalyzer:
 
         if completeness["level"] in ("待完善", "一般"):
             missing_names = {
-                "name": "姓名", "position": "职位", "company": "公司",
-                "phone": "手机号", "email": "邮箱", "wechat": "微信号",
+                "name": "姓名",
+                "position": "职位",
+                "company": "公司",
+                "phone": "手机号",
+                "email": "邮箱",
+                "wechat": "微信号",
             }
-            missing_labels = [
-                missing_names.get(f, f)
-                for f in completeness["missing_fields"][:3]
-            ]
+            missing_labels = [missing_names.get(f, f) for f in completeness["missing_fields"][:3]]
             if missing_labels:
                 top_priorities.append(f"补充基本信息：{'、'.join(missing_labels)}")
 

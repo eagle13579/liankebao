@@ -1,9 +1,15 @@
 /**
  * 链客宝小程序 - API请求封装 v3.0
  * 统一后端地址: https://liankebao.top/lkapi
+ * 本地开发地址: http://localhost:8001
  */
 
-const BASE_URL = 'https://liankebao.top/lkapi'
+const PROD_BASE_URL = 'https://liankebao.top/lkapi'
+const LOCAL_BASE_URL = 'http://localhost:8001'
+
+// 设置为 true 使用本地开发 API
+const USE_LOCAL_API = true
+const BASE_URL = USE_LOCAL_API ? LOCAL_BASE_URL : PROD_BASE_URL
 
 /**
  * 通用请求封装
@@ -14,6 +20,7 @@ function request(path, method, data) {
     wx.request({
       url: BASE_URL + path,
       method: method,
+      timeout: 10000,
       data: data,
       header: { 'Content-Type': 'application/json' },
       success: (res) => {
@@ -30,14 +37,26 @@ function request(path, method, data) {
   })
 }
 
-/** 获取自己的画册数据 */
+/** 获取自己的画册数据（生产环境） */
 function getMyBrochures(userId) {
   return request('/api/brochures/' + userId)
 }
 
-/** 通过分享令牌获取名片 */
+/** 通过分享令牌获取名片（生产环境） */
 function getSharedBrochure(token) {
   return request('/api/brochure/t/' + token)
+}
+
+/* ========== 本地开发 API (http://localhost:8001) ========== */
+
+/** 获取名片列表 */
+function getCards() {
+  return request('/api/business-card/cards')
+}
+
+/** 通过分享令牌获取画册/名片 */
+function getBrochure(token) {
+  return request('/api/brochure/' + token)
 }
 
 /** 获取微信用户信息（头像、昵称） */
@@ -100,5 +119,8 @@ module.exports = {
   getSharedBrochure,
   getWxUserProfile,
   getWxPhoneNumber,
-  createCard
+  createCard,
+  // 本地开发 API
+  getCards,
+  getBrochure
 }

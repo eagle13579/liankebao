@@ -26,9 +26,9 @@ import json
 import os
 import sys
 import time
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone
-from typing import Any, Callable
+from collections.abc import Callable
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
 
 # ── Ensure backend on path ────────────────────────────────────────
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -40,13 +40,15 @@ if BACKEND_DIR not in sys.path:
 # Data types
 # ═══════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class CheckResult:
     """Result of a single gap check."""
+
     id: str
     name: str
     category: str
-    status: bool               # True = ✅, False = ❌
+    status: bool  # True = ✅, False = ❌
     detail: str = ""
     duration_ms: float = 0.0
     depends_on: list[str] = field(default_factory=list)
@@ -77,15 +79,18 @@ def register(
     depends_on: list[str] | None = None,
 ) -> Callable:
     """Decorator to register a gap check function."""
+
     def wrapper(fn: Callable) -> Callable:
         _registry.append((check_id, name, category, depends_on or [], fn))
         return fn
+
     return wrapper
 
 
 # ═══════════════════════════════════════════════════════════════════
 # Gap checks — Phase 1 Infrastructure
 # ═══════════════════════════════════════════════════════════════════
+
 
 @register("P1-01", "INFRA_PHASE 环境变量已设置", "Phase 1: 基础设施")
 def check_infra_phase() -> tuple[bool, str]:
@@ -101,6 +106,7 @@ def check_redis_cache_import() -> tuple[bool, str]:
     """Check RedisCache adapter is importable."""
     try:
         from app.cache.adapters.redis_adapter import RedisCache  # noqa: F401
+
         return True, "RedisCache 模块成功导入"
     except ImportError as e:
         return False, f"导入失败: {e}"
@@ -113,6 +119,7 @@ def check_sqlite_event_bus_import() -> tuple[bool, str]:
     """Check SQLiteEventBus adapter is importable."""
     try:
         from app.events.adapters.sqlite_adapter import SQLiteEventBus  # noqa: F401
+
         return True, "SQLiteEventBus 模块成功导入"
     except ImportError as e:
         return False, f"导入失败: {e}"
@@ -159,6 +166,7 @@ def check_redis_connectivity() -> tuple[bool, str]:
 
     try:
         import asyncio
+
         from app.cache.adapters.redis_adapter import RedisCache
 
         cache = RedisCache(
@@ -193,11 +201,13 @@ def check_redis_connectivity() -> tuple[bool, str]:
 # Gap checks — Agent Runtime
 # ═══════════════════════════════════════════════════════════════════
 
+
 @register("AR-01", "BaseAgent 模块可导入", "Agent Runtime", depends_on=["P1-01"])
 def check_base_agent_import() -> tuple[bool, str]:
     """Check BaseAgent is importable."""
     try:
         from app.agents.base_agent import BaseAgent  # noqa: F401
+
         return True, "BaseAgent 模块成功导入"
     except ImportError as e:
         return False, f"导入失败: {e}"
@@ -210,6 +220,7 @@ def check_agent_runtime_import() -> tuple[bool, str]:
     """Check AgentRuntime is importable."""
     try:
         from app.agents.agent_runtime import AgentRuntime  # noqa: F401
+
         return True, "AgentRuntime 模块成功导入"
     except ImportError as e:
         return False, f"导入失败: {e}"
@@ -292,6 +303,7 @@ def check_legion_employee_import() -> tuple[bool, str]:
     """Check LegionEmployee adapter."""
     try:
         from app.agents.legion_employee import LegionEmployee  # noqa: F401
+
         return True, "LegionEmployee 模块成功导入"
     except ImportError as e:
         return False, f"导入失败: {e}"
@@ -328,7 +340,7 @@ def check_start_agents_script() -> tuple[bool, str]:
         return False, f"文件不存在: {script_path}"
 
     try:
-        with open(script_path, "r", encoding="utf-8") as f:
+        with open(script_path, encoding="utf-8") as f:
             compile(f.read(), script_path, "exec")
         return True, f"语法检查通过: {script_path}"
     except SyntaxError as e:
@@ -341,11 +353,13 @@ def check_start_agents_script() -> tuple[bool, str]:
 # Gap checks — Gaia & Evolution
 # ═══════════════════════════════════════════════════════════════════
 
+
 @register("GA-01", "GaiaBrain 模块可导入", "盖娅飞轮")
 def check_gaia_brain_import() -> tuple[bool, str]:
     """Check GaiaBrain is importable."""
     try:
         from app.gaia_brain import GaiaBrain  # noqa: F401
+
         return True, "GaiaBrain 模块成功导入"
     except ImportError as e:
         return False, f"导入失败: {e}"
@@ -357,11 +371,12 @@ def check_gaia_brain_import() -> tuple[bool, str]:
 def check_gaia_flywheel() -> tuple[bool, str]:
     """Check Gaia flywheel can be installed."""
     try:
-        from app.agents.scheduler_rules import install_scheduler_rules
-
         # Check if flywheel rule exists
-        from app.agents.scheduler_rules import SCHEDULER_RULES
-        flywheel_rules = [r for r in SCHEDULER_RULES if "fl" in r.get("agent_name", "").lower() or "飞轮" in r.get("description", "")]
+        from app.agents.scheduler_rules import SCHEDULER_RULES, install_scheduler_rules
+
+        flywheel_rules = [
+            r for r in SCHEDULER_RULES if "fl" in r.get("agent_name", "").lower() or "飞轮" in r.get("description", "")
+        ]
         if flywheel_rules:
             return True, f"盖娅飞轮定时任务已配置: {flywheel_rules[0].get('schedule', '每30分钟')}"
         return True, "install_scheduler_rules() 可用 (飞轮规则由 SREAgent 管理)"
@@ -374,6 +389,7 @@ def check_gaia_flywheel() -> tuple[bool, str]:
 # ═══════════════════════════════════════════════════════════════════
 # Gap checks — Deployment infrastructure
 # ═══════════════════════════════════════════════════════════════════
+
 
 @register("DI-01", "Dockerfile 存在", "部署基础设施")
 def check_dockerfile() -> tuple[bool, str]:
@@ -465,6 +481,7 @@ def check_env_production() -> tuple[bool, str]:
 # Gap checks — Test infrastructure
 # ═══════════════════════════════════════════════════════════════════
 
+
 @register("TI-01", "关键测试模块存在", "测试基础设施")
 def check_test_modules() -> tuple[bool, str]:
     """Check critical test files exist."""
@@ -513,13 +530,19 @@ def check_test_runner() -> tuple[bool, str]:
 # Gap checks — Environment
 # ═══════════════════════════════════════════════════════════════════
 
+
 @register("ENV-01", "Python 版本 >= 3.11", "环境")
 def check_python_version() -> tuple[bool, str]:
     """Check Python version is adequate."""
     v = sys.version_info
     if v.major >= 3 and v.minor >= 11:
         return True, f"Python {v.major}.{v.minor}.{v.micro}"
-    return False, f"Python {v.major}.{v.minor}.{v.micro} — 需要 3.11+" if v.major >= 3 else f"Python {v.major}.{v.minor} — 需要 Python 3"
+    return (
+        False,
+        f"Python {v.major}.{v.minor}.{v.micro} — 需要 3.11+"
+        if v.major >= 3
+        else f"Python {v.major}.{v.minor} — 需要 Python 3",
+    )
 
 
 @register("ENV-02", "关键依赖已安装", "环境")
@@ -555,6 +578,7 @@ def check_critical_dependencies() -> tuple[bool, str]:
 # ═══════════════════════════════════════════════════════════════════
 # Main scanner
 # ═══════════════════════════════════════════════════════════════════
+
 
 def run_all_checks(verbose: bool = False) -> list[CheckResult]:
     """Run all registered gap checks and return results."""
@@ -617,7 +641,7 @@ def print_report(results: list[CheckResult], verbose: bool = False) -> None:
     failed = total - passed
     score = (passed / total * 100) if total > 0 else 0
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    timestamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
 
     print()
     print("╔══════════════════════════════════════════════════════════╗")
@@ -632,9 +656,9 @@ def print_report(results: list[CheckResult], verbose: bool = False) -> None:
     for cat, cat_results in sorted(categories.items()):
         cat_passed = sum(1 for r in cat_results if r.status)
         cat_total = len(cat_results)
-        print(f"\033[1m{'─'*60}\033[0m")
+        print(f"\033[1m{'─' * 60}\033[0m")
         print(f"\033[1m  {cat}  ({cat_passed}/{cat_total})\033[0m")
-        print(f"\033[1m{'─'*60}\033[0m")
+        print(f"\033[1m{'─' * 60}\033[0m")
 
         for r in cat_results:
             print(r.to_ansi())
@@ -642,14 +666,14 @@ def print_report(results: list[CheckResult], verbose: bool = False) -> None:
                 print(f"      \033[90m→ 详情: {r.detail}\033[0m")
 
     print()
-    print(f"\033[1m{'='*60}\033[0m")
+    print(f"\033[1m{'=' * 60}\033[0m")
     print(f"\033[1m  总计: {passed}/{total} 通过 ({score:.1f}%){' ' if score >= 80 else ' ⚠️ 需要关注'}\033[0m")
     if failed > 0:
         print(f"\033[31m  失败: {failed} 项检查未通过\033[0m")
         for r in results:
             if not r.status:
                 print(f"    \033[31m• [{r.id}] {r.name}: {r.detail}\033[0m")
-    print(f"\033[1m{'='*60}\033[0m")
+    print(f"\033[1m{'=' * 60}\033[0m")
     print()
 
     # Score interpretation
@@ -687,7 +711,7 @@ Examples:
 
     if args.json:
         output = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "infra_phase": os.environ.get("INFRA_PHASE", "0"),
             "total_checks": len(results),
             "passed": passed,

@@ -1017,24 +1017,26 @@ async def wechat_notify(
         _process_successful_payment(out_trade_no, transaction_id, db, span)
 
         # 触发 webhook
-        _fire_payment_webhook("payment.succeeded", {
-            "out_trade_no": out_trade_no,
-            "transaction_id": transaction_id,
-            "trade_state": trade_state,
-        })
+        _fire_payment_webhook(
+            "payment.succeeded",
+            {
+                "out_trade_no": out_trade_no,
+                "transaction_id": transaction_id,
+                "trade_state": trade_state,
+            },
+        )
 
         return {"code": "SUCCESS", "message": "成功"}
 
 
-async def _legacy_wechat_notify(
-    body: bytes, request: Request, db: Session, span
-) -> dict:
+async def _legacy_wechat_notify(body: bytes, request: Request, db: Session, span) -> dict:
     """降级使用现有 IJPay 回调逻辑"""
     body_str = body.decode("utf-8")
     try:
         notify_data = json.loads(body_str)
     except json.JSONDecodeError:
         import xml.etree.ElementTree as ET
+
         try:
             root = ET.fromstring(body_str)
             notify_data = {child.tag: child.text for child in root}
@@ -1057,9 +1059,7 @@ async def _legacy_wechat_notify(
     return {"code": "SUCCESS", "message": "成功"}
 
 
-def _process_successful_payment(
-    out_trade_no: str, transaction_id: str, db: Session, span
-) -> None:
+def _process_successful_payment(out_trade_no: str, transaction_id: str, db: Session, span) -> None:
     """
     支付成功处理:
     1. 解析订单号
@@ -1071,7 +1071,7 @@ def _process_successful_payment(
         is_membership = out_trade_no.startswith("LKM")
         offset = 3 if is_membership else 2
         try:
-            order_id = int(out_trade_no[offset:offset + 8])
+            order_id = int(out_trade_no[offset : offset + 8])
         except (ValueError, IndexError):
             order_id = None
     else:
@@ -1112,11 +1112,7 @@ def _process_successful_payment(
             )
             span.set_attribute("membership_updated", True)
     else:
-        order = (
-            db.query(Order)
-            .filter(Order.id == order_id, Order.is_deleted == False)
-            .first()
-        )
+        order = db.query(Order).filter(Order.id == order_id, Order.is_deleted == False).first()
         if order and order.status == "pending":
             order.status = "paid"
             order.transaction_id = transaction_id

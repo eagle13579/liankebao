@@ -15,14 +15,15 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 import httpx
 
 from app.ai.gateway.interfaces import (
+    AIGatewayProtocol,
     AIRequest,
     AIResponse,
-    AIGatewayProtocol,
     EmbeddingRequest,
     EmbeddingResponse,
 )
@@ -154,9 +155,7 @@ class DirectAIGateway(AIGatewayProtocol):
                     }
 
                     model_used = data.get("model", request.model)
-                    cost = self._estimate_cost(
-                        model_used, prompt_tokens, completion_tokens
-                    )
+                    cost = self._estimate_cost(model_used, prompt_tokens, completion_tokens)
 
                     # Update metrics
                     self.metrics["total_tokens"] += total_tokens
@@ -177,8 +176,7 @@ class DirectAIGateway(AIGatewayProtocol):
                 if response.status_code in (429, 502, 503, 504):
                     wait = BASE_BACKOFF_SEC * (2 ** (attempt - 1))
                     logger.warning(
-                        "DeepSeek API returned %d (attempt %d/%d). "
-                        "Retrying in %.1fs...",
+                        "DeepSeek API returned %d (attempt %d/%d). Retrying in %.1fs...",
                         response.status_code,
                         attempt,
                         self._max_retries,
@@ -203,8 +201,7 @@ class DirectAIGateway(AIGatewayProtocol):
             except (httpx.TimeoutException, httpx.ConnectError) as exc:
                 wait = BASE_BACKOFF_SEC * (2 ** (attempt - 1))
                 logger.warning(
-                    "DeepSeek API connection error (attempt %d/%d): %s. "
-                    "Retrying in %.1fs...",
+                    "DeepSeek API connection error (attempt %d/%d): %s. Retrying in %.1fs...",
                     attempt,
                     self._max_retries,
                     exc,
@@ -281,6 +278,7 @@ class DirectAIGateway(AIGatewayProtocol):
                         if data_str == "[DONE]":
                             break
                         import json
+
                         try:
                             chunk = json.loads(data_str)
                             delta = chunk.get("choices", [{}])[0].get("delta", {})
@@ -380,8 +378,7 @@ class DirectAIGateway(AIGatewayProtocol):
             except (httpx.TimeoutException, httpx.ConnectError) as exc:
                 wait = BASE_BACKOFF_SEC * (2 ** (attempt - 1))
                 logger.warning(
-                    "DeepSeek embed connection error (attempt %d/%d): %s. "
-                    "Retrying...",
+                    "DeepSeek embed connection error (attempt %d/%d): %s. Retrying...",
                     attempt,
                     self._max_retries,
                     exc,
@@ -389,7 +386,7 @@ class DirectAIGateway(AIGatewayProtocol):
                 await asyncio.sleep(wait)
                 last_error = str(exc)
                 continue
-            except Exception as exc:
+            except Exception:
                 logger.exception("Unexpected error calling DeepSeek embed API")
                 self.metrics["errors"] += 1
                 return EmbeddingResponse(
@@ -449,14 +446,14 @@ class DirectAIGateway(AIGatewayProtocol):
     def _ensure_streaming(request: AIRequest) -> AIRequest:
         """Force streaming to be enabled for stream_chat."""
         import dataclasses
+
         return dataclasses.replace(request, stream=True)
 
     @staticmethod
     def _estimate_cost(model: str, prompt_tokens: int, completion_tokens: int) -> float:
         """Estimate cost in USD based on model pricing lookup."""
         pricing = MODEL_PRICING.get(model, {"input": 0.0, "output": 0.0})
-        cost = (
-            (prompt_tokens / 1000.0) * pricing.get("input", 0.0)
-            + (completion_tokens / 1000.0) * pricing.get("output", 0.0)
+        cost = (prompt_tokens / 1000.0) * pricing.get("input", 0.0) + (completion_tokens / 1000.0) * pricing.get(
+            "output", 0.0
         )
         return round(cost, 6)

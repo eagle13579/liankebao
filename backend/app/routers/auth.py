@@ -109,7 +109,7 @@ def login(
     ip = _get_client_ip(request)
     _check_login_rate_limit(ip)
 
-    user = db.query(User).filter(User.username == req.username, User.is_deleted == False).first()
+    user = db.query(User).filter(User.username == req.email, User.is_deleted == False).first()
     if not user or not verify_password(req.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

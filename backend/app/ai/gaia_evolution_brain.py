@@ -16,23 +16,23 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-import numpy as np
-from sqlalchemy import select, func as sa_func, desc, and_, update
+from sqlalchemy import func as sa_func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.vector_search import (
+    VectorSearchIndex,
     get_embedding_backend,
     get_vector_index,
-    VectorSearchIndex,
 )
 from app.models.gaia import (
-    GaiaKnowledge,
     GaiaEvolutionEvent,
-    GaiaTrainingRun,
+    GaiaKnowledge,
     GaiaModelWeights,
+    GaiaTrainingRun,
 )
 
 logger = logging.getLogger(__name__)
@@ -153,7 +153,10 @@ class GaiaEvolutionBrain:
 
         logger.info(
             "知识已摄取 id=%d source=%s type=%s title=%s",
-            knowledge.id, source, knowledge_type, title[:60],
+            knowledge.id,
+            source,
+            knowledge_type,
+            title[:60],
         )
         return knowledge
 
@@ -278,8 +281,8 @@ class GaiaEvolutionBrain:
                 weights_count=weights_count,
                 vector_index_size=vector_index_size,
                 duration_ms=elapsed_ms,
-                started_at=datetime.now(timezone.utc),
-                completed_at=datetime.now(timezone.utc),
+                started_at=datetime.now(UTC),
+                completed_at=datetime.now(UTC),
             )
             db.add(training_run)
             await db.flush()
@@ -333,8 +336,8 @@ class GaiaEvolutionBrain:
                 trigger=trigger,
                 duration_ms=elapsed_ms,
                 error_message=str(e),
-                started_at=datetime.now(timezone.utc),
-                completed_at=datetime.now(timezone.utc),
+                started_at=datetime.now(UTC),
+                completed_at=datetime.now(UTC),
             )
             db.add(training_run)
 
@@ -357,15 +360,15 @@ class GaiaEvolutionBrain:
         return list(result.scalars().all())
 
     async def _embed_knowledge_batch(
-        self, db: AsyncSession, knowledge_list: list[GaiaKnowledge],
+        self,
+        db: AsyncSession,
+        knowledge_list: list[GaiaKnowledge],
     ) -> None:
         """将知识批量嵌入向量索引"""
         for knowledge in knowledge_list:
             text = f"{knowledge.title}. {knowledge.content}"
             if knowledge.tags:
-                tags_str = " ".join(
-                    t for t in (knowledge.tags or []) if isinstance(t, str)
-                )
+                tags_str = " ".join(t for t in (knowledge.tags or []) if isinstance(t, str))
                 text = f"{text} [{tags_str}]"
 
             # 使用 content_type="gaia_knowledge" 和 knowledge.id 作为 ID
@@ -391,7 +394,7 @@ class GaiaEvolutionBrain:
         策略:
         - 统计各类知识的占比，调整模块权重
         - 高置信度、高影响的知识获得更高权重
-        
+
         Returns:
             更新的权重模块数
         """
@@ -648,10 +651,7 @@ class GaiaEvolutionBrain:
             select(GaiaKnowledge)
             .where(GaiaKnowledge.is_active.is_(True))
             .where(GaiaKnowledge.confidence >= min_confidence)
-            .where(
-                (GaiaKnowledge.title.ilike(query_filter))
-                | (GaiaKnowledge.content.ilike(query_filter))
-            )
+            .where((GaiaKnowledge.title.ilike(query_filter)) | (GaiaKnowledge.content.ilike(query_filter)))
             .order_by(GaiaKnowledge.confidence.desc(), GaiaKnowledge.impact_score.desc())
             .limit(limit)
         )
@@ -673,17 +673,11 @@ class GaiaEvolutionBrain:
         count_stmt = select(sa_func.count()).select_from(GaiaKnowledge)
         total_knowledge = (await db.execute(count_stmt)).scalar() or 0
 
-        active_stmt = (
-            select(sa_func.count())
-            .select_from(GaiaKnowledge)
-            .where(GaiaKnowledge.is_active.is_(True))
-        )
+        active_stmt = select(sa_func.count()).select_from(GaiaKnowledge).where(GaiaKnowledge.is_active.is_(True))
         active_knowledge = (await db.execute(active_stmt)).scalar() or 0
 
         embedded_stmt = (
-            select(sa_func.count())
-            .select_from(GaiaKnowledge)
-            .where(GaiaKnowledge.vector_embedded.is_(True))
+            select(sa_func.count()).select_from(GaiaKnowledge).where(GaiaKnowledge.vector_embedded.is_(True))
         )
         embedded_count = (await db.execute(embedded_stmt)).scalar() or 0
 
@@ -691,11 +685,7 @@ class GaiaEvolutionBrain:
         training_count_stmt = select(sa_func.count()).select_from(GaiaTrainingRun)
         total_training_runs = (await db.execute(training_count_stmt)).scalar() or 0
 
-        last_training_stmt = (
-            select(GaiaTrainingRun)
-            .order_by(GaiaTrainingRun.created_at.desc())
-            .limit(1)
-        )
+        last_training_stmt = select(GaiaTrainingRun).order_by(GaiaTrainingRun.created_at.desc()).limit(1)
         last_training_result = await db.execute(last_training_stmt)
         last_training = last_training_result.scalars().first()
 
@@ -704,9 +694,7 @@ class GaiaEvolutionBrain:
         total_weights = (await db.execute(weight_count_stmt)).scalar() or 0
 
         active_weight_stmt = (
-            select(sa_func.count())
-            .select_from(GaiaModelWeights)
-            .where(GaiaModelWeights.is_active.is_(True))
+            select(sa_func.count()).select_from(GaiaModelWeights).where(GaiaModelWeights.is_active.is_(True))
         )
         active_weights = (await db.execute(active_weight_stmt)).scalar() or 0
 
@@ -727,9 +715,7 @@ class GaiaEvolutionBrain:
                     "status": last_training.status if last_training else None,
                     "trigger": last_training.trigger if last_training else None,
                     "completed_at": (
-                        last_training.completed_at.isoformat()
-                        if last_training and last_training.completed_at
-                        else None
+                        last_training.completed_at.isoformat() if last_training and last_training.completed_at else None
                     ),
                 }
                 if last_training

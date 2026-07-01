@@ -22,26 +22,23 @@
   WECHAT_APPID         — 公众号/小程序 AppID
 """
 
-import json
-import logging
-import os
-import time
-from dataclasses import dataclass, field
-from typing import Any, Optional
-
-import httpx
-
 # ---------------------------------------------------------------------------
 # 自建 V3 签名工具 (零外部依赖，仅使用 cryptography)
 # ---------------------------------------------------------------------------
 import base64
 import hashlib
+import json
+import logging
+import os
 import secrets
+import time
+from dataclasses import dataclass
 
+import httpx
+from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.backends import default_backend
 
 logger = logging.getLogger(__name__)
 
@@ -100,9 +97,7 @@ def build_v3_response_sign_str(timestamp: str, nonce: str, body: str) -> str:
 def _load_private_key(key_path: str) -> rsa.RSAPrivateKey:
     """从 PEM 文件加载 RSA 私钥"""
     with open(key_path, "rb") as f:
-        return serialization.load_pem_private_key(
-            f.read(), password=None, backend=default_backend()
-        )
+        return serialization.load_pem_private_key(f.read(), password=None, backend=default_backend())
 
 
 def rsa_sign(content: str, private_key_path: str) -> str:
@@ -118,9 +113,7 @@ def rsa_sign(content: str, private_key_path: str) -> str:
 
 def rsa_sign_with_key(content: str, private_key_pem: bytes) -> str:
     """RSA-SHA256 签名 (使用 PEM 字节, 无需文件路径)"""
-    private_key = serialization.load_pem_private_key(
-        private_key_pem, password=None, backend=default_backend()
-    )
+    private_key = serialization.load_pem_private_key(private_key_pem, password=None, backend=default_backend())
     signature = private_key.sign(
         content.encode("utf-8"),
         padding.PKCS1v15(),
@@ -132,9 +125,7 @@ def rsa_sign_with_key(content: str, private_key_pem: bytes) -> str:
 def rsa_verify(content: str, signature_b64: str, public_key_pem: bytes) -> bool:
     """RSA-SHA256 验签"""
     try:
-        public_key = serialization.load_pem_public_key(
-            public_key_pem, backend=default_backend()
-        )
+        public_key = serialization.load_pem_public_key(public_key_pem, backend=default_backend())
         signature = base64.b64decode(signature_b64)
         public_key.verify(
             signature,
@@ -148,7 +139,7 @@ def rsa_verify(content: str, signature_b64: str, public_key_pem: bytes) -> bool:
         return False
 
 
-def aes_gcm_decrypt(ciphertext_b64: str, key: str, nonce: str, associated_data: str) -> Optional[str]:
+def aes_gcm_decrypt(ciphertext_b64: str, key: str, nonce: str, associated_data: str) -> str | None:
     """AES-256-GCM 解密 (微信 V3 回调 resource 解密)"""
     try:
         key_bytes = key.encode("utf-8")
@@ -171,13 +162,14 @@ def aes_gcm_decrypt(ciphertext_b64: str, key: str, nonce: str, associated_data: 
 @dataclass
 class WeChatPayConfig:
     """微信支付配置 (从环境变量加载)"""
+
     mch_id: str = ""
-    api_key: str = ""            # V2 密钥
-    api_v3_key: str = ""         # V3 密钥 (32字节, AES-GCM 解密用)
+    api_key: str = ""  # V2 密钥
+    api_v3_key: str = ""  # V3 密钥 (32字节, AES-GCM 解密用)
     app_id: str = ""
-    cert_path: str = ""          # 商户私钥证书路径
-    cert_serial_no: str = ""     # 商户证书序列号
-    notify_url: str = ""         # 支付回调地址
+    cert_path: str = ""  # 商户私钥证书路径
+    cert_serial_no: str = ""  # 商户证书序列号
+    notify_url: str = ""  # 支付回调地址
     refund_notify_url: str = ""  # 退款回调地址 (可选)
     platform_cert_dir: str = ""  # 平台证书缓存目录
 
@@ -243,7 +235,7 @@ class V3Auth:
         signature = rsa_sign(sign_str, self._config.cert_path)
 
         auth_value = (
-            f'WECHATPAY2-SHA256-RSA2048 '
+            f"WECHATPAY2-SHA256-RSA2048 "
             f'mchid="{self._config.mch_id}",'
             f'nonce_str="{nonce}",'
             f'timestamp="{timestamp}",'
@@ -273,7 +265,7 @@ class WeChatPayClient:
     def __init__(self, config: WeChatPayConfig):
         self._config = config
         self._auth = V3Auth(config)
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: httpx.AsyncClient | None = None
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
@@ -284,9 +276,7 @@ class WeChatPayClient:
             )
         return self._client
 
-    async def request(
-        self, method: str, url_path: str, body: Optional[dict] = None
-    ) -> dict:
+    async def request(self, method: str, url_path: str, body: dict | None = None) -> dict:
         """发起 V3 API 请求，自动注入鉴权头"""
         client = await self._get_client()
         body_json = json.dumps(body, ensure_ascii=False) if body else ""
@@ -307,9 +297,7 @@ class WeChatPayClient:
         if response.is_success:
             return result
         else:
-            logger.error(
-                f"微信请求失败: {method} {url_path} → {response.status_code}: {response.text[:500]}"
-            )
+            logger.error(f"微信请求失败: {method} {url_path} → {response.status_code}: {response.text[:500]}")
             result["_http_status"] = response.status_code
             result["_success"] = False
             return result
@@ -340,9 +328,9 @@ class WeChatPay:
         result = await pay.create_jsapi_order(openid="xxx", ...)
     """
 
-    def __init__(self, config: Optional[WeChatPayConfig] = None):
+    def __init__(self, config: WeChatPayConfig | None = None):
         self.config = config or WeChatPayConfig.from_env()
-        self._client: Optional[WeChatPayClient] = None
+        self._client: WeChatPayClient | None = None
 
     def _get_client(self) -> WeChatPayClient:
         if self._client is None:
@@ -355,11 +343,11 @@ class WeChatPay:
         self,
         openid: str,
         out_trade_no: str,
-        total_fee: int,          # 单位: 分
+        total_fee: int,  # 单位: 分
         description: str,
-        attach: Optional[str] = None,
-        time_expire: Optional[str] = None,
-        goods_tag: Optional[str] = None,
+        attach: str | None = None,
+        time_expire: str | None = None,
+        goods_tag: str | None = None,
     ) -> dict:
         """
         JSAPI 下单 (公众号/小程序内支付)
@@ -401,7 +389,7 @@ class WeChatPay:
         out_trade_no: str,
         total_fee: int,
         description: str,
-        attach: Optional[str] = None,
+        attach: str | None = None,
     ) -> dict:
         """APP 下单"""
         body = {
@@ -430,7 +418,7 @@ class WeChatPay:
         out_trade_no: str,
         total_fee: int,
         description: str,
-        attach: Optional[str] = None,
+        attach: str | None = None,
     ) -> dict:
         """Native 下单 (返回二维码链接 code_url)"""
         body = {
@@ -453,7 +441,7 @@ class WeChatPay:
         out_trade_no: str,
         total_fee: int,
         description: str,
-        attach: Optional[str] = None,
+        attach: str | None = None,
         h5_type: str = "Wap",
         h5_app_name: str = "链客宝",
         h5_app_url: str = "",
@@ -514,10 +502,10 @@ class WeChatPay:
         self,
         out_trade_no: str,
         out_refund_no: str,
-        refund_amount: int,   # 退款金额 (分)
-        total_amount: int,    # 原订单金额 (分)
-        reason: Optional[str] = None,
-        notify_url: Optional[str] = None,
+        refund_amount: int,  # 退款金额 (分)
+        total_amount: int,  # 原订单金额 (分)
+        reason: str | None = None,
+        notify_url: str | None = None,
     ) -> dict:
         """申请退款"""
         body = {
@@ -585,8 +573,8 @@ class WeChatPay:
         wechatpay_serial: str,
         wechatpay_timestamp: str,
         wechatpay_nonce: str,
-        platform_cert_pem: Optional[bytes] = None,
-    ) -> Optional[dict]:
+        platform_cert_pem: bytes | None = None,
+    ) -> dict | None:
         """
         验证微信支付回调并解密 resource
 
@@ -602,9 +590,7 @@ class WeChatPay:
             解密后的回调数据字典, 验签失败返回 None
         """
         body_str = body.decode("utf-8") if isinstance(body, bytes) else body
-        sign_str = build_v3_response_sign_str(
-            wechatpay_timestamp, wechatpay_nonce, body_str
-        )
+        sign_str = build_v3_response_sign_str(wechatpay_timestamp, wechatpay_nonce, body_str)
 
         # 获取平台证书
         pub_key = platform_cert_pem or self._load_platform_cert(wechatpay_serial)
@@ -632,9 +618,7 @@ class WeChatPay:
             logger.warning("回调无加密数据或 V3 密钥未配置, 返回原始数据")
             return notify_data
 
-        plaintext = aes_gcm_decrypt(
-            ciphertext, self.config.api_v3_key, nonce, associated_data
-        )
+        plaintext = aes_gcm_decrypt(ciphertext, self.config.api_v3_key, nonce, associated_data)
         if plaintext is None:
             logger.error("回调 resource AES-GCM 解密失败")
             return None
@@ -647,11 +631,9 @@ class WeChatPay:
 
     # ---- 平台证书管理 ----
 
-    def _load_platform_cert(self, serial_no: str) -> Optional[bytes]:
+    def _load_platform_cert(self, serial_no: str) -> bytes | None:
         """从缓存目录加载平台证书"""
-        cert_path = os.path.join(
-            self.config.platform_cert_dir, f"wechat_platform_{serial_no}.pem"
-        )
+        cert_path = os.path.join(self.config.platform_cert_dir, f"wechat_platform_{serial_no}.pem")
         try:
             with open(cert_path, "rb") as f:
                 return f.read()
@@ -680,13 +662,9 @@ class WeChatPay:
             nonce = encrypt_cert.get("nonce", "")
             associated_data = encrypt_cert.get("associated_data", "")
 
-            plain_pem = aes_gcm_decrypt(
-                ciphertext, self.config.api_v3_key, nonce, associated_data
-            )
+            plain_pem = aes_gcm_decrypt(ciphertext, self.config.api_v3_key, nonce, associated_data)
             if plain_pem:
-                cert_path = os.path.join(
-                    self.config.platform_cert_dir, f"wechat_platform_{serial_no}.pem"
-                )
+                cert_path = os.path.join(self.config.platform_cert_dir, f"wechat_platform_{serial_no}.pem")
                 with open(cert_path, "w") as f:
                     f.write(plain_pem)
                 downloaded.append({"serial_no": serial_no, "path": cert_path})
@@ -731,7 +709,7 @@ def check_wechat_pay_ready() -> list:
 # =========================================================================
 
 # 全局配置实例 (惰性加载)
-_global_config: Optional[WeChatPayConfig] = None
+_global_config: WeChatPayConfig | None = None
 
 
 def get_wechat_pay_config() -> WeChatPayConfig:

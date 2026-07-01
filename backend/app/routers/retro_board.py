@@ -7,6 +7,7 @@ F1-F9 心智模型注入 — 深度复盘模型
 铁律六：只新增不覆盖，独立模块。
 """
 
+import asyncio
 import logging
 from datetime import datetime
 from typing import Optional
@@ -315,6 +316,39 @@ def update_retro_step(
 
     step.content = body.content
     step.updated_at = datetime.utcnow()
+
+    # ── F8 知识归档：自动写入盖娅进化大脑 ─────────────────────
+    if step_key == "F8" and body.content.strip():
+        try:
+            from app.ai.gaia_evolution_brain import get_gaia_brain
+            from app.database import AsyncSession, engine
+
+            brain = get_gaia_brain()
+
+            async def _archive_to_gaia():
+                async with AsyncSession(engine) as gaia_db:
+                    await brain.ingest_knowledge(
+                        db=gaia_db,
+                        source="retrospective",
+                        source_id=str(board_id),
+                        knowledge_type="pattern",
+                        title=f"复盘归档: {body.content[:76]}",
+                        content=body.content,
+                        tags=["retrospective", "F8", "knowledge_archive"],
+                        confidence=0.8,
+                    )
+                    await gaia_db.commit()
+
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(_archive_to_gaia())
+            except RuntimeError:
+                asyncio.run(_archive_to_gaia())
+
+            logger.info("[Gaia] F8 知识已自动归档到盖娅进化大脑 (board_id=%s)", board_id)
+        except (ImportError, Exception) as e:
+            logger.warning("[Gaia] 知识归档失败，盖娅进化大脑不可用: %s", e)
+    # ────────────────────────────────────────────────────────
 
     log = RetroActionLog(
         board_id=board_id,

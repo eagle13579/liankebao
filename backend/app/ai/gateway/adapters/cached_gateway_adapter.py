@@ -24,7 +24,6 @@ Usage:
 
 from __future__ import annotations
 
-import asyncio
 import dataclasses
 import hashlib
 import json
@@ -32,12 +31,13 @@ import logging
 import math
 import time
 from collections import deque
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from app.ai.gateway.interfaces import (
+    AIGatewayProtocol,
     AIRequest,
     AIResponse,
-    AIGatewayProtocol,
     EmbeddingRequest,
     EmbeddingResponse,
 )
@@ -57,10 +57,7 @@ class RateLimitError(Exception):
     def __init__(self, model: str, retry_after: float) -> None:
         self.model = model
         self.retry_after = retry_after
-        super().__init__(
-            f"Rate limit exceeded for model '{model}'. "
-            f"Retry after {retry_after:.1f}s."
-        )
+        super().__init__(f"Rate limit exceeded for model '{model}'. Retry after {retry_after:.1f}s.")
 
 
 class CircuitBreakerOpenError(Exception):
@@ -69,10 +66,7 @@ class CircuitBreakerOpenError(Exception):
     def __init__(self, model: str, cooldown_remaining: float) -> None:
         self.model = model
         self.cooldown_remaining = cooldown_remaining
-        super().__init__(
-            f"Circuit breaker open for model '{model}'. "
-            f"Cooldown remaining: {cooldown_remaining:.1f}s."
-        )
+        super().__init__(f"Circuit breaker open for model '{model}'. Cooldown remaining: {cooldown_remaining:.1f}s.")
 
 
 # ======================================================================
@@ -328,7 +322,7 @@ class CachedAIGateway(AIGatewayProtocol):
 
         try:
             response = await self._inner.chat(request)
-        except Exception as exc:
+        except Exception:
             self._record_failure(model)
             self._errors += 1
             raise
@@ -367,7 +361,7 @@ class CachedAIGateway(AIGatewayProtocol):
 
         try:
             response = await self._inner.embed(request)
-        except Exception as exc:
+        except Exception:
             self._record_failure(model)
             self._errors += 1
             raise
@@ -492,8 +486,7 @@ class CachedAIGateway(AIGatewayProtocol):
         elapsed = time.monotonic() - cb.circuit_open_time
         if elapsed >= self._circuit_breaker_cooldown:
             logger.info(
-                "Circuit breaker HALF-OPEN for model '%s' (cooldown elapsed). "
-                "Allowing probe request.",
+                "Circuit breaker HALF-OPEN for model '%s' (cooldown elapsed). Allowing probe request.",
                 model,
             )
             cb.circuit_open = False
@@ -522,8 +515,7 @@ class CachedAIGateway(AIGatewayProtocol):
             cb.circuit_open = True
             cb.circuit_open_time = time.monotonic()
             logger.warning(
-                "Circuit breaker OPEN for model '%s' after %d consecutive failures. "
-                "Cooldown: %.1fs",
+                "Circuit breaker OPEN for model '%s' after %d consecutive failures. Cooldown: %.1fs",
                 model,
                 cb.consecutive_failures,
                 self._circuit_breaker_cooldown,
@@ -547,9 +539,7 @@ class CachedAIGateway(AIGatewayProtocol):
         if request.tools:
             content_parts.append(f"tools:{json.dumps(request.tools, sort_keys=True)}")
         if request.response_format:
-            content_parts.append(
-                f"format:{json.dumps(request.response_format, sort_keys=True)}"
-            )
+            content_parts.append(f"format:{json.dumps(request.response_format, sort_keys=True)}")
 
         raw = "||".join(content_parts)
         content_hash = hashlib.sha256(raw.encode()).hexdigest()[:16]

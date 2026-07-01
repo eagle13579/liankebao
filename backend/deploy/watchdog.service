@@ -1,0 +1,78 @@
+# =============================================================================
+# 链客宝 — Agent Runtime Watchdog systemd 服务
+# =============================================================================
+# 自愈监控进程：每 30 秒检查 Agent Runtime 健康状态，异常时自动重启。
+# 优先级低于主服务（CPU/IO 亲和性较低）。
+#
+# 安装:
+#   sudo cp deploy/watchdog.service /etc/systemd/system/chainke-watchdog.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable chainke-watchdog
+#   sudo systemctl start chainke-watchdog
+#
+# 查看状态:
+#   sudo systemctl status chainke-watchdog
+#   journalctl -u chainke-watchdog -f
+# =============================================================================
+
+[Unit]
+Description=链客宝 Agent Runtime Watchdog — Self-Healing Process Monitor
+Documentation=https://github.com/liankebao/backend/wiki/watchdog
+After=network.target chainke-agents.service
+Wants=chainke-agents.service
+BindsTo=chainke-agents.service
+
+[Service]
+Type=simple
+User=chainke
+Group=chainke
+
+# ── Working directory ────────────────────────────────────────────
+WorkingDirectory=/opt/chainke/backend
+
+# ── Environment ──────────────────────────────────────────────────
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/opt/chainke/backend
+Environment=LOG_LEVEL=INFO
+Environment=BACKEND_DIR=/opt/chainke/backend
+Environment=WATCHDOG_INTERVAL=30
+Environment=WATCHDOG_TARGET=http://127.0.0.1:8202/health
+Environment=WATCHDOG_TIMEOUT=10
+Environment=WATCHDOG_UNHEALTHY_THRESHOLD=3
+
+# ── Exec start ───────────────────────────────────────────────────
+ExecStart=/opt/chainke/backend/.venv/bin/python -m app.agents.watchdog
+
+# ── Restart behaviour ────────────────────────────────────────────
+# 如果 watchdog 自身崩溃，立即重启
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=300
+StartLimitBurst=10
+
+# ── Resource limits (低于主服务的优先级) ────────────────────────
+LimitNOFILE=8192
+LimitNPROC=2048
+MemoryMax=256M
+CPUQuota=30%
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+
+# ── Security hardening ───────────────────────────────────────────
+NoNewPrivileges=true
+ProtectHome=tmpfs
+ProtectSystem=strict
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ReadWritePaths=/opt/chainke/backend/data
+
+# ── Logging ──────────────────────────────────────────────────────
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=chainke-watchdog
+
+[Install]
+WantedBy=multi-user.target

@@ -16,15 +16,13 @@ from __future__ import annotations
 
 import os
 import sys
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from app.agents.base_agent import BaseAgent, AgentConfig, AgentStatus, CronJob
-
+from app.agents.base_agent import AgentConfig, AgentStatus, BaseAgent, CronJob
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Helper: concrete agent for testing
@@ -49,11 +47,13 @@ class TestAgent(BaseAgent):
         self.init_called = True
         self.register_tool("ping", self._ping)
         self.register_event_handler("test.event", self._handle_test_event)
-        self.add_cron_job(CronJob(
-            schedule="* * * * *",
-            action=self._cron_action,
-            name="every_minute",
-        ))
+        self.add_cron_job(
+            CronJob(
+                schedule="* * * * *",
+                action=self._cron_action,
+                name="every_minute",
+            )
+        )
 
     async def stop(self):
         self.stop_called = True
@@ -372,8 +372,11 @@ class TestAgentRuntimeCron:
         from app.agents.base_agent import AgentConfig
 
         class NoCronAgent(BaseAgent):
-            async def init(self): pass
-            async def stop(self): self.status = AgentStatus.STOPPED
+            async def init(self):
+                pass
+
+            async def stop(self):
+                self.status = AgentStatus.STOPPED
 
         runtime = AgentRuntime()
         agent = NoCronAgent(config=AgentConfig(agent_name="no_cron"))

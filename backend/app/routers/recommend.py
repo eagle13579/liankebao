@@ -8,21 +8,19 @@ AI数字名片 推荐 API
 """
 
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai.feedback_loop import FeedbackLoop, apply_feedback_boost, get_feedback_loop
-from app.ai.recommendation import RecommendEngine
+from app.ai.feedback_loop import get_feedback_loop
 from app.ai.rag_pipeline import RAGPipeline
+from app.ai.recommendation import RecommendEngine
 from app.database import get_db
 from app.models.tag import MatchRecord
 from app.models.user import User
 from app.routers.auth import get_current_user
-from app.services.feedback_service import FeedbackAction, FeedbackResult, get_feedback_service
-from app.services.recommend_service import FeedbackRecommendation, RecommendService
+from app.services.feedback_service import FeedbackResult, get_feedback_service
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +34,7 @@ router = APIRouter(prefix="/api/recommend", tags=["推荐"])
 
 class FeedbackInline(BaseModel):
     """推荐结果的内联反馈（在推荐请求中直接提交）"""
+
     content_id: int = Field(..., description="被推荐用户/内容 ID")
     action: str = Field(..., description="反馈动作: like/dislike/skip")
 
@@ -49,7 +48,7 @@ class PersonalRecommendRequest(BaseModel):
 
 class DiscoverRequest(BaseModel):
     top_k: int = Field(30, ge=1, le=100, description="返回数量")
-    purpose: Optional[str] = Field(None, description="筛选用途: partner/client/investor/supplier")
+    purpose: str | None = Field(None, description="筛选用途: partner/client/investor/supplier")
     feedback: list[FeedbackInline] | None = Field(None, description="历史推荐反馈 (👍/👎/skip)")
 
 
@@ -103,6 +102,7 @@ class RAGQueryResponse(BaseModel):
 
 class FeedbackSubmitRequest(BaseModel):
     """独立反馈提交请求"""
+
     content_id: int = Field(..., description="被推荐用户/内容 ID")
     action: str = Field(..., description="反馈动作: like/dislike/skip")
     source: str = Field("recommend", description="反馈来源: recommend/discover/similar")
@@ -111,6 +111,7 @@ class FeedbackSubmitRequest(BaseModel):
 
 class FeedbackSubmitResponse(FeedbackResult):
     """反馈提交响应"""
+
     recommendation_id: str = ""
     user_id: int = 0
     content_id: int = 0
@@ -287,6 +288,7 @@ async def similar_users(
 
     # 验证目标用户存在
     from sqlalchemy import select
+
     result = await db.execute(select(User).where(User.id == data.target_user_id))
     target_user = result.scalars().first()
     if not target_user:
@@ -346,6 +348,7 @@ async def graph_summary(
 ):
     """获取当前用户的关系图谱摘要"""
     from app.ai.knowledge_graph import CachedKnowledgeGraphBuilder
+
     builder = CachedKnowledgeGraphBuilder(db)
     summary = await builder.get_graph_summary(current_user.id)
     return summary
@@ -359,6 +362,7 @@ async def get_graph(
 ):
     """获取当前用户的完整关系图谱"""
     from app.ai.knowledge_graph import CachedKnowledgeGraphBuilder
+
     builder = CachedKnowledgeGraphBuilder(db)
     kg = await builder.build_user_graph(current_user.id, max_depth=depth)
     return kg.to_dict()

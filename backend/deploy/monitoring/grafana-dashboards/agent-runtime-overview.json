@@ -1,0 +1,108 @@
+{
+  "__inputs": [],
+  "__requires": [],
+  "title": "链客宝 — Agent Runtime Overview",
+  "version": 1,
+  "schemaVersion": 39,
+  "timezone": "browser",
+  "editable": true,
+  "gnetId": null,
+  "tags": ["chainke", "runtime", "agents"],
+  "uid": "chainke-agent-runtime",
+  "panels": [
+    {
+      "title": "Runtime Status",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 0},
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "agent_runtime_running",
+          "legendFormat": "Running"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "green", "value": 1}
+            ]
+          },
+          "mappings": [
+            {"type": "value", "value": "0", "text": "STOPPED"},
+            {"type": "value", "value": "1", "text": "RUNNING"}
+          ]
+        }
+      }
+    },
+    {
+      "title": "Registered Agents",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 0},
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "agent_count",
+          "legendFormat": "Agents"
+        }
+      ]
+    },
+    {
+      "title": "Uptime (hours)",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 4, "x": 8, "y": 0},
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "agent_runtime_uptime_seconds / 3600",
+          "legendFormat": "Uptime"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 1
+        }
+      }
+    },
+    {
+      "title": "Active Tasks (per Agent)",
+      "type": "barchart",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "agent_active_tasks",
+          "legendFormat": "{{agent}}"
+        }
+      ]
+    },
+    {
+      "title": "Watchdog Restarts (24h)",
+      "type": "timeseries",
+      "gridPos": {"h": 6, "w": 12, "x": 0, "y": 12},
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "increase(watchdog_restarts_total[24h])",
+          "legendFormat": "Restarts"
+        }
+      ]
+    },
+    {
+      "title": "Event Bus Throughput",
+      "type": "timeseries",
+      "gridPos": {"h": 6, "w": 12, "x": 0, "y": 18},
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(event_bus_messages_total[5m])",
+          "legendFormat": "{{type}}"
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "time": {"from": "now-1h", "to": "now"}
+}

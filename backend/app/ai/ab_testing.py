@@ -8,10 +8,11 @@ from __future__ import annotations
 
 import math
 import random
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 # ─── 统计工具 ─────────────────────────────────────────────
+
 
 def z_score(alpha: float = 0.05, two_tailed: bool = True) -> float:
     """近似 Z 临界值（标准正态分布分位数）。"""
@@ -55,6 +56,7 @@ def chi_square_pvalue(observed: list[list[int]]) -> float:
 
     # 自由度 1 的卡方分布近似 p-value
     from math import erfc
+
     if chi2 <= 0:
         return 1.0
     # 对于 df=1: p = erfc(sqrt(chi2/2))
@@ -63,8 +65,10 @@ def chi_square_pvalue(observed: list[list[int]]) -> float:
 
 
 def bayesian_win_probability(
-    control_success: int, control_total: int,
-    variant_success: int, variant_total: int,
+    control_success: int,
+    control_total: int,
+    variant_success: int,
+    variant_total: int,
     simulations: int = 100_000,
 ) -> tuple[float, float]:
     """
@@ -105,6 +109,7 @@ EXPERIMENT_STATUS_COMPLETED = "completed"
 
 # ─── 实验配置 ─────────────────────────────────────────────
 
+
 class ExperimentConfig:
     """实验配置参数。"""
 
@@ -112,12 +117,12 @@ class ExperimentConfig:
         self,
         name: str,
         description: str = "",
-        traffic_fraction: float = 1.0,        # 0.0 ~ 1.0
+        traffic_fraction: float = 1.0,  # 0.0 ~ 1.0
         control_name: str = "对照组",
         variants: list[dict[str, Any]] | None = None,
-        min_sample_size: int = 100,            # 每组最小样本量
-        significance_level: float = 0.05,      # α
-        metric: str = "click_rate",            # click_rate | view_count | conversion
+        min_sample_size: int = 100,  # 每组最小样本量
+        significance_level: float = 0.05,  # α
+        metric: str = "click_rate",  # click_rate | view_count | conversion
     ):
         self.name = name
         self.description = description
@@ -131,6 +136,7 @@ class ExperimentConfig:
 
 # ─── 实验状态 ─────────────────────────────────────────────
 
+
 class ExperimentState:
     """实验运行时状态。"""
 
@@ -142,7 +148,7 @@ class ExperimentState:
         self.experiment_id = experiment_id
         self.config = config
         self.status: str = EXPERIMENT_STATUS_DRAFT
-        self.created_at: datetime = datetime.now(timezone.utc)
+        self.created_at: datetime = datetime.now(UTC)
         self.started_at: datetime | None = None
         self.completed_at: datetime | None = None
         self.results: dict[str, Any] = {}
@@ -167,6 +173,7 @@ class ExperimentState:
 
 
 # ─── 版本分发器 ───────────────────────────────────────────
+
 
 class VariantDistributor:
     """
@@ -206,6 +213,7 @@ class VariantDistributor:
 
 
 # ─── 指标收集器 ───────────────────────────────────────────
+
 
 class MetricsCollector:
     """收集并聚合 A/B 测试指标数据。"""
@@ -255,6 +263,7 @@ class MetricsCollector:
 
 # ─── 统计显著性检验 ───────────────────────────────────────
 
+
 class SignificanceTester:
     """
     统计显著性检验引擎。
@@ -266,8 +275,10 @@ class SignificanceTester:
 
     def chi_square_test(
         self,
-        control_impressions: int, control_success: int,
-        variant_impressions: int, variant_success: int,
+        control_impressions: int,
+        control_success: int,
+        variant_impressions: int,
+        variant_success: int,
     ) -> dict[str, Any]:
         """
         卡方检验判断 variant 是否显著优于 control。
@@ -300,15 +311,19 @@ class SignificanceTester:
 
     def bayesian_test(
         self,
-        control_success: int, control_total: int,
-        variant_success: int, variant_total: int,
+        control_success: int,
+        control_total: int,
+        variant_success: int,
+        variant_total: int,
     ) -> dict[str, Any]:
         """
         贝叶斯检验：估算 variant 优于 control 的概率和预期提升。
         """
         win_prob, expected_lift = bayesian_win_probability(
-            control_success, control_total,
-            variant_success, variant_total,
+            control_success,
+            control_total,
+            variant_success,
+            variant_total,
         )
 
         control_rate = control_success / control_total if control_total > 0 else 0.0
@@ -326,6 +341,7 @@ class SignificanceTester:
 
 
 # ─── 主引擎 ───────────────────────────────────────────────
+
 
 class ABTestingEngine:
     """
@@ -378,7 +394,7 @@ class ABTestingEngine:
         state = self._experiments.get(experiment_id)
         if state and state.status == EXPERIMENT_STATUS_DRAFT:
             state.status = EXPERIMENT_STATUS_RUNNING
-            state.started_at = datetime.now(timezone.utc)
+            state.started_at = datetime.now(UTC)
         return state
 
     def pause_experiment(self, experiment_id: int) -> ExperimentState | None:
@@ -400,7 +416,7 @@ class ABTestingEngine:
         state = self._experiments.get(experiment_id)
         if state and state.status in (EXPERIMENT_STATUS_RUNNING, EXPERIMENT_STATUS_PAUSED):
             state.status = EXPERIMENT_STATUS_COMPLETED
-            state.completed_at = datetime.now(timezone.utc)
+            state.completed_at = datetime.now(UTC)
         return state
 
     def delete_experiment(self, experiment_id: int) -> bool:
@@ -461,7 +477,7 @@ class ABTestingEngine:
             "user_id": user_id,
             "event_type": event_type,
             "metadata": metadata or {},
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
         return event
 
@@ -506,24 +522,30 @@ class ABTestingEngine:
 
             if method == "bayesian":
                 test_result = self._tester.bayesian_test(
-                    control_success, control_imp,
-                    vsuccess, vimp,
+                    control_success,
+                    control_imp,
+                    vsuccess,
+                    vimp,
                 )
             else:
                 test_result = self._tester.chi_square_test(
-                    control_imp, control_success,
-                    vimp, vsuccess,
+                    control_imp,
+                    control_success,
+                    vimp,
+                    vsuccess,
                 )
 
-            variant_results.append({
-                "variant_id": idx,
-                "variant_name": variant.get("name", f"变体 {idx}"),
-                "variant_config": variant,
-                "impressions": vimp,
-                "success_count": vsuccess,
-                "rate": round(vdata["rate"], 6),
-                "test_result": test_result,
-            })
+            variant_results.append(
+                {
+                    "variant_id": idx,
+                    "variant_name": variant.get("name", f"变体 {idx}"),
+                    "variant_config": variant,
+                    "impressions": vimp,
+                    "success_count": vsuccess,
+                    "rate": round(vdata["rate"], 6),
+                    "test_result": test_result,
+                }
+            )
 
         results = {
             "experiment_id": experiment_id,
@@ -540,7 +562,7 @@ class ABTestingEngine:
                 "rate": round(control_data["rate"], 6),
             },
             "variants": variant_results,
-            "computed_at": datetime.now(timezone.utc).isoformat(),
+            "computed_at": datetime.now(UTC).isoformat(),
         }
 
         # 缓存结果
@@ -600,13 +622,13 @@ class ABTestingEngine:
         # 计算实验运行天数
         days_running = 0
         if state.started_at:
-            delta = datetime.now(timezone.utc) - state.started_at
+            delta = datetime.now(UTC) - state.started_at
             days_running = delta.days
 
         # 决策逻辑
         decision_entry: dict[str, Any] = {
             "experiment_id": experiment_id,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "p_value": round(lowest_p, 6),
             "days_running": days_running,
             "variant_count": len(variants),
@@ -616,9 +638,7 @@ class ABTestingEngine:
             # 显著差异 → 发布胜出变体
             decision_entry["decision"] = "rollout"
             decision_entry["variant_name"] = best_variant
-            decision_entry["reason"] = (
-                f"p_value={lowest_p:.4f} < 0.05，变体「{best_variant}」显著优于对照组，自动发布"
-            )
+            decision_entry["reason"] = f"p_value={lowest_p:.4f} < 0.05，变体「{best_variant}」显著优于对照组，自动发布"
             # 自动执行 rollout
             rollout_result = self.rollout_winner(experiment_id, best_variant)
             decision_entry["rollout_result"] = rollout_result
@@ -674,7 +694,7 @@ class ABTestingEngine:
         for idx, v in enumerate(state.config.variants):
             if v.get("name") == variant_name:
                 v["is_default"] = True
-                v["rolled_out_at"] = datetime.now(timezone.utc).isoformat()
+                v["rolled_out_at"] = datetime.now(UTC).isoformat()
                 # 停止实验（发布即代表实验结束）
                 self.stop_experiment(experiment_id)
                 return {

@@ -16,7 +16,6 @@ from __future__ import annotations
 import dataclasses
 from typing import Any, Protocol, runtime_checkable
 
-
 # ======================================================================
 # Data Models
 # ======================================================================

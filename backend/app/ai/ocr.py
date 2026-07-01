@@ -1,13 +1,12 @@
-import io
 import os
 import re
-from typing import Optional, Union
 
 from PIL import Image, ImageEnhance, ImageFilter
 
 # ── PaddleOCR 可用性检测（骨架集成，无需实际安装 paddlepaddle） ──────────────
 try:
     from paddleocr import PaddleOCR
+
     _PADDLE_AVAILABLE = True
 except ImportError:
     _PADDLE_AVAILABLE = False
@@ -21,13 +20,13 @@ class OCRScanner:
     """
 
     # 手机号正则（支持国际格式）
-    PHONE_PATTERN = re.compile(r'(?:\+86[-\s]?)?1[3-9]\d{9}')
+    PHONE_PATTERN = re.compile(r"(?:\+86[-\s]?)?1[3-9]\d{9}")
     # 座机号
-    LANDLINE_PATTERN = re.compile(r'(?:0\d{2,3}[-\s]?)?\d{7,8}')
+    LANDLINE_PATTERN = re.compile(r"(?:0\d{2,3}[-\s]?)?\d{7,8}")
     # 邮箱
-    EMAIL_PATTERN = re.compile(r'[\w.+-]+@[\w-]+\.[\w.]+')
+    EMAIL_PATTERN = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
     # 微信号
-    WECHAT_PATTERN = re.compile(r'(?:微信|微|WX|WeChat)[：:\s]*([a-zA-Z0-9_]{4,20})', re.IGNORECASE)
+    WECHAT_PATTERN = re.compile(r"(?:微信|微|WX|WeChat)[：:\s]*([a-zA-Z0-9_]{4,20})", re.IGNORECASE)
 
     @staticmethod
     def preprocess_image(image: Image.Image) -> Image.Image:
@@ -61,7 +60,7 @@ class OCRScanner:
 
     @staticmethod
     def scan_card(
-        image_or_path: Union[str, Image.Image],
+        image_or_path: str | Image.Image,
         use_external_ocr: bool = False,
     ) -> str:
         """扫描名片图像，提取文本
@@ -93,9 +92,10 @@ class OCRScanner:
             # PIL Image 无路径时存临时文件再试 PaddleOCR
             if _PADDLE_AVAILABLE:
                 import tempfile
-                with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+
+                with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
                     tmp_path = tmp.name
-                    image.save(tmp_path, 'PNG')
+                    image.save(tmp_path, "PNG")
                 try:
                     text, conf = OCRScanner.scan_with_paddle(tmp_path)
                     if text.strip():
@@ -184,7 +184,7 @@ class OCRScanner:
             result["wechat"] = wechat_match.group(1)
         else:
             # 兜底：找纯字母数字4-20位可能是微信号
-            candidates = re.findall(r'(?:^|\s)([a-zA-Z][a-zA-Z0-9_]{3,19})(?:\s|$)', text)
+            candidates = re.findall(r"(?:^|\s)([a-zA-Z][a-zA-Z0-9_]{3,19})(?:\s|$)", text)
             if candidates:
                 # 找最短的（微信号通常较短）
                 candidates.sort(key=len)
@@ -215,7 +215,7 @@ class OCRScanner:
         }
 
         # 公司名（中英文）
-        company_match = re.search(r'(?:公司|企业|有限公司|集团|Co\.|Inc\.|Ltd\.)[：:\s]*([\u4e00-\u9fa5a-zA-Z]+)', text)
+        company_match = re.search(r"(?:公司|企业|有限公司|集团|Co\.|Inc\.|Ltd\.)[：:\s]*([\u4e00-\u9fa5a-zA-Z]+)", text)
         if company_match:
             result["company_name"] = company_match.group(1)
         else:
@@ -226,7 +226,11 @@ class OCRScanner:
                     break
 
         # 职位
-        position_match = re.search(r'(?:职位|职务|title|position|CEO|CTO|COO|总监|经理|主管|工程师)[：:\s]*([\u4e00-\u9fa5a-zA-Z/]+)', text, re.IGNORECASE)
+        position_match = re.search(
+            r"(?:职位|职务|title|position|CEO|CTO|COO|总监|经理|主管|工程师)[：:\s]*([\u4e00-\u9fa5a-zA-Z/]+)",
+            text,
+            re.IGNORECASE,
+        )
         if position_match:
             result["position"] = position_match.group(1)
         else:
@@ -237,12 +241,12 @@ class OCRScanner:
                     break
 
         # 地址
-        addr_match = re.search(r'(?:地址|Addr|address|Location)[：:\s]*(.{5,50})', text, re.IGNORECASE)
+        addr_match = re.search(r"(?:地址|Addr|address|Location)[：:\s]*(.{5,50})", text, re.IGNORECASE)
         if addr_match:
             result["address"] = addr_match.group(1)
 
         # 网址
-        url_match = re.search(r'(https?://[^\s]+|www\.[^\s]+)', text)
+        url_match = re.search(r"(https?://[^\s]+|www\.[^\s]+)", text)
         if url_match:
             result["website"] = url_match.group(1)
 
@@ -256,6 +260,7 @@ class OCRScanner:
         """OCRScanner 实例初始化时检测 PaddleOCR 可用性"""
         try:
             from paddleocr import PaddleOCR  # noqa: F401
+
             self.paddle_available = True
         except ImportError:
             self.paddle_available = False
@@ -283,10 +288,10 @@ class OCRScanner:
         try:
             # 每次调用创建新实例（避免多线程状态冲突）
             ocr = PaddleOCR(
-                use_angle_cls=True,    # 启用文字方向分类
-                lang="ch",             # 中英文模型
-                show_log=False,        # 静默模式
-                use_gpu=False,         # CPU 推理（兼容无 GPU 环境）
+                use_angle_cls=True,  # 启用文字方向分类
+                lang="ch",  # 中英文模型
+                show_log=False,  # 静默模式
+                use_gpu=False,  # CPU 推理（兼容无 GPU 环境）
             )
 
             # PaddleOCR 返回格式（标准版）:
@@ -359,11 +364,13 @@ class OCRScanner:
                     continue
                 box, (text, confidence) = line
                 if text and isinstance(text, str) and text.strip():
-                    details.append({
-                        "text": text.strip(),
-                        "confidence": float(confidence),
-                        "box": box,
-                    })
+                    details.append(
+                        {
+                            "text": text.strip(),
+                            "confidence": float(confidence),
+                            "box": box,
+                        }
+                    )
             return details
 
         except Exception:

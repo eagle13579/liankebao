@@ -27,12 +27,11 @@ AI数字名片 推荐反馈闭环
                       └───────────────────┘
 """
 
-import json
 import logging
 import os
 import sqlite3
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -46,12 +45,13 @@ logger = logging.getLogger(__name__)
 @dataclass
 class FeedbackRecord:
     """单条反馈记录"""
+
     id: int = 0
     user_id: int = 0
-    item_id: int = 0           # 被推荐用户 ID
-    rating: int = 0            # 评分: 1-5 (5=最喜欢), 或 -1/0/1 映射
-    source: str = ""           # 反馈来源: "recommend" | "discover" | "similar"
-    feedback_type: str = ""    # "like" | "dislike" | "rating"
+    item_id: int = 0  # 被推荐用户 ID
+    rating: int = 0  # 评分: 1-5 (5=最喜欢), 或 -1/0/1 映射
+    source: str = ""  # 反馈来源: "recommend" | "discover" | "similar"
+    feedback_type: str = ""  # "like" | "dislike" | "rating"
     created_at: float = 0.0
     updated_at: float = 0.0
 
@@ -59,6 +59,7 @@ class FeedbackRecord:
 @dataclass
 class RatingStats:
     """用户对某一目标的评分统计"""
+
     total_feedback: int = 0
     positive_count: int = 0
     negative_count: int = 0
@@ -82,7 +83,7 @@ class FeedbackLoop:
     ADJUST_THRESHOLD = 10
 
     # 权重调整幅度
-    BOOST_POSITIVE = 0.15   # 👍 加权 +15%
+    BOOST_POSITIVE = 0.15  # 👍 加权 +15%
     BOOST_NEGATIVE = -0.20  # 👎 降权 -20%
     BOOST_RATING_BASE = 0.05  # ⭐ 每 1 分 +/- 5%
 
@@ -90,8 +91,8 @@ class FeedbackLoop:
 
     # ── 类级单例缓存 ──────────────────────────────────────────
     _instance: Optional["FeedbackLoop"] = None
-    _weight_cache: dict[str, float] = {}      # "user_id:item_id" -> boost_factor
-    _feedback_count: int = 0                  # 累计反馈数(用于阈值判定)
+    _weight_cache: dict[str, float] = {}  # "user_id:item_id" -> boost_factor
+    _feedback_count: int = 0  # 累计反馈数(用于阈值判定)
 
     def __new__(cls, db_path: str | None = None):
         """单例模式，确保全局共享同一个 feedback loop 状态"""
@@ -111,8 +112,7 @@ class FeedbackLoop:
         self._init_db()
         self._load_feedback_count()
         self._load_weight_cache()
-        logger.info("FeedbackLoop 初始化完成: db_path=%s, total_feedback=%d",
-                     self.db_path, self._feedback_count)
+        logger.info("FeedbackLoop 初始化完成: db_path=%s, total_feedback=%d", self.db_path, self._feedback_count)
 
     # ── 数据库操作 ────────────────────────────────────────────
 
@@ -168,9 +168,7 @@ class FeedbackLoop:
         """加载累计反馈数"""
         conn = self._get_conn()
         try:
-            row = conn.execute(
-                "SELECT value FROM feedback_meta WHERE key = 'total_feedback'"
-            ).fetchone()
+            row = conn.execute("SELECT value FROM feedback_meta WHERE key = 'total_feedback'").fetchone()
             if row:
                 self._feedback_count = int(row["value"])
         finally:
@@ -192,9 +190,7 @@ class FeedbackLoop:
         """从 SQLite 加载权重缓存到内存"""
         conn = self._get_conn()
         try:
-            rows = conn.execute(
-                "SELECT user_id, item_id, boost_factor FROM weight_cache"
-            ).fetchall()
+            rows = conn.execute("SELECT user_id, item_id, boost_factor FROM weight_cache").fetchall()
             self._weight_cache = {}
             for row in rows:
                 key = f"{row['user_id']}:{row['item_id']}"
@@ -230,9 +226,7 @@ class FeedbackLoop:
             ValueError: rating 值不合法
         """
         if rating not in (-1, 0, 1, 2, 3, 4, 5):
-            raise ValueError(
-                f"rating 必须为 -1, 0, 1, 2, 3, 4, 5, 收到: {rating}"
-            )
+            raise ValueError(f"rating 必须为 -1, 0, 1, 2, 3, 4, 5, 收到: {rating}")
 
         # 确定反馈类型
         if rating == 1:
@@ -260,8 +254,7 @@ class FeedbackLoop:
                     (rating, source, feedback_type, now, existing["id"]),
                 )
                 record_id = existing["id"]
-                logger.debug("更新反馈: user=%d item=%d rating=%d id=%d",
-                             user_id, item_id, rating, record_id)
+                logger.debug("更新反馈: user=%d item=%d rating=%d id=%d", user_id, item_id, rating, record_id)
             else:
                 conn.execute(
                     """INSERT INTO feedback
@@ -270,8 +263,7 @@ class FeedbackLoop:
                     (user_id, item_id, rating, source, feedback_type, now, now),
                 )
                 record_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-                logger.debug("新增反馈: user=%d item=%d rating=%d id=%d",
-                             user_id, item_id, rating, record_id)
+                logger.debug("新增反馈: user=%d item=%d rating=%d id=%d", user_id, item_id, rating, record_id)
 
             conn.commit()
 
@@ -281,14 +273,14 @@ class FeedbackLoop:
 
             # 检查是否需要触发微调
             if self._feedback_count % self.ADJUST_THRESHOLD == 0:
-                logger.info("累计反馈达 %d 条，触发权重调整",
-                            self._feedback_count)
+                logger.info("累计反馈达 %d 条，触发权重调整", self._feedback_count)
                 self._adjust_weights()
 
             # ── 盖娅进化大脑：极端反馈自动摄入 ──
             if rating in (-1, 5):
                 try:
                     from app.ai.gaia_evolution_brain import get_gaia_brain
+
                     brain = get_gaia_brain()
                     brain.ingest_feedback(
                         user_id=user_id,
@@ -507,18 +499,10 @@ class FeedbackLoop:
         conn = self._get_conn()
         try:
             total = conn.execute("SELECT COUNT(*) as c FROM feedback").fetchone()["c"]
-            positive = conn.execute(
-                "SELECT COUNT(*) as c FROM feedback WHERE rating > 0"
-            ).fetchone()["c"]
-            negative = conn.execute(
-                "SELECT COUNT(*) as c FROM feedback WHERE rating < 0"
-            ).fetchone()["c"]
-            weight_count = conn.execute(
-                "SELECT COUNT(*) as c FROM weight_cache"
-            ).fetchone()["c"]
-            user_count = conn.execute(
-                "SELECT COUNT(DISTINCT user_id) as c FROM feedback"
-            ).fetchone()["c"]
+            positive = conn.execute("SELECT COUNT(*) as c FROM feedback WHERE rating > 0").fetchone()["c"]
+            negative = conn.execute("SELECT COUNT(*) as c FROM feedback WHERE rating < 0").fetchone()["c"]
+            weight_count = conn.execute("SELECT COUNT(*) as c FROM weight_cache").fetchone()["c"]
+            user_count = conn.execute("SELECT COUNT(DISTINCT user_id) as c FROM feedback").fetchone()["c"]
 
             return {
                 "total_feedback": total,

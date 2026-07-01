@@ -12,25 +12,23 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-import numpy as np
-from sqlalchemy import select, func as sa_func
+from sqlalchemy import func as sa_func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.gaia_evolution_brain import GaiaEvolutionBrain, get_gaia_brain
 from app.ai.vector_search import (
     get_embedding_backend,
     get_vector_index,
-    VectorSearchIndex,
-    embed_text,
 )
-from app.ai.gaia_evolution_brain import get_gaia_brain, GaiaEvolutionBrain
 from app.models.gaia import (
-    GaiaKnowledge,
-    GaiaTrainingRun,
-    GaiaModelWeights,
     GaiaEvolutionEvent,
+    GaiaKnowledge,
+    GaiaModelWeights,
+    GaiaTrainingRun,
 )
 
 logger = logging.getLogger(__name__)
@@ -283,39 +281,74 @@ class GaiaTrainer:
         """返回默认权重配置"""
         return {
             "recommendation": {
-                "preference_weight": 0.3, "behavior_weight": 0.25, "pattern_weight": 0.2,
-                "insight_weight": 0.15, "optimization_weight": 0.1, "diversity_factor": 0.2,
-                "recency_factor": 0.3, "confidence_threshold": 0.6, "total_knowledge_basis": 0,
+                "preference_weight": 0.3,
+                "behavior_weight": 0.25,
+                "pattern_weight": 0.2,
+                "insight_weight": 0.15,
+                "optimization_weight": 0.1,
+                "diversity_factor": 0.2,
+                "recency_factor": 0.3,
+                "confidence_threshold": 0.6,
+                "total_knowledge_basis": 0,
             },
             "search": {
-                "semantic_weight": 0.35, "optimization_weight": 0.25, "rule_weight": 0.2,
-                "insight_weight": 0.1, "behavior_weight": 0.1, "confidence_threshold": 0.5,
-                "rerank_weight": 0.3, "total_knowledge_basis": 0,
+                "semantic_weight": 0.35,
+                "optimization_weight": 0.25,
+                "rule_weight": 0.2,
+                "insight_weight": 0.1,
+                "behavior_weight": 0.1,
+                "confidence_threshold": 0.5,
+                "rerank_weight": 0.3,
+                "total_knowledge_basis": 0,
             },
             "extractor": {
-                "pattern_weight": 0.3, "rule_weight": 0.25, "optimization_weight": 0.2,
-                "insight_weight": 0.15, "behavior_weight": 0.1, "confidence_threshold": 0.8,
-                "field_boost": 1.2, "total_knowledge_basis": 0,
+                "pattern_weight": 0.3,
+                "rule_weight": 0.25,
+                "optimization_weight": 0.2,
+                "insight_weight": 0.15,
+                "behavior_weight": 0.1,
+                "confidence_threshold": 0.8,
+                "field_boost": 1.2,
+                "total_knowledge_basis": 0,
             },
             "writing": {
-                "preference_weight": 0.3, "optimization_weight": 0.25, "behavior_weight": 0.2,
-                "pattern_weight": 0.15, "insight_weight": 0.1, "creativity_factor": 0.3,
-                "formality_factor": 0.5, "total_knowledge_basis": 0,
+                "preference_weight": 0.3,
+                "optimization_weight": 0.25,
+                "behavior_weight": 0.2,
+                "pattern_weight": 0.15,
+                "insight_weight": 0.1,
+                "creativity_factor": 0.3,
+                "formality_factor": 0.5,
+                "total_knowledge_basis": 0,
             },
             "optimization": {
-                "optimization_weight": 0.4, "pattern_weight": 0.25, "behavior_weight": 0.2,
-                "insight_weight": 0.15, "confidence_threshold": 0.7, "impact_multiplier": 1.5,
+                "optimization_weight": 0.4,
+                "pattern_weight": 0.25,
+                "behavior_weight": 0.2,
+                "insight_weight": 0.15,
+                "confidence_threshold": 0.7,
+                "impact_multiplier": 1.5,
                 "total_knowledge_basis": 0,
             },
             "rag": {
-                "insight_weight": 0.3, "knowledge_weight": 0.25, "pattern_weight": 0.2,
-                "rule_weight": 0.15, "optimization_weight": 0.1, "context_window_boost": 1.0,
-                "temperature_adjustment": 0.1, "total_knowledge_basis": 0,
+                "insight_weight": 0.3,
+                "knowledge_weight": 0.25,
+                "pattern_weight": 0.2,
+                "rule_weight": 0.15,
+                "optimization_weight": 0.1,
+                "context_window_boost": 1.0,
+                "temperature_adjustment": 0.1,
+                "total_knowledge_basis": 0,
             },
             "knowledge_graph": {
-                "relation_weight": 0.35, "insight_weight": 0.25, "rule_weight": 0.2,
-                "optimization_weight": 0.1, "behavior_weight": 0.1, "depth_factor": 0.5,
-                "breadth_factor": 0.5, "total_knowledge_basis": 0,
+                "relation_weight": 0.35,
+                "insight_weight": 0.25,
+                "rule_weight": 0.2,
+                "optimization_weight": 0.1,
+                "behavior_weight": 0.1,
+                "depth_factor": 0.5,
+                "breadth_factor": 0.5,
+                "total_knowledge_basis": 0,
             },
         }
 
@@ -352,9 +385,7 @@ class GaiaTrainer:
         for knowledge in pending:
             text = f"{knowledge.title}. {knowledge.content}"
             if knowledge.tags:
-                tags_str = " ".join(
-                    t for t in (knowledge.tags or []) if isinstance(t, str)
-                )
+                tags_str = " ".join(t for t in (knowledge.tags or []) if isinstance(t, str))
                 text = f"{text} [{tags_str}]"
 
             vector_idx.add_or_update(
@@ -501,7 +532,7 @@ class GaiaTrainer:
         training_run = GaiaTrainingRun(
             status="running",
             trigger=trigger,
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
         )
         db.add(training_run)
         await db.flush()
@@ -537,7 +568,9 @@ class GaiaTrainer:
             # Step 4: 部署权重
             logger.info("Step 4/4: 部署权重...")
             deployed = await self.deploy_weights(
-                db, evolved_weights, training_run_id=training_run_id,
+                db,
+                evolved_weights,
+                training_run_id=training_run_id,
             )
 
             # 完成训练记录
@@ -548,7 +581,7 @@ class GaiaTrainer:
             training_run.weights_count = deployed
             training_run.vector_index_size = vector_index_size
             training_run.duration_ms = elapsed_ms
-            training_run.completed_at = datetime.now(timezone.utc)
+            training_run.completed_at = datetime.now(UTC)
             training_run.metrics = {
                 "knowledge_types": training_data["knowledge_types"],
                 "knowledge_sources": training_data["knowledge_sources"],
@@ -562,10 +595,7 @@ class GaiaTrainer:
             event = GaiaEvolutionEvent(
                 event_type="training_completed",
                 event_source=trigger,
-                description=(
-                    f"训练管线完成: {knowledge_count} 条知识, "
-                    f"{deployed} 个权重更新 ({elapsed_ms}ms)"
-                ),
+                description=(f"训练管线完成: {knowledge_count} 条知识, {deployed} 个权重更新 ({elapsed_ms}ms)"),
                 metadata={
                     "knowledge_count": knowledge_count,
                     "feedback_count": feedback_count,
@@ -601,7 +631,7 @@ class GaiaTrainer:
             training_run.status = "failed"
             training_run.duration_ms = elapsed_ms
             training_run.error_message = str(e)
-            training_run.completed_at = datetime.now(timezone.utc)
+            training_run.completed_at = datetime.now(UTC)
 
             # 记录失败事件
             event = GaiaEvolutionEvent(

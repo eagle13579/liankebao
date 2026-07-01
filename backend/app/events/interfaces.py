@@ -19,9 +19,8 @@ from __future__ import annotations
 import dataclasses
 import enum
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Callable, Protocol, runtime_checkable
-
+from datetime import UTC, datetime
+from typing import Any, Protocol, runtime_checkable
 
 # ======================================================================
 # Event Priority
@@ -79,9 +78,7 @@ class Event:
     priority: EventPriority = EventPriority.NORMAL
     trace_id: str = dataclasses.field(default_factory=lambda: uuid.uuid4().hex)
     idempotency_key: str | None = None
-    timestamp: datetime = dataclasses.field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    timestamp: datetime = dataclasses.field(default_factory=lambda: datetime.now(UTC))
     event_id: str = dataclasses.field(default_factory=lambda: uuid.uuid4().hex)
 
     def __post_init__(self) -> None:

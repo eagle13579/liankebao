@@ -14,12 +14,9 @@ scale from SQLite through PostgreSQL to CockroachDB global clusters.
 
 from __future__ import annotations
 
-import abc
 import dataclasses
 from typing import (
     Any,
-    Generic,
-    Optional,
     Protocol,
     TypeVar,
     runtime_checkable,

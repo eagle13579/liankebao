@@ -24,23 +24,19 @@ AI数字名片 向量搜索引擎 — M3E本地模型 + API 多后端
 """
 
 import hashlib
-import json
 import logging
-import math
 import os
 import re
 import sqlite3
 import time
-from collections import Counter
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
-
 from sqlalchemy.orm import Session
 
 from app.cache import cache
-from app.models.tag import UserTag
 from app.models.brochure import Brochure, Page
+from app.models.tag import UserTag
 from app.models.user import User
 
 logger = logging.getLogger(__name__)
@@ -52,6 +48,7 @@ logger = logging.getLogger(__name__)
 
 try:
     from app.config import settings as _settings
+
     USE_VECTOR_SEARCH = getattr(_settings, "USE_VECTOR_SEARCH", True)
     EMBEDDING_PROVIDER = getattr(_settings, "EMBEDDING_PROVIDER", "m3e")
     EMBEDDING_API_KEY = getattr(_settings, "EMBEDDING_API_KEY", "")
@@ -871,10 +868,14 @@ class DocumentBuilder:
             parts.append(f"{type_label}{t.tag}")
 
         # 3. Brochure 内容
-        brochures = db.query(Brochure).filter(
-            Brochure.user_id == user_id,
-            Brochure.status == "published",
-        ).all()
+        brochures = (
+            db.query(Brochure)
+            .filter(
+                Brochure.user_id == user_id,
+                Brochure.status == "published",
+            )
+            .all()
+        )
         for brochure in brochures:
             if brochure.title:
                 parts.append(brochure.title)
@@ -964,7 +965,7 @@ class VectorSearchEngine:
         query: str,
         top_k: int = 10,
         min_score: float = 0.0,
-        exclude_user_id: Optional[int] = None,
+        exclude_user_id: int | None = None,
     ) -> list[dict]:
         """语义搜索匹配的用户（使用向量 embedding）
 
@@ -980,6 +981,7 @@ class VectorSearchEngine:
         # 尝试从缓存读取
         cache_key = f"vec_search:{hash(query)}:{top_k}:{min_score}:{exclude_user_id or 0}"
         from app.cache.redis import get_redis
+
         _r = get_redis()
         if _r is not None:
             cached = _r.get(cache_key)
@@ -1013,14 +1015,16 @@ class VectorSearchEngine:
             user = self.db.query(User).filter(User.id == uid).first()
             if user is None:
                 continue
-            results.append({
-                "user_id": user.id,
-                "user_name": user.name,
-                "user_company": user.company,
-                "user_title": user.title,
-                "user_avatar": user.avatar or "",
-                "score": round(score, 4),
-            })
+            results.append(
+                {
+                    "user_id": user.id,
+                    "user_name": user.name,
+                    "user_company": user.company,
+                    "user_title": user.title,
+                    "user_avatar": user.avatar or "",
+                    "score": round(score, 4),
+                }
+            )
             if len(results) >= top_k:
                 break
 
@@ -1036,7 +1040,7 @@ class VectorSearchEngine:
         self,
         candidates: list[dict],
         query: str,
-        top_k: Optional[int] = None,
+        top_k: int | None = None,
     ) -> list[dict]:
         """对已有匹配结果做语义重排序（使用向量 embedding）
 
@@ -1066,10 +1070,12 @@ class VectorSearchEngine:
         for i, c in enumerate(candidates):
             similarity = float(np.dot(query_vec, candidate_vecs[i]))
             score = max(0.0, min(1.0, (similarity + 1.0) / 2.0))
-            result.append({
-                **c,
-                "semantic_score": round(score, 4),
-            })
+            result.append(
+                {
+                    **c,
+                    "semantic_score": round(score, 4),
+                }
+            )
 
         result.sort(key=lambda x: x["semantic_score"], reverse=True)
 
@@ -1102,9 +1108,7 @@ class VectorSearchEngine:
             return []
 
         # 获取所有 published brochure
-        brochures = self.db.query(Brochure).filter(
-            Brochure.status == "published"
-        ).all()
+        brochures = self.db.query(Brochure).filter(Brochure.status == "published").all()
 
         if not brochures:
             return []
@@ -1161,17 +1165,19 @@ class VectorSearchEngine:
         results: list[dict] = []
         for b, score in scored:
             user = self.db.query(User).filter(User.id == b.user_id).first()
-            results.append({
-                "brochure_id": b.id,
-                "title": b.title,
-                "cover": b.cover or "",
-                "user_id": b.user_id,
-                "user_name": user.name if user else "",
-                "user_company": user.company if user else "",
-                "user_title": user.title if user else "",
-                "user_avatar": user.avatar if user else "",
-                "score": round(score, 4),
-            })
+            results.append(
+                {
+                    "brochure_id": b.id,
+                    "title": b.title,
+                    "cover": b.cover or "",
+                    "user_id": b.user_id,
+                    "user_name": user.name if user else "",
+                    "user_company": user.company if user else "",
+                    "user_title": user.title if user else "",
+                    "user_avatar": user.avatar if user else "",
+                    "score": round(score, 4),
+                }
+            )
             if len(results) >= top_k:
                 break
 
@@ -1455,15 +1461,10 @@ def search_with_convergence(
     # ---- Round 2 ~ max_rounds: 上下文融合 + 精化 ----
     for round_num in range(2, max_rounds + 1):
         # 从上一轮结果提取文本
-        prev_texts = [
-            r["text"] for r in current_results if r.get("text")
-        ]
+        prev_texts = [r["text"] for r in current_results if r.get("text")]
 
         if not prev_texts:
-            logger.debug(
-                f"search_with_convergence round {round_num}: "
-                f"no text from previous round, stopping"
-            )
+            logger.debug(f"search_with_convergence round {round_num}: no text from previous round, stopping")
             break
 
         # 第2轮 = 上下文融合：取 top-5 作为补充上下文
@@ -1490,16 +1491,12 @@ def search_with_convergence(
             jaccard = 1.0  # 两者都为空视为完全收敛
 
         logger.debug(
-            f"search_with_convergence round {round_num}: "
-            f"jaccard={jaccard:.4f}, threshold={convergence_threshold}"
+            f"search_with_convergence round {round_num}: jaccard={jaccard:.4f}, threshold={convergence_threshold}"
         )
 
         if jaccard >= convergence_threshold:
             converged = True
-            logger.info(
-                f"search_with_convergence converged at round {round_num} "
-                f"(jaccard={jaccard:.4f})"
-            )
+            logger.info(f"search_with_convergence converged at round {round_num} (jaccard={jaccard:.4f})")
             break
 
     return {

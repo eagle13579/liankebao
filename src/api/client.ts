@@ -28,7 +28,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<ApiRespo
             'String should have at least 1 character': '此项不能为空',
             'String should have at least 6 characters': '密码长度不能少于6位',
             'String should have at least 8 characters': '密码长度不能少于8位',
-            'field required': '此项为必填项',
+
             'value is not a valid email': '邮箱格式不正确',
             'value is not a valid phone number': '手机号格式不正确',
             'ensure this value has at least 1 characters': '此项不能为空',

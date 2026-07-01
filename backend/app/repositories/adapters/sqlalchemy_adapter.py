@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from sqlalchemy import and_, func, or_, select, text
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
 
@@ -213,10 +213,7 @@ class SQLAlchemyKnowledgeRepository(KnowledgeRepositoryProtocol):
         Returns:
             Dict like ``{"recommendation": {...}, "search": {...}, ...}``.
         """
-        stmt = (
-            select(GaiaModelWeights)
-            .where(GaiaModelWeights.is_active.is_(True))
-        )
+        stmt = select(GaiaModelWeights).where(GaiaModelWeights.is_active.is_(True))
         rows = await self._scalars(stmt)
         result: dict[str, Any] = {}
         for row in rows:

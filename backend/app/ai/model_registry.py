@@ -9,9 +9,9 @@ import json
 import logging
 import sqlite3
 import threading
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -21,11 +21,12 @@ DB_PATH = "model_registry.db"
 @dataclass
 class ModelRecord:
     """模型记录。"""
+
     name: str
     version: str
     path: str
-    metrics: Dict[str, Any] = field(default_factory=dict)
-    stage: str = "none"          # none / staging / production
+    metrics: dict[str, Any] = field(default_factory=dict)
+    stage: str = "none"  # none / staging / production
     created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
 
 
@@ -75,7 +76,7 @@ class ModelRegistry:
         name: str,
         version: str,
         path: str,
-        metrics: Optional[Dict[str, Any]] = None,
+        metrics: dict[str, Any] | None = None,
     ) -> ModelRecord:
         """注册一个新模型版本。"""
         record = ModelRecord(
@@ -88,19 +89,17 @@ class ModelRegistry:
             self._conn.execute(
                 "INSERT OR REPLACE INTO models (name, version, path, metrics, stage, created_at) "
                 "VALUES (?, ?, ?, ?, ?, ?)",
-                (record.name, record.version, record.path,
-                 json.dumps(record.metrics), record.stage, record.created_at),
+                (record.name, record.version, record.path, json.dumps(record.metrics), record.stage, record.created_at),
             )
             self._conn.commit()
         logger.info("注册模型: %s v%s (path=%s)", name, version, path)
         return record
 
-    def get_model(self, name: str, version: str) -> Optional[ModelRecord]:
+    def get_model(self, name: str, version: str) -> ModelRecord | None:
         """获取指定版本模型。"""
         with self._lock:
             cursor = self._conn.execute(
-                "SELECT name, version, path, metrics, stage, created_at FROM models "
-                "WHERE name=? AND version=?",
+                "SELECT name, version, path, metrics, stage, created_at FROM models WHERE name=? AND version=?",
                 (name, version),
             )
             row = cursor.fetchone()
@@ -109,19 +108,18 @@ class ModelRegistry:
             return None
         return self._row_to_record(row)
 
-    def list_models(self) -> List[ModelRecord]:
+    def list_models(self) -> list[ModelRecord]:
         """列出所有已注册模型。"""
         with self._lock:
             cursor = self._conn.execute(
-                "SELECT name, version, path, metrics, stage, created_at FROM models "
-                "ORDER BY name, created_at DESC"
+                "SELECT name, version, path, metrics, stage, created_at FROM models ORDER BY name, created_at DESC"
             )
             rows = cursor.fetchall()
         return [self._row_to_record(r) for r in rows]
 
     # ── Stage 提升 ────────────────────────────────────────────
 
-    def promote_model(self, name: str, version: str, stage: str) -> Optional[ModelRecord]:
+    def promote_model(self, name: str, version: str, stage: str) -> ModelRecord | None:
         """提升模型到指定 stage (staging / production)。
 
         提升到 production 时会自动将同一 name 下其他 production 模型降级为 staging。
@@ -132,8 +130,7 @@ class ModelRegistry:
         with self._lock:
             # 检查模型是否存在
             cursor = self._conn.execute(
-                "SELECT name, version, path, metrics, stage, created_at FROM models "
-                "WHERE name=? AND version=?",
+                "SELECT name, version, path, metrics, stage, created_at FROM models WHERE name=? AND version=?",
                 (name, version),
             )
             row = cursor.fetchone()
@@ -156,15 +153,14 @@ class ModelRegistry:
 
             # 返回更新后的记录
             cursor = self._conn.execute(
-                "SELECT name, version, path, metrics, stage, created_at FROM models "
-                "WHERE name=? AND version=?",
+                "SELECT name, version, path, metrics, stage, created_at FROM models WHERE name=? AND version=?",
                 (name, version),
             )
             updated = self._row_to_record(cursor.fetchone())
             logger.info("模型提升: %s v%s → %s", name, version, stage)
             return updated
 
-    def get_production_model(self, name: str) -> Optional[ModelRecord]:
+    def get_production_model(self, name: str) -> ModelRecord | None:
         """获取生产环境模型。"""
         with self._lock:
             cursor = self._conn.execute(

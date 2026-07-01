@@ -12,10 +12,10 @@ Architecture:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from app.agents.base_agent import BaseAgent, AgentConfig, CronJob, AgentStatus
+from app.agents.base_agent import AgentConfig, AgentStatus, BaseAgent, CronJob
 
 logger = logging.getLogger(__name__)
 
@@ -90,11 +90,13 @@ class BackendAgent(BaseAgent):
         self.register_event_handler("code.review_requested", self.review_code)
 
         # Register cron jobs
-        self.add_cron_job(CronJob(
-            schedule="0 * * * *",
-            action=self.review_recent_code,
-            name="review_recent_code_60min",
-        ))
+        self.add_cron_job(
+            CronJob(
+                schedule="0 * * * *",
+                action=self.review_recent_code,
+                name="review_recent_code_60min",
+            )
+        )
 
         logger.info(
             "BackendAgent initialized: %d standards, %d bug patterns",
@@ -167,49 +169,59 @@ class BackendAgent(BaseAgent):
 
         # Check coding standards
         if "def " in code and "->" not in code.split("def ")[-1].split(":")[0]:
-            findings.append({
-                "type": "style",
-                "severity": "warning",
-                "message": "Missing return type hint on function definition",
-                "standard": "type_hints",
-            })
+            findings.append(
+                {
+                    "type": "style",
+                    "severity": "warning",
+                    "message": "Missing return type hint on function definition",
+                    "standard": "type_hints",
+                }
+            )
             standards_checked.append("type_hints")
 
-        if "#" not in code and '\"""' not in code and '"""' not in code:
-            findings.append({
-                "type": "style",
-                "severity": "info",
-                "message": "No comments or docstrings found in the code",
-                "standard": "docstrings",
-            })
+        if "#" not in code and '"""' not in code and '"""' not in code:
+            findings.append(
+                {
+                    "type": "style",
+                    "severity": "info",
+                    "message": "No comments or docstrings found in the code",
+                    "standard": "docstrings",
+                }
+            )
             standards_checked.append("docstrings")
 
         if "except:" in code or "except :" in code:
-            findings.append({
-                "type": "bug",
-                "severity": "critical",
-                "message": "Bare except clause detected — catches all exceptions including SystemExit",
-                "pattern": "error_handling",
-            })
+            findings.append(
+                {
+                    "type": "bug",
+                    "severity": "critical",
+                    "message": "Bare except clause detected — catches all exceptions including SystemExit",
+                    "pattern": "error_handling",
+                }
+            )
             bug_hits.append("bare_except")
 
         # Check common bug patterns
         if "f-string" in code and "SELECT" in code.upper():
-            findings.append({
-                "type": "security",
-                "severity": "critical",
-                "message": "Possible SQL injection: f-string used in SQL query",
-                "pattern": "SQL injection via f-string queries",
-            })
+            findings.append(
+                {
+                    "type": "security",
+                    "severity": "critical",
+                    "message": "Possible SQL injection: f-string used in SQL query",
+                    "pattern": "SQL injection via f-string queries",
+                }
+            )
             bug_hits.append("sql_injection")
 
         if "async with" in code and "session" in code and "await session.close" not in code:
-            findings.append({
-                "type": "bug",
-                "severity": "high",
-                "message": "Database session may not be properly closed — use context manager",
-                "pattern": "Memory leaks from unclosed database sessions",
-            })
+            findings.append(
+                {
+                    "type": "bug",
+                    "severity": "high",
+                    "message": "Database session may not be properly closed — use context manager",
+                    "pattern": "Memory leaks from unclosed database sessions",
+                }
+            )
             bug_hits.append("unclosed_session")
 
         # Score: 100 minus penalties
@@ -233,7 +245,7 @@ class BackendAgent(BaseAgent):
             "standards_checked": standards_checked,
             "bug_patterns_detected": bug_hits,
             "line_count": len(code.splitlines()),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         logger.info(
@@ -282,7 +294,7 @@ class BackendAgent(BaseAgent):
             return {
                 "status": "skipped",
                 "reason": "git_not_available",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
         # In production, this would fetch recent git diff and review files
@@ -290,7 +302,7 @@ class BackendAgent(BaseAgent):
         result = {
             "status": "completed",
             "files_reviewed": 0,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         await self.learn(
@@ -314,11 +326,13 @@ class BackendAgent(BaseAgent):
             try:
                 from app.broker.interfaces import ServiceRequest
 
-                resp = await self.broker.call(ServiceRequest(
-                    service="git",
-                    method="ping",
-                    timeout_ms=5_000,
-                ))
+                resp = await self.broker.call(
+                    ServiceRequest(
+                        service="git",
+                        method="ping",
+                        timeout_ms=5_000,
+                    )
+                )
                 return resp.success
             except Exception:
                 pass
@@ -326,8 +340,10 @@ class BackendAgent(BaseAgent):
         # Fallback: try shell git command
         try:
             import asyncio
+
             proc = await asyncio.create_subprocess_exec(
-                "git", "--version",
+                "git",
+                "--version",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )
@@ -380,28 +396,26 @@ class BackendAgent(BaseAgent):
         req_fields = []
         for field_name, field_type in request_schema.items():
             req_fields.append(f"    {field_name}: {field_type}")
-        req_model = (
-            f"class {handler_name.title().replace('_', '')}Request(BaseModel):\n"
-            + ("\n".join(req_fields) if req_fields else "    pass\n")
+        req_model = f"class {handler_name.title().replace('_', '')}Request(BaseModel):\n" + (
+            "\n".join(req_fields) if req_fields else "    pass\n"
         )
 
         # Build response model
         resp_fields = []
         for field_name, field_type in response_schema.items():
             resp_fields.append(f"    {field_name}: {field_type}")
-        resp_model = (
-            f"class {handler_name.title().replace('_', '')}Response(BaseModel):\n"
-            + ("\n".join(resp_fields) if resp_fields else "    data: dict[str, Any]\n")
+        resp_model = f"class {handler_name.title().replace('_', '')}Response(BaseModel):\n" + (
+            "\n".join(resp_fields) if resp_fields else "    data: dict[str, Any]\n"
         )
 
         # Build handler
         handler_code = (
-            f"@router.{method.lower()}(\"{endpoint}\")\n"
+            f'@router.{method.lower()}("{endpoint}")\n'
             f"async def {handler_name}(\n"
             f"    request: {handler_name.title().replace('_', '')}Request,\n"
             f"    db: AsyncSession = Depends(get_db),\n"
             f") -> {handler_name.title().replace('_', '')}Response:\n"
-            f"    \"\"\"{description}\"\"\"\n"
+            f'    """{description}"""\n'
             f"    # TODO: Implement business logic\n"
             f"    ...\n"
         )
@@ -412,7 +426,7 @@ class BackendAgent(BaseAgent):
             f"from sqlalchemy.ext.asyncio import AsyncSession\n"
             f"from typing import Any\n\n"
             f"from app.database import get_db\n\n"
-            f"router = APIRouter(prefix=\"{endpoint}\", tags=[\"{route_name}\"])\n\n"
+            f'router = APIRouter(prefix="{endpoint}", tags=["{route_name}"])\n\n'
             f"{req_model}\n\n"
             f"{resp_model}\n\n"
             f"{handler_code}\n"
@@ -429,7 +443,7 @@ class BackendAgent(BaseAgent):
                 "Consider adding pagination if this is a list endpoint",
                 "Add OpenAPI tags and summary metadata",
             ],
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         logger.info(
@@ -441,10 +455,7 @@ class BackendAgent(BaseAgent):
 
         # Learn from this generation
         await self.learn(
-            observation=(
-                f"Generated API endpoint: {method} {endpoint} — "
-                f"{description[:100]}"
-            ),
+            observation=(f"Generated API endpoint: {method} {endpoint} — {description[:100]}"),
             metadata={
                 "endpoint": endpoint,
                 "method": method,
@@ -494,7 +505,11 @@ class BackendAgent(BaseAgent):
         }
 
         # Analyze common error patterns
-        if "OperationalError" in error_message or "ConnectionError" in error_message or "can't connect" in error_message.lower():
+        if (
+            "OperationalError" in error_message
+            or "ConnectionError" in error_message
+            or "can't connect" in error_message.lower()
+        ):
             analysis["error_type"] = "database_connection"
             analysis["severity"] = "critical"
             analysis["root_cause"] = "Database connection failure — check connection pool, credentials, and network"
@@ -524,7 +539,9 @@ class BackendAgent(BaseAgent):
         elif "Timeout" in error_message or "timeout" in error_message.lower():
             analysis["error_type"] = "timeout"
             analysis["severity"] = "high"
-            analysis["root_cause"] = "Operation timed out — check for slow queries, network issues, or resource contention"
+            analysis["root_cause"] = (
+                "Operation timed out — check for slow queries, network issues, or resource contention"
+            )
             analysis["suggested_fixes"] = [
                 "Optimize slow database queries with indexes",
                 "Increase timeout values for long-running operations",
@@ -548,7 +565,12 @@ class BackendAgent(BaseAgent):
             analysis["affected_components"] = ["api_layer", "validation"]
             self._bugs_identified += 1
 
-        elif "Permission" in error_message or "Forbidden" in error_message or "401" in error_message or "403" in error_message:
+        elif (
+            "Permission" in error_message
+            or "Forbidden" in error_message
+            or "401" in error_message
+            or "403" in error_message
+        ):
             analysis["error_type"] = "authorization"
             analysis["severity"] = "critical"
             analysis["root_cause"] = "Authorization failure — missing or invalid permissions"
@@ -573,7 +595,7 @@ class BackendAgent(BaseAgent):
         result = {
             "error_excerpt": error_message[:200],
             "analysis": analysis,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         logger.info(
@@ -612,16 +634,16 @@ class BackendAgent(BaseAgent):
 
         for file_info in files:
             if isinstance(file_info, dict):
-                await self.review_code({
-                    "code": file_info.get("content", ""),
-                    "file_path": file_info.get("path", "unknown"),
-                    "language": file_info.get("language", "unknown"),
-                })
+                await self.review_code(
+                    {
+                        "code": file_info.get("content", ""),
+                        "file_path": file_info.get("path", "unknown"),
+                        "language": file_info.get("language", "unknown"),
+                    }
+                )
 
         await self.learn(
-            observation=(
-                f"Reviewed {len(files)} files from code push: {commit_message[:100]}"
-            ),
+            observation=(f"Reviewed {len(files)} files from code push: {commit_message[:100]}"),
             metadata={
                 "event_type": "code.push",
                 "files_count": len(files),
@@ -657,6 +679,7 @@ class BackendAgent(BaseAgent):
             ".md": "markdown",
         }
         import os
+
         _, ext = os.path.splitext(file_path)
         return ext_map.get(ext.lower(), "unknown")
 

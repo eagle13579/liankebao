@@ -21,21 +21,37 @@ Page({
   },
 
   onLoad(options) {
+    wx.showLoading({ title: '加载画册...' })
     const { share_token } = options
     if (share_token) {
       console.log('[brochure] 分享token:', share_token)
       this.setData({ shareToken: share_token })
-      api.getSharedBrochure(share_token).then(res => {
-        if (res && res.data) this._setBrochureData(res.data)
-      }).catch(e => console.error('[brochure] 加载分享名片失败', e))
+      api.getBrochure(share_token).then(res => {
+        wx.hideLoading()
+        // 兼容两种返回格式：{ data: {...} } 或直接对象
+        const data = res && res.data ? res.data : res
+        if (data) this._setBrochureData(data)
+      }).catch(e => {
+        wx.hideLoading()
+        wx.showToast({ title: '加载分享名片失败', icon: 'none' })
+        console.error('[brochure] 加载分享名片失败', e)
+      })
     } else {
-      // 自己的名片
-      var user = wx.getStorageSync('user')
-      if (user && user.user_id) {
-        api.getMyBrochures(user.user_id).then(res => {
-          if (res && res.data) this._setBrochureData(res.data)
-        }).catch(e => console.error('[brochure] 加载画册失败', e))
-      }
+      // 自己的名片 — 调用 /api/business-card/cards
+      api.getCards().then(res => {
+        wx.hideLoading()
+        // 兼容数组或 { data: [...] } 格式
+        let cards = Array.isArray(res) ? res : (res && res.data ? res.data : [])
+        if (cards && cards.length > 0) {
+          this._setBrochureData(cards[0])
+        } else {
+          wx.showToast({ title: '暂无名片数据', icon: 'none' })
+        }
+      }).catch(e => {
+        wx.hideLoading()
+        wx.showToast({ title: '加载画册失败', icon: 'none' })
+        console.error('[brochure] 加载画册失败', e)
+      })
     }
   },
 
@@ -47,7 +63,10 @@ Page({
         company: data.profile?.company || data.company || '',
         position: data.profile?.position || data.position || '',
         avatar: data.profile?.avatar || data.avatar || '',
-        bio: data.bio || ''
+        bio: data.bio || '',
+        phone: data.phone || data.mobile || data.contact || '',
+        mobile: data.mobile || data.phone || '',
+        contact: data.contact || data.phone || ''
       },
       products: data.supplies || data.products || [],
       needs: data.demands || data.needs || [],

@@ -319,7 +319,7 @@ ensure_ack_cluster() {
         --region "$ALICLOUD_REGION" \
         "${aliyun_opts[@]}" \
         --output json 2>/dev/null | grep -o '"state":"[^"]*"' | cut -d'"' -f4 || echo "unknown")
-      
+
       if [[ "$status" == "running" ]]; then
         log_ok "集群已就绪!"
         break
@@ -329,7 +329,7 @@ ensure_ack_cluster() {
       echo -n "."
     done
     echo ""
-    
+
     if [[ $retry -ge $max_retries ]]; then
       log_error "集群创建超时 (30分钟)，请手动检查 ACK 控制台"
       exit 1
@@ -397,7 +397,7 @@ configure_kubectl() {
       --region "$ALICLOUD_REGION" \
       "${aliyun_opts[@]}" \
       --output json > "$tmp_kubeconfig" 2>/dev/null || true
-    
+
     # 尝试从 JSON 中提取 config 字段
     if command -v python3 &>/dev/null; then
       kubeconfig_content=$(python3 -c "
@@ -422,7 +422,7 @@ if config_b64:
   # 保存 kubeconfig
   mkdir -p ~/.kube
   local kubeconfig_path="${KUBECONFIG:-$HOME/.kube/config}"
-  
+
   # 如果已有 config，合并而不是覆盖
   if [[ -f "$kubeconfig_path" ]]; then
     cp "$kubeconfig_path" "${kubeconfig_path}.bak.$(date +%s)"
@@ -577,7 +577,7 @@ health_check() {
 
   # 等待 Deployment 就绪
   log_info "等待 Deployment 就绪 (最长 3 分钟)..."
-  
+
   local deployments=("chainke-backend" "chainke-frontend")
   local all_ready=true
 
@@ -627,7 +627,7 @@ health_check() {
   echo ""
   log_info "端点可达性测试 (集群内)..."
   local test_pod="chainke-connectivity-test"
-  
+
   # 创建临时测试 Pod（如果不存在）
   if ! kubectl -n "$ns" get pod "$test_pod" &>/dev/null; then
     kubectl -n "$ns" run "$test_pod" \

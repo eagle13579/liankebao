@@ -28,7 +28,6 @@ AI数字名片 — 自动翻译管道 (Auto Translation Pipeline)
   python auto_translate.py --engine deepseek
 """
 
-import ast
 import json
 import os
 import re
@@ -36,7 +35,6 @@ import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 # ════════════════════════════════════════════════════════════
 # 配置常量
@@ -89,18 +87,21 @@ RETRY_DELAY_SEC = 5
 # 数据结构
 # ════════════════════════════════════════════════════════════
 
+
 @dataclass
 class TranslationEntry:
     """单个翻译条目"""
+
     key: str
-    zh: str                # 源语言（中文）文本
-    en: Optional[str] = None   # 英文文本（如果已有）
-    context: str = ""          # 注释上下文（如 '卡片', '分析' 等）
+    zh: str  # 源语言（中文）文本
+    en: str | None = None  # 英文文本（如果已有）
+    context: str = ""  # 注释上下文（如 '卡片', '分析' 等）
 
 
 @dataclass
 class TranslationResult:
     """翻译结果统计"""
+
     total_keys: int = 0
     existing_keys: int = 0
     translated_keys: int = 0
@@ -113,10 +114,11 @@ class TranslationResult:
 # 解析器：从源文件提取翻译条目
 # ════════════════════════════════════════════════════════════
 
+
 class BackendI18nParser:
     """解析 backend/app/i18n.py 中的 TRANSLATIONS 字典，提取所有 key 和 zh 翻译"""
 
-    SECTION_PATTERN = re.compile(r'# ── (.+?) ─')
+    SECTION_PATTERN = re.compile(r"# ── (.+?) ─")
 
     @classmethod
     def parse(cls, filepath: Path) -> dict[str, TranslationEntry]:
@@ -162,7 +164,7 @@ class BackendI18nParser:
         return entries
 
     @staticmethod
-    def _extract_lang_value(dict_body: str, lang: str) -> Optional[str]:
+    def _extract_lang_value(dict_body: str, lang: str) -> str | None:
         """从 'zh': 'value', 'en': 'value' 字符串中提取指定语言的值"""
         # 匹配 "lang": "value" 或 'lang': 'value'
         m = re.search(
@@ -188,7 +190,7 @@ class FrontendI18nParser:
 
         for line in content.splitlines():
             # 检测 section 注释
-            m = re.search(r'// ===== (.+?) =====', line)
+            m = re.search(r"// ===== (.+?) =====", line)
             if m:
                 current_section = m.group(1).strip()
 
@@ -214,6 +216,7 @@ class FrontendI18nParser:
 # ════════════════════════════════════════════════════════════
 # 加载器：加载目标语言已有翻译
 # ════════════════════════════════════════════════════════════
+
 
 class BackendTranslationLoader:
     """从 backend/app/i18n.py 加载指定语言的已有翻译"""
@@ -291,6 +294,7 @@ class FrontendTranslationLoader:
 # 翻译引擎
 # ════════════════════════════════════════════════════════════
 
+
 class DeepSeekTranslator:
     """DeepSeek API 翻译引擎"""
 
@@ -304,6 +308,7 @@ class DeepSeekTranslator:
     def _get_session(self):
         if self._session is None:
             import urllib.request
+
             self._session = urllib.request
         return self._session
 
@@ -332,7 +337,7 @@ class DeepSeekTranslator:
             f"1. 保持专业、自然的语气\n"
             f"2. 保持占位符 {{variable}} 不变，不要翻译它们\n"
             f"3. 保持原有的标点符号风格\n"
-            f"4. 返回 JSON 格式: {{\"translations\": [{{\"key\": \"...\", \"translation\": \"...\"}}, ...]}}\n"
+            f'4. 返回 JSON 格式: {{"translations": [{{"key": "...", "translation": "..."}}, ...]}}\n'
             f"5. 不要改变 key 值，只翻译翻译文本部分\n"
             f"6. 每行格式为 [key] 原文，请在翻译结果中保持 key 不变"
         )
@@ -353,7 +358,7 @@ class DeepSeekTranslator:
         result = self._call_api(payload)
         return self._parse_result(result, entries)
 
-    def _call_api(self, payload: dict) -> Optional[dict]:
+    def _call_api(self, payload: dict) -> dict | None:
         """调用 DeepSeek API"""
         import urllib.request as request_lib
 
@@ -377,12 +382,10 @@ class DeepSeekTranslator:
                 if attempt < MAX_RETRIES - 1:
                     time.sleep(RETRY_DELAY_SEC)
                 else:
-                    print(f"  [ERROR] API 调用最终失败")
+                    print("  [ERROR] API 调用最终失败")
                     return None
 
-    def _parse_result(
-        self, api_result: Optional[dict], entries: list[TranslationEntry]
-    ) -> list[tuple[str, str]]:
+    def _parse_result(self, api_result: dict | None, entries: list[TranslationEntry]) -> list[tuple[str, str]]:
         """解析 API 返回结果"""
         if not api_result:
             return [(e.key, "") for e in entries]
@@ -402,9 +405,7 @@ class DeepSeekTranslator:
             # 尝试从原始文本中提取
             return self._fallback_parse(api_result, entries)
 
-    def _fallback_parse(
-        self, api_result: dict, entries: list[TranslationEntry]
-    ) -> list[tuple[str, str]]:
+    def _fallback_parse(self, api_result: dict, entries: list[TranslationEntry]) -> list[tuple[str, str]]:
         """备用解析：直接从 content 文本中读取"""
         try:
             content = api_result.get("choices", [{}])[0].get("message", {}).get("content", "")
@@ -435,14 +436,21 @@ class BaiduTranslator:
         """百度翻译不支持真正的批量 key 映射，逐条翻译"""
         import hashlib
         import random
-        import urllib.request as request_lib
         import urllib.parse
+        import urllib.request as request_lib
 
         lang_map = {
-            "en": "en", "ja": "jp", "ko": "kor",
-            "es": "spa", "fr": "fra", "de": "de",
-            "pt": "pt", "ru": "ru", "ar": "ara",
-            "th": "th", "vi": "vie",
+            "en": "en",
+            "ja": "jp",
+            "ko": "kor",
+            "es": "spa",
+            "fr": "fra",
+            "de": "de",
+            "pt": "pt",
+            "ru": "ru",
+            "ar": "ara",
+            "th": "th",
+            "vi": "vie",
         }
         to = lang_map.get(target_lang, target_lang)
 
@@ -457,14 +465,16 @@ class BaiduTranslator:
             sign_str = self.app_id + text + salt + self.app_key
             sign = hashlib.md5(sign_str.encode("utf-8")).hexdigest()
 
-            params = urllib.parse.urlencode({
-                "q": text,
-                "from": "zh",
-                "to": to,
-                "appid": self.app_id,
-                "salt": salt,
-                "sign": sign,
-            })
+            params = urllib.parse.urlencode(
+                {
+                    "q": text,
+                    "from": "zh",
+                    "to": to,
+                    "appid": self.app_id,
+                    "salt": salt,
+                    "sign": sign,
+                }
+            )
             url = f"{self.API_URL}?{params}"
 
             for attempt in range(MAX_RETRIES):
@@ -505,14 +515,21 @@ class YoudaoTranslator:
         """有道翻译，逐条翻译"""
         import hashlib
         import random
-        import urllib.request as request_lib
         import urllib.parse
+        import urllib.request as request_lib
 
         lang_map = {
-            "en": "EN", "ja": "JA", "ko": "KR",
-            "es": "ES", "fr": "FR", "de": "DE",
-            "pt": "PT", "ru": "RU", "ar": "AR",
-            "th": "TH", "vi": "VI",
+            "en": "EN",
+            "ja": "JA",
+            "ko": "KR",
+            "es": "ES",
+            "fr": "FR",
+            "de": "DE",
+            "pt": "PT",
+            "ru": "RU",
+            "ar": "AR",
+            "th": "TH",
+            "vi": "VI",
         }
         to = lang_map.get(target_lang, target_lang.upper())
 
@@ -528,16 +545,18 @@ class YoudaoTranslator:
             sign_str = self.app_key + text + salt + curtime + self.app_secret
             sign = hashlib.sha256(sign_str.encode("utf-8")).hexdigest()
 
-            params = urllib.parse.urlencode({
-                "q": text,
-                "from": "zh-CHS",
-                "to": to,
-                "appKey": self.app_key,
-                "salt": salt,
-                "sign": sign,
-                "signType": "v3",
-                "curtime": curtime,
-            })
+            params = urllib.parse.urlencode(
+                {
+                    "q": text,
+                    "from": "zh-CHS",
+                    "to": to,
+                    "appKey": self.app_key,
+                    "salt": salt,
+                    "sign": sign,
+                    "signType": "v3",
+                    "curtime": curtime,
+                }
+            )
             url = f"{self.API_URL}?{params}"
 
             for attempt in range(MAX_RETRIES):
@@ -563,6 +582,7 @@ class YoudaoTranslator:
 # ════════════════════════════════════════════════════════════
 # 写入器：将翻译结果写入目标文件
 # ════════════════════════════════════════════════════════════
+
 
 class BackendTranslationWriter:
     """更新 backend/app/i18n.py 中的 TRANSLATIONS 字典"""
@@ -624,7 +644,7 @@ class BackendTranslationWriter:
                         new_dict += f', "{target_lang}": "{new_val}"'
 
                     # 重建行
-                    indent = re.match(r'(\s*)', line).group(1)
+                    indent = re.match(r"(\s*)", line).group(1)
                     new_line = f'{indent}"{key}": _fill_langs({{{new_dict}}}),'
                     new_lines.append(new_line)
                     updated_count += 1
@@ -690,7 +710,7 @@ class FrontendTranslationWriter:
                         new_lines.append(line)
                         continue
 
-                    indent = re.match(r'(\s*)', line).group(1)
+                    indent = re.match(r"(\s*)", line).group(1)
                     escaped_val = new_val.replace("\\", "\\\\").replace("'", "\\'")
                     new_lines.append(f"{indent}'{key}': '{escaped_val}',")
                     updated_count += 1
@@ -744,7 +764,7 @@ class FrontendTranslationWriter:
                 key = match.group(1)
                 if key in translations and translations[key]:
                     escaped_val = translations[key].replace("\\", "\\\\").replace("'", "\\'")
-                    indent = re.match(r'(\s*)', line).group(1)
+                    indent = re.match(r"(\s*)", line).group(1)
                     new_lines.append(f"{indent}'{key}': '{escaped_val}',")
                     count += 1
                 else:
@@ -762,6 +782,7 @@ class FrontendTranslationWriter:
 # 主管道
 # ════════════════════════════════════════════════════════════
 
+
 class TranslationPipeline:
     """自动翻译管道"""
 
@@ -769,7 +790,7 @@ class TranslationPipeline:
         self,
         engine: str = "deepseek",
         mode: str = "backend",
-        target_langs: Optional[list[str]] = None,
+        target_langs: list[str] | None = None,
         incremental_only: bool = True,
         dry_run: bool = False,
     ):
@@ -808,7 +829,7 @@ class TranslationPipeline:
 
         else:
             print(f"[ERROR] 不支持的翻译引擎: {self.engine_name}")
-            print(f"       支持: deepseek, baidu, youdao")
+            print("       支持: deepseek, baidu, youdao")
             sys.exit(1)
 
     def run(self) -> dict[str, TranslationResult]:
@@ -819,7 +840,7 @@ class TranslationPipeline:
             return self._run_frontend()
         else:
             print(f"[ERROR] 不支持的翻译模式: {self.mode}")
-            print(f"       支持: backend, frontend")
+            print("       支持: backend, frontend")
             return {}
 
     def _run_backend(self) -> dict[str, TranslationResult]:
@@ -865,7 +886,7 @@ class TranslationPipeline:
                     missing_entries.append(entry)
 
             if not missing_entries:
-                print(f"  [3/4] ✗ 无需翻译，所有 key 已有翻译")
+                print("  [3/4] ✗ 无需翻译，所有 key 已有翻译")
                 result.translated_keys = 0
                 results[lang] = result
                 continue
@@ -897,7 +918,9 @@ class TranslationPipeline:
                     time.sleep(1)
 
             result.elapsed = time.time() - start_time
-            print(f"  [4/4] 翻译完成: {result.translated_keys} 成功, {result.failed_keys} 失败, 耗时 {result.elapsed:.1f}s")
+            print(
+                f"  [4/4] 翻译完成: {result.translated_keys} 成功, {result.failed_keys} 失败, 耗时 {result.elapsed:.1f}s"
+            )
 
             # 5. 写入文件
             if not self.dry_run and translations:
@@ -958,7 +981,7 @@ class TranslationPipeline:
                     missing_entries.append(entry)
 
             if not missing_entries:
-                print(f"  [3/4] ✗ 无需翻译，所有 key 已有翻译")
+                print("  [3/4] ✗ 无需翻译，所有 key 已有翻译")
                 result.translated_keys = 0
                 results[lang] = result
                 continue
@@ -987,7 +1010,9 @@ class TranslationPipeline:
                     time.sleep(1)
 
             result.elapsed = time.time() - start_time
-            print(f"  [4/4] 翻译完成: {result.translated_keys} 成功, {result.failed_keys} 失败, 耗时 {result.elapsed:.1f}s")
+            print(
+                f"  [4/4] 翻译完成: {result.translated_keys} 成功, {result.failed_keys} 失败, 耗时 {result.elapsed:.1f}s"
+            )
 
             # 5. 写入文件
             if not self.dry_run and translations:
@@ -1008,6 +1033,7 @@ class TranslationPipeline:
 # ════════════════════════════════════════════════════════════
 # 报告输出
 # ════════════════════════════════════════════════════════════
+
 
 def print_summary(results: dict[str, TranslationResult]):
     """打印翻译结果摘要"""
@@ -1037,7 +1063,7 @@ def print_summary(results: dict[str, TranslationResult]):
     print(f"  {'合计':<12} {'':>6} {total_existing:>6} {total_translated:>6} {total_failed:>6}")
 
     if any(r.failed_details for r in results.values()):
-        print(f"\n  [WARN] 以下 key 翻译失败:")
+        print("\n  [WARN] 以下 key 翻译失败:")
         for lang, result in results.items():
             if result.failed_details:
                 for key in result.failed_details:
@@ -1049,6 +1075,7 @@ def print_summary(results: dict[str, TranslationResult]):
 # ════════════════════════════════════════════════════════════
 # CLI
 # ════════════════════════════════════════════════════════════
+
 
 def main():
     import argparse

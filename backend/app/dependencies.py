@@ -30,11 +30,11 @@ import logging
 import os
 from typing import Any
 
-from app.cache.interfaces import CacheProtocol
-from app.repositories.interfaces import KnowledgeRepositoryProtocol
-from app.broker.interfaces import ServiceBrokerProtocol
-from app.events.interfaces import EventBusProtocol
 from app.ai.gateway.interfaces import AIGatewayProtocol
+from app.broker.interfaces import ServiceBrokerProtocol
+from app.cache.interfaces import CacheProtocol
+from app.events.interfaces import EventBusProtocol
+from app.repositories.interfaces import KnowledgeRepositoryProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -80,9 +80,7 @@ def get_cache() -> CacheProtocol:
             )
             return _cache_instance
         except Exception as e:
-            logger.warning(
-                "DI: RedisCache unavailable, falling back to InMemoryCache: %s", e
-            )
+            logger.warning("DI: RedisCache unavailable, falling back to InMemoryCache: %s", e)
 
     from app.cache.adapters.memory_adapter import InMemoryCache
 
@@ -150,6 +148,7 @@ def get_event_bus() -> EventBusProtocol:
     if int(os.environ.get("INFRA_PHASE", "0")) >= 1:
         try:
             from pathlib import Path
+
             from app.events.adapters.sqlite_adapter import SQLiteEventBus
 
             db_path = Path("data/events.db")
@@ -161,13 +160,12 @@ def get_event_bus() -> EventBusProtocol:
                 max_retries=3,
             )
             logger.info(
-                "DI: EventBus -> SQLiteEventBus (db=%s)", db_path,
+                "DI: EventBus -> SQLiteEventBus (db=%s)",
+                db_path,
             )
             return _event_bus_instance
         except Exception as e:
-            logger.warning(
-                "DI: SQLiteEventBus unavailable, falling back to InProcessEventBus: %s", e
-            )
+            logger.warning("DI: SQLiteEventBus unavailable, falling back to InProcessEventBus: %s", e)
 
     from app.events.adapters.inprocess_adapter import InProcessEventBus
 
@@ -386,9 +384,7 @@ def get_agent_runtime() -> Any:
             loop.create_task(runtime.register(agent))
     except RuntimeError:
         # No running loop — will need manual registration
-        logger.warning(
-            "No running event loop — agents will need manual registration"
-        )
+        logger.warning("No running event loop — agents will need manual registration")
 
     _runtime_instance = runtime
     logger.info(

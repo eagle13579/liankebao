@@ -26,7 +26,7 @@ import logging
 import os
 import signal
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 # ── Auto-set INFRA_PHASE to 1 unless explicitly set ─────────────────
 os.environ.setdefault("INFRA_PHASE", "1")
@@ -68,6 +68,7 @@ def verify_infrastructure_modules() -> dict[str, bool]:
     # ── RedisCache ────────────────────────────────────────────────
     try:
         from app.cache.adapters.redis_adapter import RedisCache  # noqa: F401
+
         results["RedisCache"] = True
     except ImportError as e:
         results["RedisCache"] = False
@@ -79,6 +80,7 @@ def verify_infrastructure_modules() -> dict[str, bool]:
     # ── SQLiteEventBus ────────────────────────────────────────────
     try:
         from app.events.adapters.sqlite_adapter import SQLiteEventBus  # noqa: F401
+
         results["SQLiteEventBus"] = True
     except ImportError as e:
         results["SQLiteEventBus"] = False
@@ -142,7 +144,7 @@ async def main() -> int:
     Returns:
         0 on clean exit, 1 on error.
     """
-    start_time = datetime.now(timezone.utc)
+    start_time = datetime.now(UTC)
     logger.info("=" * 60)
     logger.info(" 链客宝 Agent Runtime — Starting up")
     logger.info(" Phase: %s", os.environ.get("INFRA_PHASE", "1"))
@@ -165,11 +167,11 @@ async def main() -> int:
     try:
         # Import here so INFRA_PHASE env var is already set
         from app.dependencies import (
+            get_agent_runtime,
             get_cache,
             get_event_bus,
-            get_service_broker,
             get_gaia_brain,
-            get_agent_runtime,
+            get_service_broker,
         )
 
         cache = get_cache()
@@ -224,9 +226,7 @@ async def main() -> int:
 
     # ── 5. Report agent health ─────────────────────────────────────
     status = await runtime.get_status()
-    running_count = sum(
-        1 for a in status.get("agents", {}).values() if a.get("status") == "idle"
-    )
+    running_count = sum(1 for a in status.get("agents", {}).values() if a.get("status") == "idle")
     total_count = len(status.get("agents", {}))
     uptime = status.get("runtime", {}).get("uptime_seconds", 0)
 
@@ -259,7 +259,7 @@ async def main() -> int:
         logger.warning("Failed to install scheduler rules: %s", exc)
 
     # ── ALL SYSTEMS GO report ───────────────────────────────────────
-    elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
+    elapsed = (datetime.now(UTC) - start_time).total_seconds()
     logger.info("=" * 60)
     logger.info("  🚀  ALL SYSTEMS GO")
     logger.info("=" * 60)
@@ -301,7 +301,7 @@ async def main() -> int:
         logger.exception("Error during shutdown: %s", exc)
         return 1
 
-    elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
+    elapsed = (datetime.now(UTC) - start_time).total_seconds()
     logger.info(
         " ⏹️  Agent Runtime shut down after %.1f seconds of operation",
         elapsed,

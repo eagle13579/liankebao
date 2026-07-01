@@ -12,10 +12,10 @@ Architecture:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from app.agents.base_agent import BaseAgent, AgentConfig, AgentStatus
+from app.agents.base_agent import AgentConfig, AgentStatus, BaseAgent
 
 logger = logging.getLogger(__name__)
 
@@ -146,20 +146,24 @@ class QAAgent(BaseAgent):
         for func_name in function_names:
             if func_name.startswith("_"):
                 # Private function — internal, test indirectly
-                suggestions.append({
-                    "type": "indirect",
-                    "target": func_name,
-                    "priority": "low",
-                    "reason": "Private function — test through public API",
-                })
+                suggestions.append(
+                    {
+                        "type": "indirect",
+                        "target": func_name,
+                        "priority": "low",
+                        "reason": "Private function — test through public API",
+                    }
+                )
             elif "test_" in func_name:
                 # It's already a test function
-                suggestions.append({
-                    "type": "existing_test",
-                    "target": func_name,
-                    "priority": "info",
-                    "reason": "Already a test function",
-                })
+                suggestions.append(
+                    {
+                        "type": "existing_test",
+                        "target": func_name,
+                        "priority": "info",
+                        "reason": "Already a test function",
+                    }
+                )
             else:
                 # Generate a test suggestion
                 test_code = (
@@ -173,24 +177,28 @@ class QAAgent(BaseAgent):
                     f"\n"
                     f"    # Assert\n"
                     f"    assert result is not None\n"
-                    f'    assert isinstance(result, ...)\n'
+                    f"    assert isinstance(result, ...)\n"
                 )
                 test_functions.append(test_code)
-                suggestions.append({
-                    "type": "new_test",
-                    "target": func_name,
-                    "priority": "high",
-                    "test_code": test_code,
-                    "reason": f"Function '{func_name}' needs unit test coverage",
-                })
+                suggestions.append(
+                    {
+                        "type": "new_test",
+                        "target": func_name,
+                        "priority": "high",
+                        "test_code": test_code,
+                        "reason": f"Function '{func_name}' needs unit test coverage",
+                    }
+                )
 
         for cls_name in classes:
-            suggestions.append({
-                "type": "class_test",
-                "target": cls_name,
-                "priority": "medium",
-                "reason": f"Class '{cls_name}' should have integration tests for its public methods",
-            })
+            suggestions.append(
+                {
+                    "type": "class_test",
+                    "target": cls_name,
+                    "priority": "medium",
+                    "reason": f"Class '{cls_name}' should have integration tests for its public methods",
+                }
+            )
 
         # Generate edge case tests
         edge_case_tests: list[str] = []
@@ -211,7 +219,7 @@ class QAAgent(BaseAgent):
             "suggestions": suggestions,
             "generated_test_code": test_functions,
             "edge_case_considerations": edge_case_tests,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         logger.info(
@@ -280,6 +288,7 @@ class QAAgent(BaseAgent):
         # If no structured data, try to parse raw text
         if line_coverage is None and isinstance(data.get("raw", ""), str):
             import re
+
             raw = data["raw"]
             match = re.search(r"TOTAL\s+\d+\s+\d+\s+(\d+)%", raw)
             if match:
@@ -290,27 +299,17 @@ class QAAgent(BaseAgent):
 
         if line_coverage is not None:
             if line_coverage < 0.5:
-                untested_paths.append(
-                    "Critical: Overall coverage below 50%% — major testing gaps exist"
-                )
+                untested_paths.append("Critical: Overall coverage below 50%% — major testing gaps exist")
             elif line_coverage < 0.7:
-                untested_paths.append(
-                    "Warning: Coverage below 70%% — significant untested code paths"
-                )
+                untested_paths.append("Warning: Coverage below 70%% — significant untested code paths")
             elif line_coverage < 0.8:
-                untested_paths.append(
-                    "Info: Coverage below 80%% — some code paths remain untested"
-                )
+                untested_paths.append("Info: Coverage below 80%% — some code paths remain untested")
 
         if branch_coverage is not None:
             if branch_coverage < 0.5:
-                untested_paths.append(
-                    "Critical: Branch coverage below 50%% — many conditional paths untested"
-                )
+                untested_paths.append("Critical: Branch coverage below 50%% — many conditional paths untested")
             elif branch_coverage < 0.7:
-                untested_paths.append(
-                    "Warning: Branch coverage below 70%% — significant conditional gaps"
-                )
+                untested_paths.append("Warning: Branch coverage below 70%% — significant conditional gaps")
 
         recommendations: list[str] = []
         if untested_paths:
@@ -329,7 +328,7 @@ class QAAgent(BaseAgent):
             "untested_paths": untested_paths,
             "recommendations": recommendations,
             "needs_improvement": len(untested_paths) > 0,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         logger.info(
@@ -444,7 +443,7 @@ class QAAgent(BaseAgent):
             "low_risk_modules": low_risk_modules,
             "test_plan": test_plan,
             "description": description[:200] if description else None,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         logger.info(
@@ -486,15 +485,15 @@ class QAAgent(BaseAgent):
         code_path = payload.get("file_path", payload.get("code_path", "unknown"))
         code = payload.get("code", "")
 
-        await self.generate_tests({
-            "code_path": code_path,
-            "code": code,
-        })
+        await self.generate_tests(
+            {
+                "code_path": code_path,
+                "code": code,
+            }
+        )
 
         await self.learn(
-            observation=(
-                f"Generated tests following code review of {code_path}"
-            ),
+            observation=(f"Generated tests following code review of {code_path}"),
             metadata={
                 "event_type": "code.review_completed",
                 "code_path": code_path,

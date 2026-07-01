@@ -491,6 +491,7 @@ import app.routers.matching_enhanced_router as matching_enhanced_module
 import app.routers.observability_dashboard as observability_dashboard_module
 
 app.include_router(matching_enhanced_module.router)
+app.include_router(matching_enhanced_module.search_router)
 app.include_router(developer_portal_module.router)
 app.include_router(observability_dashboard_module.router)
 
@@ -1052,8 +1053,10 @@ app = wrap_with_sentry(app)
 
 # ===== 直接启动入口 =====
 from modules.workflow.routes import router as workflow_router
+from app.routers.relation_mining import router as relation_mining_router
 
 app.include_router(workflow_router)
+app.include_router(relation_mining_router)
 if __name__ == "__main__":
     import uvicorn
 

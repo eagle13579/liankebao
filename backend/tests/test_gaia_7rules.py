@@ -1,12 +1,19 @@
 """复盘进化反哺盖娅 — 7铁律全量验证 (轻量版, 不依赖ML模型)"""
-import asyncio, sys, os
+
+import asyncio
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
-from app.database import AsyncSessionLocal, engine, Base
-from app.models.gaia import GaiaKnowledge
-from app.ai.gaia_evolution_brain import get_gaia_brain
-from app.agents.legion_employee import LegionEmployee
-import sqlalchemy as sa
 import glob
+
+import sqlalchemy as sa
+
+from app.agents.legion_employee import LegionEmployee
+from app.ai.gaia_evolution_brain import get_gaia_brain
+from app.database import AsyncSessionLocal, Base, engine
+from app.models.gaia import GaiaKnowledge
+
 
 async def main():
     async with engine.begin() as c:
@@ -15,9 +22,14 @@ async def main():
 
     # 铁律1: F8复盘 → 盖娅
     async with AsyncSessionLocal() as db:
-        k = await brain.ingest_knowledge(db=db, source="retrospective", source_id="v:1",
-            knowledge_type="pattern", title="验证:复盘F8→盖娅",
-            content="复盘进化反哺盖娅大脑闭环验证")
+        k = await brain.ingest_knowledge(
+            db=db,
+            source="retrospective",
+            source_id="v:1",
+            knowledge_type="pattern",
+            title="验证:复盘F8→盖娅",
+            content="复盘进化反哺盖娅大脑闭环验证",
+        )
         await db.commit()
         assert k.id > 0
         count = await db.scalar(sa.select(sa.func.count()).select_from(GaiaKnowledge))
@@ -32,9 +44,14 @@ async def main():
     # 铁律3: AI员工 → 盖娅
     async with AsyncSessionLocal() as db:
         for src in ["agent:sre", "agent:support", "agent:backend"]:
-            await brain.ingest_knowledge(db=db, source=src, source_id="v:2",
-                knowledge_type="optimization", title=f"验证:{src}反哺",
-                content=f"{src}验证:员工反哺盖娅链路")
+            await brain.ingest_knowledge(
+                db=db,
+                source=src,
+                source_id="v:2",
+                knowledge_type="optimization",
+                title=f"验证:{src}反哺",
+                content=f"{src}验证:员工反哺盖娅链路",
+            )
         await db.commit()
         count = await db.scalar(sa.select(sa.func.count()).select_from(GaiaKnowledge))
         print(f"铁律3 AI员工learn()→反哺: ✅ (51个调用点, 知识库{count}条)")
@@ -44,13 +61,20 @@ async def main():
     s = await emp.get_stats()
     await emp.memorize("铁律验证通过:复盘进化反哺盖娅闭环完整", category="test")
     mem = await emp.remember("铁律验证")
-    print(f"铁律4 LegionEmployee双写: ✅ ({s['name']}, 特质:{s['traits'][:3]}, "
-          f"记忆库:{'有' if s['has_memory'] else '无'}, 读写:{'ok' if len(mem)>0 else '?'})")
+    print(
+        f"铁律4 LegionEmployee双写: ✅ ({s['name']}, 特质:{s['traits'][:3]}, "
+        f"记忆库:{'有' if s['has_memory'] else '无'}, 读写:{'ok' if len(mem) > 0 else '?'})"
+    )
 
     # 铁律5: AI员工学习调用点
     import subprocess
-    r = subprocess.run(["grep", "-rno", r"await self\.(learn|memorize)", "app/agents/"],
-        capture_output=True, text=True, cwd="/d/AI数智名片/backend")
+
+    r = subprocess.run(
+        ["grep", "-rno", r"await self\.(learn|memorize)", "app/agents/"],
+        capture_output=True,
+        text=True,
+        cwd="/d/AI数智名片/backend",
+    )
     lines = [l for l in r.stdout.strip().split("\n") if l.strip()]
     print(f"铁律5 AI员工学习调用点: ✅ ({len(lines)}处, 分布:{len(set(l.split(':')[0] for l in lines))}个文件)")
 
@@ -75,6 +99,7 @@ async def main():
     print("  ─────────────────────────────────────────")
     print("  综合判定: 复盘进化反哺盖娅大脑       ✅  闭环完整")
     print("=" * 55)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

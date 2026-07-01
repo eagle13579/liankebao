@@ -14,10 +14,10 @@ Architecture:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from app.agents.base_agent import BaseAgent, AgentConfig, CronJob, AgentStatus
+from app.agents.base_agent import AgentConfig, AgentStatus, BaseAgent, CronJob
 
 logger = logging.getLogger(__name__)
 
@@ -72,16 +72,20 @@ class SREAgent(BaseAgent):
         self.register_event_handler("infra.high_latency", self._handle_high_latency)
 
         # Register cron jobs
-        self.add_cron_job(CronJob(
-            schedule="*/5 * * * *",
-            action=self.health_check,
-            name="health_check_5min",
-        ))
-        self.add_cron_job(CronJob(
-            schedule="*/30 * * * *",
-            action=self.capacity_forecast,
-            name="capacity_forecast_30min",
-        ))
+        self.add_cron_job(
+            CronJob(
+                schedule="*/5 * * * *",
+                action=self.health_check,
+                name="health_check_5min",
+            )
+        )
+        self.add_cron_job(
+            CronJob(
+                schedule="*/30 * * * *",
+                action=self.capacity_forecast,
+                name="capacity_forecast_30min",
+            )
+        )
 
         logger.info("SREAgent initialized with cron jobs and event handlers")
 
@@ -126,12 +130,8 @@ class SREAgent(BaseAgent):
         }
 
         # Determine overall status
-        all_ok = all(
-            c.get("status") == "ok" for c in checks.values()
-        )
-        any_failed = any(
-            c.get("status") == "error" for c in checks.values()
-        )
+        all_ok = all(c.get("status") == "ok" for c in checks.values())
+        any_failed = any(c.get("status") == "error" for c in checks.values())
 
         overall = "ok" if all_ok else ("degraded" if not any_failed else "error")
 
@@ -147,7 +147,7 @@ class SREAgent(BaseAgent):
             latency_level = "medium"
 
         result: dict[str, Any] = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "overall": overall,
             "latency_level": latency_level,
             "max_latency_ms": max_latency,
@@ -185,16 +185,18 @@ class SREAgent(BaseAgent):
             try:
                 from app.events.interfaces import Event, EventPriority
 
-                await self.event_bus.publish(Event(
-                    type="infra.health_degraded",
-                    source=self.agent_id,
-                    payload={
-                        "overall": overall,
-                        "checks": {k: v.get("status") for k, v in checks.items()},
-                        "timestamp": result["timestamp"],
-                    },
-                    priority=EventPriority.HIGH,
-                ))
+                await self.event_bus.publish(
+                    Event(
+                        type="infra.health_degraded",
+                        source=self.agent_id,
+                        payload={
+                            "overall": overall,
+                            "checks": {k: v.get("status") for k, v in checks.items()},
+                            "timestamp": result["timestamp"],
+                        },
+                        priority=EventPriority.HIGH,
+                    )
+                )
             except Exception:
                 logger.warning("SREAgent failed to publish health event")
 
@@ -212,22 +214,24 @@ class SREAgent(BaseAgent):
         Returns:
             Dict with status, latency_ms, and optional error.
         """
-        start = datetime.now(timezone.utc)
+        start = datetime.now(UTC)
         try:
             # Try to query the database via broker or directly
             if self.broker is not None:
                 from app.broker.interfaces import ServiceRequest
 
-                resp = await self.broker.call(ServiceRequest(
-                    service="database",
-                    method="check_connection",
-                    timeout_ms=10_000,
-                ))
+                resp = await self.broker.call(
+                    ServiceRequest(
+                        service="database",
+                        method="check_connection",
+                        timeout_ms=10_000,
+                    )
+                )
                 if resp.success:
-                    elapsed = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+                    elapsed = (datetime.now(UTC) - start).total_seconds() * 1000
                     return {"status": "ok", "latency_ms": round(elapsed, 2)}
                 else:
-                    elapsed = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+                    elapsed = (datetime.now(UTC) - start).total_seconds() * 1000
                     return {
                         "status": "error",
                         "latency_ms": round(elapsed, 2),
@@ -236,8 +240,9 @@ class SREAgent(BaseAgent):
 
             # Fallback: try a direct DB query
             try:
-                from app.database import AsyncSessionLocal
                 from sqlalchemy import select, text
+
+                from app.database import AsyncSessionLocal
             except ImportError:
                 return {
                     "status": "unknown",
@@ -248,7 +253,7 @@ class SREAgent(BaseAgent):
             async with AsyncSessionLocal() as db:
                 result = await db.execute(text("SELECT 1"))
                 row = result.scalar_one()
-                elapsed = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+                elapsed = (datetime.now(UTC) - start).total_seconds() * 1000
                 if row == 1:
                     return {"status": "ok", "latency_ms": round(elapsed, 2)}
                 return {
@@ -258,7 +263,7 @@ class SREAgent(BaseAgent):
                 }
 
         except Exception as exc:
-            elapsed = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            elapsed = (datetime.now(UTC) - start).total_seconds() * 1000
             logger.warning("DB health check failed: %s", exc)
             return {
                 "status": "error",
@@ -272,19 +277,21 @@ class SREAgent(BaseAgent):
         Returns:
             Dict with status, latency_ms, and optional error.
         """
-        start = datetime.now(timezone.utc)
+        start = datetime.now(UTC)
 
         # Try Redis via broker if available
         if self.broker is not None:
             try:
                 from app.broker.interfaces import ServiceRequest
 
-                resp = await self.broker.call(ServiceRequest(
-                    service="cache",
-                    method="ping",
-                    timeout_ms=5_000,
-                ))
-                elapsed = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+                resp = await self.broker.call(
+                    ServiceRequest(
+                        service="cache",
+                        method="ping",
+                        timeout_ms=5_000,
+                    )
+                )
+                elapsed = (datetime.now(UTC) - start).total_seconds() * 1000
                 if resp.success:
                     return {"status": "ok", "latency_ms": round(elapsed, 2)}
                 return {
@@ -293,7 +300,7 @@ class SREAgent(BaseAgent):
                     "error": resp.error or "Redis ping failed",
                 }
             except Exception as exc:
-                elapsed = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+                elapsed = (datetime.now(UTC) - start).total_seconds() * 1000
                 return {
                     "status": "error",
                     "latency_ms": round(elapsed, 2),
@@ -305,13 +312,14 @@ class SREAgent(BaseAgent):
             import redis.asyncio as aioredis
 
             from app.config import settings
+
             r = aioredis.Redis.from_url(
                 getattr(settings, "REDIS_URL", "redis://localhost:6379/0"),
                 socket_connect_timeout=3,
             )
             pong = await r.ping()
             await r.aclose()
-            elapsed = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            elapsed = (datetime.now(UTC) - start).total_seconds() * 1000
             if pong:
                 return {"status": "ok", "latency_ms": round(elapsed, 2)}
             return {
@@ -321,14 +329,14 @@ class SREAgent(BaseAgent):
             }
         except ImportError:
             # Redis library not installed — mark as unavailable
-            elapsed = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            elapsed = (datetime.now(UTC) - start).total_seconds() * 1000
             return {
                 "status": "unavailable",
                 "latency_ms": round(elapsed, 2),
                 "error": "redis library not installed",
             }
         except Exception as exc:
-            elapsed = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            elapsed = (datetime.now(UTC) - start).total_seconds() * 1000
             return {
                 "status": "error",
                 "latency_ms": round(elapsed, 2),
@@ -341,19 +349,21 @@ class SREAgent(BaseAgent):
         Returns:
             Dict with status, latency_ms, and optional error.
         """
-        start = datetime.now(timezone.utc)
+        start = datetime.now(UTC)
         try:
             from app.ai.gateway.interfaces import AIRequest
 
             if self.brain is not None and hasattr(self.brain, "_backend"):
                 gateway = getattr(self.brain._backend, "gateway", None)
                 if gateway is not None and hasattr(gateway, "chat"):
-                    resp = await gateway.chat(AIRequest(
-                        model="deepseek-chat",
-                        messages=[{"role": "user", "content": "ping"}],
-                        max_tokens=5,
-                    ))
-                    elapsed = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+                    resp = await gateway.chat(
+                        AIRequest(
+                            model="deepseek-chat",
+                            messages=[{"role": "user", "content": "ping"}],
+                            max_tokens=5,
+                        )
+                    )
+                    elapsed = (datetime.now(UTC) - start).total_seconds() * 1000
                     if resp.content and resp.finish_reason != "error":
                         return {"status": "ok", "latency_ms": round(elapsed, 2)}
                     return {
@@ -366,16 +376,18 @@ class SREAgent(BaseAgent):
             if self.broker is not None:
                 from app.broker.interfaces import ServiceRequest
 
-                resp = await self.broker.call(ServiceRequest(
-                    service="ai_gateway",
-                    method="chat",
-                    params={
-                        "messages": [{"role": "user", "content": "ping"}],
-                        "max_tokens": 5,
-                    },
-                    timeout_ms=30_000,
-                ))
-                elapsed = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+                resp = await self.broker.call(
+                    ServiceRequest(
+                        service="ai_gateway",
+                        method="chat",
+                        params={
+                            "messages": [{"role": "user", "content": "ping"}],
+                            "max_tokens": 5,
+                        },
+                        timeout_ms=30_000,
+                    )
+                )
+                elapsed = (datetime.now(UTC) - start).total_seconds() * 1000
                 if resp.success:
                     return {"status": "ok", "latency_ms": round(elapsed, 2)}
                 return {
@@ -385,7 +397,7 @@ class SREAgent(BaseAgent):
                 }
 
             # No gateway available
-            elapsed = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            elapsed = (datetime.now(UTC) - start).total_seconds() * 1000
             return {
                 "status": "unavailable",
                 "latency_ms": round(elapsed, 2),
@@ -393,7 +405,7 @@ class SREAgent(BaseAgent):
             }
 
         except Exception as exc:
-            elapsed = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            elapsed = (datetime.now(UTC) - start).total_seconds() * 1000
             logger.warning("AI Gateway health check failed: %s", exc)
             return {
                 "status": "error",
@@ -407,13 +419,13 @@ class SREAgent(BaseAgent):
         Returns:
             Dict with status, latency_ms, and optional stats.
         """
-        start = datetime.now(timezone.utc)
+        start = datetime.now(UTC)
         try:
             from app.ai.gaia_flywheel import get_flywheel
 
             flywheel = get_flywheel()
             stats = flywheel.get_stats()
-            elapsed = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            elapsed = (datetime.now(UTC) - start).total_seconds() * 1000
 
             # Determine flywheel health
             if stats.get("cycle_count", 0) > 0:
@@ -431,7 +443,7 @@ class SREAgent(BaseAgent):
             }
 
         except Exception as exc:
-            elapsed = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            elapsed = (datetime.now(UTC) - start).total_seconds() * 1000
             logger.warning("Flywheel health check failed: %s", exc)
             return {
                 "status": "error",
@@ -530,43 +542,49 @@ class SREAgent(BaseAgent):
         # Redis unavailable → log
         redis_status = check_results.get("redis", {}).get("status", "")
         if redis_status == "unavailable":
-            actions.append({
-                "component": "redis",
-                "issue": "Redis library not installed or unavailable",
-                "action_taken": "noted",
-                "recommendation": "Install redis-py or check Redis connection config",
-            })
+            actions.append(
+                {
+                    "component": "redis",
+                    "issue": "Redis library not installed or unavailable",
+                    "action_taken": "noted",
+                    "recommendation": "Install redis-py or check Redis connection config",
+                }
+            )
 
         # Gateway unavailable → log
         gateway_status = check_results.get("ai_gateway", {}).get("status", "")
         if gateway_status == "unavailable":
-            actions.append({
-                "component": "ai_gateway",
-                "issue": "AI Gateway not directly accessible",
-                "action_taken": "noted",
-                "recommendation": "Configure AI Gateway connection in settings",
-            })
+            actions.append(
+                {
+                    "component": "ai_gateway",
+                    "issue": "AI Gateway not directly accessible",
+                    "action_taken": "noted",
+                    "recommendation": "Configure AI Gateway connection in settings",
+                }
+            )
 
         # Publish remediation event
         if actions and self.event_bus is not None:
             try:
                 from app.events.interfaces import Event
 
-                await self.event_bus.publish(Event(
-                    type="infra.remediation_executed",
-                    source=self.agent_id,
-                    payload={
-                        "actions": actions,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    },
-                ))
+                await self.event_bus.publish(
+                    Event(
+                        type="infra.remediation_executed",
+                        source=self.agent_id,
+                        payload={
+                            "actions": actions,
+                            "timestamp": datetime.now(UTC).isoformat(),
+                        },
+                    )
+                )
             except Exception:
                 logger.warning("SREAgent failed to publish remediation event")
 
         result = {
             "actions_taken": len(actions),
             "actions": actions,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
         logger.info("SRE auto-remediation: %d actions taken", len(actions))
         return result
@@ -602,7 +620,7 @@ class SREAgent(BaseAgent):
         latency_issue_rate = round(high_latency_count / total_checks * 100, 2)
 
         forecast: dict[str, Any] = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "reliability_percentage": reliability_pct,
             "latency_issue_rate_percentage": latency_issue_rate,
             "total_observations": len(trends),
@@ -626,14 +644,11 @@ class SREAgent(BaseAgent):
             )
         if error_count > 10:
             forecast["recommendations"].append(
-                f"{error_count} errors in last {total_checks} checks. "
-                "Review database and gateway connections."
+                f"{error_count} errors in last {total_checks} checks. Review database and gateway connections."
             )
 
         if not forecast["recommendations"]:
-            forecast["recommendations"].append(
-                "System health is stable. Continue monitoring."
-            )
+            forecast["recommendations"].append("System health is stable. Continue monitoring.")
 
         # Extract insights from brain knowledge
         for t in trends[:5]:
@@ -682,13 +697,11 @@ class SREAgent(BaseAgent):
         )
 
         # Create incident record in brain
-        incident_id = f"inc_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{self.agent_id[:4]}"
+        incident_id = f"inc_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}_{self.agent_id[:4]}"
 
         await self.learn(
             observation=(
-                f"CRITICAL INCIDENT: {incident_id}. "
-                f"Event: {event_type} from {event_source}. "
-                f"Payload: {event_payload}"
+                f"CRITICAL INCIDENT: {incident_id}. Event: {event_type} from {event_source}. Payload: {event_payload}"
             ),
             metadata={
                 "incident_id": incident_id,
@@ -704,18 +717,20 @@ class SREAgent(BaseAgent):
             try:
                 from app.events.interfaces import Event, EventPriority
 
-                await self.event_bus.publish(Event(
-                    type="infra.incident_created",
-                    source=self.agent_id,
-                    payload={
-                        "incident_id": incident_id,
-                        "event_type": event_type,
-                        "event_source": event_source,
-                        "severity": "critical",
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    },
-                    priority=EventPriority.CRITICAL,
-                ))
+                await self.event_bus.publish(
+                    Event(
+                        type="infra.incident_created",
+                        source=self.agent_id,
+                        payload={
+                            "incident_id": incident_id,
+                            "event_type": event_type,
+                            "event_source": event_source,
+                            "severity": "critical",
+                            "timestamp": datetime.now(UTC).isoformat(),
+                        },
+                        priority=EventPriority.CRITICAL,
+                    )
+                )
             except Exception:
                 logger.warning("SREAgent failed to publish incident event")
 

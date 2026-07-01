@@ -332,7 +332,7 @@ check_ingress() {
     name=$(echo "$line" | awk '{print $1}')
     hosts=$(echo "$line" | awk '{print $2}')
     address=$(echo "$line" | awk '{print $4}')
-    
+
     if [[ -n "$address" && "$address" != "none" ]]; then
       log_ok "$name — 地址: $address, 域名: $hosts"
     else

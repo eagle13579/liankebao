@@ -7,6 +7,7 @@ Redis 客户端连接池 — 为 AI 数字名片提供高性能缓存层。
   - 原子操作（setnx, incr, expire）
   - 连接超时自动 recovery
 """
+
 import json
 import logging
 import pickle
@@ -64,10 +65,7 @@ def init_redis(
         )
         # 健康检查
         _redis_client.ping()
-        logger.info(
-            f"Redis 连接池初始化成功: {host}:{port}/{db}, "
-            f"pool_size={max_connections}"
-        )
+        logger.info(f"Redis 连接池初始化成功: {host}:{port}/{db}, pool_size={max_connections}")
         return _redis_client
     except Exception as e:
         logger.warning(f"Redis 初始化失败，缓存不可用（降级运行）: {e}")
@@ -195,7 +193,7 @@ class RedisClient:
         self,
         key: str,
         value: Any,
-        ttl: Optional[int] = None,
+        ttl: int | None = None,
     ) -> bool:
         """设置缓存值
 
@@ -248,7 +246,7 @@ class RedisClient:
             logger.warning(f"Redis ttl 失败 (key={key}): {e}")
             return -2
 
-    def incr(self, key: str, amount: int = 1) -> Optional[int]:
+    def incr(self, key: str, amount: int = 1) -> int | None:
         """原子自增"""
         try:
             return self.client.incr(key, amount)
@@ -271,7 +269,7 @@ class RedisClient:
             logger.warning(f"Redis mget 失败: {e}")
             return {}
 
-    def set_many(self, mapping: dict[str, Any], ttl: Optional[int] = None) -> bool:
+    def set_many(self, mapping: dict[str, Any], ttl: int | None = None) -> bool:
         """批量设置"""
         try:
             pipe = self.client.pipeline()

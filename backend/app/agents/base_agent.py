@@ -25,8 +25,9 @@ import dataclasses
 import enum
 import logging
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Callable, Coroutine
+from collections.abc import Callable, Coroutine
+from datetime import UTC, datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -80,9 +81,7 @@ class AgentConfig:
         if not self.agent_id:
             self.agent_id = f"agent_{uuid.uuid4().hex[:12]}"
         if self.max_concurrent_tasks < 1:
-            raise ValueError(
-                f"max_concurrent_tasks must be >= 1, got {self.max_concurrent_tasks}"
-            )
+            raise ValueError(f"max_concurrent_tasks must be >= 1, got {self.max_concurrent_tasks}")
 
 
 @dataclasses.dataclass
@@ -104,9 +103,7 @@ class AgentMessage:
     message_type: str = "task"
     payload: dict[str, Any] = dataclasses.field(default_factory=dict)
     correlation_id: str = ""
-    timestamp: datetime = dataclasses.field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    timestamp: datetime = dataclasses.field(default_factory=lambda: datetime.now(UTC))
     message_id: str = dataclasses.field(default_factory=lambda: uuid.uuid4().hex)
 
 
@@ -116,6 +113,7 @@ class AgentMessage:
 
 # A tool is a named async or sync callable that takes **kwargs and returns Any
 ToolFunc = Callable[..., Coroutine[Any, Any, Any] | Any]
+
 
 # A cron job is a schedule expression + the action to execute
 @dataclasses.dataclass
@@ -218,10 +216,7 @@ class BaseAgent(abc.ABC):
     @property
     def is_available(self) -> bool:
         """Whether the agent can accept new work."""
-        return (
-            self._status == AgentStatus.IDLE
-            and self._active_tasks < self.config.max_concurrent_tasks
-        )
+        return self._status == AgentStatus.IDLE and self._active_tasks < self.config.max_concurrent_tasks
 
     # ── Lifecycle ──────────────────────────────────────────────────
 
@@ -343,12 +338,14 @@ class BaseAgent(abc.ABC):
                 (context, confidence, source, etc.).
         """
         self.memory["experience_count"] += 1
-        self.memory["last_learned"] = datetime.now(timezone.utc).isoformat()
-        self.memory["observations"].append({
-            "observation": observation,
-            "metadata": metadata or {},
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        })
+        self.memory["last_learned"] = datetime.now(UTC).isoformat()
+        self.memory["observations"].append(
+            {
+                "observation": observation,
+                "metadata": metadata or {},
+                "timestamp": datetime.now(UTC).isoformat(),
+            }
+        )
 
         if self.brain is not None and hasattr(self.brain, "ingest_knowledge"):
             try:
@@ -410,7 +407,7 @@ class BaseAgent(abc.ABC):
 
     async def delegate_to(
         self,
-        target_agent: "BaseAgent",
+        target_agent: BaseAgent,
         task: str,
         params: dict[str, Any] | None = None,
     ) -> AgentMessage:
@@ -502,7 +499,5 @@ class BaseAgent(abc.ABC):
 
     def __repr__(self) -> str:
         return (
-            f"<{self.__class__.__name__} "
-            f"id={self.agent_id[:8]} name={self.agent_name!r} "
-            f"status={self._status.value}>"
+            f"<{self.__class__.__name__} id={self.agent_id[:8]} name={self.agent_name!r} status={self._status.value}>"
         )

@@ -28,13 +28,13 @@ Usage:
 from __future__ import annotations
 
 import logging
-import time
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from app.ai.gateway.interfaces import (
+    AIGatewayProtocol,
     AIRequest,
     AIResponse,
-    AIGatewayProtocol,
     EmbeddingRequest,
     EmbeddingResponse,
 )
@@ -56,9 +56,7 @@ class AllGatewaysFailedError(Exception):
         message: str = "All AI gateways in the fallback chain failed",
     ) -> None:
         self.errors = errors
-        self.details = "; ".join(
-            f"[{idx}]{name}: {exc}" for idx, name, exc in errors
-        )
+        self.details = "; ".join(f"[{idx}]{name}: {exc}" for idx, name, exc in errors)
         super().__init__(f"{message}. Details: {self.details}")
 
 
@@ -100,8 +98,7 @@ class FallbackAIGateway(AIGatewayProtocol):
 
         # ── Per-gateway metrics ─────────────────────────────────────
         self.gateway_metrics: list[dict[str, int]] = [
-            {"successes": 0, "failures": 0, "name": self._gateway_name(gw)}
-            for gw in gateways
+            {"successes": 0, "failures": 0, "name": self._gateway_name(gw)} for gw in gateways
         ]
 
         self._total_requests: int = 0
@@ -179,8 +176,7 @@ class FallbackAIGateway(AIGatewayProtocol):
                     self._log_fallback("embed", idx, name, exc, request)
                 else:
                     logger.error(
-                        "FallbackAIGateway.embed ALL gateways failed for "
-                        "model=%s. Last error from [%d]%s: %s",
+                        "FallbackAIGateway.embed ALL gateways failed for model=%s. Last error from [%d]%s: %s",
                         request.model,
                         idx,
                         name,
@@ -276,8 +272,7 @@ class FallbackAIGateway(AIGatewayProtocol):
         model = getattr(request, "model", "unknown")
         next_idx = idx + 1
         logger.warning(
-            "FallbackAIGateway.%s: [%d]%s failed for model=%s "
-            "(request=%s). Falling back to gateway [%d]. Error: %s",
+            "FallbackAIGateway.%s: [%d]%s failed for model=%s (request=%s). Falling back to gateway [%d]. Error: %s",
             method,
             idx,
             name,

@@ -12,10 +12,10 @@ Architecture:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from app.agents.base_agent import BaseAgent, AgentConfig, AgentStatus
+from app.agents.base_agent import AgentConfig, AgentStatus, BaseAgent
 
 logger = logging.getLogger(__name__)
 
@@ -157,67 +157,79 @@ class DataAgent(BaseAgent):
             filter_fields = usage_patterns.get("frequent_filters", [])
             if filter_fields and isinstance(filter_fields, list):
                 for field in filter_fields[:5]:
-                    suggestions.append({
-                        "type": "index",
-                        "target": f"{table_name}.{field}",
-                        "priority": "high",
-                        "reason": f"Field '{field}' is frequently used in WHERE clauses — add index",
-                        "sql": f"CREATE INDEX idx_{table_name}_{field} ON {table_name}({field});",
-                    })
+                    suggestions.append(
+                        {
+                            "type": "index",
+                            "target": f"{table_name}.{field}",
+                            "priority": "high",
+                            "reason": f"Field '{field}' is frequently used in WHERE clauses — add index",
+                            "sql": f"CREATE INDEX idx_{table_name}_{field} ON {table_name}({field});",
+                        }
+                    )
 
             # Check for JSON fields that should be normalized
             json_fields = usage_patterns.get("json_queries", [])
             if json_fields and isinstance(json_fields, list):
                 for field in json_fields[:3]:
-                    suggestions.append({
-                        "type": "normalization",
-                        "target": f"{table_name}.{field}",
-                        "priority": "medium",
-                        "reason": f"JSON field '{field}' is frequently queried — consider extracting to related table",
-                        "sql": f"ALTER TABLE {table_name} ADD COLUMN {field}_extracted <type>;",
-                    })
+                    suggestions.append(
+                        {
+                            "type": "normalization",
+                            "target": f"{table_name}.{field}",
+                            "priority": "medium",
+                            "reason": f"JSON field '{field}' is frequently queried — consider extracting to related table",
+                            "sql": f"ALTER TABLE {table_name} ADD COLUMN {field}_extracted <type>;",
+                        }
+                    )
 
         # Check for data type optimizations
         if isinstance(current_schema, dict):
             for col_name, col_type in current_schema.items():
                 col_type_str = str(col_type).lower()
                 if "text" in col_type_str and "varchar" not in col_type_str:
-                    suggestions.append({
-                        "type": "data_type_optimization",
-                        "target": f"{table_name}.{col_name}",
-                        "priority": "low",
-                        "reason": f"Column '{col_name}' uses TEXT — consider VARCHAR with max length constraint",
-                        "sql": f"ALTER TABLE {table_name} ALTER COLUMN {col_name} TYPE VARCHAR(255);",
-                    })
+                    suggestions.append(
+                        {
+                            "type": "data_type_optimization",
+                            "target": f"{table_name}.{col_name}",
+                            "priority": "low",
+                            "reason": f"Column '{col_name}' uses TEXT — consider VARCHAR with max length constraint",
+                            "sql": f"ALTER TABLE {table_name} ALTER COLUMN {col_name} TYPE VARCHAR(255);",
+                        }
+                    )
 
         # Growth-based suggestions
         if data_growth and float(data_growth) > 0.5:
-            suggestions.append({
-                "type": "partitioning",
-                "target": table_name,
-                "priority": "high",
-                "reason": f"High data growth rate ({float(data_growth)*100:.0f}%) — consider table partitioning",
-                "sql": f"ALTER TABLE {table_name} PARTITION BY RANGE (...);",
-            })
+            suggestions.append(
+                {
+                    "type": "partitioning",
+                    "target": table_name,
+                    "priority": "high",
+                    "reason": f"High data growth rate ({float(data_growth) * 100:.0f}%) — consider table partitioning",
+                    "sql": f"ALTER TABLE {table_name} PARTITION BY RANGE (...);",
+                }
+            )
 
         # Partition by access frequency
         if access_frequency == "high":
-            suggestions.append({
-                "type": "caching",
-                "target": table_name,
-                "priority": "medium",
-                "reason": "High access frequency — consider Redis caching layer",
-                "sql": "N/A (application-level change)",
-            })
+            suggestions.append(
+                {
+                    "type": "caching",
+                    "target": table_name,
+                    "priority": "medium",
+                    "reason": "High access frequency — consider Redis caching layer",
+                    "sql": "N/A (application-level change)",
+                }
+            )
 
         if not suggestions:
-            suggestions.append({
-                "type": "healthy",
-                "target": table_name,
-                "priority": "info",
-                "reason": "No schema changes needed — current schema appears optimal",
-                "sql": None,
-            })
+            suggestions.append(
+                {
+                    "type": "healthy",
+                    "target": table_name,
+                    "priority": "info",
+                    "reason": "No schema changes needed — current schema appears optimal",
+                    "sql": None,
+                }
+            )
 
         result = {
             "model_name": model_name,
@@ -226,7 +238,7 @@ class DataAgent(BaseAgent):
             "total_suggestions": len(suggestions),
             "access_frequency": access_frequency,
             "data_growth_rate": float(data_growth) if data_growth else 0,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         logger.info(
@@ -291,7 +303,8 @@ class DataAgent(BaseAgent):
         for rule_name, rule_desc in self._quality_rules.items():
             # Simulate check outcome
             import random
-            random.seed(hash(f"{table_name}:{rule_name}:{datetime.now(timezone.utc).date()}") % (2**32))
+
+            random.seed(hash(f"{table_name}:{rule_name}:{datetime.now(UTC).date()}") % (2**32))
 
             # Weight randomness toward compliance for stable results
             roll = random.random()
@@ -307,12 +320,14 @@ class DataAgent(BaseAgent):
                 violations_count += 1
                 detail = f"{rule_desc} — significant violations detected, requires investigation"
 
-            check_results.append({
-                "rule": rule_name,
-                "description": rule_desc,
-                "status": status,
-                "detail": detail,
-            })
+            check_results.append(
+                {
+                    "rule": rule_name,
+                    "description": rule_desc,
+                    "status": status,
+                    "detail": detail,
+                }
+            )
 
         # Calculate quality score
         passed = sum(1 for c in check_results if c["status"] == "passed")
@@ -343,7 +358,7 @@ class DataAgent(BaseAgent):
             "violations_count": violations_count,
             "check_details": check_results,
             "recommendations": recommendations,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         logger.info(
@@ -426,37 +441,45 @@ class DataAgent(BaseAgent):
                         for col_name, col_type in columns.items():
                             # Add column if not nullable or has special constraints
                             if "NOT NULL" in str(col_type).upper() or "PRIMARY" in str(col_type).upper():
-                                operations.append({
-                                    "type": "add_column_constraint",
-                                    "table": table_name,
-                                    "column": col_name,
-                                    "constraint": str(col_type),
-                                    "sql": f"ALTER TABLE {table_name} ALTER COLUMN {col_name} SET NOT NULL;",
-                                })
+                                operations.append(
+                                    {
+                                        "type": "add_column_constraint",
+                                        "table": table_name,
+                                        "column": col_name,
+                                        "constraint": str(col_type),
+                                        "sql": f"ALTER TABLE {table_name} ALTER COLUMN {col_name} SET NOT NULL;",
+                                    }
+                                )
 
         # If target is specified, generate specific migration steps
         if to_version:
-            operations.append({
-                "type": "version_change",
-                "from": str(from_version),
-                "to": str(to_version),
-                "sql": f"-- Migration from {from_version} to {to_version}",
-            })
+            operations.append(
+                {
+                    "type": "version_change",
+                    "from": str(from_version),
+                    "to": str(to_version),
+                    "sql": f"-- Migration from {from_version} to {to_version}",
+                }
+            )
 
         # Add standard migration operations
         if not operations:
-            operations.append({
-                "type": "empty",
-                "sql": "-- No schema changes detected (empty migration)",
-                "note": "Current and target schemas are in sync",
-            })
+            operations.append(
+                {
+                    "type": "empty",
+                    "sql": "-- No schema changes detected (empty migration)",
+                    "note": "Current and target schemas are in sync",
+                }
+            )
         else:
             # Add common operations
-            operations.append({
-                "type": "backup",
-                "sql": f"-- BACKUP: CREATE TABLE {data.get('backup_table', 'schema_backup')} AS SELECT * FROM ...",
-                "note": "Always backup before running migrations",
-            })
+            operations.append(
+                {
+                    "type": "backup",
+                    "sql": f"-- BACKUP: CREATE TABLE {data.get('backup_table', 'schema_backup')} AS SELECT * FROM ...",
+                    "note": "Always backup before running migrations",
+                }
+            )
 
         # Risk assessment
         risk_level = "low"
@@ -480,7 +503,7 @@ class DataAgent(BaseAgent):
         # Build the full migration SQL
         migration_sql_parts: list[str] = [
             f"-- Migration Plan: {from_version} → {to_version or 'target'}",
-            f"-- Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}",
+            f"-- Generated: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')}",
             f"-- Tables affected: {len(current_tables) if isinstance(current_tables, dict) else 'N/A'}",
             "",
             "BEGIN;",
@@ -509,7 +532,7 @@ class DataAgent(BaseAgent):
                 if risk_level != "low"
                 else "Safe to apply — no breaking changes detected"
             ),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         logger.info(
@@ -560,14 +583,16 @@ class DataAgent(BaseAgent):
             try:
                 from app.events.interfaces import Event
 
-                await self.event_bus.publish(Event(
-                    type="schema.migration_planned",
-                    source=self.agent_id,
-                    payload={
-                        "migration": migration,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    },
-                ))
+                await self.event_bus.publish(
+                    Event(
+                        type="schema.migration_planned",
+                        source=self.agent_id,
+                        payload={
+                            "migration": migration,
+                            "timestamp": datetime.now(UTC).isoformat(),
+                        },
+                    )
+                )
             except Exception:
                 logger.warning("DataAgent failed to publish migration plan event")
 

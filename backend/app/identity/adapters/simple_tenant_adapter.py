@@ -16,14 +16,12 @@ Upgrade path:
 from __future__ import annotations
 
 import threading
-import time
 import uuid
 from typing import Any
 
 from app.identity.interfaces import (
     Identity,
     Tenant,
-    TenantProtocol,
 )
 
 logger = __import__("logging").getLogger(__name__)
@@ -124,18 +122,11 @@ class SimpleTenantAdapter:
         with self._lock:
             # Super-admin / admin: return all active tenants
             if "admin" in identity.roles or "super_admin" in identity.roles:
-                return [
-                    t for t in self._tenants.values()
-                    if t.is_active
-                ]
+                return [t for t in self._tenants.values() if t.is_active]
 
             # Regular user: return assigned tenants
             assigned = self._user_tenants.get(identity.user_id, set())
-            return [
-                self._tenants[tid]
-                for tid in assigned
-                if tid in self._tenants and self._tenants[tid].is_active
-            ]
+            return [self._tenants[tid] for tid in assigned if tid in self._tenants and self._tenants[tid].is_active]
 
     async def create_tenant(self, config: dict[str, Any]) -> Tenant:
         """Provision a new tenant.
@@ -161,9 +152,7 @@ class SimpleTenantAdapter:
 
         plan = config.get("plan", "free")
         if plan not in ("free", "pro", "enterprise"):
-            raise ValueError(
-                f"Invalid plan '{plan}'. Must be one of: free, pro, enterprise"
-            )
+            raise ValueError(f"Invalid plan '{plan}'. Must be one of: free, pro, enterprise")
 
         tenant_id = config.get("tenant_id", "").strip() or uuid.uuid4().hex[:16]
         settings = config.get("settings", {})
@@ -185,7 +174,10 @@ class SimpleTenantAdapter:
 
         logger.info(
             "Created tenant: id=%s name=%s plan=%s features=%d",
-            tenant_id, name, plan, len(features),
+            tenant_id,
+            name,
+            plan,
+            len(features),
         )
         return tenant
 

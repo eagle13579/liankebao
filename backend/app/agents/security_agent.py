@@ -12,10 +12,10 @@ Architecture:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from app.agents.base_agent import BaseAgent, AgentConfig, CronJob, AgentStatus
+from app.agents.base_agent import AgentConfig, AgentStatus, BaseAgent
 
 logger = logging.getLogger(__name__)
 
@@ -176,7 +176,7 @@ class SecurityAgent(BaseAgent):
             "vulnerabilities_found": len(vulnerabilities),
             "vulnerabilities": vulnerabilities,
             "severity_summary": severity_counts,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         logger.info(
@@ -206,16 +206,18 @@ class SecurityAgent(BaseAgent):
             try:
                 from app.events.interfaces import Event, EventPriority
 
-                await self.event_bus.publish(Event(
-                    type="security.critical_vulnerabilities",
-                    source=self.agent_id,
-                    payload={
-                        "critical_count": severity_counts.get("critical", 0),
-                        "total_vulnerabilities": len(vulnerabilities),
-                        "timestamp": result["timestamp"],
-                    },
-                    priority=EventPriority.CRITICAL,
-                ))
+                await self.event_bus.publish(
+                    Event(
+                        type="security.critical_vulnerabilities",
+                        source=self.agent_id,
+                        payload={
+                            "critical_count": severity_counts.get("critical", 0),
+                            "total_vulnerabilities": len(vulnerabilities),
+                            "timestamp": result["timestamp"],
+                        },
+                        priority=EventPriority.CRITICAL,
+                    )
+                )
             except Exception:
                 logger.warning("SecurityAgent failed to publish critical alert")
 
@@ -237,8 +239,11 @@ class SecurityAgent(BaseAgent):
         # Try using pip-audit or safety CLI
         try:
             import asyncio
+
             proc = await asyncio.create_subprocess_exec(
-                "pip-audit", "--format", "json",
+                "pip-audit",
+                "--format",
+                "json",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -246,16 +251,19 @@ class SecurityAgent(BaseAgent):
 
             if stdout:
                 import json
+
                 audit_results = json.loads(stdout)
                 for result in audit_results.get("vulnerabilities", []):
-                    vulnerabilities.append({
-                        "package": result.get("name", "unknown"),
-                        "version": result.get("version", "unknown"),
-                        "severity": result.get("severity", "medium"),
-                        "cve": result.get("id", "unknown"),
-                        "description": result.get("description", "")[:200],
-                        "remediation": f"Upgrade {result.get('name')} to {result.get('fixed_version', 'latest')}",
-                    })
+                    vulnerabilities.append(
+                        {
+                            "package": result.get("name", "unknown"),
+                            "version": result.get("version", "unknown"),
+                            "severity": result.get("severity", "medium"),
+                            "cve": result.get("id", "unknown"),
+                            "description": result.get("description", "")[:200],
+                            "remediation": f"Upgrade {result.get('name')} to {result.get('fixed_version', 'latest')}",
+                        }
+                    )
                 total_count = len(audit_results.get("dependencies", []))
                 safe_count = total_count - len(vulnerabilities)
                 return vulnerabilities, total_count, safe_count
@@ -265,8 +273,11 @@ class SecurityAgent(BaseAgent):
         # Try safety CLI
         try:
             import asyncio
+
             proc = await asyncio.create_subprocess_exec(
-                "safety", "check", "--json",
+                "safety",
+                "check",
+                "--json",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -274,16 +285,19 @@ class SecurityAgent(BaseAgent):
 
             if stdout:
                 import json
+
                 safety_results = json.loads(stdout)
                 for vuln in safety_results if isinstance(safety_results, list) else []:
-                    vulnerabilities.append({
-                        "package": vuln.get("package_name", "unknown"),
-                        "version": vuln.get("analyzed_version", "unknown"),
-                        "severity": vuln.get("severity", "medium"),
-                        "cve": vuln.get("CVE", vuln.get("id", "unknown")),
-                        "description": vuln.get("advisory", "")[:200],
-                        "remediation": f"Upgrade {vuln.get('package_name')} to {vuln.get('recommended_version', 'latest')}",
-                    })
+                    vulnerabilities.append(
+                        {
+                            "package": vuln.get("package_name", "unknown"),
+                            "version": vuln.get("analyzed_version", "unknown"),
+                            "severity": vuln.get("severity", "medium"),
+                            "cve": vuln.get("CVE", vuln.get("id", "unknown")),
+                            "description": vuln.get("advisory", "")[:200],
+                            "remediation": f"Upgrade {vuln.get('package_name')} to {vuln.get('recommended_version', 'latest')}",
+                        }
+                    )
                 return vulnerabilities, len(vulnerabilities) + 10, 10
         except Exception:
             logger.debug("safety not available either")
@@ -300,8 +314,11 @@ class SecurityAgent(BaseAgent):
         """
         try:
             import asyncio
+
             proc = await asyncio.create_subprocess_exec(
-                "npm", "audit", "--json",
+                "npm",
+                "audit",
+                "--json",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -309,6 +326,7 @@ class SecurityAgent(BaseAgent):
 
             if stdout:
                 import json
+
                 audit_data = json.loads(stdout)
                 audit_result = {}
                 if isinstance(audit_data, dict):
@@ -316,14 +334,16 @@ class SecurityAgent(BaseAgent):
 
                 vulnerabilities = []
                 for advisory_id, advisory in audit_result.get("advisories", {}).items():
-                    vulnerabilities.append({
-                        "package": advisory.get("module_name", "unknown"),
-                        "version": advisory.get("vulnerable_versions", "unknown"),
-                        "severity": advisory.get("severity", "medium"),
-                        "cve": advisory.get("cves", [advisory_id])[0],
-                        "description": advisory.get("overview", "")[:200],
-                        "remediation": f"Upgrade {advisory.get('module_name')} to {advisory.get('patched_versions', 'latest')}",
-                    })
+                    vulnerabilities.append(
+                        {
+                            "package": advisory.get("module_name", "unknown"),
+                            "version": advisory.get("vulnerable_versions", "unknown"),
+                            "severity": advisory.get("severity", "medium"),
+                            "cve": advisory.get("cves", [advisory_id])[0],
+                            "description": advisory.get("overview", "")[:200],
+                            "remediation": f"Upgrade {advisory.get('module_name')} to {advisory.get('patched_versions', 'latest')}",
+                        }
+                    )
 
                 total = len(audit_result.get("advisories", {}))
                 return vulnerabilities, total + 50, max(0, 50)
@@ -355,8 +375,10 @@ class SecurityAgent(BaseAgent):
 
         try:
             import asyncio
+
             proc = await asyncio.create_subprocess_exec(
-                "cat", "requirements.txt",
+                "cat",
+                "requirements.txt",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.DEVNULL,
             )
@@ -364,6 +386,7 @@ class SecurityAgent(BaseAgent):
             content = stdout.decode("utf-8") if stdout else ""
 
             import re
+
             for line in content.splitlines():
                 line = line.strip()
                 if not line or line.startswith("#") or line.startswith("-"):
@@ -375,14 +398,16 @@ class SecurityAgent(BaseAgent):
                     pkg_name = match.group(1).lower()
                     pkg_version = match.group(3)
                     if pkg_name in known_vulnerable:
-                        findings.append({
-                            "package": pkg_name,
-                            "version": pkg_version,
-                            "severity": "medium",
-                            "cve": f"Heuristic-{pkg_name}",
-                            "description": f"Package {pkg_name} v{pkg_version} may have known vulnerabilities",
-                            "remediation": f"Upgrade {pkg_name} to latest stable version",
-                        })
+                        findings.append(
+                            {
+                                "package": pkg_name,
+                                "version": pkg_version,
+                                "severity": "medium",
+                                "cve": f"Heuristic-{pkg_name}",
+                                "description": f"Package {pkg_name} v{pkg_version} may have known vulnerabilities",
+                                "remediation": f"Upgrade {pkg_name} to latest stable version",
+                            }
+                        )
         except Exception:
             logger.debug("Heuristic dependency check failed — no requirements.txt found")
 
@@ -469,7 +494,8 @@ class SecurityAgent(BaseAgent):
 
         # Check each compliance item (simulated — would query actual system state)
         import random
-        random.seed(datetime.now(timezone.utc).timestamp())
+
+        random.seed(datetime.now(UTC).timestamp())
 
         for key, check in compliance_checks.items():
             # Simulate check: weighted random for demo
@@ -491,8 +517,7 @@ class SecurityAgent(BaseAgent):
         for key, check in compliance_checks.items():
             if check["status"] in ("partial", "non_compliant"):
                 remediation.append(
-                    f"[{check['status'].upper()}] {check['requirement']} "
-                    f"(Ref: {', '.join(check['regulations'])})"
+                    f"[{check['status'].upper()}] {check['requirement']} (Ref: {', '.join(check['regulations'])})"
                 )
 
         result = {
@@ -503,7 +528,7 @@ class SecurityAgent(BaseAgent):
             "compliance_score": round(compliant_count / len(compliance_checks) * 100, 2),
             "details": compliance_checks,
             "remediation": remediation,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         logger.info(
@@ -574,58 +599,62 @@ class SecurityAgent(BaseAgent):
             public = route.get("public", route.get("is_public", False))
 
             if public:
-                unprotected_routes.append({
-                    "path": path,
-                    "method": method,
-                    "reason": "Explicitly public",
-                    "risk": "none",
-                })
-            elif auth_required:
-                roles = route.get("roles_allowed", route.get("roles", []))
-                protected_routes.append({
-                    "path": path,
-                    "method": method,
-                    "roles": roles,
-                    "has_role_check": len(roles) > 0,
-                })
-                if not roles:
-                    inconsistent_routes.append({
+                unprotected_routes.append(
+                    {
                         "path": path,
                         "method": method,
-                        "issue": "Auth required but no role-based access control defined",
-                        "risk": "medium",
-                    })
+                        "reason": "Explicitly public",
+                        "risk": "none",
+                    }
+                )
+            elif auth_required:
+                roles = route.get("roles_allowed", route.get("roles", []))
+                protected_routes.append(
+                    {
+                        "path": path,
+                        "method": method,
+                        "roles": roles,
+                        "has_role_check": len(roles) > 0,
+                    }
+                )
+                if not roles:
+                    inconsistent_routes.append(
+                        {
+                            "path": path,
+                            "method": method,
+                            "issue": "Auth required but no role-based access control defined",
+                            "risk": "medium",
+                        }
+                    )
             else:
                 # Route has no auth info — potential risk
-                unprotected_routes.append({
-                    "path": path,
-                    "method": method,
-                    "reason": "No authentication configured",
-                    "risk": "high",
-                })
+                unprotected_routes.append(
+                    {
+                        "path": path,
+                        "method": method,
+                        "reason": "No authentication configured",
+                        "risk": "high",
+                    }
+                )
 
         recommendations: list[str] = []
 
         if inconsistent_routes:
-            recommendations.append(
-                "Define role-based access control for all authenticated routes"
-            )
+            recommendations.append("Define role-based access control for all authenticated routes")
 
         if any(r.get("risk") == "high" for r in unprotected_routes):
-            recommendations.append(
-                "Add authentication to all unprotected routes that handle sensitive data"
-            )
-            recommendations.append(
-                "Review routes marked as public — ensure they don't expose sensitive functionality"
-            )
+            recommendations.append("Add authentication to all unprotected routes that handle sensitive data")
+            recommendations.append("Review routes marked as public — ensure they don't expose sensitive functionality")
 
         # Add general recommendations
-        recommendations.extend([
-            "Use @requires_auth decorator consistently across all routes",
-            "Implement row-level access control for multi-tenant data",
-            "Add rate limiting to all authentication endpoints",
-            "Log all authentication failures for audit purposes",
-        ])
+        recommendations.extend(
+            [
+                "Use @requires_auth decorator consistently across all routes",
+                "Implement row-level access control for multi-tenant data",
+                "Add rate limiting to all authentication endpoints",
+                "Log all authentication failures for audit purposes",
+            ]
+        )
 
         # Coverage rate
         total_routes = len(route_list)
@@ -642,7 +671,7 @@ class SecurityAgent(BaseAgent):
             "unprotected": unprotected_routes,
             "inconsistent": inconsistent_routes,
             "recommendations": recommendations,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         logger.info(
@@ -710,10 +739,7 @@ class SecurityAgent(BaseAgent):
 
         # Log and learn from the alert
         await self.learn(
-            observation=(
-                f"Security alert: type={alert_type}, severity={severity}, "
-                f"details={str(details)[:200]}"
-            ),
+            observation=(f"Security alert: type={alert_type}, severity={severity}, details={str(details)[:200]}"),
             metadata={
                 "alert_type": alert_type,
                 "severity": severity,

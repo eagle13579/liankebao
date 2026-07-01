@@ -12,10 +12,10 @@ Architecture:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from app.agents.base_agent import BaseAgent, AgentConfig, CronJob, AgentStatus
+from app.agents.base_agent import AgentConfig, AgentStatus, BaseAgent, CronJob
 
 logger = logging.getLogger(__name__)
 
@@ -70,11 +70,13 @@ class GrowthAgent(BaseAgent):
         self.register_event_handler("experiment.completed", self.analyze_ab_test)
 
         # Register cron jobs
-        self.add_cron_job(CronJob(
-            schedule="0 0 * * *",
-            action=self.analyze_recent_ab_tests,
-            name="analyze_ab_tests_24h",
-        ))
+        self.add_cron_job(
+            CronJob(
+                schedule="0 0 * * *",
+                action=self.analyze_recent_ab_tests,
+                name="analyze_ab_tests_24h",
+            )
+        )
 
         logger.info("GrowthAgent initialized")
 
@@ -147,6 +149,7 @@ class GrowthAgent(BaseAgent):
         # If no real data provided, use simulated data
         if control_visitors == 0:
             import random
+
             random.seed(hash(exp_id) % (2**32))
             control_visitors = random.randint(5000, 20000)
             control_conversions = random.randint(200, 2000)
@@ -160,10 +163,9 @@ class GrowthAgent(BaseAgent):
 
         # Calculate statistical significance (z-test approximation)
         import math
+
         p_combined = (control_conversions + variant_conversions) / max(control_visitors + variant_visitors, 1)
-        se = math.sqrt(
-            p_combined * (1 - p_combined) * (1 / max(control_visitors, 1) + 1 / max(variant_visitors, 1))
-        )
+        se = math.sqrt(p_combined * (1 - p_combined) * (1 / max(control_visitors, 1) + 1 / max(variant_visitors, 1)))
         z_score = (variant_rate - control_rate) / max(se, 0.0001)
 
         # Convert z-score to approximate p-value
@@ -188,30 +190,18 @@ class GrowthAgent(BaseAgent):
 
         if significance in ("highly_significant", "significant"):
             if lift > 0:
-                recommendations.append(
-                    f"Variant outperforms control by {lift:.2f}% — recommend rolling out to 100%"
-                )
-                recommendations.append(
-                    f"Expected impact: +{lift:.2f}% improvement in {metric_name}"
-                )
+                recommendations.append(f"Variant outperforms control by {lift:.2f}% — recommend rolling out to 100%")
+                recommendations.append(f"Expected impact: +{lift:.2f}% improvement in {metric_name}")
             else:
-                recommendations.append(
-                    f"Control outperforms variant — recommend keeping current experience"
-                )
-                recommendations.append(
-                    f"Investigate whether the variant introduced friction or confusion"
-                )
+                recommendations.append("Control outperforms variant — recommend keeping current experience")
+                recommendations.append("Investigate whether the variant introduced friction or confusion")
         elif significance == "not_significant":
             recommendations.append(
                 "Results are not statistically significant — run experiment longer or increase sample size"
             )
-            recommendations.append(
-                f"Current power is insufficient to detect a {abs(lift):.2f}% lift reliably"
-            )
+            recommendations.append(f"Current power is insufficient to detect a {abs(lift):.2f}% lift reliably")
         else:
-            recommendations.append(
-                "Results are marginally significant — consider running a follow-up experiment"
-            )
+            recommendations.append("Results are marginally significant — consider running a follow-up experiment")
 
         # Additional context recommendations
         recommendations.append("Segment results by device type, traffic source, and user cohort")
@@ -237,7 +227,7 @@ class GrowthAgent(BaseAgent):
             "significance": significance,
             "confidence": round(confidence, 2),
             "recommendations": recommendations,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         logger.info(
@@ -249,10 +239,7 @@ class GrowthAgent(BaseAgent):
 
         # Learn from this analysis
         await self.learn(
-            observation=(
-                f"A/B test '{exp_name}': {lift:.2f}% lift in {metric_name}, "
-                f"p={p_value:.4f} ({significance})"
-            ),
+            observation=(f"A/B test '{exp_name}': {lift:.2f}% lift in {metric_name}, p={p_value:.4f} ({significance})"),
             metadata={
                 "experiment_name": exp_name,
                 "lift_pct": lift,
@@ -289,18 +276,14 @@ class GrowthAgent(BaseAgent):
             result = await self.analyze_ab_test(exp)
             results.append(result)
 
-        significant_count = sum(
-            1 for r in results if r.get("significance") in ("significant", "highly_significant")
-        )
+        significant_count = sum(1 for r in results if r.get("significance") in ("significant", "highly_significant"))
 
         summary = {
             "experiments_analyzed": len(results),
             "significant_results": significant_count,
-            "average_lift": round(
-                sum(r.get("lift_pct", 0) for r in results) / max(len(results), 1), 2
-            ),
+            "average_lift": round(sum(r.get("lift_pct", 0) for r in results) / max(len(results), 1), 2),
             "results": results,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         logger.info(
@@ -387,13 +370,19 @@ class GrowthAgent(BaseAgent):
         }
 
         # Use provided data or profile lookup
-        profile = segment_data or segment_profiles.get(segment_id, segment_profiles.get(segment_name.lower().replace(" ", "_"), {
-            "size": 10000,
-            "avg_session_duration_min": 10.0,
-            "conversion_rate": 0.20,
-            "top_pages": ["/home", "/features"],
-            "pain_points": ["general experience"],
-        }))
+        profile = segment_data or segment_profiles.get(
+            segment_id,
+            segment_profiles.get(
+                segment_name.lower().replace(" ", "_"),
+                {
+                    "size": 10000,
+                    "avg_session_duration_min": 10.0,
+                    "conversion_rate": 0.20,
+                    "top_pages": ["/home", "/features"],
+                    "pain_points": ["general experience"],
+                },
+            ),
+        )
 
         # Generate actionable insights
         insights: list[str] = []
@@ -401,15 +390,15 @@ class GrowthAgent(BaseAgent):
 
         conv_rate = profile.get("conversion_rate", 0)
         if conv_rate < 0.10:
-            insights.append(f"Low conversion rate ({conv_rate*100:.0f}%) — segment needs intervention")
+            insights.append(f"Low conversion rate ({conv_rate * 100:.0f}%) — segment needs intervention")
             recommendations.append("Run targeted onboarding campaign with personalized messaging")
             recommendations.append("A/B test simplified signup flow for this segment")
         elif conv_rate < 0.30:
-            insights.append(f"Moderate conversion rate ({conv_rate*100:.0f}%) — room for improvement")
+            insights.append(f"Moderate conversion rate ({conv_rate * 100:.0f}%) — room for improvement")
             recommendations.append("Optimize call-to-action placement for this segment")
             recommendations.append("Test social proof elements (testimonials, case studies)")
         else:
-            insights.append(f"High conversion rate ({conv_rate*100:.0f}%) — segment is performing well")
+            insights.append(f"High conversion rate ({conv_rate * 100:.0f}%) — segment is performing well")
             recommendations.append("Focus on retention and upsell for this high-value segment")
             recommendations.append("Consider creating a referral program targeted at this segment")
 
@@ -434,7 +423,7 @@ class GrowthAgent(BaseAgent):
             "insights": insights,
             "recommendations": recommendations,
             "opportunity_score": round(conv_rate * (session_dur / 10), 2),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         logger.info(
@@ -612,22 +601,25 @@ class GrowthAgent(BaseAgent):
 
         # Find playbook for the metric
         metric_key = metric_name.lower().replace(" ", "_").replace("-", "_")
-        playbook = optimization_playbooks.get(metric_key, [
-            {
-                "strategy": "Data-driven experimentation",
-                "expected_impact": "variable",
-                "effort": "medium",
-                "confidence": 0.70,
-                "description": f"Run structured A/B tests to optimize {metric_name}",
-            },
-            {
-                "strategy": "User research",
-                "expected_impact": "high",
-                "effort": "high",
-                "confidence": 0.80,
-                "description": "Conduct user interviews and surveys to identify friction points",
-            },
-        ])
+        playbook = optimization_playbooks.get(
+            metric_key,
+            [
+                {
+                    "strategy": "Data-driven experimentation",
+                    "expected_impact": "variable",
+                    "effort": "medium",
+                    "confidence": 0.70,
+                    "description": f"Run structured A/B tests to optimize {metric_name}",
+                },
+                {
+                    "strategy": "User research",
+                    "expected_impact": "high",
+                    "effort": "high",
+                    "confidence": 0.80,
+                    "description": "Conduct user interviews and surveys to identify friction points",
+                },
+            ],
+        )
 
         # Rank suggestions by confidence
         ranked = sorted(playbook, key=lambda x: x["confidence"], reverse=True)
@@ -639,7 +631,7 @@ class GrowthAgent(BaseAgent):
             "suggestions": ranked,
             "total_suggestions": len(ranked),
             "top_recommendation": ranked[0]["strategy"] if ranked else None,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         logger.info(
@@ -694,7 +686,6 @@ class GrowthAgent(BaseAgent):
         Returns:
             Approximate p-value.
         """
-        import math
         # Abramowitz and Stegun approximation
         if z < 0:
             z = -z

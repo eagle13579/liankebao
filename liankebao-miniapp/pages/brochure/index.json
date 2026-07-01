@@ -1,1 +1,8 @@
-{"navigationBarTitleText":"我的画册","navigationBarBackgroundColor":"#0ea5e9","navigationBarTextStyle":"white"}
+{
+  "navigationBarTitleText": "AI数字名片",
+  "navigationBarBackgroundColor": "#0f0f1a",
+  "navigationBarTextStyle": "white",
+  "backgroundColor": "#0f0f1a",
+  "disableScroll": true,
+  "usingComponents": {}
+}

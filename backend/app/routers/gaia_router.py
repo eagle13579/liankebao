@@ -6,15 +6,14 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.gaia_evolution_brain import get_gaia_brain
+from app.ai.gaia_trainer import get_gaia_trainer
 from app.database import get_db
-from app.ai.gaia_evolution_brain import get_gaia_brain, GaiaEvolutionBrain
-from app.ai.gaia_trainer import get_gaia_trainer, GaiaTrainer
 
 logger = logging.getLogger(__name__)
 
@@ -28,12 +27,15 @@ router = APIRouter(prefix="/api/gaia", tags=["盖娅进化大脑"])
 
 class KnowledgeIngestRequest(BaseModel):
     """知识摄取请求"""
+
     source: str = Field(
-        ..., description="知识来源: retrospective | feedback | ab_test | manual | system",
+        ...,
+        description="知识来源: retrospective | feedback | ab_test | manual | system",
     )
     source_id: str = Field("", description="来源标识")
     knowledge_type: str = Field(
-        ..., description="知识类型: insight | pattern | rule | preference | behavior | optimization",
+        ...,
+        description="知识类型: insight | pattern | rule | preference | behavior | optimization",
     )
     title: str = Field(..., description="知识标题")
     content: str = Field(..., description="知识详细内容")
@@ -43,6 +45,7 @@ class KnowledgeIngestRequest(BaseModel):
 
 class FeedbackIngestRequest(BaseModel):
     """反馈摄取请求"""
+
     user_id: int = Field(..., description="用户 ID")
     item_id: int = Field(..., description="评价对象 ID")
     rating: float = Field(..., ge=1.0, le=5.0, description="评分")
@@ -52,6 +55,7 @@ class FeedbackIngestRequest(BaseModel):
 
 class EvolutionTriggerRequest(BaseModel):
     """进化触发请求"""
+
     trigger: str = Field("api", description="触发方式: manual | scheduled | automatic | api")
 
 
@@ -217,8 +221,13 @@ async def get_evolved_weights(
     可用模块: recommendation | search | extractor | writing | optimization | rag | knowledge_graph
     """
     valid_modules = {
-        "recommendation", "search", "extractor",
-        "writing", "optimization", "rag", "knowledge_graph",
+        "recommendation",
+        "search",
+        "extractor",
+        "writing",
+        "optimization",
+        "rag",
+        "knowledge_graph",
     }
     if module not in valid_modules:
         raise HTTPException(

@@ -11,6 +11,7 @@
   GET /api/matching/enhanced/needs/{id}/products
   GET /api/matching/enhanced/products/{id}/needs
   GET /api/matching/enhanced/explain/{match_id}
+  POST /api/matching/search — 自然语言搜索名片
 """
 
 import logging
@@ -242,3 +243,131 @@ def get_match_explanation(
             "tip": "请使用 /api/matching/enhanced/needs/{id}/products 获取带解释的匹配结果",
         },
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+# 自然语言搜索端点 (NL Search)
+# ═══════════════════════════════════════════════════════════════
+# 前端 NLSearchWidget 调用 POST /api/matching/search
+# ═══════════════════════════════════════════════════════════════
+
+import re as _re
+
+from app.models import BusinessCard
+
+
+class NLSearchRequest(BaseModel):
+    """自然语言搜索请求"""
+    query: str
+    offset: int = 0
+    limit: int = 20
+
+
+class NLSearchItem(BaseModel):
+    id: int
+    title: str = ""
+    company: str = ""
+    position: str = ""
+    description: str = ""
+    tags: list[str] = []
+    match_score: float = 0.0
+    match_reasons: list[str] = []
+
+    model_config = {"from_attributes": True}
+
+
+class NLSearchResponse(BaseModel):
+    code: int = 200
+    message: str = "success"
+    data: dict[str, object]
+
+
+search_router = APIRouter(prefix="/api/matching", tags=["自然语言搜索"])
+
+
+def _simple_match(query: str, cards: list) -> list[dict]:
+    """简化版关键词匹配 — 对 BusinessCard 按字段关键词打分"""
+    keywords = set(_re.findall(r'[\w\u4e00-\u9fff]+', query.lower()))
+    if not keywords:
+        return []
+
+    results = []
+    for card in cards:
+        fields = card.fields if isinstance(card.fields, dict) else {}
+        text = " ".join(str(v) for v in fields.values()).lower()
+        matched = keywords & set(_re.findall(r'[\w\u4e00-\u9fff]+', text))
+        if not matched:
+            continue
+        score = len(matched) / max(len(keywords), 1)
+        title = fields.get("name") or fields.get("company") or f"名片#{card.id}"
+        results.append({
+            "id": card.id,
+            "title": title,
+            "description": fields.get("description", ""),
+            "category": fields.get("category", ""),
+            "match_score": min(score, 1.0),
+            "match_reasons": [f"关键词匹配 ({len(matched)}个)"],
+            "strategy": "simple",
+        })
+
+    results.sort(key=lambda r: r["match_score"], reverse=True)
+    return results
+
+
+@search_router.post("/search", summary="自然语言搜索名片", response_model=NLSearchResponse)
+def nl_search(
+    req: NLSearchRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    自然语言搜索企业名片。
+
+    使用用户输入的自然语言查询，通过关键词匹配搜索所有 BusinessCard 记录。
+    支持分页，返回按匹配度排序的结果列表。
+
+    请求示例:
+        POST /api/matching/search
+        { "query": "寻找华东地区的制造业供应商", "offset": 0, "limit": 20 }
+    """
+    query = req.query.strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="查询内容不能为空")
+
+    # 从 DB 加载所有名片
+    all_cards = db.query(BusinessCard).all()
+
+    # 关键词匹配
+    results = _simple_match(query, all_cards)
+
+    # 分页
+    paginated = results[req.offset:req.offset + req.limit]
+
+    # 增强返回字段
+    items = []
+    for r in paginated:
+        card = db.query(BusinessCard).filter(BusinessCard.id == r["id"]).first()
+        fields = card.fields if card and isinstance(card.fields, dict) else {}
+        items.append({
+            "id": r["id"],
+            "title": r["title"],
+            "company": fields.get("company", ""),
+            "position": fields.get("position", ""),
+            "description": r["description"],
+            "tags": fields.get("tags", []),
+            "match_score": r["match_score"],
+            "match_reasons": r["match_reasons"],
+        })
+
+    return {
+        "code": 200,
+        "message": "success",
+        "data": {
+            "items": items,
+            "total": len(results),
+            "strategy": "simple",
+            "query": query,
+        },
+    }
+
+
+print("[MatchingEngine] 端点: POST /api/matching/search (自然语言搜索)")

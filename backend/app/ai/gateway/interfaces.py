@@ -19,10 +19,9 @@ routing mesh with cost optimization and latency-aware fallback.
 from __future__ import annotations
 
 import dataclasses
-import time
 import uuid
-from typing import Any, AsyncIterator, Protocol, runtime_checkable
-
+from collections.abc import AsyncIterator
+from typing import Any, Protocol, runtime_checkable
 
 # ======================================================================
 # Data Models

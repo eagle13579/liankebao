@@ -15,15 +15,14 @@ AI数字名片 检索增强生成(RAG)管道
 
 import json
 import logging
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
-from typing import Any, AsyncGenerator, Optional
 
 import aiohttp
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.vector_search import VectorSearchEngine
-from app.cache import cache
 from app.config import settings
 from app.models.brochure import Brochure, Page
 from app.models.tag import MatchRecord, UserTag
@@ -40,6 +39,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RAGContext:
     """RAG 上下文 - 包含检索结果和用户画像"""
+
     query: str
     user_id: int
     vector_results: list[dict] = field(default_factory=list)
@@ -67,6 +67,7 @@ class RAGContext:
 @dataclass
 class RAGResponse:
     """RAG 响应 - 包含生成的回答和源引用"""
+
     answer: str
     sources: list[dict] = field(default_factory=list)
     confidence: float = 0.0
@@ -97,7 +98,7 @@ class DeepSeekClient:
     def __init__(self, api_key: str = "", base_url: str = ""):
         self.api_key = api_key or self.API_KEY
         self.base_url = base_url or self.BASE_URL
-        self._session: Optional[aiohttp.ClientSession] = None
+        self._session: aiohttp.ClientSession | None = None
 
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
@@ -217,9 +218,7 @@ class ContextBuilder:
             return {}
 
         # 获取标签
-        result = await db.execute(
-            select(UserTag).where(UserTag.user_id == user_id)
-        )
+        result = await db.execute(select(UserTag).where(UserTag.user_id == user_id))
         tags = result.scalars().all()
         provide_tags = [t.tag for t in tags if t.tag_type == "provide"]
         need_tags = [t.tag for t in tags if t.tag_type == "need"]
@@ -247,22 +246,22 @@ class ContextBuilder:
         brochures = result.scalars().all()
         contexts = []
         for b in brochures:
-            pages_result = await db.execute(
-                select(Page).where(Page.brochure_id == b.id).order_by(Page.sort_order)
-            )
+            pages_result = await db.execute(select(Page).where(Page.brochure_id == b.id).order_by(Page.sort_order))
             pages = pages_result.scalars().all()
             page_summaries = []
             for p in pages:
                 summary = p.ai_summary or p.content[:200] if p.content else ""
                 if summary:
                     page_summaries.append(summary)
-            contexts.append({
-                "brochure_id": b.id,
-                "title": b.title,
-                "purpose": b.purpose,
-                "page_count": b.pages_count,
-                "content_summary": page_summaries[:5],
-            })
+            contexts.append(
+                {
+                    "brochure_id": b.id,
+                    "title": b.title,
+                    "purpose": b.purpose,
+                    "page_count": b.pages_count,
+                    "content_summary": page_summaries[:5],
+                }
+            )
         return contexts
 
     @staticmethod
@@ -289,10 +288,13 @@ class ContextBuilder:
     ) -> list[dict]:
         """构建匹配建议上下文"""
         result = await db.execute(
-            select(MatchRecord).where(
+            select(MatchRecord)
+            .where(
                 (MatchRecord.user_a_id == user_id) | (MatchRecord.user_b_id == user_id),
                 MatchRecord.match_score >= 0.5,
-            ).order_by(MatchRecord.match_score.desc()).limit(top_k)
+            )
+            .order_by(MatchRecord.match_score.desc())
+            .limit(top_k)
         )
         records = result.scalars().all()
         suggestions = []
@@ -301,14 +303,16 @@ class ContextBuilder:
             user_result = await db.execute(select(User).where(User.id == target_id))
             target_user = user_result.scalars().first()
             if target_user:
-                suggestions.append({
-                    "user_id": target_user.id,
-                    "name": target_user.name,
-                    "company": target_user.company,
-                    "title": target_user.title,
-                    "match_score": r.match_score,
-                    "status": r.status,
-                })
+                suggestions.append(
+                    {
+                        "user_id": target_user.id,
+                        "name": target_user.name,
+                        "company": target_user.company,
+                        "title": target_user.title,
+                        "match_score": r.match_score,
+                        "status": r.status,
+                    }
+                )
         return suggestions
 
     @staticmethod
@@ -349,7 +353,9 @@ class ContextBuilder:
         prompt_parts.append("")
         prompt_parts.append("=== 匹配建议 ===")
         for j, ms in enumerate(context.match_suggestions, 1):
-            prompt_parts.append(f"{j}. {ms.get('name', '?')} - {ms.get('company', '?')} - 匹配度: {ms.get('match_score', 0):.2f}")
+            prompt_parts.append(
+                f"{j}. {ms.get('name', '?')} - {ms.get('company', '?')} - 匹配度: {ms.get('match_score', 0):.2f}"
+            )
 
         if context.knowledge_graph_context:
             prompt_parts.append("")
@@ -419,6 +425,7 @@ class RAGPipeline:
 
         # 并行构建各层上下文
         import asyncio
+
         (
             context.user_profile,
             context.related_brochures,
@@ -456,21 +463,25 @@ class RAGPipeline:
         sources = []
         if include_sources:
             for vr in context.vector_results[:5]:
-                sources.append({
-                    "type": "vector_search",
-                    "user_id": vr.get("user_id"),
-                    "user_name": vr.get("user_name", vr.get("name", "")),
-                    "company": vr.get("company", ""),
-                    "score": vr.get("score", 0),
-                })
+                sources.append(
+                    {
+                        "type": "vector_search",
+                        "user_id": vr.get("user_id"),
+                        "user_name": vr.get("user_name", vr.get("name", "")),
+                        "company": vr.get("company", ""),
+                        "score": vr.get("score", 0),
+                    }
+                )
             for ms in context.match_suggestions[:3]:
-                sources.append({
-                    "type": "match_record",
-                    "user_id": ms.get("user_id"),
-                    "user_name": ms.get("name", ""),
-                    "company": ms.get("company", ""),
-                    "match_score": ms.get("match_score", 0),
-                })
+                sources.append(
+                    {
+                        "type": "match_record",
+                        "user_id": ms.get("user_id"),
+                        "user_name": ms.get("name", ""),
+                        "company": ms.get("company", ""),
+                        "match_score": ms.get("match_score", 0),
+                    }
+                )
 
         # 6. 生成 RAG 响应
         answer = response.get("content", "") if isinstance(response, dict) else str(response)
@@ -505,7 +516,9 @@ class RAGPipeline:
         if context.match_suggestions:
             parts.append("**匹配建议：**")
             for j, ms in enumerate(context.match_suggestions, 1):
-                parts.append(f"  {j}. {ms.get('name', '?')} - {ms.get('company', '?')} - 分数: {ms.get('match_score', 0):.2f}")
+                parts.append(
+                    f"  {j}. {ms.get('name', '?')} - {ms.get('company', '?')} - 分数: {ms.get('match_score', 0):.2f}"
+                )
 
         return "\n".join(parts)
 
@@ -527,6 +540,7 @@ class RAGPipeline:
         )
 
         import asyncio
+
         (
             context.user_profile,
             context.related_brochures,
@@ -542,7 +556,7 @@ class RAGPipeline:
         system_prompt = self.context_builder.build_system_prompt(context)
         messages = [{"role": "system", "content": system_prompt}]
 
-        for msg in (conversation_history or []):
+        for msg in conversation_history or []:
             messages.append(msg)
         messages.append({"role": "user", "content": query_text})
 

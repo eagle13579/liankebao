@@ -11,12 +11,10 @@ AI数字名片 企业关系图谱
   4. 缓存支持 (Redis)
 """
 
-import json
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Optional
 
-from sqlalchemy import func, select, union
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.cache import cache
@@ -37,6 +35,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class GraphNode:
     """知识图谱节点"""
+
     id: str  # "user:{id}" / "brochure:{id}" / "tag:{tag}"
     label: str
     type: str  # "user" | "brochure" | "tag"
@@ -54,6 +53,7 @@ class GraphNode:
 @dataclass
 class GraphEdge:
     """知识图谱边"""
+
     source: str  # 源节点 ID
     target: str  # 目标节点 ID
     relation: str  # 关系类型
@@ -73,6 +73,7 @@ class GraphEdge:
 @dataclass
 class KnowledgeGraph:
     """完整知识图谱"""
+
     nodes: list[GraphNode] = field(default_factory=list)
     edges: list[GraphEdge] = field(default_factory=list)
 
@@ -98,13 +99,13 @@ class KnowledgeGraph:
 class KnowledgeGraphBuilder:
     """企业关系图谱构建器"""
 
-    RELATION_TAG_MATCH = "tag_match"         # 标签供需匹配
-    RELATION_TRUST = "trust"                  # 信任连接
-    RELATION_INDUSTRY = "industry_peer"       # 同行（同公司/行业）
-    RELATION_MATCH_RECORD = "match_record"    # 匹配记录
+    RELATION_TAG_MATCH = "tag_match"  # 标签供需匹配
+    RELATION_TRUST = "trust"  # 信任连接
+    RELATION_INDUSTRY = "industry_peer"  # 同行（同公司/行业）
+    RELATION_MATCH_RECORD = "match_record"  # 匹配记录
     RELATION_BROCHURE_VIEW = "brochure_view"  # 浏览画册
-    RELATION_COMMON_TAG = "common_tag"        # 共同标签
-    RELATION_OWN_BROCHURE = "own_brochure"    # 拥有画册
+    RELATION_COMMON_TAG = "common_tag"  # 共同标签
+    RELATION_OWN_BROCHURE = "own_brochure"  # 拥有画册
 
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -170,7 +171,7 @@ class KnowledgeGraphBuilder:
         # 6. 浏览关系
         await self._add_visitor_edges(kg, user_id, visited, depth, max_depth, max_nodes)
 
-    async def _make_user_node(self, user_id: int) -> Optional[GraphNode]:
+    async def _make_user_node(self, user_id: int) -> GraphNode | None:
         """构建用户节点"""
         result = await self.db.execute(select(User).where(User.id == user_id))
         user = result.scalars().first()
@@ -178,9 +179,7 @@ class KnowledgeGraphBuilder:
             return None
 
         # 获取用户标签
-        result = await self.db.execute(
-            select(UserTag).where(UserTag.user_id == user_id)
-        )
+        result = await self.db.execute(select(UserTag).where(UserTag.user_id == user_id))
         tags = result.scalars().all()
         tag_list = [{"tag": t.tag, "type": t.tag_type, "weight": t.weight} for t in tags]
 
@@ -199,14 +198,10 @@ class KnowledgeGraphBuilder:
             },
         )
 
-    async def _add_tag_match_edges(
-        self, kg, user_id, visited, depth, max_depth, max_nodes
-    ):
+    async def _add_tag_match_edges(self, kg, user_id, visited, depth, max_depth, max_nodes):
         """添加标签供需匹配关系边"""
         # 获取当前用户的标签
-        result = await self.db.execute(
-            select(UserTag).where(UserTag.user_id == user_id)
-        )
+        result = await self.db.execute(select(UserTag).where(UserTag.user_id == user_id))
         my_tags = result.scalars().all()
         my_provide = {t.tag: t.weight for t in my_tags if t.tag_type == "provide"}
         my_need = {t.tag: t.weight for t in my_tags if t.tag_type == "need"}
@@ -218,10 +213,12 @@ class KnowledgeGraphBuilder:
         all_tags = set(my_provide.keys()) | set(my_need.keys())
         for tag in all_tags:
             result = await self.db.execute(
-                select(UserTag).where(
+                select(UserTag)
+                .where(
                     UserTag.tag == tag,
                     UserTag.user_id != user_id,
-                ).limit(20)
+                )
+                .limit(20)
             )
             matching_tags = result.scalars().all()
             for mt in matching_tags:
@@ -240,22 +237,25 @@ class KnowledgeGraphBuilder:
                 is_need_match = tag in my_need and mt.tag_type == "provide"
                 if is_provide_match or is_need_match:
                     weight = my_provide.get(tag, my_need.get(tag, 0)) * mt.weight
-                    kg.add_edge(GraphEdge(
-                        source=f"user:{user_id}",
-                        target=f"user:{mt.user_id}",
-                        relation=self.RELATION_TAG_MATCH,
-                        weight=weight,
-                        properties={"tag": tag, "direction": "provide→need" if is_provide_match else "need→provide"},
-                    ))
+                    kg.add_edge(
+                        GraphEdge(
+                            source=f"user:{user_id}",
+                            target=f"user:{mt.user_id}",
+                            relation=self.RELATION_TAG_MATCH,
+                            weight=weight,
+                            properties={
+                                "tag": tag,
+                                "direction": "provide→need" if is_provide_match else "need→provide",
+                            },
+                        )
+                    )
 
-    async def _add_trust_edges(
-        self, kg, user_id, visited, depth, max_depth, max_nodes
-    ):
+    async def _add_trust_edges(self, kg, user_id, visited, depth, max_depth, max_nodes):
         """添加信任连接关系边"""
         result = await self.db.execute(
-            select(TrustNetwork).where(
-                (TrustNetwork.user_id == user_id) | (TrustNetwork.trusted_user_id == user_id)
-            ).limit(30)
+            select(TrustNetwork)
+            .where((TrustNetwork.user_id == user_id) | (TrustNetwork.trusted_user_id == user_id))
+            .limit(30)
         )
         trusts = result.scalars().all()
         for t in trusts:
@@ -269,21 +269,21 @@ class KnowledgeGraphBuilder:
             node = await self._make_user_node(target_id)
             if node:
                 kg.add_node(node)
-            kg.add_edge(GraphEdge(
-                source=f"user:{user_id}",
-                target=f"user:{target_id}",
-                relation=self.RELATION_TRUST,
-                weight=1.0,
-                properties={"created_at": str(t.created_at)},
-            ))
+            kg.add_edge(
+                GraphEdge(
+                    source=f"user:{user_id}",
+                    target=f"user:{target_id}",
+                    relation=self.RELATION_TRUST,
+                    weight=1.0,
+                    properties={"created_at": str(t.created_at)},
+                )
+            )
 
             # 如果还有深度，递归
             if depth + 1 < max_depth:
                 await self._build_edges_for_user(kg, target_id, visited, depth + 1, max_depth, max_nodes)
 
-    async def _add_industry_edges(
-        self, kg, user_id, visited, depth, max_depth, max_nodes
-    ):
+    async def _add_industry_edges(self, kg, user_id, visited, depth, max_depth, max_nodes):
         """添加行业同行关系边"""
         result = await self.db.execute(select(User).where(User.id == user_id))
         user = result.scalars().first()
@@ -291,10 +291,12 @@ class KnowledgeGraphBuilder:
             return
 
         result = await self.db.execute(
-            select(User).where(
+            select(User)
+            .where(
                 User.company == user.company,
                 User.id != user_id,
-            ).limit(20)
+            )
+            .limit(20)
         )
         peers = result.scalars().all()
         for peer in peers:
@@ -307,52 +309,55 @@ class KnowledgeGraphBuilder:
             node = await self._make_user_node(peer.id)
             if node:
                 kg.add_node(node)
-            kg.add_edge(GraphEdge(
-                source=f"user:{user_id}",
-                target=f"user:{peer.id}",
-                relation=self.RELATION_INDUSTRY,
-                weight=0.8,
-                properties={"company": user.company},
-            ))
+            kg.add_edge(
+                GraphEdge(
+                    source=f"user:{user_id}",
+                    target=f"user:{peer.id}",
+                    relation=self.RELATION_INDUSTRY,
+                    weight=0.8,
+                    properties={"company": user.company},
+                )
+            )
 
-    async def _add_brochure_edges(
-        self, kg, user_id, visited, depth, max_depth, max_nodes
-    ):
+    async def _add_brochure_edges(self, kg, user_id, visited, depth, max_depth, max_nodes):
         """添加画册拥有关系边"""
-        result = await self.db.execute(
-            select(Brochure).where(Brochure.user_id == user_id).limit(10)
-        )
+        result = await self.db.execute(select(Brochure).where(Brochure.user_id == user_id).limit(10))
         brochures = result.scalars().all()
         for b in brochures:
             node_id = f"brochure:{b.id}"
             if node_id not in {n.id for n in kg.nodes}:
-                kg.add_node(GraphNode(
-                    id=node_id,
-                    label=b.title,
-                    type="brochure",
-                    properties={
-                        "brochure_id": b.id,
-                        "title": b.title,
-                        "purpose": b.purpose,
-                        "status": b.status,
-                    },
-                ))
-            kg.add_edge(GraphEdge(
-                source=f"user:{user_id}",
-                target=node_id,
-                relation=self.RELATION_OWN_BROCHURE,
-                weight=1.0,
-            ))
+                kg.add_node(
+                    GraphNode(
+                        id=node_id,
+                        label=b.title,
+                        type="brochure",
+                        properties={
+                            "brochure_id": b.id,
+                            "title": b.title,
+                            "purpose": b.purpose,
+                            "status": b.status,
+                        },
+                    )
+                )
+            kg.add_edge(
+                GraphEdge(
+                    source=f"user:{user_id}",
+                    target=node_id,
+                    relation=self.RELATION_OWN_BROCHURE,
+                    weight=1.0,
+                )
+            )
 
-    async def _add_match_record_edges(
-        self, kg, user_id, visited, depth, max_depth, max_nodes
-    ):
+    async def _add_match_record_edges(self, kg, user_id, visited, depth, max_depth, max_nodes):
         """添加匹配记录关系边"""
         result = await self.db.execute(
-            select(MatchRecord).where(
+            select(MatchRecord)
+            .where(
                 (MatchRecord.user_a_id == user_id) | (MatchRecord.user_b_id == user_id),
                 MatchRecord.match_score >= 0.3,
-            ).order_by(MatchRecord.match_score.desc()).limit(20)
+            )
+            .order_by(MatchRecord.match_score.desc())
+            .limit(20)
         )
         records = result.scalars().all()
         for rec in records:
@@ -366,26 +371,24 @@ class KnowledgeGraphBuilder:
             node = await self._make_user_node(target_id)
             if node:
                 kg.add_node(node)
-            kg.add_edge(GraphEdge(
-                source=f"user:{user_id}",
-                target=f"user:{target_id}",
-                relation=self.RELATION_MATCH_RECORD,
-                weight=rec.match_score,
-                properties={
-                    "match_score": rec.match_score,
-                    "status": rec.status,
-                    "common_tags": rec.common_tags,
-                },
-            ))
+            kg.add_edge(
+                GraphEdge(
+                    source=f"user:{user_id}",
+                    target=f"user:{target_id}",
+                    relation=self.RELATION_MATCH_RECORD,
+                    weight=rec.match_score,
+                    properties={
+                        "match_score": rec.match_score,
+                        "status": rec.status,
+                        "common_tags": rec.common_tags,
+                    },
+                )
+            )
 
-    async def _add_visitor_edges(
-        self, kg, user_id, visited, depth, max_depth, max_nodes
-    ):
+    async def _add_visitor_edges(self, kg, user_id, visited, depth, max_depth, max_nodes):
         """添加浏览关系边（谁看了我的画册）"""
         # 获取用户的画册
-        result = await self.db.execute(
-            select(Brochure).where(Brochure.user_id == user_id).limit(10)
-        )
+        result = await self.db.execute(select(Brochure).where(Brochure.user_id == user_id).limit(10))
         brochures = result.scalars().all()
         brochure_ids = [b.id for b in brochures]
         if not brochure_ids:
@@ -393,15 +396,20 @@ class KnowledgeGraphBuilder:
 
         # 统计浏览频次
         from sqlalchemy import func as sa_func
+
         result = await self.db.execute(
             select(
                 VisitorLog.visitor_id,
                 sa_func.count(VisitorLog.id).label("visit_count"),
-            ).where(
+            )
+            .where(
                 VisitorLog.brochure_id.in_(brochure_ids),
                 VisitorLog.visitor_id.isnot(None),
                 VisitorLog.visitor_id != str(user_id),
-            ).group_by(VisitorLog.visitor_id).order_by(sa_func.count(VisitorLog.id).desc()).limit(10)
+            )
+            .group_by(VisitorLog.visitor_id)
+            .order_by(sa_func.count(VisitorLog.id).desc())
+            .limit(10)
         )
         visitors = result.all()
         for visitor_id_str, count in visitors:
@@ -418,13 +426,15 @@ class KnowledgeGraphBuilder:
             node = await self._make_user_node(visitor_id)
             if node:
                 kg.add_node(node)
-            kg.add_edge(GraphEdge(
-                source=f"user:{visitor_id}",
-                target=f"user:{user_id}",
-                relation=self.RELATION_BROCHURE_VIEW,
-                weight=min(count / 5.0, 1.0),
-                properties={"visit_count": count},
-            ))
+            kg.add_edge(
+                GraphEdge(
+                    source=f"user:{visitor_id}",
+                    target=f"user:{user_id}",
+                    relation=self.RELATION_BROCHURE_VIEW,
+                    weight=min(count / 5.0, 1.0),
+                    properties={"visit_count": count},
+                )
+            )
 
     # ======================================================================
     # 图谱查询方法
@@ -446,6 +456,7 @@ class KnowledgeGraphBuilder:
 
         # BFS
         from collections import deque
+
         queue = deque()
         queue.append((user_id_a, [f"user:{user_id_a}"]))
         visited = {user_id_a}
@@ -471,11 +482,13 @@ class KnowledgeGraphBuilder:
                         for e in self._edges_between(src, dst):
                             rel = e["relation"]
                             break
-                        path_detail.append({
-                            "from": src,
-                            "to": dst,
-                            "relation": rel,
-                        })
+                        path_detail.append(
+                            {
+                                "from": src,
+                                "to": dst,
+                                "relation": rel,
+                            }
+                        )
                     # 添加最后一个节点
                     path_detail.append({"node": f"user:{user_id_b}"})
                     paths.append(path_detail)
@@ -491,9 +504,7 @@ class KnowledgeGraphBuilder:
 
         # 信任网络
         result = await self.db.execute(
-            select(TrustNetwork).where(
-                (TrustNetwork.user_id == user_id) | (TrustNetwork.trusted_user_id == user_id)
-            )
+            select(TrustNetwork).where((TrustNetwork.user_id == user_id) | (TrustNetwork.trusted_user_id == user_id))
         )
         for t in result.scalars().all():
             nid = t.trusted_user_id if t.user_id == user_id else t.user_id
@@ -501,9 +512,7 @@ class KnowledgeGraphBuilder:
 
         # 匹配记录
         result = await self.db.execute(
-            select(MatchRecord).where(
-                (MatchRecord.user_a_id == user_id) | (MatchRecord.user_b_id == user_id)
-            )
+            select(MatchRecord).where((MatchRecord.user_a_id == user_id) | (MatchRecord.user_b_id == user_id))
         )
         for m in result.scalars().all():
             nid = m.user_b_id if m.user_a_id == user_id else m.user_a_id
@@ -514,10 +523,12 @@ class KnowledgeGraphBuilder:
         user = result.scalars().first()
         if user and user.company:
             result = await self.db.execute(
-                select(User.id).where(
+                select(User.id)
+                .where(
                     User.company == user.company,
                     User.id != user_id,
-                ).limit(20)
+                )
+                .limit(20)
             )
             for row in result.scalars().all():
                 neighbors.append((row, "industry_peer"))
@@ -566,10 +577,12 @@ class KnowledgeGraphBuilder:
                 if n2_id not in candidates:
                     candidates[n2_id] = {"score": 0, "paths": []}
                 candidates[n2_id]["score"] += 1.0
-                candidates[n2_id]["paths"].append({
-                    "via": nid,
-                    "relation": relation,
-                })
+                candidates[n2_id]["paths"].append(
+                    {
+                        "via": nid,
+                        "relation": relation,
+                    }
+                )
 
         # 排序并返回 top N
         sorted_candidates = sorted(
@@ -582,11 +595,13 @@ class KnowledgeGraphBuilder:
         for cid, data in sorted_candidates:
             node = await self._make_user_node(cid)
             if node:
-                result.append({
-                    **node.to_dict(),
-                    "recommendation_score": data["score"],
-                    "paths": data["paths"],
-                })
+                result.append(
+                    {
+                        **node.to_dict(),
+                        "recommendation_score": data["score"],
+                        "paths": data["paths"],
+                    }
+                )
         return result
 
     async def get_graph_summary(self, user_id: int) -> dict:

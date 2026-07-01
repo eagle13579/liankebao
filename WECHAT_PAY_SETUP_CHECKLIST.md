@@ -142,7 +142,7 @@ APIv3 密钥用于:
 scp apiclient_key.pem root@your-server:/etc/wechat_certs/
 ```
 
-> **安全建议**: 
+> **安全建议**:
 > - 设置文件权限 `chmod 600 apiclient_key.pem`
 > - 不要将私钥文件提交到 Git 仓库
 > - 定期轮换证书（通常有效期 5 年）

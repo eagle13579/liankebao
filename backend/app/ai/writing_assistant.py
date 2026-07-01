@@ -1,8 +1,5 @@
 """AI 名片写作助手 — 调用 DeepSeek API 生成名片文案"""
 
-import json
-from typing import Optional
-
 from app.config import settings
 
 
@@ -20,13 +17,13 @@ class WritingAssistant:
 
     SYSTEM_PROMPTS = {
         "bio": "你是一个专业的个人简介写作助手。根据用户提供的姓名、职位、公司和行业信息，"
-               "生成一段简洁有力、突出个人专业亮点的中文简介（80字以内）。",
+        "生成一段简洁有力、突出个人专业亮点的中文简介（80字以内）。",
         "company": "你是一个专业的公司介绍写作助手。根据公司名称、行业和业务描述，"
-                    "生成一段精炼、专业的中文公司介绍（100字以内），突出公司核心优势。",
+        "生成一段精炼、专业的中文公司介绍（100字以内），突出公司核心优势。",
         "recommendation": "你是一个专业的推荐语写作助手。根据推荐人信息、关系背景和亮点，"
-                          "生成一段真诚、有说服力的中文推荐语（60字以内），用于名片展示。",
+        "生成一段真诚、有说服力的中文推荐语（60字以内），用于名片展示。",
         "slogan": "你是一个专业的品牌标语写作助手。根据个人信息和职业背景，"
-                  "生成一句简短有力、易于记住的中文个人品牌标语（15字以内）。",
+        "生成一句简短有力、易于记住的中文个人品牌标语（15字以内）。",
     }
 
     @staticmethod
@@ -101,7 +98,7 @@ class WritingAssistant:
     @staticmethod
     async def generate(
         purpose: str,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         **kwargs,
     ) -> str:
         """调用 DeepSeek API 生成文案
@@ -125,6 +122,7 @@ class WritingAssistant:
         user_prompt = WritingAssistant._build_user_prompt(purpose, **kwargs)
 
         import httpx
+
         from app.middleware.metrics import track_ai_inference
 
         async with httpx.AsyncClient(timeout=30) as client:
@@ -154,7 +152,7 @@ class WritingAssistant:
     @staticmethod
     async def generate_all(
         fields: dict,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
     ) -> dict:
         """一次性生成全部文案
 
@@ -168,7 +166,6 @@ class WritingAssistant:
         Returns:
             {"bio": str, "company": str, "recommendation": str, "slogan": str}
         """
-        import asyncio
 
         tasks = {
             "bio": WritingAssistant.generate(

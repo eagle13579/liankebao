@@ -16,8 +16,7 @@ from __future__ import annotations
 
 import dataclasses
 import uuid
-from typing import Any, Callable, Protocol, runtime_checkable
-
+from typing import Any, Protocol, runtime_checkable
 
 # ======================================================================
 # Data Models
@@ -69,12 +68,12 @@ class ServiceResponse:
     error: str | None = None
 
     @classmethod
-    def ok(cls, data: Any = None) -> "ServiceResponse":
+    def ok(cls, data: Any = None) -> ServiceResponse:
         """Create a success response."""
         return cls(success=True, data=data)
 
     @classmethod
-    def fail(cls, error: str) -> "ServiceResponse":
+    def fail(cls, error: str) -> ServiceResponse:
         """Create a failure response."""
         return cls(success=False, error=error)
 
@@ -270,7 +269,4 @@ class CurrentServiceRegistry:
         return result[0] if result else None
 
     async def list_services(self) -> list[dict[str, Any]]:
-        return [
-            {"service": name, "description": desc}
-            for name, (_, desc) in self._handlers.items()
-        ]
+        return [{"service": name, "description": desc} for name, (_, desc) in self._handlers.items()]

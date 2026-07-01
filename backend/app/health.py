@@ -26,7 +26,6 @@ Usage:
 
 from __future__ import annotations
 
-import asyncio
 import importlib
 import logging
 import os
@@ -245,7 +244,7 @@ def check_startup_script() -> dict[str, Any]:
         return {"status": "missing", "path": script_path, "error": "File not found"}
 
     try:
-        with open(script_path, "r", encoding="utf-8") as f:
+        with open(script_path, encoding="utf-8") as f:
             compile(f.read(), script_path, "exec")
         return {"status": "ok", "path": script_path, "syntax": "valid"}
     except SyntaxError as e:
@@ -293,15 +292,11 @@ def get_system_health() -> dict[str, Any]:
     # ── Agents (9 digital employees) ─────────────────────────────
     health["agents"] = check_agent_layers()
     health["agent_count"] = len(health["agents"])
-    health["agents_ok"] = sum(
-        1 for a in health["agents"] if a.get("status") == "ok"
-    )
+    health["agents_ok"] = sum(1 for a in health["agents"] if a.get("status") == "ok")
 
     # ── New architecture layers (circular-import-safe) ───────────
     health["new_architecture_layers"] = check_new_architecture_layers()
-    health["new_architecture_layers_ok"] = sum(
-        1 for l in health["new_architecture_layers"] if l.get("status") == "ok"
-    )
+    health["new_architecture_layers_ok"] = sum(1 for l in health["new_architecture_layers"] if l.get("status") == "ok")
 
     # ── Agent Runtime ────────────────────────────────────────────
     health["agent_runtime"] = check_agent_runtime()
@@ -313,10 +308,7 @@ def get_system_health() -> dict[str, Any]:
     all_ok = all(
         [
             health["phase"]["status"] == "ok",
-            all(
-                v.get("status") == "ok"
-                for v in health["infrastructure"].values()
-            ),
+            all(v.get("status") == "ok" for v in health["infrastructure"].values()),
             health["agents_ok"] > 0,
             health["new_architecture_layers_ok"] > 0,
             health["agent_runtime"]["status"] == "ok"
@@ -362,6 +354,8 @@ if __name__ == "__main__":
     print()
     print("─" * 60)
     summary = get_system_health_summary()
-    print(f"Status: {summary['status']} | Phase: {summary['phase']} | "
-          f"Agents: {summary['agents_ok']}/{summary['agent_count']} | "
-          f"Cache: {summary['infra_cache']} | Bus: {summary['infra_bus']}")
+    print(
+        f"Status: {summary['status']} | Phase: {summary['phase']} | "
+        f"Agents: {summary['agents_ok']}/{summary['agent_count']} | "
+        f"Cache: {summary['infra_cache']} | Bus: {summary['infra_bus']}"
+    )

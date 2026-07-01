@@ -24,7 +24,6 @@ from app.identity.interfaces import (
     AuthRequest,
     AuthResponse,
     Identity,
-    IdentityProtocol,
 )
 
 logger = logging.getLogger(__name__)
@@ -131,10 +130,7 @@ class JWTIdentityAdapter:
             return await self._authenticate_password(request)
         if request.provider in ("wechat", "external"):
             return await self._authenticate_external(request)
-        raise ValueError(
-            f"Unsupported auth provider '{request.provider}'. "
-            f"Supported: password, wechat, external"
-        )
+        raise ValueError(f"Unsupported auth provider '{request.provider}'. Supported: password, wechat, external")
 
     async def _authenticate_password(self, request: AuthRequest) -> AuthResponse:
         """Password-based authentication against in-memory user store."""

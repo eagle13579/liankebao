@@ -33,7 +33,6 @@ import os
 import subprocess
 import sys
 import time
-from typing import Any
 
 # ── Ensure backend is on sys.path ────────────────────────────────────
 BACKEND_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
@@ -332,17 +331,13 @@ def test_identity_jwt_adapter_import() -> None:
 
 def test_cached_gateway_import() -> None:
     """Test CachedAIGateway imports without circular deps."""
-    ok, msg = _import_in_fresh_process(
-        "app.ai.gateway.adapters.cached_gateway_adapter"
-    )
+    ok, msg = _import_in_fresh_process("app.ai.gateway.adapters.cached_gateway_adapter")
     assert ok, f"CachedAIGateway import failed: {msg}"
 
 
 def test_fallback_gateway_import() -> None:
     """Test FallbackAIGateway imports without circular deps."""
-    ok, msg = _import_in_fresh_process(
-        "app.ai.gateway.adapters.fallback_gateway_adapter"
-    )
+    ok, msg = _import_in_fresh_process("app.ai.gateway.adapters.fallback_gateway_adapter")
     assert ok, f"FallbackAIGateway import failed: {msg}"
 
 

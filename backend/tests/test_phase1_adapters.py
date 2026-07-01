@@ -11,16 +11,14 @@ from __future__ import annotations
 import json
 import os
 import sys
-import tempfile
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.events.interfaces import Event, EventPriority
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 # RedisCache Tests
@@ -227,6 +225,7 @@ class TestSQLiteEventBus:
 
         # Give consumer loop a moment to process
         import asyncio
+
         await asyncio.sleep(0.2)
 
         # Event should be delivered via direct dispatch (not just consumer loop)
@@ -257,7 +256,10 @@ class TestSQLiteEventBus:
 
     async def test_unsubscribe_nonexistent(self, bus):
         """Unsubscribing a non-existent handler returns False."""
-        async def dummy(event): pass
+
+        async def dummy(event):
+            pass
+
         result = await bus.unsubscribe("nonexistent.pattern", dummy)
         assert result is False
 
@@ -332,11 +334,13 @@ class TestSQLiteEventBus:
 
         # Publish events
         for i in range(3):
-            await bus.publish(Event(
-                type="replay.test",
-                source="test",
-                payload={"i": i},
-            ))
+            await bus.publish(
+                Event(
+                    type="replay.test",
+                    source="test",
+                    payload={"i": i},
+                )
+            )
         await asyncio.sleep(0.2)
 
         # Clear received list, then replay
@@ -363,8 +367,8 @@ class TestSQLiteEventBus:
         await asyncio.sleep(0.1)
 
         received.clear()
-        since = datetime.now(timezone.utc).replace(year=2020)  # far in the past
-        until = datetime.now(timezone.utc)
+        since = datetime.now(UTC).replace(year=2020)  # far in the past
+        until = datetime.now(UTC)
         count = await bus.replay(event_type="epoch.*", since=since, until=until)
         await asyncio.sleep(0.2)
 

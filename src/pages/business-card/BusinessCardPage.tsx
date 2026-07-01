@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useBusinessCard } from './hooks';
 import UploadZone from './components/UploadZone';
 import ReviewForm from './components/ReviewForm';
@@ -9,6 +9,8 @@ import MatchResultsPanel from './components/MatchResultsPanel';
 import QRCodeModal from './components/QRCodeModal';
 import StepIndicator from './components/StepIndicator';
 import ManualForm from './components/ManualForm';
+import NLSearchWidget from '../../components/NLSearchWidget';
+import type { NLSearchResult, NLSearchApiItem } from '../../components/NLSearchWidget';
 
 export default function BusinessCardPage() {
   const {
@@ -30,6 +32,18 @@ export default function BusinessCardPage() {
     setCurrentPage(0);
     setStep('preview');
   };
+
+  /** NL搜索回调 — 结构化解析 + API搜索 */
+  const handleNLSearch = useCallback((result: NLSearchResult) => {
+    console.log('[NLSearchWidget] 结构化搜索结果:', result);
+  }, []);
+
+  /** NL搜索 — 选中某个搜索结果 */
+  const handleNLResultSelect = useCallback((item: NLSearchApiItem) => {
+    console.log('[NLSearchWidget] 选中的企业:', item);
+    const msg = `已选中: ${item.title} (匹配度 ${Math.round(item.match_score * 100)}%)`;
+    console.log(`[NLSearchWidget] ${msg}`);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
@@ -60,6 +74,11 @@ export default function BusinessCardPage() {
 
       {/* Step Indicator */}
       <StepIndicator currentStep={step} />
+
+      {/* 自然语言搜索组件 — 紧凑模式嵌入 */}
+      <div className="max-w-4xl mx-auto px-4 mb-4">
+        <NLSearchWidget compact onSearch={handleNLSearch} onResultSelect={handleNLResultSelect} />
+      </div>
 
       {/* Content */}
       <div className="max-w-4xl mx-auto px-4 pb-8">

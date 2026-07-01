@@ -26,7 +26,6 @@ import threading
 from typing import Any
 
 from app.identity.interfaces import (
-    AuthorizationProtocol,
     Identity,
 )
 
@@ -41,39 +40,82 @@ logger = __import__("logging").getLogger(__name__)
 DEFAULT_ROLE_PERMISSIONS: dict[str, list[str]] = {
     "super_admin": [
         # Full access to everything
-        "brochure:create", "brochure:read", "brochure:update", "brochure:delete",
-        "brochure:share", "brochure:export",
-        "user:create", "user:read", "user:update", "user:delete", "user:manage",
-        "tenant:create", "tenant:read", "tenant:update", "tenant:delete",
+        "brochure:create",
+        "brochure:read",
+        "brochure:update",
+        "brochure:delete",
+        "brochure:share",
+        "brochure:export",
+        "user:create",
+        "user:read",
+        "user:update",
+        "user:delete",
+        "user:manage",
+        "tenant:create",
+        "tenant:read",
+        "tenant:update",
+        "tenant:delete",
         "tenant:manage",
-        "payment:read", "payment:process", "payment:refund", "payment:manage",
-        "ai:chat", "ai:recommend", "ai:embed", "ai:manage",
-        "admin:system_config", "admin:audit_log", "admin:manage_all",
+        "payment:read",
+        "payment:process",
+        "payment:refund",
+        "payment:manage",
+        "ai:chat",
+        "ai:recommend",
+        "ai:embed",
+        "ai:manage",
+        "admin:system_config",
+        "admin:audit_log",
+        "admin:manage_all",
     ],
     "admin": [
         # Tenant-level administration
-        "brochure:create", "brochure:read", "brochure:update", "brochure:delete",
-        "brochure:share", "brochure:export",
-        "user:create", "user:read", "user:update", "user:delete", "user:manage",
-        "tenant:read", "tenant:update",
-        "payment:read", "payment:process",
-        "ai:chat", "ai:recommend", "ai:embed", "ai:manage",
+        "brochure:create",
+        "brochure:read",
+        "brochure:update",
+        "brochure:delete",
+        "brochure:share",
+        "brochure:export",
+        "user:create",
+        "user:read",
+        "user:update",
+        "user:delete",
+        "user:manage",
+        "tenant:read",
+        "tenant:update",
+        "payment:read",
+        "payment:process",
+        "ai:chat",
+        "ai:recommend",
+        "ai:embed",
+        "ai:manage",
         "admin:audit_log",
     ],
     "enterprise_user": [
         # Full brochure management
-        "brochure:create", "brochure:read", "brochure:update", "brochure:delete",
-        "brochure:share", "brochure:export",
-        "user:read", "user:update",
+        "brochure:create",
+        "brochure:read",
+        "brochure:update",
+        "brochure:delete",
+        "brochure:share",
+        "brochure:export",
+        "user:read",
+        "user:update",
         "tenant:read",
         "payment:read",
-        "ai:chat", "ai:recommend", "ai:embed",
+        "ai:chat",
+        "ai:recommend",
+        "ai:embed",
     ],
     "standard_user": [
         # Basic brochure access
-        "brochure:create", "brochure:read", "brochure:update", "brochure:delete",
+        "brochure:create",
+        "brochure:read",
+        "brochure:update",
+        "brochure:delete",
         "brochure:share",
-        "user:read", "user:update",
+        "user:read",
+        "user:update",
         "tenant:read",
         "payment:read",
         "ai:chat",
@@ -205,9 +247,7 @@ class RBACAuthorizationAdapter:
             del self._role_permissions[role]
             # Clean up inheritance references
             self._role_inheritance = {
-                child: parent
-                for child, parent in self._role_inheritance.items()
-                if child != role and parent != role
+                child: parent for child, parent in self._role_inheritance.items() if child != role and parent != role
             }
             return True
 
@@ -344,7 +384,5 @@ class RBACAuthorizationAdapter:
         """Reset the role-permission matrix to the built-in defaults."""
         with self._lock:
             self._role_permissions.clear()
-            self._role_permissions.update(
-                {k: list(v) for k, v in DEFAULT_ROLE_PERMISSIONS.items()}
-            )
+            self._role_permissions.update({k: list(v) for k, v in DEFAULT_ROLE_PERMISSIONS.items()})
             self._role_inheritance.clear()

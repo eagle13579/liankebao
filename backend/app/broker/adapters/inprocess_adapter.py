@@ -10,11 +10,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from app.broker.interfaces import (
     ServiceBrokerProtocol,
-    ServiceHandler,
     ServiceRequest,
     ServiceResponse,
 )
@@ -91,15 +91,11 @@ class InProcessBroker(ServiceBrokerProtocol):
         """
         instance = await self._resolve_service(request.service)
         if instance is None:
-            return ServiceResponse.fail(
-                f"Service '{request.service}' is not registered"
-            )
+            return ServiceResponse.fail(f"Service '{request.service}' is not registered")
 
         method = self._resolve_method(instance, request.method)
         if method is None:
-            return ServiceResponse.fail(
-                f"Method '{request.method}' not found on service '{request.service}'"
-            )
+            return ServiceResponse.fail(f"Method '{request.method}' not found on service '{request.service}'")
 
         try:
             params = dict(request.params)
@@ -115,7 +111,7 @@ class InProcessBroker(ServiceBrokerProtocol):
                 result = await method(**params)
 
             return ServiceResponse.ok(result)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(
                 "Timeout calling %s.%s (trace=%s, timeout=%dms)",
                 request.service,
@@ -124,8 +120,7 @@ class InProcessBroker(ServiceBrokerProtocol):
                 request.timeout_ms,
             )
             return ServiceResponse.fail(
-                f"Call to {request.service}.{request.method} timed out "
-                f"after {request.timeout_ms}ms"
+                f"Call to {request.service}.{request.method} timed out after {request.timeout_ms}ms"
             )
         except Exception as exc:
             logger.exception(

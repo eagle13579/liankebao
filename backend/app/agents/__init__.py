@@ -24,25 +24,24 @@ Available agents:
     - EMPLOYEE_AGENT_MAP: Registry mapping agent types to legion employees.
 """
 
-from app.agents.base_agent import BaseAgent, AgentConfig, AgentStatus, CronJob, AgentMessage
+# ── Runtime ───────────────────────────────────────────────────────
+from app.agents.agent_runtime import AgentRuntime
+from app.agents.architecture_agent import ArchitectureAgent
 
 # ── All 9 code agents ─────────────────────────────────────────────
 from app.agents.backend_agent import BackendAgent
-from app.agents.qa_agent import QAAgent
-from app.agents.security_agent import SecurityAgent
+from app.agents.base_agent import AgentConfig, AgentMessage, AgentStatus, BaseAgent, CronJob
+from app.agents.data_agent import DataAgent
+from app.agents.employee_profiles import EMPLOYEE_AGENT_MAP, create_all_legion_agents, create_legion_agent
 from app.agents.growth_agent import GrowthAgent
 from app.agents.knowledge_agent import KnowledgeAgent
-from app.agents.architecture_agent import ArchitectureAgent
-from app.agents.data_agent import DataAgent
-from app.agents.sre_agent import SREAgent
-from app.agents.support_agent import SupportAgent
-
-# ── Runtime ───────────────────────────────────────────────────────
-from app.agents.agent_runtime import AgentRuntime
 
 # ── Legion Employee integration ───────────────────────────────────
 from app.agents.legion_employee import LegionEmployee
-from app.agents.employee_profiles import create_legion_agent, create_all_legion_agents, EMPLOYEE_AGENT_MAP
+from app.agents.qa_agent import QAAgent
+from app.agents.security_agent import SecurityAgent
+from app.agents.sre_agent import SREAgent
+from app.agents.support_agent import SupportAgent
 
 __all__ = [
     # Base

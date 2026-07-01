@@ -74,7 +74,7 @@ _PHONE_RE = re.compile(r"^1[3-9]\d{9}$")
 
 
 class LoginRequest(BaseModel):
-    username: str = Field(..., min_length=1, max_length=50)
+    email: str = Field(..., min_length=1, max_length=50)
     password: str = Field(..., min_length=6, max_length=128)
 
 

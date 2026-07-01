@@ -20,7 +20,6 @@ import logging
 import os
 import re
 import time
-from pathlib import Path
 from typing import Any
 
 import yaml
@@ -84,6 +83,7 @@ def _fix_yaml_text(text: str) -> str:
 
     These are fixed by inserting hyphens between the fragments.
     """
+
     # Pattern: "word1"word2"word3" (quoted fragments with text between)
     # Replace the space between closing " and the next word with a hyphen + space
     # Only within YAML values (not keys or structure)
@@ -91,13 +91,13 @@ def _fix_yaml_text(text: str) -> str:
         inner = match.group(1)
         # inner is like: coordinator"xecutor"uilder
         # Replace inner quotes with hyphens
-        fixed = re.sub(r'"([^"]*)"', r'-\1-', inner)
+        fixed = re.sub(r'"([^"]*)"', r"-\1-", inner)
         # Remove leading/trailing hyphens (the original outer quotes handle them)
-        if fixed.startswith('-') and fixed.endswith('-'):
+        if fixed.startswith("-") and fixed.endswith("-"):
             fixed = fixed[1:-1]
-        elif fixed.startswith('-'):
+        elif fixed.startswith("-"):
             fixed = fixed[1:]
-        elif fixed.endswith('-'):
+        elif fixed.endswith("-"):
             fixed = fixed[:-1]
         return f'"{fixed}"'
 
@@ -123,7 +123,7 @@ def _safe_load_yaml(path: str) -> dict[str, Any]:
         logger.debug("YAML file not found: %s", path)
         return {}
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             raw_text = f.read()
         data = yaml.load(raw_text, Loader=_SafeLoader)
         if data is None:
@@ -135,7 +135,7 @@ def _safe_load_yaml(path: str) -> dict[str, Any]:
     except Exception as exc:
         logger.debug("YAML parse failed for %s, trying fallback parser: %s", path, exc)
         # raw_text may not be defined if open() failed
-        if 'raw_text' in dir():
+        if "raw_text" in dir():
             return _fallback_yaml_parse(path, raw_text)
         return {}
 
@@ -154,8 +154,8 @@ def _fallback_yaml_parse(path: str, raw_text: str) -> dict[str, Any]:
     result: dict[str, Any] = {}
 
     # State machine
-    current_top_key: str | None = None       # Current top-level key
-    current_list: list[Any] | None = None    # Building a list under current_key
+    current_top_key: str | None = None  # Current top-level key
+    current_list: list[Any] | None = None  # Building a list under current_key
     current_nested: dict[str, Any] | None = None  # Building a nested dict
 
     in_multiline = False
@@ -205,7 +205,7 @@ def _fallback_yaml_parse(path: str, raw_text: str) -> dict[str, Any]:
             # Parse top-level key: value
             colon_pos = stripped.index(":")
             key = stripped[:colon_pos].strip()
-            value = stripped[colon_pos + 1:].strip()
+            value = stripped[colon_pos + 1 :].strip()
 
             # Flush any pending state
             _flush()
@@ -240,7 +240,7 @@ def _fallback_yaml_parse(path: str, raw_text: str) -> dict[str, Any]:
                 # Could be a dict item in the list
                 colon_pos = item_text.index(":")
                 item_key = item_text[:colon_pos].strip()
-                item_value = item_text[colon_pos + 1:].strip()
+                item_value = item_text[colon_pos + 1 :].strip()
 
                 parsed_val = _parse_yaml_value(item_value)
                 item_dict = {item_key: parsed_val if parsed_val is not None else item_value}
@@ -261,7 +261,7 @@ def _fallback_yaml_parse(path: str, raw_text: str) -> dict[str, Any]:
         elif indent > 0 and ":" in stripped and current_top_key:
             colon_pos = stripped.index(":")
             sub_key = stripped[:colon_pos].strip()
-            sub_value = stripped[colon_pos + 1:].strip()
+            sub_value = stripped[colon_pos + 1 :].strip()
 
             # Skip if it looks like a comment inside a value
             if sub_key.startswith("#"):
@@ -413,9 +413,7 @@ async def _query_memory_db(db_path: str, key: str, limit: int = 5) -> list[dict[
             db.row_factory = aiosqlite.Row
 
             # Discover available tables
-            cursor = await db.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            )
+            cursor = await db.execute("SELECT name FROM sqlite_master WHERE type='table'")
             existing_tables = {row[0] for row in await cursor.fetchall()}
 
             for table_name, schema in MEMORY_TABLES.items():
@@ -426,21 +424,24 @@ async def _query_memory_db(db_path: str, key: str, limit: int = 5) -> list[dict[
                 try:
                     cursor = await db.execute(
                         f"SELECT {content_col} AS content, {created_col} AS created_at "
-                        f"FROM \"{table_name}\" WHERE {content_col} LIKE ? "
+                        f'FROM "{table_name}" WHERE {content_col} LIKE ? '
                         f"ORDER BY {created_col} DESC LIMIT ?",
                         (f"%{key}%", limit),
                     )
                     rows = await cursor.fetchall()
                     for row in rows:
-                        results.append({
-                            "content": row["content"],
-                            "created_at": row["created_at"],
-                            "table": table_name,
-                        })
+                        results.append(
+                            {
+                                "content": row["content"],
+                                "created_at": row["created_at"],
+                                "table": table_name,
+                            }
+                        )
                 except Exception:
                     logger.debug(
                         "Table %s in %s not queryable with expected schema",
-                        table_name, db_path,
+                        table_name,
+                        db_path,
                     )
     except Exception as exc:
         logger.warning("Failed to query memory db %s: %s", db_path, exc)
@@ -463,9 +464,7 @@ async def _write_memory_db(db_path: str, content: str, category: str = "experien
     try:
         async with aiosqlite.connect(db_path) as db:
             # Discover available tables
-            cursor = await db.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            )
+            cursor = await db.execute("SELECT name FROM sqlite_master WHERE type='table'")
             existing_tables = {row[0] for row in await cursor.fetchall()}
 
             wrote = False
@@ -617,20 +616,17 @@ class LegionEmployee:
             if isinstance(item, str):
                 collected.append({"name": item, "content": item})
             elif isinstance(item, dict):
-                name = (
-                    item.get("name")
-                    or item.get("content", "")[:50]
-                    or item.get("memory_type", "")
-                    or str(item)
-                )
+                name = item.get("name") or item.get("content", "")[:50] or item.get("memory_type", "") or str(item)
                 content = item.get("content", "")
-                collected.append({
-                    "name": name,
-                    "content": content,
-                    "source": item.get("source", ""),
-                    "application": item.get("application", ""),
-                    "tags": item.get("tags", []),
-                })
+                collected.append(
+                    {
+                        "name": name,
+                        "content": content,
+                        "source": item.get("source", ""),
+                        "application": item.get("application", ""),
+                        "tags": item.get("tags", []),
+                    }
+                )
         return collected
 
     def _collect_capabilities(self) -> list[str]:
@@ -756,8 +752,7 @@ class LegionEmployee:
             "personality_style": self.personality_style,
             "traits": self.personality_traits[:5],
             "mental_models": [
-                m.get("name", str(m))[:60] if isinstance(m, dict) else str(m)[:60]
-                for m in self.mental_models[:5]
+                m.get("name", str(m))[:60] if isinstance(m, dict) else str(m)[:60] for m in self.mental_models[:5]
             ],
             "capabilities": self.capabilities[:5],
             "tools": list(self.tools.keys()),

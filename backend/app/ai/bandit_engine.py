@@ -4,14 +4,15 @@
 基于 Beta 分布的 Thompson 采样实现，用于候选内容排序与在线学习。
 """
 
-import numpy as np
 from dataclasses import dataclass
-from typing import Optional
+
+import numpy as np
 
 
 @dataclass
 class Arm:
     """单臂 — Beta 分布参数"""
+
     arm_id: str
     alpha: float = 1.0
     beta: float = 1.0
@@ -26,7 +27,7 @@ class ThompsonSampling:
     def set_arms(self, arms: list[Arm]):
         self.arms = arms
 
-    def select_arm(self, arms: Optional[list[Arm]] = None) -> int:
+    def select_arm(self, arms: list[Arm] | None = None) -> int:
         """对每个臂从 Beta(alpha, beta) 采样，返回最大采样值对应的索引"""
         candidates = arms if arms is not None else self.arms
         samples = np.random.beta(
@@ -52,7 +53,7 @@ class ThompsonSampling:
 class BanditService:
     """多臂老虎机排序服务 — 管理用户与会话级别的 Thompson 采样"""
 
-    def __init__(self, arms_config: Optional[dict] = None):
+    def __init__(self, arms_config: dict | None = None):
         self.ts = ThompsonSampling()
         # user_id -> {arm_id: Arm}
         self.user_arms: dict[str, dict[str, Arm]] = {}
@@ -70,16 +71,12 @@ class BanditService:
             arms.append(user_dict[cid])
         return arms
 
-    def recommend(self, candidates: list, user_id: str, top_k: int = 10,
-                  id_key: str = "id") -> list:
+    def recommend(self, candidates: list, user_id: str, top_k: int = 10, id_key: str = "id") -> list:
         """对候选列表应用 Thompson 采样排序，返回重排后的列表"""
         if not candidates:
             return []
 
-        candidate_ids = [
-            c[id_key] if isinstance(c, dict) else getattr(c, id_key)
-            for c in candidates
-        ]
+        candidate_ids = [c[id_key] if isinstance(c, dict) else getattr(c, id_key) for c in candidates]
         arms = self._get_user_arms(user_id, candidate_ids)
         self.ts.set_arms(arms)
 

@@ -21,18 +21,14 @@ Each test class follows the same pattern:
 
 from __future__ import annotations
 
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
-from app.agents.base_agent import AgentConfig, AgentStatus, CronJob
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Helpers
@@ -94,12 +90,7 @@ class TestBackendAgent:
         await agent.start()
 
         bad_code = {
-            "code": (
-                "def foo(x):\n"
-                "    return x / 0\n"
-                "except:\n"
-                "    pass\n"
-            ),
+            "code": ("def foo(x):\n    return x / 0\nexcept:\n    pass\n"),
             "file_path": "bad_module.py",
             "language": "python",
         }
@@ -237,9 +228,7 @@ class TestQAAgent:
         assert len(result["suggestions"]) >= 1
         # A test function should be generated for fetch_user
         test_codes = " ".join(result.get("generated_test_code", []) or [])
-        assert "test_fetch_user" in test_codes or any(
-            s.get("target") == "fetch_user" for s in result["suggestions"]
-        )
+        assert "test_fetch_user" in test_codes or any(s.get("target") == "fetch_user" for s in result["suggestions"])
 
     async def test_generate_tests_private_function(self):
         from app.agents.qa_agent import QAAgent
@@ -281,9 +270,7 @@ class TestQAAgent:
         agent, _ = _make_agent(QAAgent)
         await agent.start()
 
-        result = await agent.regression_check(
-            {"files": ["auth.py", "payment.py"], "modules": ["security"]}
-        )
+        result = await agent.regression_check({"files": ["auth.py", "payment.py"], "modules": ["security"]})
         assert result["overall_risk"] == "high"
         assert len(result["high_risk_modules"]) >= 1
         assert len(result["test_plan"]) >= 1
@@ -493,9 +480,7 @@ class TestKnowledgeAgent:
             '        """Get a user by ID."""\n'
             "        return {}\n"
         )
-        result = await agent.generate_docs(
-            {"code_path": "app/services/user_service.py", "code": code}
-        )
+        result = await agent.generate_docs({"code_path": "app/services/user_service.py", "code": code})
         assert "documentation" in result
         assert "UserService" in result["documentation"] or "get_user" in result["documentation"]
         assert result["classes_documented"] >= 1
@@ -559,13 +544,7 @@ class TestKnowledgeAgent:
 
         agent, _ = _make_agent(KnowledgeAgent)
         await agent.start()
-        diff = (
-            "--- a/file.py\n"
-            "+++ b/file.py\n"
-            "@@ -1 +1,2 @@\n"
-            " old line\n"
-            "+new line\n"
-        )
+        diff = "--- a/file.py\n+++ b/file.py\n@@ -1 +1,2 @@\n old line\n+new line\n"
         result = await agent.summarize_changes(diff)
         assert result["additions"] >= 1 or result["files_changed"] >= 0
 

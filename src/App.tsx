@@ -3,6 +3,7 @@ import { AnimatePresence } from 'motion/react';
 import ErrorBoundary from './components/ErrorBoundary';
 import PageTransition from './components/PageTransition';
 import PwaUpdatePrompt from './pwa';
+import RelationGraphPage from './pages/RelationGraph';
 import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { I18nProvider } from './i18n';
 import FloatingLangSwitcher from './components/FloatingLangSwitcher';
@@ -146,7 +147,8 @@ function AnimatedRoutes() {
         <Route path="/contracts" element={<PageTransition><LazyPage><ContractsPageLazy /></LazyPage></PageTransition>} />
         <Route path="/contracts/:id" element={<PageTransition><LazyPage><ContractDetailPageLazy /></LazyPage></PageTransition>} />
         <Route path="/contracts/:id/payments" element={<PageTransition><LazyPage><PaymentHistoryPageLazy /></LazyPage></PageTransition>} />
-      </Routes>
+        <Route path="/relation-graph" element={<RelationGraphPage />} />
+        </Routes>
     </AnimatePresence>
   );
 }
