@@ -1,0 +1,15 @@
+{{- if .Values.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "chainke.fullname" . }}-backend-pdb
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "chainke.labels" . | nindent 4 }}
+    {{- include "chainke.backendSelectorLabels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "chainke.backendSelectorLabels" . | nindent 6 }}
+{{- end }}

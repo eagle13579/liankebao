@@ -1,0 +1,111 @@
+{{- if .Values.agent.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "chainke.fullname" . }}-agent
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "chainke.labels" . | nindent 4 }}
+    {{- include "chainke.agentSelectorLabels" . | nindent 4 }}
+    app.kubernetes.io/version: {{ .Values.agentImage.tag | quote }}
+spec:
+  replicas: {{ .Values.agent.replicaCount }}
+  strategy:
+    type: {{ .Values.agent.strategy.type }}
+    rollingUpdate:
+      maxSurge: {{ .Values.agent.strategy.maxSurge }}
+      maxUnavailable: {{ .Values.agent.strategy.maxUnavailable }}
+  selector:
+    matchLabels:
+      {{- include "chainke.agentSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "chainke.labels" . | nindent 8 }}
+        {{- include "chainke.agentSelectorLabels" . | nindent 8 }}
+      annotations:
+        {{- with .Values.monitoring.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "chainke.imagePullSecrets" . | nindent 6 }}
+      securityContext:
+        fsGroup: 1001
+        runAsUser: 1001
+        runAsNonRoot: true
+      terminationGracePeriodSeconds: {{ .Values.agent.terminationGracePeriodSeconds }}
+      {{- with .Values.agent.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.agent.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.agent.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}-agent
+          image: "{{ .Values.global.imageRegistry }}{{ .Values.agentImage.repository }}:{{ .Values.agentImage.tag }}"
+          imagePullPolicy: {{ .Values.agentImage.pullPolicy }}
+          ports:
+            - name: agent-http
+              containerPort: {{ .Values.agent.containerPort }}
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "chainke.fullname" . }}-config
+            {{- if .Values.existingSecret }}
+            - secretRef:
+                name: {{ .Values.existingSecret }}
+            {{- end }}
+          env:
+            - name: AGENT_MODE
+              value: "true"
+            - name: PORT
+              value: {{ .Values.agent.containerPort | quote }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret }}
+                  key: DATABASE_URL
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret }}
+                  key: REDIS_PASSWORD
+          resources:
+            {{- toYaml .Values.agent.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.agent.livenessProbe.httpGet.path }}
+              port: {{ .Values.agent.livenessProbe.httpGet.port }}
+            initialDelaySeconds: {{ .Values.agent.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.agent.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.agent.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.agent.livenessProbe.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.agent.readinessProbe.httpGet.path }}
+              port: {{ .Values.agent.readinessProbe.httpGet.port }}
+            initialDelaySeconds: {{ .Values.agent.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.agent.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.agent.readinessProbe.timeoutSeconds }}
+          volumeMounts:
+            - name: agent-data
+              mountPath: /app/data
+            - name: agent-logs
+              mountPath: /app/logs
+      volumes:
+        - name: agent-data
+          {{- if .Values.agent.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "chainke.fullname" . }}-agent-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: agent-logs
+          emptyDir: {}
+{{- end }}

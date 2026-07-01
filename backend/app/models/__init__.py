@@ -1,33 +1,43 @@
-"""
-Models package - re-exports from the flat app/models.py module
-plus organization models from app/models/organization.py
-"""
-
-import importlib.util
-import sys
-from pathlib import Path
-
-# Load app/models.py as a module and re-export everything
-_models_py = Path(__file__).parent.parent / "models.py"
-_spec = importlib.util.spec_from_file_location("app.models_flat", _models_py)
-_flat = importlib.util.module_from_spec(_spec)
-
-# Register before exec to handle circular imports within the flat module
-sys.modules["app.models_flat"] = _flat
-_spec.loader.exec_module(_flat)
-
-# Copy all exports to this package's namespace
-for _name in dir(_flat):
-    if not _name.startswith("_"):
-        globals()[_name] = getattr(_flat, _name)
-
-# Also import organization models
-# Import escrow models (NOT from __init__ - imported directly by escrow service/router)
-# Deal is already in app.models.py as a CRM model; escrow models use table escrow_deals
-from app.models.organization import Invite, Organization, OrganizationMember  # noqa: F401
-
-__all__ = (
-    [n for n in dir(_flat) if not n.startswith("_")]
-    + ["Organization", "OrganizationMember", "Invite"]
-    + ["Deal", "Milestone", "Dispute"]
+from app.models.user import User
+from app.models.brochure import Brochure, Page
+from app.models.tag import UserTag, MatchRecord
+from app.models.visitor import VisitorLog
+from app.models.trust import TrustNetwork
+from app.models.payment import PaymentOrder, EnterpriseSubscription, TrialRecord
+from app.models.webhook import WebhookSubscription
+from app.models.integration import Integration
+from app.models.ab_test import ABTest, ABTestVariant, ABTestEvent
+from app.models.audit import AuditLog
+from app.models.api_key import ApiKey, ApiKeyUsage
+from app.models.message import Message
+from app.models.invoice import Invoice
+from app.models.gaia import (
+    GaiaKnowledge,
+    GaiaEvolutionEvent,
+    GaiaTrainingRun,
+    GaiaModelWeights,
 )
+# Lazy import to avoid circular chain:
+# models.__init__ → crm.crm_models → crm.__init__ → crm_router → routers.auth → services → ai → vector_search → models.tag (loop!)
+# Import directly from the module when needed: from app.crm.crm_models import CrmContact
+# from app.crm.crm_models import (
+#     CrmContact,
+#     CrmDeal,
+#     CrmPipelineStage, 
+#     CrmActivity,
+#     CrmNote,
+# )
+
+__all__ = [
+    "User", "Brochure", "Page", "UserTag", "MatchRecord",
+    "VisitorLog", "TrustNetwork", "PaymentOrder", "EnterpriseSubscription", "Integration",
+    "WebhookSubscription",
+    "ABTest", "ABTestVariant", "ABTestEvent",
+    "AuditLog",
+    "ApiKey", "ApiKeyUsage",
+    "Message",
+    "Invoice",
+    "GaiaKnowledge", "GaiaEvolutionEvent", "GaiaTrainingRun", "GaiaModelWeights",
+    # CRM
+    "CrmContact", "CrmDeal", "CrmPipelineStage", "CrmActivity", "CrmNote",
+]

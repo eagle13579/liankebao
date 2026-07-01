@@ -1,632 +1,521 @@
-"""个性化推荐路由"""
+"""
+AI数字名片 推荐 API
+===================
+提供三种推荐接口:
+  1. POST /api/recommend/personal   - 个性化推荐（基于用户行为+图谱+语义）
+  2. POST /api/recommend/discover   - 发现推荐（全局发现页）
+  3. POST /api/recommend/similar    - 相似名片推荐
+"""
 
 import logging
-from datetime import datetime, timedelta
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
-from pydantic import BaseModel
-from sqlalchemy import func, or_
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import get_current_user
+from app.ai.feedback_loop import FeedbackLoop, apply_feedback_boost, get_feedback_loop
+from app.ai.recommendation import RecommendEngine
+from app.ai.rag_pipeline import RAGPipeline
 from app.database import get_db
-from app.models import Product, User, UserEvent
+from app.models.tag import MatchRecord
+from app.models.user import User
+from app.routers.auth import get_current_user
+from app.services.feedback_service import FeedbackAction, FeedbackResult, get_feedback_service
+from app.services.recommend_service import FeedbackRecommendation, RecommendService
 
 logger = logging.getLogger(__name__)
 
-# ============================================================
-# LLM 理由缓存（内存 dict，TTL 30 分钟）
-# ============================================================
-
-_AI_REASON_CACHE: dict[str, tuple[str, datetime]] = {}
-_AI_REASON_CACHE_TTL = timedelta(minutes=30)
-
-
-def _make_cache_key(product_id: int, need_id: int) -> str:
-    return f"{product_id}:{need_id}"
-
-
-def _get_cached_reason(product_id: int, need_id: int) -> str | None:
-    """从缓存中获取 AI 理由，过期条目自动失效"""
-    key = _make_cache_key(product_id, need_id)
-    entry = _AI_REASON_CACHE.get(key)
-    if entry is None:
-        return None
-    reason, expire_at = entry
-    if datetime.utcnow() > expire_at:
-        del _AI_REASON_CACHE[key]
-        return None
-    return reason
-
-
-def _set_cached_reason(product_id: int, need_id: int, reason: str) -> None:
-    """将 AI 理由写入缓存，TTL 30 分钟"""
-    key = _make_cache_key(product_id, need_id)
-    _AI_REASON_CACHE[key] = (reason, datetime.utcnow() + _AI_REASON_CACHE_TTL)
-
-
-def _evict_expired_cache() -> int:
-    """清理过期缓存条目，返回清理数量（可定期调用）"""
-    now = datetime.utcnow()
-    expired_keys = [k for k, (_, exp) in _AI_REASON_CACHE.items() if now > exp]
-    for k in expired_keys:
-        del _AI_REASON_CACHE[k]
-    return len(expired_keys)
-
-
-router = APIRouter(prefix="/api/recommend", tags=["recommend"])
-recommend_router = router  # 显式别名，满足外部引用约定
-
-
-@router.get(
-    "/products", summary="个性化产品推荐", description="根据用户行为推荐产品（有行为→同类推荐，无行为→热门推荐）"
-)
-def recommend_products(
-    user_id: int = Query(None, description="用户ID（可选，未登录时返回热门）"),
-    limit: int = Query(8, ge=1, le=50),
-    db: Session = Depends(get_db),
-):
-    """个性化推荐产品
-
-    算法逻辑：
-    1. 如果用户有行为记录 → 按用户最近浏览的产品的分类+标签推荐同类产品
-    2. 如果用户无行为或新用户 → 按热门产品排序（按浏览量）
-    """
-    if user_id:
-        # 尝试基于用户行为做个性化推荐
-        personalized = _recommend_by_user_behavior(db, user_id, limit)
-        if personalized:
-            return {
-                "code": 200,
-                "message": "success",
-                "data": {"items": personalized, "total": len(personalized), "strategy": "personalized"},
-            }
-
-    # 兜底：热门推荐
-    hot_products = _recommend_hot_products(db, limit)
-
-    return {
-        "code": 200,
-        "message": "success",
-        "data": {"items": hot_products, "total": len(hot_products), "strategy": "hot"},
-    }
-
-
-def _recommend_by_user_behavior(db: Session, user_id: int, limit: int) -> list:
-    """基于用户行为进行个性化推荐"""
-    # 1. 获取用户最近浏览/点击的产品ID（最近30天）
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-
-    recent_product_ids = (
-        db.query(UserEvent.target_id)
-        .filter(
-            UserEvent.user_id == user_id,
-            UserEvent.event_type.in_(["product_view", "product_click"]),
-            UserEvent.target_id.isnot(None),
-            UserEvent.created_at >= thirty_days_ago,
-        )
-        .order_by(UserEvent.created_at.desc())
-        .limit(10)
-        .all()
-    )
-    recent_product_ids = [r[0] for r in recent_product_ids]
-
-    if not recent_product_ids:
-        # 尝试找搜索事件来推断兴趣
-        recent_searches = (
-            db.query(UserEvent.search_keyword)
-            .filter(
-                UserEvent.user_id == user_id,
-                UserEvent.event_type == "search",
-                UserEvent.search_keyword.isnot(None),
-                UserEvent.created_at >= thirty_days_ago,
-            )
-            .order_by(UserEvent.created_at.desc())
-            .limit(5)
-            .all()
-        )
-        if not recent_searches:
-            return []
-
-        # 按搜索关键词模糊匹配产品
-        keywords = [r[0] for r in recent_searches]
-        conditions = []
-        for kw in keywords:
-            conditions.append(Product.name.ilike(f"%{kw}%"))
-            conditions.append(Product.tags.ilike(f"%{kw}%"))
-            conditions.append(Product.category.ilike(f"%{kw}%"))
-
-        if conditions:
-            candidate_products = (
-                db.query(Product)
-                .filter(
-                    ~Product.is_deleted.is_(True),
-                    Product.status == "approved",
-                    or_(*conditions),
-                )
-                .order_by(Product.sort_order.desc(), Product.created_at.desc())
-                .limit(limit)
-                .all()
-            )
-            return [_product_to_dict(p) for p in candidate_products]
-
-        return []
-
-    # 2. 获取这些产品的分类和标签
-    recent_products = (
-        db.query(Product)
-        .filter(
-            Product.id.in_(recent_product_ids),
-            ~Product.is_deleted.is_(True),
-        )
-        .all()
-    )
-
-    # 收集分类和标签
-    categories = set()
-    tags_set = set()
-    for p in recent_products:
-        if p.category:
-            categories.add(p.category)
-        if p.tags:
-            for tag in p.tags.split(","):
-                tag = tag.strip()
-                if tag:
-                    tags_set.add(tag)
-
-    # 3. 查找同类产品（排除已看过的）
-    conditions = [~Product.is_deleted.is_(True), Product.status == "approved"]
-    category_tag_conditions = []
-    if categories:
-        category_tag_conditions.append(Product.category.in_(list(categories)))
-    if tags_set:
-        tag_conditions = [Product.tags.ilike(f"%{tag}%") for tag in tags_set]
-        category_tag_conditions.append(or_(*tag_conditions))
-    # 使用 OR 逻辑：分类匹配 或 标签匹配
-    if category_tag_conditions:
-        conditions.append(or_(*category_tag_conditions))
-
-    candidate_products = (
-        db.query(Product)
-        .filter(
-            *conditions,
-            ~Product.id.in_(recent_product_ids),  # 排除已看过的
-        )
-        .order_by(Product.sort_order.desc(), Product.created_at.desc())
-        .limit(limit)
-        .all()
-    )
-
-    # 如果不够，再从相同分类补充
-    if len(candidate_products) < limit and categories:
-        existing_ids = [p.id for p in candidate_products] + recent_product_ids
-        additional = (
-            db.query(Product)
-            .filter(
-                ~Product.is_deleted.is_(True),
-                Product.status == "approved",
-                Product.category.in_(list(categories)),
-                ~Product.id.in_(existing_ids),
-            )
-            .order_by(Product.sort_order.desc(), Product.created_at.desc())
-            .limit(limit - len(candidate_products))
-            .all()
-        )
-        candidate_products.extend(additional)
-
-    return [_product_to_dict(p) for p in candidate_products]
-
-
-def _recommend_hot_products(db: Session, limit: int) -> list:
-    """热门产品推荐"""
-    # 统计过去7天浏览最多的产品
-    seven_days_ago = datetime.utcnow() - timedelta(days=7)
-
-    hot_product_ids_query = (
-        db.query(
-            UserEvent.target_id,
-            func.count(UserEvent.id).label("view_count"),
-        )
-        .filter(
-            UserEvent.event_type.in_(["product_view", "product_click"]),
-            UserEvent.target_id.isnot(None),
-            UserEvent.created_at >= seven_days_ago,
-        )
-        .group_by(UserEvent.target_id)
-        .order_by(func.count(UserEvent.id).desc())
-        .limit(limit)
-        .subquery()
-    )
-
-    hot_products = (
-        db.query(Product)
-        .join(
-            hot_product_ids_query,
-            Product.id == hot_product_ids_query.c.target_id,
-        )
-        .filter(~Product.is_deleted.is_(True), Product.status == "approved")
-        .order_by(hot_product_ids_query.c.view_count.desc())
-        .limit(limit)
-        .all()
-    )
-
-    # 如果没有热门数据, 按上架时间+排序权重取最新产品
-    if not hot_products:
-        hot_products = (
-            db.query(Product)
-            .filter(
-                ~Product.is_deleted.is_(True),
-                Product.status == "approved",
-            )
-            .order_by(Product.sort_order.desc(), Product.created_at.desc())
-            .limit(limit)
-            .all()
-        )
-
-    return [_product_to_dict(p) for p in hot_products]
-
-
-def _product_to_dict(product: Product) -> dict:
-    """将Product模型转为字典"""
-    return {
-        "id": product.id,
-        "name": product.name,
-        "description": product.description,
-        "price": product.price,
-        "earn_per_share": product.earn_per_share,
-        "category": product.category,
-        "stock": product.stock,
-        "images": product.images,
-        "status": product.status,
-        "owner_id": product.owner_id,
-        "brand": product.brand,
-        "sale_price": product.sale_price,
-        "tags": product.tags,
-        "is_featured": product.is_featured,
-        "sort_order": product.sort_order,
-        "created_at": product.created_at.isoformat() if product.created_at else None,
-    }
-
-
-# ============================================================
-# 新增路由：按用户ID推荐产品
-# ============================================================
-
-
-@router.get(
-    "/products/{user_id}",
-    summary="按用户ID推荐产品",
-    description="基于用户浏览/偏好行为推荐产品，无行为时返回热门产品",
-)
-def recommend_products_by_user(
-    user_id: int = Path(..., description="用户ID"),
-    limit: int = Query(8, ge=1, le=50),
-    db: Session = Depends(get_db),
-):
-    """按用户ID推荐产品"""
-    personalized = _recommend_by_user_behavior(db, user_id, limit)
-    if personalized:
-        return {
-            "code": 200,
-            "message": "success",
-            "data": {"items": personalized, "total": len(personalized), "strategy": "personalized"},
-        }
-    hot_products = _recommend_hot_products(db, limit)
-    return {
-        "code": 200,
-        "message": "success",
-        "data": {"items": hot_products, "total": len(hot_products), "strategy": "hot"},
-    }
-
-
-# ============================================================
-# 新增路由：热门产品推荐
-# ============================================================
-
-
-@router.get(
-    "/hot",
-    summary="热门产品推荐",
-    description="返回过去7天浏览最多的产品列表，无数据时按上架时间返回",
-)
-def recommend_hot(
-    limit: int = Query(10, ge=1, le=50),
-    db: Session = Depends(get_db),
-):
-    """热门产品推荐"""
-    items = _recommend_hot_products(db, limit)
-    return {
-        "code": 200,
-        "message": "success",
-        "data": {"items": items, "total": len(items), "strategy": "hot"},
-    }
-
-
-# ============================================================
-# 新增路由：个性化推荐（结合 matching_engine）
-# ============================================================
-
-
-@router.get(
-    "/personalized/{user_id}",
-    summary="个性化推荐（结合匹配引擎 + LLM）",
-    description="基于用户画像与 matching_engine 进行个性化供需匹配推荐，由 LLM 生成智能匹配理由",
-)
-def recommend_personalized(
-    user_id: int = Path(..., description="用户ID"),
-    limit: int = Query(10, ge=1, le=50),
-    db: Session = Depends(get_db),
-):
-    """个性化推荐 — 使用 matching_engine 做协同过滤 + LLM 生成匹配理由"""
-    try:
-        from app.services.matching_client import MatchingClient
-
-        client = MatchingClient()
-        # 获取用户发布的需求（如果有），反向匹配产品
-        user_needs = (
-            db.query(UserEvent)
-            .filter(
-                UserEvent.user_id == user_id,
-                UserEvent.event_type.in_(["need_view", "need_post"]),
-                UserEvent.target_id.isnot(None),
-            )
-            .order_by(UserEvent.created_at.desc())
-            .limit(5)
-            .all()
-        )
-        need_ids = [e.target_id for e in user_needs if e.target_id]
-
-        all_items = []
-        seen_ids = set()
-
-        if need_ids:
-            for nid in need_ids[:3]:  # 最多取3个需求做匹配
-                # 获取原始需求数据用于 LLM
-                need_data = None
-                try:
-                    from app.models import Need
-
-                    need_obj = db.query(Need).filter(Need.id == nid).first()
-                    if need_obj:
-                        need_data = {
-                            "title": getattr(need_obj, "title", ""),
-                            "description": getattr(need_obj, "description", ""),
-                            "category": getattr(need_obj, "category", ""),
-                        }
-                except Exception:
-                    pass
-
-                if not need_data:
-                    continue
-
-                # 通过 HTTP 匹配引擎获取候选产品匹配结果
-                from app.models import Product
-
-                candidates = (
-                    db.query(Product)
-                    .filter(
-                        Product.is_deleted == False,
-                        Product.status == "approved",
-                    )
-                    .limit(50)
-                    .all()
-                )
-
-                matches = []
-                for prod in candidates:
-                    product_data = {
-                        "name": getattr(prod, "name", "") or getattr(prod, "title", ""),
-                        "description": getattr(prod, "description", ""),
-                        "category": getattr(prod, "category", ""),
-                        "tags": getattr(prod, "tags", ""),
-                        "price": getattr(prod, "price", 0),
-                    }
-                    result = client.match(product_data, need_data, top_k=1)
-                    if result:
-                        for r in result:
-                            r["id"] = prod.id  # 使用真实产品ID
-                        matches.extend(result)
-
-                # 按 match_score 降序排列
-                matches.sort(key=lambda x: x.get("match_score", 0), reverse=True)
-
-                for m in matches:
-                    mid = m.get("id")
-                    if mid not in seen_ids:
-                        # 尝试用 LLM 生成匹配理由（优先走缓存）
-                        llm_reason = None
-                        if need_data and m.get("title"):
-                            # 1) 查缓存
-                            llm_reason = _get_cached_reason(mid, nid)
-                            if llm_reason is None:
-                                # 2) 缓存未命中 => 调用 LLM
-                                try:
-                                    from app.services.llm_service import generate_matching_reason
-
-                                    llm_reason = generate_matching_reason(m, need_data)
-                                    if llm_reason:
-                                        # 3) 写入缓存
-                                        _set_cached_reason(mid, nid, llm_reason)
-                                except Exception:
-                                    logger.debug("LLM 匹配理由生成失败，使用规则引擎理由")
-
-                        all_items.append(
-                            {
-                                "id": mid,
-                                "title": m.get("title", ""),
-                                "match_score": m.get("match_score", 0),
-                                "match_reasons": m.get("match_reasons", []),
-                                "llm_reason": llm_reason,  # AI 生成的理由（缓存或实时）
-                                "strategy": m.get("strategy"),
-                            }
-                        )
-                        seen_ids.add(mid)
-
-        if not all_items:
-            # 兜底：热门产品
-            hot = _recommend_hot_products(db, limit)
-            all_items = [
-                {
-                    "id": p["id"],
-                    "title": p["name"],
-                    "match_score": 0.5,
-                    "match_reasons": ["热门推荐"],
-                    "llm_reason": None,
-                    "strategy": "hot",
-                }
-                for p in hot
-            ]
-
-        return {
-            "code": 200,
-            "message": "success",
-            "data": {"items": all_items[:limit], "total": len(all_items[:limit]), "strategy": "personalized"},
-        }
-    except ImportError:
-        logger.warning("matching_engine 不可用，降级为行为推荐")
-        return recommend_products_by_user(user_id, limit, db)
-
-
-# ============================================================
-# 新增路由：推荐反馈
-# ============================================================
+router = APIRouter(prefix="/api/recommend", tags=["推荐"])
+
+
+# ======================================================================
+# 请求 / 响应模型
+# ======================================================================
+
+
+class FeedbackInline(BaseModel):
+    """推荐结果的内联反馈（在推荐请求中直接提交）"""
+    content_id: int = Field(..., description="被推荐用户/内容 ID")
+    action: str = Field(..., description="反馈动作: like/dislike/skip")
+
+
+class PersonalRecommendRequest(BaseModel):
+    top_k: int = Field(20, ge=1, le=100, description="返回数量")
+    strategy: str = Field("hybrid", description="推荐策略: tag | graph | semantic | hybrid")
+    exclude_user_ids: list[int] = Field(default_factory=list, description="排除的用户 ID")
+    feedback: list[FeedbackInline] | None = Field(None, description="历史推荐反馈 (针对之前推荐结果的 👍/👎/skip)")
+
+
+class DiscoverRequest(BaseModel):
+    top_k: int = Field(30, ge=1, le=100, description="返回数量")
+    purpose: Optional[str] = Field(None, description="筛选用途: partner/client/investor/supplier")
+    feedback: list[FeedbackInline] | None = Field(None, description="历史推荐反馈 (👍/👎/skip)")
+
+
+class SimilarUsersRequest(BaseModel):
+    target_user_id: int = Field(..., description="目标用户 ID（参考用户）")
+    top_k: int = Field(10, ge=1, le=50, description="返回数量")
+    feedback: list[FeedbackInline] | None = Field(None, description="历史推荐反馈 (👍/👎/skip)")
+
+
+class RecommendItemResponse(BaseModel):
+    user_id: int
+    name: str
+    company: str = ""
+    title: str = ""
+    avatar: str = ""
+    intro: str = ""
+    score: float = 0.0
+    tag_match_score: float = 0.0
+    graph_score: float = 0.0
+    semantic_score: float = 0.0
+    reasons: list[str] = []
+    common_tags: list[str] = []
+    match_type: str = "mixed"
+
+
+class RecommendResponse(BaseModel):
+    items: list[RecommendItemResponse]
+    total: int
+    strategy_used: str = ""
+
+
+class RAGQueryRequest(BaseModel):
+    query: str = Field(..., min_length=1, max_length=1000, description="查询文本")
+    top_k: int = Field(10, ge=1, le=50, description="向量搜索返回数量")
+    temperature: float = Field(0.7, ge=0.0, le=2.0, description="LLM 温度")
+    max_tokens: int = Field(2048, ge=64, le=8192, description="最大 token 数")
+
+
+class RAGQueryResponse(BaseModel):
+    answer: str
+    sources: list[dict] = []
+    confidence: float = 0.0
+    model_used: str = "deepseek-chat"
+    tokens_used: int = 0
+
+
+# ======================================================================
+# 反馈闭环 请求/响应模型
+# ======================================================================
+
+
+class FeedbackSubmitRequest(BaseModel):
+    """独立反馈提交请求"""
+    content_id: int = Field(..., description="被推荐用户/内容 ID")
+    action: str = Field(..., description="反馈动作: like/dislike/skip")
+    source: str = Field("recommend", description="反馈来源: recommend/discover/similar")
+    recommendation_id: str = Field("", description="推荐记录 ID (可选)")
+
+
+class FeedbackSubmitResponse(FeedbackResult):
+    """反馈提交响应"""
+    recommendation_id: str = ""
+    user_id: int = 0
+    content_id: int = 0
+    action: str = ""
+    weight_delta: int = 0
+    current_boost: float = 1.0
+    message: str = ""
+
+
+# ── 向下兼容: 旧版反馈模型 (留作已有 /{item_id}/feedback 使用) ──
 
 
 class FeedbackRequest(BaseModel):
-    """推荐反馈请求模型"""
+    rating: int = Field(..., ge=-1, le=5, description="评分: 1-5(星级) | 1(👍) | -1(👎) | 0(中性)")
+    source: str = Field("recommend", description="反馈来源: recommend/discover/similar")
 
+
+class FeedbackResponse(BaseModel):
+    id: int
     user_id: int
-    product_id: int
-    action: str  # "like" 或 "dislike"
-    source: str = "recommend"  # 推荐来源标识
+    item_id: int
+    rating: int
+    feedback_type: str
+    boost_factor: float = 1.0
+    message: str = "反馈已记录"
 
 
-@router.post(
-    "/feedback",
-    summary="记录推荐反馈",
-    description="用户对推荐结果的反馈（喜欢/不喜欢），用于后续优化推荐质量。高价值反馈（like/click/adopt）同步至匹配引擎影响评分",
-)
-def record_feedback(
-    feedback: FeedbackRequest,
-    db: Session = Depends(get_db),
+class FeedbackStatsResponse(BaseModel):
+    total_feedback: int
+    positive_feedback: int
+    negative_feedback: int
+    unique_users: int
+    weight_cache_entries: int
+    adjust_threshold: int
+
+
+class FeedbackRecordResponse(BaseModel):
+    id: int
+    user_id: int
+    item_id: int
+    rating: int
+    source: str
+    feedback_type: str
+    created_at: float
+    updated_at: float
+
+
+# ======================================================================
+# 推荐 API 端点
+# ======================================================================
+
+
+@router.post("/personal", response_model=RecommendResponse)
+async def personal_recommend(
+    data: PersonalRecommendRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    """记录推荐反馈"""
-    if feedback.action not in ("like", "dislike"):
-        raise HTTPException(status_code=422, detail="action 必须为 'like' 或 'dislike'")
+    """个性化推荐 - 基于标签匹配 + 关系图谱 + 语义相似度"""
+    engine = RecommendEngine(db)
+    feedback_service = get_feedback_service()
 
-    product = db.query(Product).filter(Product.id == feedback.product_id).first()
-    if not product:
-        raise HTTPException(status_code=404, detail="产品不存在")
+    # 处理内联反馈: 先记录用户对之前推荐结果的 👍/👎/skip
+    if data.feedback:
+        for fb in data.feedback:
+            try:
+                feedback_service.record_feedback(
+                    user_id=current_user.id,
+                    content_id=fb.content_id,
+                    action=fb.action,
+                    source="recommend",
+                )
+            except ValueError as e:
+                logger.warning("内联反馈处理失败: %s", e)
 
-    # 记录为 UserEvent
-    event = UserEvent(
-        user_id=feedback.user_id,
-        event_type=f"recommend_{feedback.action}",
-        target_type="product",
-        target_id=feedback.product_id,
-        created_at=datetime.utcnow(),
-    )
-    db.add(event)
-    db.commit()
-
-    logger.info(
-        "recommend_feedback",
-        extra={
-            "user_id": feedback.user_id,
-            "product_id": feedback.product_id,
-            "action": feedback.action,
-            "source": feedback.source,
-        },
-    )
-
-    # 高价值反馈同步到匹配引擎，影响后续匹配评分
-    try:
-        from app.services.matching_client import MatchingClient
-
-        client = MatchingClient()
-        client.feedback(feedback.product_id, feedback.action)
-        logger.debug(
-            "feedback_synced_to_matching_engine",
-            extra={
-                "product_id": feedback.product_id,
-                "action": feedback.action,
-            },
+    if data.strategy not in ("tag", "graph", "semantic", "hybrid"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"不支持的推荐策略: {data.strategy}，可选: tag, graph, semantic, hybrid",
         )
-    except ImportError:
-        logger.warning("matching_client 不可用，反馈仅记录到 UserEvent")
+
+    # 获取已匹配用户 ID 列表（排除已 match 的用户）
+    result = await db.execute(
+        select(MatchRecord).where(
+            (MatchRecord.user_a_id == current_user.id) | (MatchRecord.user_b_id == current_user.id)
+        )
+    )
+    matched_records = result.scalars().all()
+    matched_ids = set()
+    for mr in matched_records:
+        matched_ids.add(mr.user_b_id if mr.user_a_id == current_user.id else mr.user_a_id)
+
+    exclude_ids = list(matched_ids | set(data.exclude_user_ids))
+
+    result = await engine.personalize_recommend(
+        user_id=current_user.id,
+        top_k=data.top_k,
+        exclude_ids=exclude_ids,
+        strategy=data.strategy,
+    )
+
+    return RecommendResponse(
+        items=[RecommendItemResponse(**i.to_dict()) for i in result.items],
+        total=result.total,
+        strategy_used=result.strategy_used,
+    )
+
+
+@router.post("/discover", response_model=RecommendResponse)
+async def discover_recommend(
+    data: DiscoverRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """发现推荐 - 发现页全局推荐"""
+    engine = RecommendEngine(db)
+    feedback_service = get_feedback_service()
+
+    # 处理内联反馈
+    if data.feedback:
+        for fb in data.feedback:
+            try:
+                feedback_service.record_feedback(
+                    user_id=current_user.id,
+                    content_id=fb.content_id,
+                    action=fb.action,
+                    source="discover",
+                )
+            except ValueError as e:
+                logger.warning("内联反馈处理失败: %s", e)
+
+    valid_purposes = (None, "partner", "client", "investor", "supplier")
+    if data.purpose not in valid_purposes:
+        raise HTTPException(
+            status_code=400,
+            detail=f"不支持的用途: {data.purpose}，可选: partner, client, investor, supplier",
+        )
+
+    result = await engine.discover(
+        user_id=current_user.id,
+        top_k=data.top_k,
+        purpose=data.purpose,
+    )
+
+    return RecommendResponse(
+        items=[RecommendItemResponse(**i.to_dict()) for i in result.items],
+        total=result.total,
+        strategy_used=result.strategy_used,
+    )
+
+
+@router.post("/similar", response_model=RecommendResponse)
+async def similar_users(
+    data: SimilarUsersRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """相似名片推荐 - 基于指定用户查找相似用户"""
+    engine = RecommendEngine(db)
+    feedback_service = get_feedback_service()
+
+    # 处理内联反馈
+    if data.feedback:
+        for fb in data.feedback:
+            try:
+                feedback_service.record_feedback(
+                    user_id=current_user.id,
+                    content_id=fb.content_id,
+                    action=fb.action,
+                    source="similar",
+                )
+            except ValueError as e:
+                logger.warning("内联反馈处理失败: %s", e)
+
+    # 验证目标用户存在
+    from sqlalchemy import select
+    result = await db.execute(select(User).where(User.id == data.target_user_id))
+    target_user = result.scalars().first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="目标用户不存在")
+
+    result = await engine.similar_users(
+        target_user_id=data.target_user_id,
+        current_user_id=current_user.id,
+        top_k=data.top_k,
+    )
+
+    return RecommendResponse(
+        items=[RecommendItemResponse(**i.to_dict()) for i in result.items],
+        total=result.total,
+        strategy_used=result.strategy_used,
+    )
+
+
+@router.post("/rag-query", response_model=RAGQueryResponse)
+async def rag_query(
+    data: RAGQueryRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """RAG 智能问答 - 基于检索增强生成回答用户问题
+
+    结合向量搜索 + 用户画像 + 关系图谱上下文，使用 DeepSeek 大模型生成回答。
+    """
+    pipeline = RAGPipeline(db)
+    try:
+        response = await pipeline.query(
+            user_id=current_user.id,
+            query_text=data.query,
+            top_k=data.top_k,
+            temperature=data.temperature,
+            max_tokens=data.max_tokens,
+        )
+
+        return RAGQueryResponse(
+            answer=response.answer,
+            sources=response.sources,
+            confidence=response.confidence,
+            model_used=response.model_used,
+            tokens_used=response.tokens_used,
+        )
     except Exception as e:
-        logger.error(f"同步反馈到匹配引擎失败: {e}")
-
-    return {
-        "code": 200,
-        "message": "反馈已记录",
-        "data": {"action": feedback.action, "product_id": feedback.product_id},
-    }
+        logger.error(f"RAG query failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"RAG 查询失败: {str(e)}")
+    finally:
+        await pipeline.close()
 
 
-# ============================================================
-# 首页推荐功能排序（基于用户核心痛点）
-# ============================================================
-
-_PAIN_POINT_FEATURES = {
-    "low_acquisition_cost": [
-        {"id": "product-pool", "label": "产品池", "desc": "精选优质货源", "priority": 1},
-        {"id": "promotion-center", "label": "推广中心", "desc": "赚取高额分润", "priority": 2},
-        {"id": "supply-demand", "label": "信任对接", "desc": "精准匹配可信商机", "priority": 3},
-        {"id": "contacts", "label": "人脉管理", "desc": "高效触达客户", "priority": 4},
-        {"id": "my-orders", "label": "我的订单", "desc": "订单物流追踪", "priority": 5},
-        {"id": "data", "label": "数据洞察", "desc": "生意增长分析", "priority": 6},
-    ],
-    "lack_trust": [
-        {"id": "supply-demand", "label": "信任对接", "desc": "精准匹配可信商机", "priority": 1},
-        {"id": "contacts", "label": "人脉管理", "desc": "高效触达客户", "priority": 2},
-        {"id": "product-pool", "label": "产品池", "desc": "精选优质货源", "priority": 3},
-        {"id": "promotion-center", "label": "推广中心", "desc": "赚取高额分润", "priority": 4},
-        {"id": "my-orders", "label": "我的订单", "desc": "订单物流追踪", "priority": 5},
-        {"id": "data", "label": "数据洞察", "desc": "生意增长分析", "priority": 6},
-    ],
-    "distribution_pain": [
-        {"id": "promotion-center", "label": "推广中心", "desc": "赚取高额分润", "priority": 1},
-        {"id": "product-pool", "label": "产品池", "desc": "精选优质货源", "priority": 2},
-        {"id": "my-orders", "label": "我的订单", "desc": "订单物流追踪", "priority": 3},
-        {"id": "contacts", "label": "人脉管理", "desc": "高效触达客户", "priority": 4},
-        {"id": "supply-demand", "label": "信任对接", "desc": "精准匹配可信商机", "priority": 5},
-        {"id": "data", "label": "数据洞察", "desc": "生意增长分析", "priority": 6},
-    ],
-}
-
-_DEFAULT_FEATURES = [
-    {"id": "product-pool", "label": "产品池", "desc": "精选优质货源", "priority": 1},
-    {"id": "promotion-center", "label": "推广中心", "desc": "赚取高额分润", "priority": 2},
-    {"id": "contacts", "label": "人脉管理", "desc": "高效触达客户", "priority": 3},
-    {"id": "my-orders", "label": "我的订单", "desc": "订单物流追踪", "priority": 4},
-    {"id": "supply-demand", "label": "信任对接", "desc": "精准匹配可信商机", "priority": 5},
-    {"id": "data", "label": "数据洞察", "desc": "生意增长分析", "priority": 6},
-]
+@router.get("/graph-summary")
+async def graph_summary(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取当前用户的关系图谱摘要"""
+    from app.ai.knowledge_graph import CachedKnowledgeGraphBuilder
+    builder = CachedKnowledgeGraphBuilder(db)
+    summary = await builder.get_graph_summary(current_user.id)
+    return summary
 
 
-@router.get(
-    "/features",
-    summary="首页功能推荐排序",
-    description="根据用户注册时选择的核心痛点，返回首页功能的推荐排序列表。未选择痛点的用户返回默认顺序。",
-)
-def recommend_features(
-    db: Session = Depends(get_db),
+@router.get("/graph")
+async def get_graph(
+    depth: int = Query(1, ge=1, le=3, description="关系深度"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取当前用户的完整关系图谱"""
+    from app.ai.knowledge_graph import CachedKnowledgeGraphBuilder
+    builder = CachedKnowledgeGraphBuilder(db)
+    kg = await builder.build_user_graph(current_user.id, max_depth=depth)
+    return kg.to_dict()
+
+
+# ======================================================================
+# 反馈闭环 API 端点
+# ======================================================================
+
+
+@router.post("/feedback", response_model=FeedbackSubmitResponse)
+async def submit_feedback(
+    data: FeedbackSubmitRequest,
     current_user: User = Depends(get_current_user),
 ):
-    """根据用户核心痛点返回首页功能入口的推荐排序"""
-    pain_point = current_user.onboarding_pain_point
+    """提交推荐反馈 (👍/👎/skip)
 
-    if pain_point and pain_point in _PAIN_POINT_FEATURES:
-        features = _PAIN_POINT_FEATURES[pain_point]
-    else:
-        features = _DEFAULT_FEATURES
+    用户对推荐结果进行评价:
+      - "like":   👍 点赞 (权重 +1)
+      - "dislike": 👎 不喜欢 (权重 -1)
+      - "skip":    跳过 (权重不变)
 
+    反馈数据会:
+      1. 持久化到 SQLite
+      2. 每收集 10 条自动触发权重调整
+      3. 影响后续推荐结果排序 (权重乘数范围 [0.6, 1.5])
+    """
+    svc = get_feedback_service()
+    try:
+        result = svc.record_feedback(
+            user_id=current_user.id,
+            content_id=data.content_id,
+            action=data.action,
+            source=data.source,
+            recommendation_id=data.recommendation_id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return FeedbackSubmitResponse(
+        recommendation_id=result.recommendation_id,
+        user_id=result.user_id,
+        content_id=result.content_id,
+        action=result.action,
+        weight_delta=result.weight_delta,
+        current_boost=result.current_boost,
+        message=result.message,
+    )
+
+
+@router.post("/{item_id}/feedback", response_model=FeedbackResponse)
+async def submit_feedback(
+    item_id: int,
+    data: FeedbackRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """提交推荐反馈
+
+    用户对推荐结果进行评价:
+      - ⭐ 1-5: 星级评分 (5=非常喜欢)
+      - 👍 rating=1: 点赞
+      - 👎 rating=-1: 不喜欢
+      - 0: 中性/跳过
+
+    反馈数据会:
+      1. 持久化到 SQLite
+      2. 每收集 10 条自动触发权重调整
+      3. 影响后续推荐结果排序
+    """
+    loop = get_feedback_loop()
+
+    try:
+        record = loop.record_feedback(
+            user_id=current_user.id,
+            item_id=item_id,
+            rating=data.rating,
+            source=data.source,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    boost = loop.get_feedback_boost(current_user.id, item_id)
+
+    # 映射 rating -> 反馈类型描述
+    type_map = {1: "点赞", -1: "踩", 0: "中性", 2: "2星", 3: "3星", 4: "4星", 5: "5星"}
+    fb_type = type_map.get(data.rating, f"{data.rating}分")
+
+    return FeedbackResponse(
+        id=record.id,
+        user_id=record.user_id,
+        item_id=record.item_id,
+        rating=record.rating,
+        feedback_type=record.feedback_type,
+        boost_factor=round(boost, 4),
+        message=f"推荐反馈已记录: {fb_type}, 权重提升系数={boost:.2f}",
+    )
+
+
+@router.get("/feedback/stats", response_model=FeedbackStatsResponse)
+async def feedback_stats(
+    current_user: User = Depends(get_current_user),
+):
+    """获取反馈闭环全局统计"""
+    loop = get_feedback_loop()
+    stats = loop.get_global_stats()
+    return FeedbackStatsResponse(**stats)
+
+
+@router.get("/feedback/my", response_model=list[FeedbackRecordResponse])
+async def my_feedback(
+    limit: int = Query(50, ge=1, le=200, description="返回条数"),
+    current_user: User = Depends(get_current_user),
+):
+    """获取当前用户的所有反馈记录"""
+    loop = get_feedback_loop()
+    records = loop.get_user_feedback(current_user.id, limit=limit)
+    return [
+        FeedbackRecordResponse(
+            id=r.id,
+            user_id=r.user_id,
+            item_id=r.item_id,
+            rating=r.rating,
+            source=r.source,
+            feedback_type=r.feedback_type,
+            created_at=r.created_at,
+            updated_at=r.updated_at,
+        )
+        for r in records
+    ]
+
+
+@router.post("/feedback/adjust")
+async def trigger_adjustment(
+    current_user: User = Depends(get_current_user),
+):
+    """手动触发权重调整（通常由系统自动触发）"""
+    loop = get_feedback_loop()
+    updated = loop.trigger_adjustment()
     return {
-        "code": 200,
-        "message": "success",
-        "data": {
-            "features": features,
-            "pain_point": pain_point,
-        },
+        "message": f"权重调整完成，更新 {updated} 条记录",
+        "updated_count": updated,
     }
+
+
+@router.get("/feedback/user/{target_user_id}", response_model=FeedbackStatsResponse)
+async def user_feedback_stats(
+    target_user_id: int,
+    current_user: User = Depends(get_current_user),
+):
+    """获取当前用户对某个推荐目标的反馈统计"""
+    loop = get_feedback_loop()
+    stats = loop.get_user_item_stats(current_user.id, target_user_id)
+    return FeedbackStatsResponse(
+        total_feedback=stats.total_feedback,
+        positive_feedback=stats.positive_count,
+        negative_feedback=stats.negative_count,
+        unique_users=1,
+        weight_cache_entries=1,
+        adjust_threshold=loop.ADJUST_THRESHOLD,
+    )

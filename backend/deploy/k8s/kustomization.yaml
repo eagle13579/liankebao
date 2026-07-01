@@ -1,0 +1,49 @@
+# =============================================================================
+# 链客宝 Backend — Kustomize 配置
+# =============================================================================
+# 使用:
+#   kubectl apply -k deploy/k8s/
+#
+# 先创建 TLS Secret:
+#   kubectl create secret tls chainke-tls-secret \
+#     --namespace chainke-prod \
+#     --cert=path/to/tls.crt \
+#     --key=path/to/tls.key
+#
+# 再创建应用 Secret:
+#   kubectl create secret generic chainke-secret \
+#     --namespace chainke-prod \
+#     --from-literal=JWT_SECRET='***' \
+#     --from-literal=DATABASE_URL='postgresql+asyncpg://chainke:***@chainke-postgres:5432/chainke' \
+#     --from-literal=REDIS_PASSWORD='***' \
+#     --from-literal=DEEPSEEK_API_KEY='***'
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: chainke-prod
+
+resources:
+  - 01-namespace.yaml
+  - 02-configmap.yaml
+  - 04-deployment.yaml
+  - 05-service.yaml
+  - 06-ingress.yaml
+  - 07-hpa.yaml
+  - 08-pdb.yaml
+  - 09-agent-deployment.yaml
+  - 10-agent-service.yaml
+
+# Secret 通过 kubectl create secret generic 外部管理
+# 03-secret.yaml 是文档模板，不直接 apply
+
+commonLabels:
+  app.kubernetes.io/managed-by: kustomize
+  app.kubernetes.io/part-of: chainke
+
+# 镜像标签 — 可被 CI/CD 覆盖
+images:
+  - name: liankebao/chainke-backend
+    newTag: latest
+  - name: liankebao/chainke-agent
+    newTag: latest

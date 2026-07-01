@@ -1,0 +1,172 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chainke-backend
+  namespace: chainke-prod
+  labels:
+    app: chainke-backend
+    tier: backend
+    app.kubernetes.io/name: chainke
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: chainke-backend
+    app.kubernetes.io/version: "1.0.0"
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: chainke-backend
+      tier: backend
+  template:
+    metadata:
+      labels:
+        app: chainke-backend
+        tier: backend
+        app.kubernetes.io/name: chainke
+        app.kubernetes.io/component: api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8201"
+        prometheus.io/path: "/metrics"
+        rollme: "{{ randAlphaNum 5 | quote }}"
+    spec:
+      # ── Pod 安全 ──
+      securityContext:
+        fsGroup: 1001
+        runAsUser: 1001
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      # ── 亲和性 ──
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - chainke-backend
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: backend
+          image: liankebao/chainke-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8201
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: chainke-config
+            - secretRef:
+                name: chainke-secret
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: chainke-secret
+                  key: DATABASE_URL
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: chainke-secret
+                  key: REDIS_PASSWORD
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
+          # ── 存活性探针 ──
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # ── 就绪性探针 ──
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+          # ── 启动探针 ──
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 30
+          # ── 生命周期 ──
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - "sleep 10 && kill -TERM 1"
+          # ── 持久化 ──
+          volumeMounts:
+            - name: backend-data
+              mountPath: /app/data
+            - name: backend-logs
+              mountPath: /app/logs
+            - name: backend-uploads
+              mountPath: /app/uploads
+      volumes:
+        - name: backend-data
+          persistentVolumeClaim:
+            claimName: chainke-backend-data-pvc
+        - name: backend-logs
+          emptyDir: {}
+        - name: backend-uploads
+          persistentVolumeClaim:
+            claimName: chainke-backend-uploads-pvc
+      # ── 优雅终止 ──
+      terminationGracePeriodSeconds: 60
+---
+# ── PV Claims ──
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: chainke-backend-data-pvc
+  namespace: chainke-prod
+  labels:
+    app: chainke-backend
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: chainke-backend-uploads-pvc
+  namespace: chainke-prod
+  labels:
+    app: chainke-backend
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: standard

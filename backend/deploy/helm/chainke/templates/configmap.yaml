@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "chainke.fullname" . }}-config
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "chainke.labels" . | nindent 4 }}
+    app.kubernetes.io/component: config
+data:
+  APP_NAME: {{ .Values.config.appName | quote }}
+  APP_ENV: {{ .Values.config.appEnv | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  LOG_JSON: {{ .Values.config.logJson | quote }}
+  PORT: {{ .Values.config.port | quote }}
+  AGENT_PORT: {{ .Values.config.agentPort | quote }}
+  CORS_ORIGINS: {{ .Values.config.corsOrigins | quote }}
+  DATABASE_POOL_SIZE: {{ .Values.config.databasePoolSize | quote }}
+  DATABASE_MAX_OVERFLOW: {{ .Values.config.databaseMaxOverflow | quote }}
+  DATABASE_POOL_RECYCLE: {{ .Values.config.databasePoolRecycle | quote }}
+  REDIS_HOST: {{ .Values.config.redisHost | quote }}
+  REDIS_PORT: {{ .Values.config.redisPort | quote }}
+  REDIS_DB: {{ .Values.config.redisDb | quote }}
+  REDIS_MAX_CONNECTIONS: {{ .Values.config.redisMaxConnections | quote }}
+  DEEPSEEK_API_URL: {{ .Values.config.deepseekApiUrl | quote }}
+  ALGORITHM: {{ .Values.config.algorithm | quote }}
+  ACCESS_TOKEN_EXPIRE_MINUTES: {{ .Values.config.accessTokenExpireMinutes | quote }}
+  SENTRY_ENVIRONMENT: {{ .Values.config.sentryEnvironment | quote }}
+  SENTRY_TRACES_SAMPLE_RATE: {{ .Values.config.sentryTracesSampleRate | quote }}
+  VIDEO_MAX_SIZE: {{ .Values.config.videoMaxSize | quote }}
+  UPLOAD_DIR: "/app/uploads"
+  VIDEO_UPLOAD_DIR: "/app/uploads/videos"

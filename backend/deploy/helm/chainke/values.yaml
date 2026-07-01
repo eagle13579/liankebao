@@ -1,0 +1,327 @@
+# =============================================================================
+# 链客宝 Backend — Helm values.yaml
+# =============================================================================
+# 所有可配置项集中在此文件
+# 覆盖方式: helm install -f custom-values.yaml chainke-backend ./deploy/helm/chainke
+# =============================================================================
+
+# ── 全局配置 ──────────────────────────────────────────────────────────────────
+global:
+  environment: production
+  imagePullSecrets: []
+  imageRegistry: ""
+
+# ── 镜像 ──────────────────────────────────────────────────────────────────────
+image:
+  repository: liankebao/chainke-backend
+  tag: latest
+  pullPolicy: IfNotPresent
+
+agentImage:
+  repository: liankebao/chainke-agent
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# ── 镜像拉取密钥 ────────────────────────────────────────────────────────────
+imagePullSecrets: []
+
+# ── 名称覆盖 ────────────────────────────────────────────────────────────────
+nameOverride: ""
+fullnameOverride: ""
+
+# ── ServiceAccount ──────────────────────────────────────────────────────────
+serviceAccount:
+  create: false
+  name: ""
+  annotations: {}
+
+# ── RBAC ──────────────────────────────────────────────────────────────────────
+rbac:
+  create: false
+
+# ── 命名空间 ────────────────────────────────────────────────────────────────
+namespace: chainke-prod
+
+# ── 应用配置 (ConfigMap) ──────────────────────────────────────────────────────
+config:
+  appName: "AI数智名片"
+  appEnv: "production"
+  logLevel: "INFO"
+  logJson: true
+  port: 8201
+  agentPort: 8202
+  corsOrigins: "https://liankebao.top,https://api.liankebao.top"
+  databasePoolSize: 10
+  databaseMaxOverflow: 20
+  databasePoolRecycle: 1800
+  redisHost: "chainke-redis"
+  redisPort: 6379
+  redisDb: 0
+  redisMaxConnections: 20
+  deepseekApiUrl: "https://api.deepseek.com/v1/chat/completions"
+  algorithm: "HS256"
+  accessTokenExpireMinutes: 10080
+  sentryEnvironment: "production"
+  sentryTracesSampleRate: 0.1
+  videoMaxSize: 104857600
+
+# ── 密钥 (外部管理，这里只定义引用) ───────────────────────────────────────────
+# secrets 通过外部方式注入 (External Secrets / Vault / kubectl create secret)
+existingSecret: "chainke-secret"
+
+# ── 后端 Deployment ─────────────────────────────────────────────────────────
+backend:
+  replicaCount: 3
+  strategy:
+    type: RollingUpdate
+    maxSurge: 1
+    maxUnavailable: 0
+  minReadySeconds: 10
+  revisionHistoryLimit: 5
+  terminationGracePeriodSeconds: 60
+
+  # 容器端口
+  containerPort: 8201
+  metricsPort: 9090
+
+  # 资源 (requests/limits)
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "512Mi"
+    limits:
+      cpu: "2000m"
+      memory: "2Gi"
+
+  # 探针
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 15
+    periodSeconds: 10
+    timeoutSeconds: 3
+    successThreshold: 1
+    failureThreshold: 3
+
+  startupProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    failureThreshold: 30
+
+  # 节点选择
+  nodeSelector: {}
+
+  # 容忍
+  tolerations: []
+
+  # 亲和性
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - api
+            topologyKey: kubernetes.io/hostname
+
+  # Pod 安全上下文
+  podSecurityContext:
+    fsGroup: 1001
+    runAsUser: 1001
+    runAsNonRoot: true
+
+  # 容器安全上下文
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false
+    capabilities:
+      drop:
+        - ALL
+
+  # 持久化
+  persistence:
+    enabled: true
+    data:
+      size: 10Gi
+      storageClass: standard
+      accessMode: ReadWriteOnce
+    uploads:
+      size: 50Gi
+      storageClass: standard
+      accessMode: ReadWriteOnce
+    logs:
+      size: 2Gi
+      storageClass: standard
+      accessMode: ReadWriteOnce
+
+# ── Agent Runtime Deployment ──────────────────────────────────────────────────
+agent:
+  enabled: true
+  replicaCount: 1
+  strategy:
+    type: RollingUpdate
+    maxSurge: 0
+    maxUnavailable: 1
+  terminationGracePeriodSeconds: 120
+
+  containerPort: 8202
+
+  resources:
+    requests:
+      cpu: "1000m"
+      memory: "1Gi"
+    limits:
+      cpu: "4000m"
+      memory: "4Gi"
+
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: agent-http
+    initialDelaySeconds: 30
+    periodSeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: agent-http
+    initialDelaySeconds: 15
+    periodSeconds: 10
+    timeoutSeconds: 3
+
+  persistence:
+    enabled: true
+    data:
+      size: 20Gi
+      storageClass: standard
+      accessMode: ReadWriteOnce
+
+  nodeSelector: {}
+  tolerations: []
+  affinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          preference:
+            matchExpressions:
+              - key: node-type
+                operator: In
+                values:
+                  - compute
+
+# ── 服务 ──────────────────────────────────────────────────────────────────────
+service:
+  type: ClusterIP
+  backendPort: 80
+  agentPort: 8202
+  annotations: {}
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: api.liankebao.top
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: chainke-tls-secret
+      hosts:
+        - api.liankebao.top
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://liankebao.top"
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-rpm: "2000"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-buffering: "on"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: DENY";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-XSS-Protection: 0";
+      more_set_headers "Referrer-Policy: strict-origin-when-cross-origin";
+      more_set_headers "Strict-Transport-Security: max-age=63072000; includeSubDomains; preload";
+
+# ── HPA ──────────────────────────────────────────────────────────────────────
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+        - type: Pods
+          value: 4
+          periodSeconds: 15
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 120
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 30
+
+# ── PDB ──────────────────────────────────────────────────────────────────────
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# ── 监控 ──────────────────────────────────────────────────────────────────────
+monitoring:
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8201"
+    prometheus.io/path: "/metrics"
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    scrapeTimeout: 10s
+    namespace: monitoring
+
+# ── 额外环境变量 ──────────────────────────────────────────────────────────────
+extraEnv: []
+#  - name: FOO
+#    value: "bar"
+
+extraEnvFrom: []
+#  - secretRef:
+#      name: my-secret
+
+# ── Pod 额外标签和注解 ──────────────────────────────────────────────────────────
+podLabels: {}
+podAnnotations: {}
+
+# ── 额外 Volume 和 VolumeMount ──────────────────────────────────────────────
+extraVolumes: []
+extraVolumeMounts: []

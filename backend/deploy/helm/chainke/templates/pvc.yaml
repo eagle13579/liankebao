@@ -1,0 +1,35 @@
+{{- range $name, $claim := dict "backend-data" .Values.backend.persistence.data "backend-uploads" .Values.backend.persistence.uploads }}
+{{- if $.Values.backend.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "chainke.fullname" $ }}-{{ $name }}
+  namespace: {{ $.Values.namespace }}
+  labels:
+    {{- include "chainke.labels" $ | nindent 4 }}
+spec:
+  accessModes:
+    - {{ $claim.accessMode }}
+  resources:
+    requests:
+      storage: {{ $claim.size }}
+  storageClassName: {{ $claim.storageClass }}
+---
+{{- end }}
+{{- end }}
+{{- if and .Values.agent.enabled .Values.agent.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "chainke.fullname" . }}-agent-data
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "chainke.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.agent.persistence.data.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.agent.persistence.data.size }}
+  storageClassName: {{ .Values.agent.persistence.data.storageClass }}
+{{- end }}

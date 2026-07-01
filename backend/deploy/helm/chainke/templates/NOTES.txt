@@ -1,0 +1,60 @@
+Thank you for installing {{ .Chart.Name }} v{{ .Chart.Version }}.
+
+**链客宝 Backend** has been deployed to namespace **{{ .Values.namespace }}**.
+
+## Access
+
+API URL: https://{{ (index .Values.ingress.hosts 0).host }}
+Health:   https://{{ (index .Values.ingress.hosts 0).host }}/health
+
+## Secrets Required
+
+Before the app can run, create the required secret:
+
+{{- if .Values.existingSecret }}
+```bash
+kubectl create secret generic {{ .Values.existingSecret }} \
+  --namespace {{ .Values.namespace }} \
+  --from-literal=JWT_SECRET='$(python3 -c "import secrets; print(secrets.token_hex(32))")' \
+  --from-literal=DATABASE_URL='postgresql+asyncpg://chainke:<password>@<host>:5432/chainke' \
+  --from-literal=REDIS_PASSWORD='<redis-password>' \
+  --from-literal=DEEPSEEK_API_KEY='<your-key>'
+```
+{{- end }}
+
+## TLS
+
+Ensure TLS secret exists:
+```bash
+kubectl create secret tls {{ (index .Values.ingress.tls 0).secretName }} \
+  --namespace {{ .Values.namespace }} \
+  --cert=./tls.crt \
+  --key=./tls.key
+```
+
+## Quick Commands
+
+```bash
+# Check pods
+kubectl get pods -n {{ .Values.namespace }}
+
+# Check logs
+kubectl logs -n {{ .Values.namespace }} -l app.kubernetes.io/component=api
+
+# Scale
+kubectl scale deployment -n {{ .Values.namespace }} {{ include "chainke.fullname" . }}-backend --replicas=5
+
+# Port-forward
+kubectl port-forward -n {{ .Values.namespace }} svc/{{ include "chainke.fullname" . }}-backend 8201:80
+```
+
+## Configuration
+
+Override values with `--set` or `-f custom-values.yaml`:
+```bash
+helm upgrade {{ .Release.Name }} . \
+  --namespace {{ .Values.namespace }} \
+  -f custom-values.yaml
+```
+
+For full documentation, see: https://liankebao.top/docs

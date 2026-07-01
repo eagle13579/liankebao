@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "chainke.fullname" . }}-backend
+  namespace: {{ .Values.monitoring.serviceMonitor.namespace }}
+  labels:
+    {{- include "chainke.labels" . | nindent 4 }}
+    {{- include "chainke.backendSelectorLabels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "chainke.backendSelectorLabels" . | nindent 6 }}
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: {{ .Values.monitoring.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.monitoring.serviceMonitor.scrapeTimeout }}
+  namespaceSelector:
+    matchNames:
+      - {{ .Values.namespace }}

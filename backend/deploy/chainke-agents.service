@@ -1,0 +1,62 @@
+[Unit]
+Description=链客宝 AI Agent Runtime — 24/7 AI Employee Orchestrator
+Documentation=https://github.com/liankebao/backend/wiki/agent-runtime
+After=network.target redis.service
+Wants=redis.service
+
+[Service]
+Type=simple
+User=chainke
+Group=chainke
+
+# ── Working directory ────────────────────────────────────────────
+WorkingDirectory=/opt/chainke/backend
+
+# ── Environment ──────────────────────────────────────────────────
+Environment=INFRA_PHASE=1
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/opt/chainke/backend
+Environment=LOG_LEVEL=INFO
+
+# ── Redis (override defaults via env or .env file) ───────────────
+# Environment=REDIS_HOST=localhost
+# Environment=REDIS_PORT=6379
+# Environment=REDIS_PASSWORD=
+# Environment=REDIS_DB=0
+
+# ── Database ─────────────────────────────────────────────────────
+# Environment=DATABASE_URL=sqlite+aiosqlite:///./data/digital_brochure.db
+
+# ── Exec start ───────────────────────────────────────────────────
+ExecStart=/opt/chainke/backend/.venv/bin/python scripts/start_agents.py
+
+# ── Restart behaviour ────────────────────────────────────────────
+Restart=always
+RestartSec=10
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# ── Resource limits ──────────────────────────────────────────────
+LimitNOFILE=65536
+LimitNPROC=4096
+MemoryMax=2G
+CPUQuota=80%
+
+# ── Security hardening ───────────────────────────────────────────
+NoNewPrivileges=true
+ProtectHome=tmpfs
+ProtectSystem=strict
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ReadWritePaths=/opt/chainke/backend/data
+
+# ── Logging ──────────────────────────────────────────────────────
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=chainke-agents
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,130 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chainke-agent
+  namespace: chainke-prod
+  labels:
+    app: chainke-agent
+    tier: agent
+    app.kubernetes.io/name: chainke
+    app.kubernetes.io/component: agent-runtime
+    app.kubernetes.io/part-of: chainke-backend
+    app.kubernetes.io/version: "1.0.0"
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: chainke-agent
+      tier: agent
+  template:
+    metadata:
+      labels:
+        app: chainke-agent
+        tier: agent
+        app.kubernetes.io/name: chainke
+        app.kubernetes.io/component: agent-runtime
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8202"
+        prometheus.io/path: "/metrics"
+    spec:
+      # ── Pod 安全 ──
+      securityContext:
+        fsGroup: 1001
+        runAsUser: 1001
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      # ── 节点亲和性（Agent 需要较多资源） ──
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: node-type
+                    operator: In
+                    values:
+                      - compute
+      containers:
+        - name: agent
+          image: liankebao/chainke-agent:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: agent-http
+              containerPort: 8202
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: chainke-config
+            - secretRef:
+                name: chainke-secret
+          env:
+            - name: AGENT_MODE
+              value: "true"
+            - name: PORT
+              value: "8202"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: chainke-secret
+                  key: DATABASE_URL
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: chainke-secret
+                  key: REDIS_PASSWORD
+          resources:
+            requests:
+              cpu: "1000m"
+              memory: "1Gi"
+            limits:
+              cpu: "4000m"
+              memory: "4Gi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: agent-http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: agent-http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: agent-data
+              mountPath: /app/data
+            - name: agent-logs
+              mountPath: /app/logs
+      volumes:
+        - name: agent-data
+          persistentVolumeClaim:
+            claimName: chainke-agent-data-pvc
+        - name: agent-logs
+          emptyDir: {}
+      terminationGracePeriodSeconds: 120
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: chainke-agent-data-pvc
+  namespace: chainke-prod
+  labels:
+    app: chainke-agent
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: standard

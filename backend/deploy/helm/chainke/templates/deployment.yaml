@@ -1,0 +1,145 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "chainke.fullname" . }}-backend
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "chainke.labels" . | nindent 4 }}
+    {{- include "chainke.backendSelectorLabels" . | nindent 4 }}
+    app.kubernetes.io/version: {{ .Values.image.tag | quote }}
+spec:
+  replicas: {{ .Values.backend.replicaCount }}
+  strategy:
+    type: {{ .Values.backend.strategy.type }}
+    rollingUpdate:
+      maxSurge: {{ .Values.backend.strategy.maxSurge }}
+      maxUnavailable: {{ .Values.backend.strategy.maxUnavailable }}
+  minReadySeconds: {{ .Values.backend.minReadySeconds }}
+  revisionHistoryLimit: {{ .Values.backend.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      {{- include "chainke.backendSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "chainke.labels" . | nindent 8 }}
+        {{- include "chainke.backendSelectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        {{- with .Values.monitoring.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "chainke.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "chainke.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.backend.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: {{ .Values.backend.terminationGracePeriodSeconds }}
+      {{- with .Values.backend.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.backend.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.backend.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}-backend
+          image: "{{ .Values.global.imageRegistry }}{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.backend.containerPort }}
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "chainke.fullname" . }}-config
+            {{- if .Values.existingSecret }}
+            - secretRef:
+                name: {{ .Values.existingSecret }}
+            {{- end }}
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret }}
+                  key: DATABASE_URL
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret }}
+                  key: REDIS_PASSWORD
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.extraEnvFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.backend.containerSecurityContext | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.backend.livenessProbe.httpGet.path }}
+              port: {{ .Values.backend.livenessProbe.httpGet.port }}
+            initialDelaySeconds: {{ .Values.backend.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.backend.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.backend.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.backend.livenessProbe.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.backend.readinessProbe.httpGet.path }}
+              port: {{ .Values.backend.readinessProbe.httpGet.port }}
+            initialDelaySeconds: {{ .Values.backend.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.backend.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.backend.readinessProbe.timeoutSeconds }}
+            successThreshold: {{ .Values.backend.readinessProbe.successThreshold }}
+            failureThreshold: {{ .Values.backend.readinessProbe.failureThreshold }}
+          startupProbe:
+            httpGet:
+              path: {{ .Values.backend.startupProbe.httpGet.path }}
+              port: {{ .Values.backend.startupProbe.httpGet.port }}
+            initialDelaySeconds: {{ .Values.backend.startupProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.backend.startupProbe.periodSeconds }}
+            failureThreshold: {{ .Values.backend.startupProbe.failureThreshold }}
+          volumeMounts:
+            - name: backend-data
+              mountPath: /app/data
+            - name: backend-logs
+              mountPath: /app/logs
+            - name: backend-uploads
+              mountPath: /app/uploads
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        - name: backend-data
+          {{- if .Values.backend.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "chainke.fullname" . }}-backend-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: backend-logs
+          emptyDir: {}
+        - name: backend-uploads
+          {{- if .Values.backend.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "chainke.fullname" . }}-backend-uploads
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}

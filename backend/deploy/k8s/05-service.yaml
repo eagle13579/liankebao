@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: chainke-backend-service
+  namespace: chainke-prod
+  labels:
+    app: chainke-backend
+    app.kubernetes.io/name: chainke
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: chainke-backend
+spec:
+  type: ClusterIP
+  selector:
+    app: chainke-backend
+    tier: backend
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8201
+    - name: metrics
+      protocol: TCP
+      port: 9090
+      targetPort: 8201

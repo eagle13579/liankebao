@@ -1,25 +1,211 @@
-version: "3.9"
+# =============================================================================
+# 链客宝 — Docker Compose 生产编排 (Backend + PostgreSQL + Redis + Agent Runtime)
+# =============================================================================
+# 使用方式:
+#   docker compose -f deploy/docker-compose.yml up -d
+#   docker compose -f deploy/docker-compose.yml logs -f
+# =============================================================================
 
 services:
-  postgres:
-    image: postgres:15
-    container_name: chainke-postgres
-    restart: unless-stopped
+
+  # ── Backend (FastAPI) ───────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: runtime
+    image: chainke-backend:${APP_VERSION:-latest}
+    container_name: chainke-backend
     ports:
-      - "5432:5432"
+      - "127.0.0.1:8201:8201"
+    env_file:
+      - ../.env.production
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://chainke:${POSTGRES_PASSWORD:-chainke_secret}@postgres:5432/chainke
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - APP_ENV=production
+      - APP_VERSION=${APP_VERSION:-1.0.0}
+      - PORT=8201
+      # ── Sentry 错误追踪 ──
+      - SENTRY_DSN=${SENTRY_DSN:-}
+      - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}
+      - SENTRY_TRACES_SAMPLE_RATE=${SENTRY_TRACES_SAMPLE_RATE:-0.1}
+      # ── 日志 ──
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_JSON=${LOG_JSON:-1}
+      - LOG_DIR=/app/logs
+      # ── 连接池 ──
+      - DATABASE_POOL_SIZE=${DATABASE_POOL_SIZE:-10}
+      - DATABASE_MAX_OVERFLOW=${DATABASE_MAX_OVERFLOW:-20}
+      - DATABASE_POOL_RECYCLE=${DATABASE_POOL_RECYCLE:-1800}
+      - DATABASE_ECHO=${DATABASE_ECHO:-false}
+    volumes:
+      - backend-data:/app/data
+      - backend-logs:/app/logs
+      - backend-uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - chainke-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; exit(0 if urllib.request.urlopen('http://127.0.0.1:8201/health').status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # ── Agent Runtime ─────────────────────────────────────────────────────────
+  agent-runtime:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: runtime
+    image: chainke-agent-runtime:${APP_VERSION:-latest}
+    container_name: chainke-agent-runtime
+    ports:
+      - "127.0.0.1:8202:8202"
+    env_file:
+      - ../.env.production
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://chainke:${POSTGRES_PASSWORD:-chainke_secret}@postgres:5432/chainke
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - APP_ENV=production
+      - AGENT_MODE=true
+      - PORT=8202
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_JSON=${LOG_JSON:-1}
+    volumes:
+      - backend-data:/app/data
+      - backend-logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - chainke-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: chainke-postgres
+    ports:
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: chainke
-      POSTGRES_PASSWORD: 链客宝2024
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chainke_secret}
       POSTGRES_DB: chainke
-      TZ: Asia/Shanghai
+      PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pg-data:/var/lib/postgresql/data
+      - ../scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    restart: unless-stopped
+    networks:
+      - chainke-net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U chainke -d chainke"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
 
+  # ── Redis (缓存/会话/消息队列) ────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: chainke-redis
+    ports:
+      - "127.0.0.1:6379:6379"
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - chainke-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+# =============================================================================
+# Volumes
+# =============================================================================
 volumes:
-  pgdata:
-    name: chainke_pgdata
+  pg-data:
+    driver: local
+  redis-data:
+    driver: local
+  backend-data:
+    driver: local
+  backend-logs:
+    driver: local
+  backend-uploads:
+    driver: local
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  chainke-net:
+    driver: bridge

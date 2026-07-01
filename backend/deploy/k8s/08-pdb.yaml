@@ -1,0 +1,16 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: chainke-backend-pdb
+  namespace: chainke-prod
+  labels:
+    app: chainke-backend
+    app.kubernetes.io/name: chainke
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: chainke-backend
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: chainke-backend
+      tier: backend

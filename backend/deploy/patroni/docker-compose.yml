@@ -1,0 +1,234 @@
+# =============================================================================
+# 链客宝 — Patroni HA PostgreSQL Cluster (3 节点)
+# =============================================================================
+# 基于 etcd 集群实现高可用，Patroni 自动管理主从切换
+# =============================================================================
+# 使用方式:
+#   docker compose -f deploy/patroni/docker-compose.yml up -d
+#   docker compose -f deploy/patroni/docker-compose.yml logs -f
+#
+# 连接:
+#   psql -h 127.0.0.1 -p 5000 -U chainke -d chainke  # 通过 HAProxy (读写)
+#   psql -h 127.0.0.1 -p 5001 -U chainke -d chainke  # 通过 HAProxy (只读)
+# =============================================================================
+
+services:
+  # ── etcd (分布式共识存储) ───────────────────────────────────────────────────
+  etcd1:
+    image: bitnami/etcd:3.5
+    container_name: chainke-etcd1
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+      - ETCD_NAME=etcd1
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://etcd1:2380
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd1:2379
+      - ETCD_INITIAL_CLUSTER_TOKEN=chainke-etcd-cluster
+      - ETCD_INITIAL_CLUSTER=etcd1=http://etcd1:2380,etcd2=http://etcd2:2380,etcd3=http://etcd3:2380
+      - ETCD_INITIAL_CLUSTER_STATE=new
+    volumes:
+      - etcd1-data:/bitnami/etcd
+    networks:
+      - patroni-net
+    restart: unless-stopped
+
+  etcd2:
+    image: bitnami/etcd:3.5
+    container_name: chainke-etcd2
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+      - ETCD_NAME=etcd2
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://etcd2:2380
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd2:2379
+      - ETCD_INITIAL_CLUSTER_TOKEN=chainke-etcd-cluster
+      - ETCD_INITIAL_CLUSTER=etcd1=http://etcd1:2380,etcd2=http://etcd2:2380,etcd3=http://etcd3:2380
+      - ETCD_INITIAL_CLUSTER_STATE=new
+    volumes:
+      - etcd2-data:/bitnami/etcd
+    networks:
+      - patroni-net
+    restart: unless-stopped
+
+  etcd3:
+    image: bitnami/etcd:3.5
+    container_name: chainke-etcd3
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+      - ETCD_NAME=etcd3
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://etcd3:2380
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd3:2379
+      - ETCD_INITIAL_CLUSTER_TOKEN=chainke-etcd-cluster
+      - ETCD_INITIAL_CLUSTER=etcd1=http://etcd1:2380,etcd2=http://etcd2:2380,etcd3=http://etcd3:2380
+      - ETCD_INITIAL_CLUSTER_STATE=new
+    volumes:
+      - etcd3-data:/bitnami/etcd
+    networks:
+      - patroni-net
+    restart: unless-stopped
+
+  # ── Patroni Node 1 ─────────────────────────────────────────────────────────
+  patroni1:
+    image: ghcr.io/zalando/patroni:3.2-pg16
+    container_name: chainke-patroni1
+    environment:
+      - ETCD_HOST=etcd1:2379,etcd2:2379,etcd3:2379
+      - PATRONI_ETCD3_HOSTS=etcd1:2379,etcd2:2379,etcd3:2379
+      - PATRONI_SCOPE=chainke
+      - PATRONI_NAME=patroni1
+      - PATRONI_RESTAPI_CONNECT_ADDRESS=patroni1:8008
+      - PATRONI_RESTAPI_LISTEN=0.0.0.0:8008
+      - PATRONI_POSTGRESQL_CONNECT_ADDRESS=patroni1:5432
+      - PATRONI_POSTGRESQL_LISTEN=0.0.0.0:5432
+      - PATRONI_POSTGRESQL_DATA_DIR=/data/postgresql
+      - PATRONI_POSTGRESQL_PGPASS=/tmp/pgpass
+      - PATRONI_REPLICATION_USERNAME=replicator
+      - PATRONI_REPLICATION_PASSWORD=${REPLICATION_PASSWORD:-repl_secret}
+      - PATRONI_SUPERUSER_USERNAME=postgres
+      - PATRONI_SUPERUSER_PASSWORD=${POSTGRES_SUPER_PASSWORD:-postgres_secret}
+      - PATRONI_admin_USERNAME=chainke
+      - PATRONI_admin_PASSWORD=${POSTGRES_PASSWORD:-chainke_secret}
+      - PATRONI_admin_OPTIONS=createdb,createrole
+      # 数据库初始化
+      - PATRONI_POSTGRESQL_PARAMETERS=shared_buffers=256MB,wal_level=replica,hot_standby=on,max_wal_senders=5,max_replication_slots=5
+    volumes:
+      - patroni1-data:/data
+    networks:
+      - patroni-net
+    restart: unless-stopped
+    depends_on:
+      - etcd1
+      - etcd2
+      - etcd3
+
+  # ── Patroni Node 2 ─────────────────────────────────────────────────────────
+  patroni2:
+    image: ghcr.io/zalando/patroni:3.2-pg16
+    container_name: chainke-patroni2
+    environment:
+      - ETCD_HOST=etcd1:2379,etcd2:2379,etcd3:2379
+      - PATRONI_ETCD3_HOSTS=etcd1:2379,etcd2:2379,etcd3:2379
+      - PATRONI_SCOPE=chainke
+      - PATRONI_NAME=patroni2
+      - PATRONI_RESTAPI_CONNECT_ADDRESS=patroni2:8008
+      - PATRONI_RESTAPI_LISTEN=0.0.0.0:8008
+      - PATRONI_POSTGRESQL_CONNECT_ADDRESS=patroni2:5432
+      - PATRONI_POSTGRESQL_LISTEN=0.0.0.0:5432
+      - PATRONI_POSTGRESQL_DATA_DIR=/data/postgresql
+      - PATRONI_POSTGRESQL_PGPASS=/tmp/pgpass
+      - PATRONI_REPLICATION_USERNAME=replicator
+      - PATRONI_REPLICATION_PASSWORD=${REPLICATION_PASSWORD:-repl_secret}
+      - PATRONI_SUPERUSER_USERNAME=postgres
+      - PATRONI_SUPERUSER_PASSWORD=${POSTGRES_SUPER_PASSWORD:-postgres_secret}
+      - PATRONI_admin_USERNAME=chainke
+      - PATRONI_admin_PASSWORD=${POSTGRES_PASSWORD:-chainke_secret}
+      - PATRONI_admin_OPTIONS=createdb,createrole
+      - PATRONI_POSTGRESQL_PARAMETERS=shared_buffers=256MB,wal_level=replica,hot_standby=on,max_wal_senders=5,max_replication_slots=5
+    volumes:
+      - patroni2-data:/data
+    networks:
+      - patroni-net
+    restart: unless-stopped
+    depends_on:
+      - etcd1
+      - etcd2
+      - etcd3
+
+  # ── Patroni Node 3 ─────────────────────────────────────────────────────────
+  patroni3:
+    image: ghcr.io/zalando/patroni:3.2-pg16
+    container_name: chainke-patroni3
+    environment:
+      - ETCD_HOST=etcd1:2379,etcd2:2379,etcd3:2379
+      - PATRONI_ETCD3_HOSTS=etcd1:2379,etcd2:2379,etcd3:2379
+      - PATRONI_SCOPE=chainke
+      - PATRONI_NAME=patroni3
+      - PATRONI_RESTAPI_CONNECT_ADDRESS=patroni3:8008
+      - PATRONI_RESTAPI_LISTEN=0.0.0.0:8008
+      - PATRONI_POSTGRESQL_CONNECT_ADDRESS=patroni3:5432
+      - PATRONI_POSTGRESQL_LISTEN=0.0.0.0:5432
+      - PATRONI_POSTGRESQL_DATA_DIR=/data/postgresql
+      - PATRONI_POSTGRESQL_PGPASS=/tmp/pgpass
+      - PATRONI_REPLICATION_USERNAME=replicator
+      - PATRONI_REPLICATION_PASSWORD=${REPLICATION_PASSWORD:-repl_secret}
+      - PATRONI_SUPERUSER_USERNAME=postgres
+      - PATRONI_SUPERUSER_PASSWORD=${POSTGRES_SUPER_PASSWORD:-postgres_secret}
+      - PATRONI_admin_USERNAME=chainke
+      - PATRONI_admin_PASSWORD=${POSTGRES_PASSWORD:-chainke_secret}
+      - PATRONI_admin_OPTIONS=createdb,createrole
+      - PATRONI_POSTGRESQL_PARAMETERS=shared_buffers=256MB,wal_level=replica,hot_standby=on,max_wal_senders=5,max_replication_slots=5
+    volumes:
+      - patroni3-data:/data
+    networks:
+      - patroni-net
+    restart: unless-stopped
+    depends_on:
+      - etcd1
+      - etcd2
+      - etcd3
+
+  # ── HAProxy (读写分离) ─────────────────────────────────────────────────────
+  haproxy:
+    image: haproxy:2.8-alpine
+    container_name: chainke-haproxy
+    ports:
+      - "127.0.0.1:5000:5000"  # 读写端口
+      - "127.0.0.1:5001:5001"  # 只读端口
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    networks:
+      - patroni-net
+    restart: unless-stopped
+    depends_on:
+      - patroni1
+      - patroni2
+      - patroni3
+
+  # ── PgBouncer (连接池) ────────────────────────────────────────────────────
+  pgbouncer:
+    image: bitnami/pgbouncer:1.22
+    container_name: chainke-pgbouncer
+    ports:
+      - "127.0.0.1:6432:6432"  # PgBouncer 端口
+    environment:
+      - POSTGRESQL_HOST=haproxy
+      - POSTGRESQL_PORT=5000
+      - POSTGRESQL_USERNAME=chainke
+      - POSTGRESQL_PASSWORD=${POSTGRES_PASSWORD:-chainke_secret}
+      - POSTGRESQL_DATABASE=chainke
+      - PGBOUNCER_POOL_MODE=transaction
+      - PGBOUNCER_MAX_CLIENT_CONN=200
+      - PGBOUNCER_DEFAULT_POOL_SIZE=50
+      - PGBOUNCER_RESERVE_POOL_SIZE=10
+      - PGBOUNCER_RESERVE_POOL_TIMEOUT=5
+    networks:
+      - patroni-net
+    restart: unless-stopped
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  etcd1-data:
+    driver: local
+  etcd2-data:
+    driver: local
+  etcd3-data:
+    driver: local
+  patroni1-data:
+    driver: local
+  patroni2-data:
+    driver: local
+  patroni3-data:
+    driver: local
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  patroni-net:
+    driver: bridge

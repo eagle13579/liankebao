@@ -31,6 +31,7 @@ def main():
     # 检查驱动
     try:
         import psycopg2
+
         pg_version = psycopg2.__version__
         print(f"  [+] psycopg2 驱动: v{pg_version}")
     except ImportError:
@@ -45,7 +46,7 @@ def main():
     pg_password = os.environ.get("PG_PASSWORD", "")
     pg_db = os.environ.get("PG_DATABASE", "")
 
-    print(f"\n  配置信息:")
+    print("\n  配置信息:")
     if pg_url:
         masked_url = pg_url
         if "@" in masked_url:
@@ -61,7 +62,7 @@ def main():
         print(f"    PG_PASSWORD: {'****' if pg_password else '(空)'}")
 
     # 尝试连接
-    print(f"\n  正在连接...")
+    print("\n  正在连接...")
     try:
         if pg_url:
             conn = psycopg2.connect(pg_url)
@@ -80,7 +81,7 @@ def main():
         cur.close()
         conn.close()
 
-        print(f"  [✓] 连接成功!")
+        print("  [✓] 连接成功!")
         print(f"  [i] PostgreSQL 版本: {version}")
         return True
 

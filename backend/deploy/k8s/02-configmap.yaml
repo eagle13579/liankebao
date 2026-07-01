@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chainke-config
+  namespace: chainke-prod
+  labels:
+    app: chainke-backend
+    app.kubernetes.io/name: chainke
+    app.kubernetes.io/part-of: chainke-backend
+data:
+  # ── 应用配置 ──
+  APP_NAME: "AI数智名片"
+  APP_ENV: "production"
+  LOG_LEVEL: "INFO"
+  LOG_JSON: "1"
+  PORT: "8201"
+  AGENT_PORT: "8202"
+
+  # ── CORS ──
+  CORS_ORIGINS: "https://liankebao.top,https://api.liankebao.top"
+
+  # ── 数据库 ──
+  DATABASE_POOL_SIZE: "10"
+  DATABASE_MAX_OVERFLOW: "20"
+  DATABASE_POOL_RECYCLE: "1800"
+  DATABASE_ECHO: "false"
+
+  # ── Redis ──
+  REDIS_HOST: "chainke-redis"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+  REDIS_MAX_CONNECTIONS: "20"
+
+  # ── AI ──
+  DEEPSEEK_API_URL: "https://api.deepseek.com/v1/chat/completions"
+  ALGORITHM: "HS256"
+  ACCESS_TOKEN_EXPIRE_MINUTES: "10080"  # 7 days
+
+  # ── Sentry ──
+  SENTRY_ENVIRONMENT: "production"
+  SENTRY_TRACES_SAMPLE_RATE: "0.1"
+
+  # ── 文件上传 ──
+  VIDEO_MAX_SIZE: "104857600"
+  UPLOAD_DIR: "/app/uploads"
+  VIDEO_UPLOAD_DIR: "/app/uploads/videos"

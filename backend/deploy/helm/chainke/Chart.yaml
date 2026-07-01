@@ -1,0 +1,27 @@
+apiVersion: v2
+name: chainke-backend
+description: 链客宝 Backend — AI数字名片 FastAPI 服务 Helm Chart
+type: application
+
+# Chart 版本 (更新后会自动升级)
+version: 1.0.0
+
+# 应用版本
+appVersion: "1.0.0"
+
+keywords:
+  - chainke
+  - ai-digital-card
+  - fastapi
+  - python
+
+home: https://liankebao.top
+sources:
+  - https://github.com/chainke/chainke-backend
+
+maintainers:
+  - name: 链客宝技术团队
+    email: dev@liankebao.top
+    url: https://liankebao.top
+
+dependencies: []
